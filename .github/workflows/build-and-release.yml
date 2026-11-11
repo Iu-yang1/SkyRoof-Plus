@@ -301,9 +301,11 @@ jobs:
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body: |
-            SkyRoof-Plus v.${{ steps.get_version.outputs.version }} — Native Icom LAN Scope and IC-705/IC-905 compatibility release (2026-11-11).
+            SkyRoof-Plus v.${{ steps.get_version.outputs.version }} — Direct LAN READ FROM CI-V update (2026-11-11); includes prior native Icom Scope / IC-705 / IC-905 work.
 
             ### 中文更新
+            - **Direct LAN 一键读取（SkyRoof-Plus PR #179、SkyCAT PR #37）**：设置页新增 `READ FROM CI-V`，通过现有 SkyCAT CAT/CI-V 连接只读查询 IC-9700 网络 IP、Network Control 状态及 Control / Serial / Audio UDP 端口。有效的 IP、Control 和 Serial 端口自动回填；Audio 和 Network Control 状态仅显示供核对；缺失或无效字段不覆盖原配置，点击 Apply/OK 才保存；不查询、更改用户名和密码。
+            - **独立验收**：IC-9700 CI-V 网络查询的严格报文关联和 BCD 解码已覆盖自动测试；Windows x64 编译、xUnit 和设置页四行布局测试已通过。实机网络读取尚未验证，不代表已经测试过 IC-9700 实机。
             - **无需 RS-BA1 的高速原生频谱（PR #177）**：直接登录 IC-9700 Ethernet / IC-705 WLAN / IC-905 Ethernet，接收电台 CI-V 27 00 原生 475 点 Scope。UDP 接收与解码解耦、1 MiB 内核接收缓冲、256 包有界收包队列、最多 12 行/接收机的 UI 完整瀑布缓存。
             - **Direct LAN FAST**：可选在连接成功后发送一次 27 1A FAST（默认开启，仅影响 DirectLan），有新的 UDP 序号/丢包与收包速率诊断；当波形实际中断时才请求重启 Scope 输出，不再无条件每 5 秒重发。
             - **IC-705 / IC-905 兼容基础（PR #167–#172）**：核对并固定 SkyCAT master 依赖；设备能力档案、5/6 字节 CI-V BCD Hz、IC-905 10 GHz Scope 字段、单接收机识别、认证式网络 Scope 会话及独立 USB IF 路径。
@@ -316,6 +318,8 @@ jobs:
             - **签名说明**：SignPath 可用时签署安装包；否则明确以未签名 prerelease 发布，绝不冒称已签名。
 
             ### English
+            - **One-click Direct LAN readback (SkyRoof-Plus #179 / SkyCAT #37):** `READ FROM CI-V` uses the existing SkyCAT CAT connection to query IC-9700 network IP, Network Control state, and Control / Serial / Audio UDP ports. Valid IP and Control/Serial ports fill the pending settings; audio port and enabled status are informational. Missing values do not overwrite existing fields; Apply/OK saves. Username and password are never queried or changed.
+            - **Validation:** Strict CI-V response association, BCD decoding, Windows x64 build, xUnit regression and four-row settings layout tests; real IC-9700 hardware readback remains unverified.
             - **Independent high-rate Scope without RS-BA1 (#177):** Authenticated native Icom Ethernet/WLAN CI-V 27 00 sweep stream, large receive buffers, bounded decoding and UI waterfall backlog, explicit once-only FAST sweep control and rate/loss instrumentation.
             - **IC-705/IC-905 profiles (#167–#172):** SkyCAT synchronization, 5/6-byte BCD frequency support, IC-905 10 GHz scope metadata, correct single-receiver capabilities, authenticated Direct LAN scope sessions, preserved USB IF input.
             - **Network LPCM → IF-AF (#174–#175):** RX PCM16 session decoding, sequence reordering/gap recovery, 48-kHz resampling, IF demodulation and virtual AF output; select IF output at the radio.
