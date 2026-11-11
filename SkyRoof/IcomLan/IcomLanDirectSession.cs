@@ -75,6 +75,7 @@ namespace SkyRoof
     private string RadioAudioName = string.Empty;
     private byte RadioCivAddress;
     private string RadioName = string.Empty;
+    private readonly IcomRadioProfile ExpectedScopeProfile;
     private int RemoteCivPort = DefaultCivPort;
     private int RemoteAudioPort = DefaultAudioPort;
 
@@ -110,7 +111,8 @@ namespace SkyRoof
       int controlPort,
       string username,
       string password,
-      string clientName)
+      string clientName,
+      IcomRadioProfile? expectedScopeProfile = null)
     {
       if (!IPAddress.TryParse(radioAddress, out IPAddress? address) ||
           address.AddressFamily != AddressFamily.InterNetwork)
@@ -129,6 +131,7 @@ namespace SkyRoof
           nameof(password));
 
       RadioAddress = address;
+      ExpectedScopeProfile = expectedScopeProfile ?? IcomRadioProfiles.Ic9700;
       ControlPort = Math.Clamp(controlPort, 1, 65535);
       Username = username.Trim();
       Password = password;
@@ -270,15 +273,15 @@ namespace SkyRoof
         throw new TimeoutException(
           "IC-9700 did not return a correlated authentication-token response.");
 
-      // P0 identification is deliberately read-only for IC-705 and IC-905.
-      // The legacy network stream configures an IC-9700-specific scope;
-      // never send those writes to a different or unidentified radio.
-      if (!IcomRadioProfiles.SupportsExistingDirectLanScope(RadioName))
+      // The authenticated radio capabilities reply identifies the hardware.
+      // Match the configured decoder before opening any waveform control
+      // stream: IC-905 10 GHz metadata differs from IC-9700/IC-705.
+      if (!IcomRadioProfiles.SupportsAuthenticatedScope(
+            RadioName, ExpectedScopeProfile))
         throw new NotSupportedException(
-          $"Direct LAN spectrum setup currently supports IC-9700 only; " +
-          $"radio capabilities identify '{RadioName}' " +
-          $"(CI-V 0x{RadioCivAddress:X2}). " +
-          "IC-705/IC-905 network scope support requires the P1/P2 adapter.");
+          $"Direct Icom LAN scope model mismatch: radio reports '{RadioName}' " +
+          $"(CI-V 0x{RadioCivAddress:X2}), configured Scope model is " +
+          $"'{ExpectedScopeProfile.Model}'. Select the matching model.");
 
       byte[] streamAuthId = AuthId.ToArray();
       ushort streamSequence = await SendStreamRequestAsync(
@@ -1080,19 +1083,7 @@ namespace SkyRoof
       // Direct LAN periodically reasserts only the minimum commands needed
       // to keep scope waveform output alive. Do not force MAIN/SUB sweep speed
       // (or any other operator scope preference) from the transport layer.
-      byte[][] commands =
-      {
-        new byte[]
-        {
-          0xFE, 0xFE, RadioCivAddress, 0xE0,
-          0x27, 0x10, 0x01, 0xFD
-        },
-        new byte[]
-        {
-          0xFE, 0xFE, RadioCivAddress, 0xE0,
-          0x27, 0x11, 0x01, 0xFD
-        }
-      };
+      byte[][] commands = BuildScopeEnableCommands(RadioCivAddress);
 
       foreach (byte[] command in commands)
       {
@@ -1106,6 +1097,14 @@ namespace SkyRoof
 
       LastScopeCommandUtc = DateTime.UtcNow;
     }
+
+    // Preserves the authenticated device's actual CI-V address, including
+    // operator-customized addresses. It does not assume IC-9700 0xA2.
+    internal static byte[][] BuildScopeEnableCommands(byte civAddress) =>
+    [
+      [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x10, 0x01, 0xFD],
+      [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x11, 0x01, 0xFD]
+    ];
 
     private async Task SendCivDataAsync(
       UdpClient civ,
