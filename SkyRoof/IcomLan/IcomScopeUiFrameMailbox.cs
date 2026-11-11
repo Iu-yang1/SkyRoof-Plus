@@ -1,19 +1,25 @@
 namespace SkyRoof
 {
-  /// <summary>
-  /// One pending WinForms callback, but keep complete 475-bin sweep frames
-  /// separately from partial serial waveform updates for each receiver.
-  /// If a new partial update overwrites the just-completed sweep, the
-  /// spectrum trace still works while the waterfall silently misses rows.
-  /// </summary>
   internal sealed class IcomScopeUiFrameMailbox
   {
     private readonly object gate = new();
-    private readonly IcomScopeFrame?[] completed = new IcomScopeFrame?[2];
+    private readonly Queue<IcomScopeFrame>[] completed =
+      [new Queue<IcomScopeFrame>(), new Queue<IcomScopeFrame>()];
     private readonly IcomScopeFrame?[] partial = new IcomScopeFrame?[2];
+    private readonly int maximumCompletedSweepsPerReceiver;
     private bool callbackScheduled;
     private long replacedFrames;
     private long replacedCompleteSweeps;
+
+    internal IcomScopeUiFrameMailbox(int maximumCompletedSweepsPerReceiver = 1)
+    {
+      if (maximumCompletedSweepsPerReceiver < 1 ||
+          maximumCompletedSweepsPerReceiver > 64)
+        throw new ArgumentOutOfRangeException(
+          nameof(maximumCompletedSweepsPerReceiver));
+      this.maximumCompletedSweepsPerReceiver =
+        maximumCompletedSweepsPerReceiver;
+    }
 
     internal long ReplacedFrames
     {
@@ -31,31 +37,37 @@ namespace SkyRoof
       lock (gate)
       {
         int receiver = frame.Scope == 1 ? 1 : 0;
-        IcomScopeFrame?[] target = frame.SweepComplete
-          ? completed : partial;
-
-        // Reject an out-of-order frame rather than rolling back its
-        // receiver's newest plot or time axis.
-        IcomScopeFrame? newest = partial[receiver];
-        if (completed[receiver] is IcomScopeFrame complete &&
-            (newest == null || newest.TimestampUtc < complete.TimestampUtc))
-          newest = complete;
-        if (newest != null && frame.TimestampUtc <= newest.TimestampUtc)
+        IcomScopeFrame? latest = partial[receiver];
+        if (completed[receiver].Count > 0)
+        {
+          IcomScopeFrame last = completed[receiver].Last();
+          if (latest == null || latest.TimestampUtc < last.TimestampUtc)
+            latest = last;
+        }
+        if (latest != null && frame.TimestampUtc <= latest.TimestampUtc)
           return false;
 
-        if (target[receiver] != null)
+        if (frame.SweepComplete)
         {
-          replacedFrames++;
-          if (frame.SweepComplete)
+          Queue<IcomScopeFrame> queue = completed[receiver];
+          if (queue.Count >= maximumCompletedSweepsPerReceiver)
+          {
+            queue.Dequeue();
+            replacedFrames++;
             replacedCompleteSweeps++;
+          }
+          queue.Enqueue(frame);
+          if (partial[receiver] != null)
+          {
+            partial[receiver] = null;
+            replacedFrames++;
+          }
         }
-
-        target[receiver] = frame;
-        if (frame.SweepComplete && partial[receiver] != null)
+        else
         {
-          // An older partial is superseded by the completed sweep.
-          partial[receiver] = null;
-          replacedFrames++;
+          if (partial[receiver] != null)
+            replacedFrames++;
+          partial[receiver] = frame;
         }
 
         if (callbackScheduled)
@@ -69,14 +81,15 @@ namespace SkyRoof
     {
       lock (gate)
       {
-        // At most four items: one completed sweep and one newer partial
-        // for MAIN and SUB. Sort for the existing timestamp gate.
-        var result = completed.Concat(partial)
-          .Where(x => x != null)
-          .Select(x => x!)
-          .OrderBy(x => x.TimestampUtc.Ticks)
+        IcomScopeFrame[] result = completed
+          .SelectMany(queue => queue)
+          .Concat(partial)
+          .Where(frame => frame != null)
+          .Select(frame => frame!)
+          .OrderBy(frame => frame.TimestampUtc.Ticks)
           .ToArray();
-        Array.Clear(completed);
+        foreach (Queue<IcomScopeFrame> queue in completed)
+          queue.Clear();
         Array.Clear(partial);
         callbackScheduled = false;
         return result;
@@ -87,7 +100,8 @@ namespace SkyRoof
     {
       lock (gate)
       {
-        Array.Clear(completed);
+        foreach (Queue<IcomScopeFrame> queue in completed)
+          queue.Clear();
         Array.Clear(partial);
         callbackScheduled = false;
         replacedFrames = 0;
