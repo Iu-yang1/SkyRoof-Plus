@@ -496,14 +496,16 @@ namespace SkyRoof
       IcomScopeControlCommands.Clear();
     }
 
-    internal bool RequestIcomScopeReadback()
+    internal bool RequestIcomScopeReadback(bool restart = false)
     {
       if (!SupportsIcomScopeOutput)
         return false;
 
       lock (IcomScopeReadbackSync)
       {
-        if (!IcomScopeReadbackPending)
+        // Explicit SYNC must restart an incomplete 16-register survey.
+        // Previous in-flight replies are discarded by the generation ID.
+        if (restart || !IcomScopeReadbackPending)
         {
           IcomScopeReadbackIndex = 0;
           IcomScopeReadbackValues.Clear();
@@ -1349,7 +1351,7 @@ namespace SkyRoof
         IcomScopeReadbackPending = false;
         IcomScopeReadbackIndex = 0;
         successful = IcomScopeReadbackValues.Count;
-        if (IcomScopeReadbackValues.ContainsKey("SELECT"))
+        if (successful > 0)
           partial = string.Join(";",
             IcomScopeReadbackValues.Select(kv => $"{kv.Key}={kv.Value}"));
         IcomScopeReadbackValues.Clear();
@@ -1357,7 +1359,10 @@ namespace SkyRoof
 
       if (partial == null)
       {
-        Log.Warning("IC-9700 scope receiver selection unavailable; cannot apply partial state.");
+        Log.Warning(
+          "IC-9700 scope synchronization received zero of {Total} fields. " +
+          "The 27 xx query path is unresponsive although the waveform stream may remain live.",
+          IcomScopeReadbackFields.Length);
         return;
       }
       try
