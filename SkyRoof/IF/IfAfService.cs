@@ -38,6 +38,7 @@ namespace SkyRoof.IF
     private Channel<Frame>? queue;
     private CancellationTokenSource? cancel;
     private Task? worker;
+    private Task? networkFlushTask;
     private readonly object networkSync = new();
     private readonly IcomNetworkIfPcmPipeline networkPcm = new();
     private IfAfInputSource activeInputSource = IfAfInputSource.UsbAudio;
@@ -231,6 +232,8 @@ namespace SkyRoof.IF
         if (!vac.IsRunning) throw new InvalidOperationException("Virtual audio playback unavailable.");
         worker = Task.Run(() => RunAsync(next.Reader, source.Token, version,
           settings!));
+        if (config.InputSource == IfAfInputSource.AuthenticatedLanIf)
+          networkFlushTask = Task.Run(() => FlushNetworkIfAsync(source.Token));
         if (capture != null)
         {
           capture.Enabled = true;
@@ -288,6 +291,26 @@ namespace SkyRoof.IF
       }
     }
 
+    private async Task FlushNetworkIfAsync(CancellationToken stop)
+    {
+      using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(25));
+      try
+      {
+        while (await timer.WaitForNextTickAsync(stop))
+        {
+          lock (networkSync)
+          {
+            foreach (IcomNetworkIfBlock block in
+                     networkPcm.Flush(DateTime.UtcNow))
+              AcceptNetworkIfBlock(block);
+          }
+        }
+      }
+      catch (OperationCanceledException) when (stop.IsCancellationRequested)
+      {
+      }
+    }
+
     internal void NetworkIfDisconnected()
     {
       if (activeInputSource != IfAfInputSource.AuthenticatedLanIf)
@@ -323,7 +346,7 @@ namespace SkyRoof.IF
       {
         Interlocked.Increment(ref dropped);
         detail = "Network IF PCM queue overrun; resetting DSP on next gap";
-        lock (networkSync) networkPcm.Reset();
+        networkPcm.Reset();
       }
       else
       {
@@ -434,6 +457,7 @@ namespace SkyRoof.IF
       queue = null;
       cancel?.Cancel();
       cancel = null;
+      networkFlushTask = null;
       if (capture != null)
       {
         capture.SamplesAvailable -= CaptureSamples;
