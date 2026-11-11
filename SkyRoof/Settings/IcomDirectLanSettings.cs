@@ -5,23 +5,25 @@ using VE3NEA;
 namespace SkyRoof
 {
   // Wire codes are the Icom RS-BA1 conninfo audio codec identifiers.
+  [TypeConverter(typeof(EnumDescriptionConverter))]
   public enum IcomLanAudioCodec : byte
   {
-    ULaw8Mono = 0x01,
-    Pcm8Mono = 0x02,
-    Lpcm16Mono = 0x04
+    [Description("u-Law 1ch 8bit")] ULaw8Mono = 0x01,
+    [Description("PCM 1ch 8bit")] Pcm8Mono = 0x02,
+    [Description("LPCM 1ch 16bit")] Lpcm16Mono = 0x04
   }
 
+  [TypeConverter(typeof(EnumDescriptionConverter))]
   public enum IcomLanAudioSampleRate
   {
-    Hz8000 = 8000,
-    Hz11025 = 11025,
-    Hz12000 = 12000,
-    Hz16000 = 16000,
-    Hz22050 = 22050,
-    Hz32000 = 32000,
-    Hz44100 = 44100,
-    Hz48000 = 48000
+    [Description("8 kHz")] Hz8000 = 8000,
+    [Description("11.025 kHz")] Hz11025 = 11025,
+    [Description("12 kHz")] Hz12000 = 12000,
+    [Description("16 kHz")] Hz16000 = 16000,
+    [Description("22.05 kHz")] Hz22050 = 22050,
+    [Description("32 kHz")] Hz32000 = 32000,
+    [Description("44.1 kHz")] Hz44100 = 44100,
+    [Description("48 kHz")] Hz48000 = 48000
   }
 
   [JsonObject]
