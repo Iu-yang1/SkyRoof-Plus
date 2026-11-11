@@ -112,6 +112,23 @@ namespace SkyRoof
       }
     }
 
+    // Direct LAN controls are serialized on the authenticated CI-V session.
+    // Never expose the writer until login and media-stream negotiation finish.
+    internal bool HasDirectScopeControl
+    {
+      get
+      {
+        lock (DirectSessionSync)
+          return DirectSession?.ScopeControlReady == true;
+      }
+    }
+
+    internal bool RequestDirectScopeControl(IcomScopeControlRequest request)
+    {
+      lock (DirectSessionSync)
+        return DirectSession?.TryQueueScopeControl(request) == true;
+    }
+
     internal long NativeCivSequenceGaps =>
       DirectSession?.NativeCivSequenceGaps ?? 0;
     internal long NativeCivDuplicates =>

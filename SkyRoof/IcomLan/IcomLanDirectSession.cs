@@ -76,6 +76,35 @@ namespace SkyRoof
         SingleWriter = true,
         FullMode = BoundedChannelFullMode.DropOldest
       });
+    // The transport loop owns the CI-V socket. UI events only enqueue validated
+    // writes; a bounded single-reader queue preserves command order and never
+    // blocks waveform/audio receive or a high-priority SkyCAT PTT transaction.
+    private readonly Channel<byte[]> ScopeControlWrites =
+      Channel.CreateBounded<byte[]>(new BoundedChannelOptions(48)
+      {
+        SingleReader = true,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.Wait
+      });
+    private long ScopeControlWritesSent;
+
+    internal bool ScopeControlReady => IsStreaming && !Disposed;
+
+    internal bool TryQueueScopeControl(IcomScopeControlRequest request)
+    {
+      if (!ScopeControlReady) return false;
+      try
+      {
+        byte[] frame = IcomDirectScopeControlCodec.Encode(RadioCivAddress, request);
+        return ScopeControlWrites.Writer.TryWrite(frame);
+      }
+      catch (ArgumentException ex)
+      {
+        Log.Warning(ex, "Invalid Direct LAN scope control {Kind}", request.Kind);
+        return false;
+      }
+    }
+
     private readonly SemaphoreSlim AudioSendLock = new(1, 1);
     private readonly object AudioHistoryLock = new();
     private readonly Dictionary<ushort, byte[]> AudioTxHistory = new();
@@ -148,6 +177,7 @@ namespace SkyRoof
     internal bool PreferFastScopeSweep { get; init; }
     private readonly IcomNativeCivSequenceTracker CivRxSequences = new();
     private long LastNativeScopeTicks;
+    private DateTime NativeStreamStartedUtc;
     private int RemoteCivPort = DefaultCivPort;
     private int RemoteAudioPort = DefaultAudioPort;
 
@@ -494,6 +524,7 @@ namespace SkyRoof
       await Task.Delay(80, token);
 
       IsStreaming = true;
+      NativeStreamStartedUtc = DateTime.UtcNow;
       Publish(
         $"Direct Icom LAN native CI-V connected: " +
         $"{RadioAddress}:{RemoteCivPort} -> local UDP/{LocalCivPort}.");
@@ -546,6 +577,9 @@ namespace SkyRoof
         await RunStreamingLoopsAsync(
           control,
           civ,
+          audioDrain,
+          audioKeepAlive,
+          audioTransmit,
           token);
       }
       finally
@@ -598,11 +632,30 @@ namespace SkyRoof
       }
     }
 
+    // The audio UDP socket has independent workers. If its RX or keepalive
+    // worker exits unexpectedly while native CI-V remains healthy, leaving
+    // the LAN session alive produces permanently silent receive audio.
+    // Promote that failure into the existing authenticated media recovery.
+    internal static Task<Task>? MonitorAudioWorkers(
+      bool connected, bool transmitReady,
+      Task audioDrain, Task audioKeepAlive, Task audioTransmit)
+    {
+      if (!connected) return null;
+      return transmitReady
+        ? Task.WhenAny(audioDrain, audioKeepAlive, audioTransmit)
+        : Task.WhenAny(audioDrain, audioKeepAlive);
+    }
+
     private async Task RunStreamingLoopsAsync(
       UdpClient control,
       UdpClient civ,
+      Task audioDrain,
+      Task audioKeepAlive,
+      Task audioTransmit,
       CancellationToken token)
     {
+      Task<Task>? audioWorkerExit = MonitorAudioWorkers(
+        AudioLinkConnected, AudioTxReady, audioDrain, audioKeepAlive, audioTransmit);
       Task<UdpReceiveResult> controlReceive = control.ReceiveAsync(token).AsTask();
       Task<UdpReceiveResult> civReceive = civ.ReceiveAsync(token).AsTask();
       using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
@@ -610,11 +663,17 @@ namespace SkyRoof
 
       while (!token.IsCancellationRequested)
       {
-        Task completed = await Task.WhenAny(
-          controlReceive,
-          civReceive,
-          tick);
+        Task completed = audioWorkerExit == null
+          ? await Task.WhenAny(controlReceive, civReceive, tick)
+          : await Task.WhenAny(controlReceive, civReceive, tick, audioWorkerExit);
 
+        if (audioWorkerExit != null && completed == audioWorkerExit)
+        {
+          Task terminated = await audioWorkerExit;
+          await terminated; // Preserve the worker's original failure details.
+          throw new IOException(
+            "Direct LAN audio UDP worker stopped unexpectedly; recovering authenticated media session.");
+        }
         if (completed == controlReceive)
         {
           UdpReceiveResult result = await controlReceive;
@@ -659,6 +718,42 @@ namespace SkyRoof
     {
       DateTime now = DateTime.UtcNow;
 
+      await MaintainControlSessionAsync(control, civ, now, token);
+
+      // At most one operator scope write per 50-ms tick; keep the native
+      // session responsive to auth, pings, audio and incoming 475-bin sweeps.
+      if (ScopeControlWrites.Reader.TryRead(out byte[]? scopeWrite))
+      {
+        await SendCivDataAsync(civ, scopeWrite, token);
+        Interlocked.Increment(ref ScopeControlWritesSent);
+      }
+
+      await PollMetersAsync(civ, now, token);
+      ReportAudioDiagnostics(now);
+
+      DateTime lastSweepUtc = new DateTime(
+        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
+        DateTimeKind.Utc);
+      if (IcomScopeRecoveryPolicy.ShouldReassert(
+            now, LastScopeCommandUtc, lastSweepUtc))
+        await SendScopeConfigurationAsync(civ, token);
+
+      // A missed waveform is first repaired in-place by 27 10 / 27 11.
+      // If the native stream has had no complete sweep for 25 seconds,
+      // the session's media ownership is likely stale even if UDP idle
+      // and authentication pings still arrive: restart the login/CI-V/audio
+      // transaction rather than leaving a permanently frozen waterfall.
+      if (ShouldRestartStalledScope(now, NativeStreamStartedUtc, lastSweepUtc))
+        throw new TimeoutException(
+          "Direct LAN 475-bin scope stalled for 25 seconds despite CI-V reassert; renewing media session.");
+    }
+
+    private async Task MaintainControlSessionAsync(
+      UdpClient control,
+      UdpClient civ,
+      DateTime now,
+      CancellationToken token)
+    {
       if ((now - LastControlIdleUtc).TotalMilliseconds >= 1000)
       {
         await SendIdleAsync(
@@ -724,15 +819,14 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
-      await PollMetersAsync(civ, now, token);
-      ReportAudioDiagnostics(now);
+    }
 
-      DateTime lastSweepUtc = new DateTime(
-        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
-        DateTimeKind.Utc);
-      if (IcomScopeRecoveryPolicy.ShouldReassert(
-            now, LastScopeCommandUtc, lastSweepUtc))
-        await SendScopeConfigurationAsync(civ, token);
+    internal static bool ShouldRestartStalledScope(
+      DateTime now, DateTime started, DateTime lastSweep)
+    {
+      DateTime healthyUntil = lastSweep > started ? lastSweep : started;
+      return started != default &&
+        now - healthyUntil >= TimeSpan.FromSeconds(25);
     }
 
     private void ReportAudioDiagnostics(DateTime now)
@@ -752,6 +846,9 @@ namespace SkyRoof
           Interlocked.Read(ref MeterReadRequests),
           Interlocked.Read(ref MeterReadbacks),
           PendingMeter?.ToString() ?? "none", CivPayloadCount);
+        Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
+          Interlocked.Read(ref ScopeControlWritesSent),
+          ScopeControlWrites.Reader.Count);
       }
 
     }
@@ -766,14 +863,17 @@ namespace SkyRoof
           (!PendingMeter.HasValue ||
             (now - PendingMeterUtc).TotalMilliseconds >= 800))
       {
-        IcomMeterKind[] meters = EnabledMeters(AudioOptions.Meters);
-        if (meters.Length != 0)
+        // RX polls S only. During PTT sample PO/ALC more often than SWR,
+        // matching the CAT policy without continuously querying TX-only meters.
+        IcomMeterKind? next = IcomMeterPollingPolicy.Choose(
+          AudioOptions.Meters, IsPttActive?.Invoke() == true,
+          NextMeterIndex++);
+        if (next.HasValue)
         {
-          IcomMeterKind next = meters[NextMeterIndex++ % meters.Length];
           await SendCivDataAsync(civ,
-            IcomMeterCivCodec.BuildRead(RadioCivAddress, next), token);
+            IcomMeterCivCodec.BuildRead(RadioCivAddress, next.Value), token);
           Interlocked.Increment(ref MeterReadRequests);
-          PendingMeter = next;
+          PendingMeter = next.Value;
           PendingMeterUtc = now;
           LastMeterPollUtc = now;
         }
