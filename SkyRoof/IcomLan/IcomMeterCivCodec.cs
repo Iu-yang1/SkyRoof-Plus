@@ -51,7 +51,8 @@ namespace SkyRoof
       reading = default;
       if (frame.Length != 9 ||
           frame[0] != 0xFE || frame[1] != 0xFE ||
-          frame[2] != 0xE0 || frame[3] != radioAddress ||
+          (frame[2] != 0xE0 && frame[2] != 0x00) ||
+          frame[3] != radioAddress ||
           frame[4] != 0x15 || frame[8] != 0xFD ||
           !Enum.IsDefined(typeof(IcomMeterKind), frame[5]) ||
           !ValidBcd(frame[6]) || !ValidBcd(frame[7]))
