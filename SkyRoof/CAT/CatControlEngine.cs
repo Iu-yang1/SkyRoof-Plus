@@ -187,12 +187,16 @@ namespace SkyRoof
     // the same SkyCAT serialized CI-V owner instead of a competing LAN session.
     private int PendingIcomMeter = -1;
     private bool MeterCommandUnsupported;
+    private long MeterQueryCooldownTicks;
+    private int MeterQueryFailures;
+    internal bool MeterReadbackAvailable =>
+      SupportsIcomRfGain && !MeterCommandUnsupported &&
+      DateTime.UtcNow.Ticks >= Interlocked.Read(ref MeterQueryCooldownTicks);
     internal event Action<IcomMeterReading>? IcomMeterReadbackReceived;
 
     internal bool RequestIcomMeterReadback(IcomMeterKind kind)
     {
-      if (!SupportsIcomRfGain || MeterCommandUnsupported ||
-          !Enum.IsDefined(kind))
+      if (!MeterReadbackAvailable || !Enum.IsDefined(kind))
         return false;
       Interlocked.Exchange(ref PendingIcomMeter, (int)kind);
       return true;
@@ -227,8 +231,20 @@ namespace SkyRoof
             System.Globalization.CultureInfo.InvariantCulture,
             out int raw) ||
           raw is < 0 or > 255)
+      {
+        if (++MeterQueryFailures >= 2)
+        {
+          Interlocked.Exchange(ref MeterQueryCooldownTicks,
+            DateTime.UtcNow.AddSeconds(15).Ticks);
+          MeterQueryFailures = 0;
+          Log.Warning(
+            "SkyCAT IC-9700 meter reads unavailable ({Reply}); pausing CAT queries for 15s so Doppler/PTT remain responsive. Direct LAN polling may continue.",
+            reply ?? "<no response>");
+        }
         return;
+      }
 
+      MeterQueryFailures = 0;
       var reading = new IcomMeterReading(kind, raw);
       syncContext.Post(_ => IcomMeterReadbackReceived?.Invoke(reading), null);
     }
