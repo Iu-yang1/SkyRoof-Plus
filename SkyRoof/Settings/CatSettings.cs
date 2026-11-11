@@ -59,6 +59,11 @@ namespace SkyRoof
     [Description("CAT frequency quantization at 1 GHz and above. Default 1 Hz preserves 1296/2400/5760/10368 MHz Doppler accuracy. Below 1 GHz the legacy Tuning Step remains unchanged.")]
     public int MicrowaveTuningStep { get; set; } = 1;
 
+    [DefaultValue(100)]
+    [DisplayName("Microwave CAT Cycle (ms)")]
+    [Description("Maximum delay between control cycles at 1 GHz and higher. Default 100ms speeds LEO Doppler tracking; the normal Delay remains unchanged below 1 GHz. The actual radio transaction latency may be longer.")]
+    public int MicrowaveCycleDelayMs { get; set; } = 100;
+
     [DefaultValue(Keys.None)]
     [DisplayName("Physical PTT Key")]
     [Description("Global keyboard/HID key used as momentary PTT: key down transmits and key up returns to receive. Use a dedicated key such as F13-F24 for a USB foot switch when available.")]
