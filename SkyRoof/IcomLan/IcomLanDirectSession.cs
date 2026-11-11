@@ -95,6 +95,7 @@ namespace SkyRoof
     private ushort ControlPingSeq = 2;
     private ushort CivPingSeq = 1;
     private ushort AudioPingSeq = 1;
+    private ushort AudioPingInnerSeq = 0x8304;
     private ushort PingInnerSeq = 0x8304;
 
     private bool Disposed;
@@ -1506,21 +1507,33 @@ namespace SkyRoof
 
           if (IcomLanLpcmAudioCodec.TryDecode(
                 packet, AudioRemoteSid, AudioLocalSid, out var pcm))
-            AudioFrameReceived?.Invoke(sampleRate, pcm);
+          {
+            try
+            {
+              AudioFrameReceived?.Invoke(sampleRate, pcm);
+            }
+            catch (Exception ex)
+            {
+              Log.Warning(ex, "Icom LAN audio consumer rejected a PCM frame");
+            }
+          }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
           break;
         }
-        catch (SocketException) when (token.IsCancellationRequested)
+        catch (SocketException ex)
         {
+          if (!token.IsCancellationRequested)
+            Log.Warning(ex, "Icom LAN audio socket stopped");
           break;
         }
         catch (Exception ex)
         {
-          // A codec consumer error must not tear down the independent
-          // CAT/Scope session. The PCM stream can recover on the next packet.
-          Log.Warning(ex, "Icom LAN audio receive/consumer error");
+          // An invalid/closed audio endpoint should never form a hot loop
+          // or bring down the independently authenticated CAT/Scope session.
+          Log.Warning(ex, "Icom LAN audio receive failed");
+          break;
         }
       }
     }
@@ -1536,10 +1549,10 @@ namespace SkyRoof
       WriteSid(ping, 8, AudioLocalSid);
       WriteSid(ping, 12, AudioRemoteSid);
       ping[17] = RandomNumberGenerator.GetBytes(1)[0];
-      ping[18] = (byte)PingInnerSeq;
-      ping[19] = (byte)(PingInnerSeq >> 8);
+      ping[18] = (byte)AudioPingInnerSeq;
+      ping[19] = (byte)(AudioPingInnerSeq >> 8);
       ping[20] = 0x06;
-      PingInnerSeq++;
+      AudioPingInnerSeq++;
       await SendRawAsync(audio, ping, false, false, token);
     }
 
