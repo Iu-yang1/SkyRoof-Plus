@@ -94,6 +94,7 @@ namespace SkyRoof
 
     private ushort ControlPingSeq = 2;
     private ushort CivPingSeq = 1;
+    private ushort AudioPingSeq = 1;
     private ushort PingInnerSeq = 0x8304;
 
     private bool Disposed;
@@ -1470,13 +1471,42 @@ namespace SkyRoof
       {
         try
         {
-          UdpReceiveResult received = await audio.ReceiveAsync(token);
-          if (!IcomLanLpcmAudioCodec.TryDecode(
-                received.Buffer, AudioRemoteSid, AudioLocalSid,
-                out var pcm))
+          // Audio has its own independent keepalive cycle. A muted or
+          // squelched receiver must not silently expire the UDP session.
+          using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+          timeout.CancelAfter(TimeSpan.FromSeconds(5));
+          UdpReceiveResult received;
+          try
+          {
+            received = await audio.ReceiveAsync(timeout.Token);
+          }
+          catch (OperationCanceledException) when (!token.IsCancellationRequested)
+          {
+            await SendAudioPingAsync(audio, token);
             continue;
+          }
 
-          AudioFrameReceived?.Invoke(sampleRate, pcm);
+          byte[] packet = received.Buffer;
+          if (packet.Length == 21 &&
+              BinaryPrimitives.ReadUInt16LittleEndian(
+                packet.AsSpan(4, 2)) == 0x0007 &&
+              BinaryPrimitives.ReadUInt32BigEndian(
+                packet.AsSpan(8, 4)) == AudioRemoteSid &&
+              BinaryPrimitives.ReadUInt32BigEndian(
+                packet.AsSpan(12, 4)) == AudioLocalSid &&
+              packet[16] == 0x00)
+          {
+            byte[] reply = packet.ToArray();
+            reply[16] = 0x01;
+            WriteSid(reply, 8, AudioLocalSid);
+            WriteSid(reply, 12, AudioRemoteSid);
+            await SendRawAsync(audio, reply, false, false, token);
+            continue;
+          }
+
+          if (IcomLanLpcmAudioCodec.TryDecode(
+                packet, AudioRemoteSid, AudioLocalSid, out var pcm))
+            AudioFrameReceived?.Invoke(sampleRate, pcm);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -1493,6 +1523,24 @@ namespace SkyRoof
           Log.Warning(ex, "Icom LAN audio receive/consumer error");
         }
       }
+    }
+
+    private async Task SendAudioPingAsync(
+      UdpClient audio, CancellationToken token)
+    {
+      byte[] ping = new byte[21];
+      BinaryPrimitives.WriteUInt32LittleEndian(ping.AsSpan(0, 4), 21);
+      BinaryPrimitives.WriteUInt16LittleEndian(ping.AsSpan(4, 2), 0x0007);
+      BinaryPrimitives.WriteUInt16LittleEndian(
+        ping.AsSpan(6, 2), AudioPingSeq++);
+      WriteSid(ping, 8, AudioLocalSid);
+      WriteSid(ping, 12, AudioRemoteSid);
+      ping[17] = RandomNumberGenerator.GetBytes(1)[0];
+      ping[18] = (byte)PingInnerSeq;
+      ping[19] = (byte)(PingInnerSeq >> 8);
+      ping[20] = 0x06;
+      PingInnerSeq++;
+      await SendRawAsync(audio, ping, false, false, token);
     }
 
     private void ParseCapabilities(byte[] packet)
