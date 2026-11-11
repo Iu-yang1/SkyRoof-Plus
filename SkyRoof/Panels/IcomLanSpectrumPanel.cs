@@ -2263,6 +2263,7 @@ namespace SkyRoof
     {
       if (LocalHold ||
           ScopeReadbackCompletedForSession ||
+          !CanUseSkyCatScopeControl() ||
           !CanReadScopeViaSkyCat() ||
           ScopeReadbackAttempts >= MaxInitialScopeReadbackAttempts)
         return;
@@ -3415,7 +3416,8 @@ namespace SkyRoof
       if (Capture == null)
         return;
 
-      if (CanReadScopeViaSkyCat() &&
+      if (CanUseSkyCatScopeControl() &&
+          CanReadScopeViaSkyCat() &&
           !ScopeReadbackCompletedForSession)
       {
         // The operator explicitly changed Settings before initialization
