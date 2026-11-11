@@ -18,6 +18,25 @@ The **Scope control path** is a **different** setting: `Auto`, `SkyCat`, `Direct
 
 **Recommended with RS-BA1 + SkyRoof:** choose **RsBa1** as waveform source and **SkyCat** as control path when the currently connected SkyCAT supports IC-9700 scope commands. If no control path is available, continue in read-only mode. For independent operation without RS-BA1, choose **DirectLan** explicitly and start it manually; inspect raw sweep rate and packet counters rather than interpreting display FPS as the radio's sweep rate.
 
+### Independent SkyCAT scope control
+
+MODE, SPAN/EDGE, REF, SPEED and VBW require a CAT **command** connection;
+the waveform stream on TCP/4535 is receive-only. When SkyRoof's satellite
+RX/TX CAT engine already uses SkyCAT, spectrum writes share that engine.
+Otherwise, the spectrum panel now opens a **scope-only** local SkyCAT CAT
+connection at `127.0.0.1:4532` (configurable as **SkyCAT CAT control TCP port**).
+Embedded SkyCAT uses its own Main CAT TCP Port. This secondary client sends
+only `U SCOPE_*`/scope-output commands; it never writes operating frequencies,
+transmit modes or PTT. It performs verified register readback, reconnects on
+socket failure, and yields between queries to keep shared CAT responsive.
+
+If MODE/SPAN is grey, check Diagnostics for **Scope write backend**, the
+independent CAT TCP connection and its last error. The CAT port must be the
+SkyCAT **main CAT port**, not the spectrum-stream port. If AUTO lacks both a
+waveform and a confirmed `SELECT` readback, explicitly select MAIN or SUB
+to identify the intended control target. **MODE/SPAN controls the radio's
+scope display**, not the receiver's SSB/AM/FM IF filter bandwidth.
+
 ## Source-specific Settings controls
 
 The **Icom LAN Spectrum** Settings section now hides connection parameters that
