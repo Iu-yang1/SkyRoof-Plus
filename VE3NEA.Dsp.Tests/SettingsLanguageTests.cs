@@ -217,6 +217,10 @@ public sealed class SettingsLanguageTests
           .Invoke(dialog, null);
         typeof(SettingsDialog).GetMethod("InstallSignedCableToolbar", flags)!
           .Invoke(dialog, null);
+        var installIcomLanToolbar = typeof(SettingsDialog)
+          .GetMethod("InstallIcomLanToolbar", flags);
+        Assert.NotNull(installIcomLanToolbar);
+        installIcomLanToolbar.Invoke(dialog, null);
 
         dialog.CreateControl();
         dialog.PerformLayout();
@@ -225,17 +229,20 @@ public sealed class SettingsLanguageTests
         layout.PerformLayout();
         var cable = layout.GetControlFromPosition(0, 0);
         var language = layout.GetControlFromPosition(0, 1);
+        var directLan = layout.GetControlFromPosition(0, 2);
 
         Assert.NotNull(cable);
         Assert.NotNull(language);
-        Assert.Same(grid, layout.GetControlFromPosition(0, 2));
+        Assert.NotNull(directLan);
+        Assert.Same(grid, layout.GetControlFromPosition(0, 3));
         Assert.Same(layout, grid.Parent);
         // Previous direct Dock=Top controls covered the first four rows.
         Assert.True(grid.Top >= cable!.Bottom);
         Assert.True(grid.Top >= language!.Bottom);
+        Assert.True(grid.Top >= directLan!.Bottom);
         Assert.True(grid.Height > 400);
         Assert.True(grid.Bottom <= layout.ClientSize.Height);
-        Assert.Equal(3, layout.RowCount);
+        Assert.Equal(4, layout.RowCount);
       }
       catch (Exception ex) { error = ex; }
     });
