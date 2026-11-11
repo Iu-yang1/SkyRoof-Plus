@@ -344,9 +344,14 @@ namespace SkyRoof
       NegotiatedRxRate = AudioOptions.Receive.Enabled
         ? ChooseSampleRate(AudioOptions.Receive.SampleRate, RadioRxSampleCapabilities)
         : 0;
-      NegotiatedTxRate = AudioOptions.Transmit.Enabled
-        ? ChooseSampleRate(AudioOptions.Transmit.SampleRate, RadioTxSampleCapabilities)
-        : 0;
+      // The microphone capture clock is configured to the operator's
+      // requested rate. Do not silently negotiate another TX rate and
+      // distort audio; leave TX audio inactive if the radio lacks that rate.
+      uint selectedTx = (uint)AudioOptions.Transmit.SampleRate;
+      NegotiatedTxRate = AudioOptions.Transmit.Enabled &&
+        ChooseSampleRate(AudioOptions.Transmit.SampleRate,
+          RadioTxSampleCapabilities) == selectedTx
+          ? selectedTx : 0;
 
       if (AudioOptions.Receive.Enabled && NegotiatedRxRate == 0)
         Publish("Direct LAN: radio does not advertise supported RX audio sample rates.");
@@ -1015,7 +1020,8 @@ namespace SkyRoof
         NegotiatedRxRate,
         (byte)AudioOptions.Transmit.Codec,
         NegotiatedTxRate,
-        (uint)Math.Clamp(AudioOptions.Transmit.PrebufferMs, 20, 500));
+        (uint)Math.Clamp(AudioOptions.Transmit.PrebufferMs, 20, 500),
+        rxEnabled: AudioOptions.Receive.Enabled);
 
       await SendTrackedAsync(
         control,
@@ -1110,7 +1116,8 @@ namespace SkyRoof
       uint rxSampleRate = 0,
       byte txCodec = 0,
       uint txSampleRate = 0,
-      uint txBufferMs = 0)
+      uint txBufferMs = 0,
+      bool rxEnabled = true)
     {
       if (authId.Length != 6)
         throw new ArgumentException(
@@ -1158,9 +1165,9 @@ namespace SkyRoof
       EncodePasscode(username).CopyTo(packet, 0x60);
 
       // Legacy test callers retain receive-only default negotiation.
-      uint receiveSampleRate = rxSampleRate != 0
-        ? rxSampleRate
-        : txSampleRate != 0 ? 0 : SelectReceiveSampleRate(rxSampleCapabilities);
+      uint receiveSampleRate = !rxEnabled ? 0
+        : rxSampleRate != 0 ? rxSampleRate
+        : SelectReceiveSampleRate(rxSampleCapabilities);
       bool receiveAudio = receiveSampleRate != 0;
       bool transmitAudio = txSampleRate != 0;
 
