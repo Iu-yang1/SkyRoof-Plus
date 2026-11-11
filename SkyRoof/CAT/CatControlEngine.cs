@@ -83,6 +83,10 @@ namespace SkyRoof
     internal static bool ShouldAttemptPtt(bool ctcssReady, bool? requestedPtt) =>
       requestedPtt == false || ctcssReady;
 
+    internal static bool CanAttemptPttWithPreparedTx(
+      bool? requestedPtt, bool ctcssReady, bool txPrepared) =>
+      requestedPtt == false || (ctcssReady && txPrepared);
+
     // CTCSS encode state requested by the UI. CtcssEnabled is null until the app sets it,
     // CtcssPending is true while the state still has to be written to the radio
     private double CtcssTone = CtcssTones.DEFAULT_TONE;
@@ -413,7 +417,7 @@ namespace SkyRoof
     protected override void Cycle()
     {
       ReadPtt();
-      if (NeedToWriteTxFreqModeBeforePtt()) TryWriteTxFreqModeBeforePtt();
+      bool txPrepared = StageTxForPttOn();
 
       // If a requested CTCSS update failed, do not key the transmitter with a
       // stale/unknown encoder state. Keep the write pending and retry next cycle.
@@ -421,7 +425,9 @@ namespace SkyRoof
       // CTCSS readiness may block KEYING, but must NEVER block emergency
       // UNKEY. A failed tone write while SSTV is transmitting cannot keep
       // PTT ON merely because the encoder remains in an unknown state.
-      if (ShouldAttemptPtt(ctcssReady, GetRequestedPtt())) TryWritePtt();
+      if (CanAttemptPttWithPreparedTx(
+            GetRequestedPtt(), ctcssReady, txPrepared))
+        TryWritePtt();
 
       if (NeedToReadRxFrequency()) TryReadRxFrequency();
       if (NeedToReadTxFrequency()) TryReadTxFrequency();
@@ -626,96 +632,112 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                 write frequencies
     //----------------------------------------------------------------------------------------------
-    private void TryWriteRxFrequency(long frequency)
+    private bool TryWriteRxFrequency(long frequency)
     {
-      if (frequency == NOT_ASSIGNED) return;
-
+      if (frequency == NOT_ASSIGNED) return false;
       string command = GetWriteRxFrequencyCommand(frequency);
-      if (command == string.Empty) return;
-
-      if (!SendWriteCommand(command)) return;
-
+      if (command == string.Empty || !SendWriteCommand(command)) return false;
       LastWrittenRxFrequency = frequency;
       LogFreqs("Rx frequency written");
+      return true;
     }
 
-    private void TryWriteTxFrequency()
+    private bool TryWriteTxFrequency()
     {
       long frequency = RequestedTxFrequency;
       string command = GetWriteTxFrequencyCommand(frequency);
-      if (command == string.Empty) return;
-
-      if (!SendWriteCommand(command)) return;
-
+      if (command == string.Empty || !SendWriteCommand(command)) return false;
       LastWrittenTxFrequency = frequency;
       LogFreqs("Tx frequency written");
+      return true;
     }
 
-    // if no commands to set split frequency/mode
-    // and cannot set main frequency/mode when transmitting,
-    // set it immediately before switching to transmit mode
-    private void TryWriteTxFreqModeBeforePtt()
+    private bool StageTxForPttOn()
     {
-      LogInfo("Writing TX frequency and mode before PTT ON");
+      if (GetRequestedPtt() != true || Ptt || CatMode == OperatingMode.RxOnly)
+        return true;
 
-      // simplex mode: setting RX frequency, then switching to TX, and it becomes TX frequency
-      TryWriteRxFrequency(RequestedTxFrequency);
-      TryWriteRxMode(RequestedTxMode);
+      if (CatMode == OperatingMode.Simplex)
+      {
+        // One-VFO radios tune the RX dial to TX before asserting PTT.
+        if (RequestedTxFrequency != NOT_ASSIGNED &&
+            GetWriteRxFrequencyCommand(RequestedTxFrequency) != string.Empty &&
+            !TryWriteRxFrequency(RequestedTxFrequency))
+          return false;
+
+        if (RequestedTxMode.HasValue &&
+            GetWriteRxModeCommand(RequestedTxMode.Value) != string.Empty &&
+            !TryWriteRxMode(RequestedTxMode))
+          return false;
+
+        return true;
+      }
+
+      // A separate TX VFO / TX-only CAT endpoint must have accepted the
+      // pending transmit frequency and mode before keying. If a command is
+      // not advertised, the operator may continue to manage that field.
+      if (NeedToWriteTxFrequency() &&
+          GetWriteTxFrequencyCommand(RequestedTxFrequency) != string.Empty &&
+          !TryWriteTxFrequency())
+        return false;
+
+      if (RequestedTxMode.HasValue && NeedToWriteTxMode() &&
+          GetWriteTxModeCommand(RequestedTxMode.Value) != string.Empty &&
+          !TryWriteTxMode())
+        return false;
+
+      return true;
     }
 
-
-
-
-    //----------------------------------------------------------------------------------------------
-    //                                       mode
-    //----------------------------------------------------------------------------------------------
-    private void TryWriteRxMode(Slicer.Mode? mode = null)
+    private bool TryWriteRxMode(Slicer.Mode? mode = null)
     {
       if ((mode ?? RequestedRxMode) is not Slicer.Mode newMode)
       {
         Log.Warning("CAT RX mode write skipped: no requested mode");
-        return;
+        return false;
       }
 
       string command = GetWriteRxModeCommand(newMode);
-      if (command == string.Empty) return;
+      if (command == string.Empty) return false;
 
-      bool ok = SendWriteCommand(command);
-
-      if (!ok)
+      if (!SendWriteCommand(command))
       {
         RemoveDataFromMode(ref newMode);
         command = GetWriteRxModeCommand(newMode);
         if (command == string.Empty || !SendWriteCommand(command))
-          return;
+          return false;
       }
 
       LastWrittenRxMode = RequestedRxMode;
+      return true;
     }
 
-    private void TryWriteTxMode()
+    private bool TryWriteTxMode()
     {
       if (RequestedTxMode is not Slicer.Mode mode)
       {
         Log.Warning("CAT TX mode write skipped: no requested mode");
-        return;
+        return false;
       }
 
       string command = GetWriteTxModeCommand(mode);
-      if (command == string.Empty) return;
+      if (command == string.Empty) return false;
 
-      bool ok = SendWriteCommand(command);
-
-      if (!ok)
+      if (!SendWriteCommand(command))
       {
         RemoveDataFromMode(ref mode);
         command = GetWriteTxModeCommand(mode);
         if (command == string.Empty || !SendWriteCommand(command))
-          return;
+          return false;
       }
 
       LastWrittenTxMode = mode;
+      return true;
     }
+
+    //----------------------------------------------------------------------------------------------
+    //                                       mode
+    //----------------------------------------------------------------------------------------------
 
 
     private void RemoveDataFromMode(ref Slicer.Mode mode)
