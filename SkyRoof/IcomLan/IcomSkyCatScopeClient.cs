@@ -146,8 +146,9 @@ namespace SkyRoof
         }
         catch (Exception ex)
         {
+          if (!string.Equals(LastFailure, ex.Message, StringComparison.Ordinal))
+            Log.Warning(ex, "SkyCAT independent scope CAT TCP/{Port} disconnected", Port);
           LastFailure = ex.Message;
-          Log.Warning(ex, "SkyCAT independent scope CAT TCP/{Port} disconnected", Port);
         }
         finally
         {
@@ -238,8 +239,10 @@ namespace SkyRoof
         throw new IOException("SkyCAT scope TCP session is not connected.");
 
       await writer.WriteLineAsync(command.AsMemory(), token);
-      return await reader.ReadLineAsync(token).AsTask()
+      string? reply = await reader.ReadLineAsync(token).AsTask()
         .WaitAsync(TimeSpan.FromMilliseconds(1300), token);
+      return reply ?? throw new IOException(
+        "SkyCAT scope TCP server closed its command connection.");
     }
 
     public void Dispose()
