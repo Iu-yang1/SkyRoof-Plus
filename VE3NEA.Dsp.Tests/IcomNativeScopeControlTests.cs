@@ -68,6 +68,35 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public async Task NativeAudioReceiverFailureTriggersRecoveryEvenWhenScopeKeepsStreaming()
+    {
+      var rx = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var keepAlive = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      Task<Task>? monitor = IcomLanDirectSession.MonitorAudioWorkers(
+        true, false, rx.Task, keepAlive.Task, Task.CompletedTask);
+      monitor.Should().NotBeNull();
+      monitor!.IsCompleted.Should().BeFalse();
+      rx.SetResult();
+      (await monitor).Should().BeSameAs(rx.Task);
+    }
+
+    [Fact]
+    public async Task ReceiveOnlyAudioNeverMonitorsUnusedTxWorker()
+    {
+      var rx = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var keepAlive = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      Task<Task>? monitor = IcomLanDirectSession.MonitorAudioWorkers(
+        true, false, rx.Task, keepAlive.Task, Task.CompletedTask);
+      monitor.Should().NotBeNull();
+      monitor!.IsCompleted.Should().BeFalse();
+      keepAlive.SetResult();
+      (await monitor).Should().BeSameAs(keepAlive.Task);
+      IcomLanDirectSession.MonitorAudioWorkers(
+        false, false, rx.Task, keepAlive.Task, Task.CompletedTask)
+        .Should().BeNull();
+    }
+
+    [Fact]
     public void InvalidNativeScopeRequestNeverProducesCivPacket()
     {
       Action invalidEdge = () => IcomDirectScopeControlCodec.Encode(
