@@ -76,6 +76,35 @@ namespace SkyRoof
         SingleWriter = true,
         FullMode = BoundedChannelFullMode.DropOldest
       });
+    // The transport loop owns the CI-V socket. UI events only enqueue validated
+    // writes; a bounded single-reader queue preserves command order and never
+    // blocks waveform/audio receive or a high-priority SkyCAT PTT transaction.
+    private readonly Channel<byte[]> ScopeControlWrites =
+      Channel.CreateBounded<byte[]>(new BoundedChannelOptions(48)
+      {
+        SingleReader = true,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.Wait
+      });
+    private long ScopeControlWritesSent;
+
+    internal bool ScopeControlReady => IsStreaming && !Disposed;
+
+    internal bool TryQueueScopeControl(IcomScopeControlRequest request)
+    {
+      if (!ScopeControlReady) return false;
+      try
+      {
+        byte[] frame = IcomDirectScopeControlCodec.Encode(RadioCivAddress, request);
+        return ScopeControlWrites.Writer.TryWrite(frame);
+      }
+      catch (ArgumentException ex)
+      {
+        Log.Warning(ex, "Invalid Direct LAN scope control {Kind}", request.Kind);
+        return false;
+      }
+    }
+
     private readonly SemaphoreSlim AudioSendLock = new(1, 1);
     private readonly object AudioHistoryLock = new();
     private readonly Dictionary<ushort, byte[]> AudioTxHistory = new();
@@ -724,6 +753,14 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
+      // At most one operator scope write per 50-ms tick; keep the native
+      // session responsive to auth, pings, audio and incoming 475-bin sweeps.
+      if (ScopeControlWrites.Reader.TryRead(out byte[]? scopeWrite))
+      {
+        await SendCivDataAsync(civ, scopeWrite, token);
+        Interlocked.Increment(ref ScopeControlWritesSent);
+      }
+
       await PollMetersAsync(civ, now, token);
       ReportAudioDiagnostics(now);
 
@@ -752,6 +789,9 @@ namespace SkyRoof
           Interlocked.Read(ref MeterReadRequests),
           Interlocked.Read(ref MeterReadbacks),
           PendingMeter?.ToString() ?? "none", CivPayloadCount);
+        Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
+          Interlocked.Read(ref ScopeControlWritesSent),
+          ScopeControlWrites.Reader.Count);
       }
 
     }
@@ -766,14 +806,17 @@ namespace SkyRoof
           (!PendingMeter.HasValue ||
             (now - PendingMeterUtc).TotalMilliseconds >= 800))
       {
-        IcomMeterKind[] meters = EnabledMeters(AudioOptions.Meters);
-        if (meters.Length != 0)
+        // RX polls S only. During PTT sample PO/ALC more often than SWR,
+        // matching the CAT policy without continuously querying TX-only meters.
+        IcomMeterKind? next = IcomMeterPollingPolicy.Choose(
+          AudioOptions.Meters, IsPttActive?.Invoke() == true,
+          NextMeterIndex++);
+        if (next.HasValue)
         {
-          IcomMeterKind next = meters[NextMeterIndex++ % meters.Length];
           await SendCivDataAsync(civ,
-            IcomMeterCivCodec.BuildRead(RadioCivAddress, next), token);
+            IcomMeterCivCodec.BuildRead(RadioCivAddress, next.Value), token);
           Interlocked.Increment(ref MeterReadRequests);
-          PendingMeter = next;
+          PendingMeter = next.Value;
           PendingMeterUtc = now;
           LastMeterPollUtc = now;
         }
