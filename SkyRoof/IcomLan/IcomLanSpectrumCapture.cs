@@ -28,7 +28,7 @@ namespace SkyRoof
     private readonly string DirectLanPassword;
     private readonly string DirectLanClientName;
     private readonly CivStreamAssembler StreamAssembler;
-    private readonly IcomScopeAssembler ScopeAssembler = new();
+    private readonly IcomScopeAssembler ScopeAssembler;
 
     private CancellationTokenSource? Cancellation;
     private Task? Worker;
@@ -109,7 +109,8 @@ namespace SkyRoof
       int directLanControlPort = 50001,
       string directLanUsername = "",
       string directLanPassword = "",
-      string directLanClientName = "SkyRoof")
+      string directLanClientName = "SkyRoof",
+      IcomScopeRadioModel radioModel = IcomScopeRadioModel.Ic9700)
     {
       ConfiguredRadioAddress = (radioAddress ?? string.Empty).Trim();
       SerialPort = Math.Clamp(serialPort, 1, 65535);
@@ -128,6 +129,13 @@ namespace SkyRoof
         throw new ArgumentException(
           "SkyCAT stream and Direct LAN cannot both be selected.");
 
+      IcomRadioProfile profile = radioModel switch
+      {
+        IcomScopeRadioModel.Ic705 => IcomRadioProfiles.Ic705,
+        IcomScopeRadioModel.Ic905 => IcomRadioProfiles.Ic905,
+        _ => IcomRadioProfiles.Ic9700
+      };
+      ScopeAssembler = new IcomScopeAssembler(profile);
       StreamAssembler = new CivStreamAssembler(OnCivFrame);
     }
 
