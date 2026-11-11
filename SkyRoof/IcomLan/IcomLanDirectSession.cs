@@ -43,7 +43,7 @@ namespace SkyRoof
     private readonly string Username;
     private readonly string Password;
     private readonly string ClientName;
-    private readonly IcomDirectLanSettings AudioOptions;
+    internal IcomDirectLanSettings AudioOptions { get; init; } = new();
 
     private readonly Channel<float[]> TxAudio = Channel.CreateBounded<float[]>(
       new BoundedChannelOptions(12)
@@ -152,8 +152,7 @@ namespace SkyRoof
       string username,
       string password,
       string clientName,
-      IcomRadioProfile? expectedScopeProfile = null,
-      IcomDirectLanSettings? audioSettings = null)
+      IcomRadioProfile? expectedScopeProfile = null)
     {
       if (!IPAddress.TryParse(radioAddress, out IPAddress? address) ||
           address.AddressFamily != AddressFamily.InterNetwork)
@@ -177,7 +176,6 @@ namespace SkyRoof
       Username = username.Trim();
       Password = password;
       ClientName = NormalizeClientName(clientName);
-      AudioOptions = audioSettings ?? new IcomDirectLanSettings();
     }
 
     internal bool TryQueueTransmitAudio(float[] samples, int count)
@@ -649,6 +647,19 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
+      await PollMetersAsync(civ, now, token);
+
+      DateTime lastSweepUtc = new DateTime(
+        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
+        DateTimeKind.Utc);
+      if (IcomScopeRecoveryPolicy.ShouldReassert(
+            now, LastScopeCommandUtc, lastSweepUtc))
+        await SendScopeConfigurationAsync(civ, token);
+    }
+
+    private async Task PollMetersAsync(
+      UdpClient civ, DateTime now, CancellationToken token)
+    {
       if (AudioOptions.Meters.Enabled &&
           (now - LastMeterPollUtc).TotalMilliseconds >=
             Math.Clamp(AudioOptions.Meters.PollIntervalMs, 100, 2000) &&
@@ -667,12 +678,6 @@ namespace SkyRoof
         }
       }
 
-      DateTime lastSweepUtc = new DateTime(
-        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
-        DateTimeKind.Utc);
-      if (IcomScopeRecoveryPolicy.ShouldReassert(
-            now, LastScopeCommandUtc, lastSweepUtc))
-        await SendScopeConfigurationAsync(civ, token);
     }
 
     private async Task HandleControlPacketAsync(
@@ -1665,7 +1670,32 @@ namespace SkyRoof
             continue;
           }
 
-          byte[] packet = received.Buffer;
+          await ProcessAudioDatagramAsync(audio, sampleRate, received.Buffer, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+          break;
+        }
+        catch (SocketException ex)
+        {
+          if (!token.IsCancellationRequested)
+            Log.Warning(ex, "Icom LAN audio socket stopped");
+          break;
+        }
+        catch (Exception ex)
+        {
+          // An invalid/closed audio endpoint should never form a hot loop
+          // or bring down the independently authenticated CAT/Scope session.
+          Log.Warning(ex, "Icom LAN audio receive failed");
+          break;
+        }
+      }
+    }
+
+    private async Task ProcessAudioDatagramAsync(
+      UdpClient audio, int sampleRate, byte[] packet,
+      CancellationToken token)
+    {
           if (packet.Length == 21 &&
               BinaryPrimitives.ReadUInt16LittleEndian(
                 packet.AsSpan(4, 2)) == 0x0007 &&
@@ -1715,25 +1745,6 @@ namespace SkyRoof
               Log.Warning(ex, "Icom LAN audio consumer rejected a PCM frame");
             }
           }
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-          break;
-        }
-        catch (SocketException ex)
-        {
-          if (!token.IsCancellationRequested)
-            Log.Warning(ex, "Icom LAN audio socket stopped");
-          break;
-        }
-        catch (Exception ex)
-        {
-          // An invalid/closed audio endpoint should never form a hot loop
-          // or bring down the independently authenticated CAT/Scope session.
-          Log.Warning(ex, "Icom LAN audio receive failed");
-          break;
-        }
-      }
     }
 
     private async Task TransmitAudioAsync(

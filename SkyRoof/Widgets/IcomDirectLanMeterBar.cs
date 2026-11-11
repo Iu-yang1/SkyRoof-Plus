@@ -72,7 +72,7 @@ namespace SkyRoof
       {
         var entry = meters[i];
         bool fresh = entry.sample is { } measure && measure.Fresh(now);
-        int raw = fresh ? entry.sample!.Value.Raw : 0;
+        int raw = fresh ? entry.sample.GetValueOrDefault().Raw : 0;
         string value = fresh
           ? IcomMeterCivCodec.Display(entry.kind, raw)
           : "--";

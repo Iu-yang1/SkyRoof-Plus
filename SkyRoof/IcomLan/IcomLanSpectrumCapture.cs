@@ -277,9 +277,9 @@ namespace SkyRoof
           DirectLanUsername,
           DirectLanPassword,
           DirectLanClientName,
-          ScopeRadioProfile,
-          DirectLanAudioSettings)
+          ScopeRadioProfile)
         {
+          AudioOptions = DirectLanAudioSettings,
           PreferFastScopeSweep = DirectLanFastSweep,
           IsPttActive = DirectLanPttActive
         };

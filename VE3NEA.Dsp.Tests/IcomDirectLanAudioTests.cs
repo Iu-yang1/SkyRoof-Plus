@@ -64,11 +64,12 @@ namespace VE3NEA.Dsp.Tests
     {
       using var session = new IcomLanDirectSession(
         "192.0.2.1", 50001, "operator", "test-password", "SkyRoof",
-        audioSettings: new IcomDirectLanSettings
+        expectedScopeProfile: null)
+      {
+        AudioOptions = new IcomDirectLanSettings
         {
           Transmit = new IcomDirectLanTransmitSettings { Enabled = true }
-        })
-      {
+        },
         IsPttActive = () => true
       };
       session.TryQueueTransmitAudio([0.1f], 1).Should().BeFalse();

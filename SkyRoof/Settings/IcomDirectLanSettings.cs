@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System.ComponentModel;
 using VE3NEA;
 
@@ -23,6 +24,7 @@ namespace SkyRoof
     Hz48000 = 48000
   }
 
+  [JsonObject]
   [TypeConverter(typeof(ExpandableObjectConverter))]
   public sealed class IcomDirectLanReceiveSettings
   {
@@ -56,6 +58,7 @@ namespace SkyRoof
     public override string ToString() => Enabled ? "RX enabled" : "RX disabled";
   }
 
+  [JsonObject]
   [TypeConverter(typeof(ExpandableObjectConverter))]
   public sealed class IcomDirectLanTransmitSettings
   {
@@ -89,6 +92,7 @@ namespace SkyRoof
     public override string ToString() => Enabled ? "TX enabled" : "TX disabled";
   }
 
+  [JsonObject]
   [TypeConverter(typeof(ExpandableObjectConverter))]
   public sealed class IcomDirectLanMeterSettings
   {
@@ -120,6 +124,7 @@ namespace SkyRoof
     public override string ToString() => Enabled ? "CI-V meters enabled" : "CI-V meters disabled";
   }
 
+  [JsonObject]
   public sealed class IcomDirectLanSettings
   {
     [DisplayName("Receive audio")]
