@@ -690,7 +690,7 @@ namespace SkyRoof
 
             if (selected !=
                   IcomLanScopeBand.Auto &&
-                CanUseSkyCatScopeControl())
+                CanSendScopeControl())
             {
               byte scope =
                 selected ==
@@ -2501,7 +2501,7 @@ namespace SkyRoof
     private void RequestSelectedFixedEdgeReadback()
     {
       if (LocalHold ||
-          !CanUseSkyCatScopeControl())
+          !CanReadScopeViaSkyCat())
         return;
 
       IcomScopeFrame? frame =
@@ -2604,7 +2604,7 @@ namespace SkyRoof
     private void EditSelectedFixedEdge()
     {
       if (LocalHold ||
-          !CanUseSkyCatScopeControl())
+          !CanSendScopeControl())
         return;
 
       IcomScopeFrame? frame =
