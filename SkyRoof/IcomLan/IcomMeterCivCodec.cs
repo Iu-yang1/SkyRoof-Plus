@@ -22,17 +22,41 @@ namespace SkyRoof
     IcomMeterSample? S = null,
     IcomMeterSample? Power = null,
     IcomMeterSample? Alc = null,
-    IcomMeterSample? Swr = null)
+    IcomMeterSample? Swr = null,
+    IcomMeterSample? PowerPeak = null)
   {
+    // SSB power is not continuous. Retain only the radio-reported
+    // PO samples for a short, explicitly marked peak display;
+    // never synthesize RF power from LAN microphone level or ALC.
     internal IcomMeterSnapshot With(IcomMeterReading reading, DateTime now) =>
       reading.Kind switch
       {
         IcomMeterKind.S => this with { S = new(reading.Raw, now) },
-        IcomMeterKind.Power => this with { Power = new(reading.Raw, now) },
+        IcomMeterKind.Power => this with
+        {
+          Power = new(reading.Raw, now),
+          PowerPeak = RetainPeak(reading.Raw, now)
+        },
         IcomMeterKind.Alc => this with { Alc = new(reading.Raw, now) },
         IcomMeterKind.Swr => this with { Swr = new(reading.Raw, now) },
         _ => this
       };
+
+    private IcomMeterSample RetainPeak(int raw, DateTime now) =>
+      PowerPeak is { } peak &&
+      (now - peak.TimestampUtc).TotalMilliseconds is >= 0 and < 1500 &&
+      peak.Raw > raw
+        ? peak
+        : new IcomMeterSample(raw, now);
+
+    internal (IcomMeterSample? Sample, bool Held) DisplayPower(DateTime now)
+    {
+      bool held = Power is { } current &&
+        PowerPeak is { } peak &&
+        (now - peak.TimestampUtc).TotalMilliseconds is >= 0 and < 1500 &&
+        peak.Raw > current.Raw;
+      return held ? (PowerPeak, true) : (Power, false);
+    }
   }
 
   /// <summary>

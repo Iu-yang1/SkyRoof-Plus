@@ -1795,17 +1795,19 @@ namespace SkyRoof
         return;
 
       IcomDirectLanMeterSettings options = ctx.Settings.IcomDirectLan.Meters;
-      var enabled = new List<IcomMeterKind>(4);
-      if (options.S) enabled.Add(IcomMeterKind.S);
-      if (options.Power) enabled.Add(IcomMeterKind.Power);
-      if (options.Alc) enabled.Add(IcomMeterKind.Alc);
-      if (options.Swr) enabled.Add(IcomMeterKind.Swr);
-      if (enabled.Count == 0) return;
-
-      IcomMeterKind kind = enabled[CatMeterPollIndex++ % enabled.Count];
-      if (ctx.CatControl.RequestIcomMeterReadback(kind))
+      bool transmitting = ctx.CatControl.Tx?.Ptt == true ||
+                          ctx.CatControl.Rx?.Ptt == true;
+      IcomMeterKind? kind = IcomMeterPollingPolicy.Choose(
+        options, transmitting, CatMeterPollIndex);
+      if (kind.HasValue &&
+          ctx.CatControl.RequestIcomMeterReadback(kind.Value))
+      {
+        CatMeterPollIndex++;
+        // This poll is driven by the 500-ms UI clock, never a tight loop
+        // that could monopolize the CAT owner during satellite Doppler.
         NextCatMeterPollUtc = DateTime.UtcNow.AddMilliseconds(
-          Math.Clamp(options.PollIntervalMs, 100, 2000));
+          Math.Clamp(options.PollIntervalMs, 500, 2000));
+      }
     }
 
     private void Capture_ScopeFrameReceived(IcomScopeFrame frame)

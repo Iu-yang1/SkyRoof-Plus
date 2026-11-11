@@ -37,7 +37,8 @@ namespace SkyRoof
             ? IcomMeterCivCodec.Display(meter.kind, meter.sample.Value.Raw) +
               $" (CI-V raw {meter.sample.Value.Raw:000})"
             : "No fresh CI-V readback";
-          lines.Add(meter.name + ": " + detail);
+          lines.Add(meter.name + ": " + detail +
+            (meter.name == "PWR↑" ? " (radio PO peak held up to 1.5 seconds)" : ""));
         }
         return string.Join("\n", lines);
       }
@@ -47,7 +48,11 @@ namespace SkyRoof
       EnumerateMeters()
     {
       if (config.S) yield return ("S", IcomMeterKind.S, values.S);
-      if (config.Power) yield return ("PWR", IcomMeterKind.Power, values.Power);
+      if (config.Power)
+      {
+        var (sample, peakHeld) = values.DisplayPower(DateTime.UtcNow);
+        yield return (peakHeld ? "PWR↑" : "PWR", IcomMeterKind.Power, sample);
+      }
       if (config.Alc) yield return ("ALC", IcomMeterKind.Alc, values.Alc);
       if (config.Swr) yield return ("SWR", IcomMeterKind.Swr, values.Swr);
     }

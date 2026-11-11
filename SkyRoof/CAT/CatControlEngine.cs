@@ -189,6 +189,13 @@ namespace SkyRoof
     private bool MeterCommandUnsupported;
     private long MeterQueryCooldownTicks;
     private int MeterQueryFailures;
+    private long LastMeterQueryTickMs;
+
+    // A continuously tracking satellite may always have pending Doppler
+    // writes. Defer background meters briefly, but do not starve them.
+    internal static bool MayPollMeter(bool urgentCatWork, long sinceLastMs) =>
+      !urgentCatWork || sinceLastMs >= 1200;
+
     internal bool MeterReadbackAvailable =>
       SupportsIcomRfGain && !MeterCommandUnsupported &&
       DateTime.UtcNow.Ticks >= Interlocked.Read(ref MeterQueryCooldownTicks);
@@ -202,9 +209,15 @@ namespace SkyRoof
       return true;
     }
 
-    private void TryReadIcomMeter()
+    private void TryReadIcomMeter(bool urgentCatWork)
     {
+      if (Volatile.Read(ref PendingIcomMeter) < 0) return;
+      long now = Environment.TickCount64;
+      if (!MayPollMeter(urgentCatWork,
+            now - Interlocked.Read(ref LastMeterQueryTickMs)))
+        return;
       int request = Interlocked.Exchange(ref PendingIcomMeter, -1);
+      Interlocked.Exchange(ref LastMeterQueryTickMs, now);
       if (request < 0 || MeterCommandUnsupported) return;
       IcomMeterKind kind = (IcomMeterKind)request;
       string field = kind switch
@@ -560,6 +573,9 @@ namespace SkyRoof
     protected override void Cycle()
     {
       ReadPtt();
+      bool urgentCatWork = GetRequestedPtt().HasValue ||
+        NeedToWriteRxFrequency() || NeedToWriteTxFrequency() ||
+        NeedToWriteRxMode() || NeedToWriteTxMode();
       bool txPrepared = StageTxForPttOn();
 
       // If a requested CTCSS update failed, do not key the transmitter with a
@@ -600,7 +616,7 @@ namespace SkyRoof
         TryReadIcomRfGain();
 
       TryReadIcomNetworkField();
-      TryReadIcomMeter();
+      TryReadIcomMeter(urgentCatWork);
 
       if (IcomScopeReadbackPending)
         TryReadIcomScopeState();

@@ -48,6 +48,82 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void MeterPollingPrioritizesReceiverSAndTransmitPower()
+    {
+      var options = new IcomDirectLanMeterSettings();
+      for (int i = 0; i < 12; i++)
+        IcomMeterPollingPolicy.Choose(options, false, i)
+          .Should().Be(IcomMeterKind.S);
+
+      var tx = Enumerable.Range(0, 6)
+        .Select(i => IcomMeterPollingPolicy.Choose(options, true, i))
+        .ToArray();
+      tx.Should().Equal(
+        IcomMeterKind.Power, IcomMeterKind.Alc,
+        IcomMeterKind.Power, IcomMeterKind.Alc,
+        IcomMeterKind.Power, IcomMeterKind.Swr);
+
+      options.Power = false;
+      options.Alc = false;
+      IcomMeterPollingPolicy.Choose(options, true, 8)
+        .Should().Be(IcomMeterKind.Swr);
+      options.Swr = false;
+      IcomMeterPollingPolicy.Choose(options, true, 0)
+        .Should().BeNull();
+    }
+
+    [Fact]
+    public void MeterDisplayDoesNotMixReceiveSAndTransmitMeters()
+    {
+      DateTime now = new DateTime(2026, 11, 11, 14, 13, 0, DateTimeKind.Utc);
+      IcomMeterSnapshot values = new IcomMeterSnapshot()
+        .With(new IcomMeterReading(IcomMeterKind.S, 120), now)
+        .With(new IcomMeterReading(IcomMeterKind.Power, 143), now);
+      var rx = IcomMeterPollingPolicy.VisibleForMode(values, false);
+      rx.S.Should().NotBeNull();
+      rx.Power.Should().BeNull();
+      rx.PowerPeak.Should().BeNull();
+      var tx = IcomMeterPollingPolicy.VisibleForMode(values, true);
+      tx.S.Should().BeNull();
+      tx.Power.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ShortSsBPwrPeakIsHeldOnlyFromActualRadioReading()
+    {
+      DateTime now = new DateTime(2026, 11, 11, 14, 13, 0, DateTimeKind.Utc);
+      IcomMeterSnapshot values = new IcomMeterSnapshot()
+        .With(new IcomMeterReading(IcomMeterKind.Power, 143), now)
+        .With(new IcomMeterReading(IcomMeterKind.Power, 0),
+          now.AddMilliseconds(500));
+      var (held, isHeld) = values.DisplayPower(now.AddMilliseconds(500));
+      isHeld.Should().BeTrue();
+      held?.Raw.Should().Be(143);
+
+      values = values.With(new IcomMeterReading(IcomMeterKind.Power, 0),
+        now.AddMilliseconds(1700));
+      var (expired, expiredHeld) = values.DisplayPower(now.AddMilliseconds(1700));
+      expiredHeld.Should().BeFalse();
+      expired?.Raw.Should().Be(0);
+
+      // ALC alone must never imply that RF power has been measured.
+      var alcOnly = new IcomMeterSnapshot()
+        .With(new IcomMeterReading(IcomMeterKind.Alc, 100), now);
+      alcOnly.DisplayPower(now).Sample.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false, 0L, true)]
+    [InlineData(true, 500L, false)]
+    [InlineData(true, 1199L, false)]
+    [InlineData(true, 1200L, true)]
+    public void MeterReadsRespectUrgentDopplerAndPttBudget(
+      bool urgent, long milliseconds, bool expected)
+    {
+      CatControlEngine.MayPollMeter(urgent, milliseconds).Should().Be(expected);
+    }
+
+    [Fact]
     public void UsesIcomScaleInsteadOfLinearWatts()
     {
       IcomMeterCivCodec.Display(IcomMeterKind.S, 120).Should().Be("S9");
