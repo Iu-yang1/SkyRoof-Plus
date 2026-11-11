@@ -1966,21 +1966,48 @@ namespace SkyRoof
 
       if (frame == null)
       {
+        // Register readback can populate MODE/SPAN before a waveform arrives.
         UpdatingScopeControlUi = true;
         try
         {
-          if (!ScopeModeBox.ContainsFocus)
-            ScopeModeBox.SelectedIndex = -1;
-          if (!SpanEdgeBox.ContainsFocus)
-            SpanEdgeBox.SelectedIndex = -1;
+          if (TryGetControlScope(out byte scope) &&
+              LastScopeReadback is { } readback)
+          {
+            bool main = scope == 0;
+            bool hasMode = readback.HasField(main ? "MAIN.MODE" : "SUB.MODE");
+            if (hasMode)
+            {
+              IcomScopeMode mode = main ? readback.MainMode : readback.SubMode;
+              SetRadioSelectedIndex(ScopeModeBox, (int)mode);
+              bool showSpan = mode is IcomScopeMode.Center or
+                IcomScopeMode.ScrollCenter;
+              ConfigureSpanEdgeControl(showSpan);
+              if (showSpan && readback.HasField(
+                    main ? "MAIN.SPAN" : "SUB.SPAN"))
+              {
+                long span = main ? readback.MainSpanHz : readback.SubSpanHz;
+                int index = Array.IndexOf(ScopeSpanValues, span);
+                if (index >= 0)
+                  SetRadioSelectedIndex(SpanEdgeBox, index);
+              }
+              else if (!showSpan && readback.HasField(
+                         main ? "MAIN.EDGE" : "SUB.EDGE"))
+              {
+                int edge = main ? readback.MainEdge : readback.SubEdge;
+                SetRadioSelectedIndex(SpanEdgeBox,
+                  Math.Clamp(edge, 1, 4) - 1);
+              }
+            }
+          }
         }
         finally
         {
           UpdatingScopeControlUi = false;
         }
 
-        GeometryLabel.Text =
-          "Waiting for scope";
+        GeometryLabel.Text = TryGetControlScope(out _)
+          ? "Waiting for scope waveform"
+          : "Select MAIN or SUB to control scope";
         UpdateScopeControlAvailability();
         return;
       }
@@ -2169,41 +2196,12 @@ namespace SkyRoof
       FitToolbarsToWidth();
     }
 
-    private bool TryGetControlScope(
-      out byte scope)
-    {
-      IcomLanScopeBand selected =
-        ScopeState.SelectedBand;
-
-      if (selected ==
-          IcomLanScopeBand.Main)
-      {
-        scope = 0;
-        return true;
-      }
-
-      if (selected ==
-          IcomLanScopeBand.Sub)
-      {
-        scope = 1;
-        return true;
-      }
-
-      IcomScopeFrame? frame =
-        ScopeState.LatestSelectedFrame;
-
-      if (frame != null)
-      {
-        scope =
-          frame.Scope == 1
-            ? (byte)1
-            : (byte)0;
-        return true;
-      }
-
-      scope = 0;
-      return false;
-    }
+    private bool TryGetControlScope(out byte scope) =>
+      IcomScopeControlTarget.TryResolve(
+        ScopeState.SelectedBand,
+        ScopeState.LatestSelectedFrame,
+        LastScopeReadback,
+        out scope);
 
     private bool IsSkyCatScopeControlConfigured()
     {
@@ -2478,7 +2476,7 @@ namespace SkyRoof
         UpdatingScopeControlUi = false;
       }
 
-      UpdateScopeControlAvailability();
+      RefreshScopeGeometryUi();
 
       if (applyPendingSettings)
       {
