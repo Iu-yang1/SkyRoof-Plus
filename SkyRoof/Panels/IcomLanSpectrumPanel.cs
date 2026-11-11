@@ -2243,8 +2243,9 @@ namespace SkyRoof
           ctx.CatControl.HasIcomScopeControlBackend)
         return;
 
-      int port = ctx.Settings.Cat.Embedded.Enabled &&
-        ctx.MainForm.EmbeddedSkyCatRunning
+      // An embedded SkyCAT process may not have opened its listener yet.
+      // Resolve its configured port once and let the client connect/retry.
+      int port = ctx.Settings.Cat.Embedded.Enabled
         ? ctx.Settings.Cat.Embedded.CatPort
         : settings.SkyCatControlPort;
       SkyCatScopeControl = new IcomSkyCatScopeClient(port);
