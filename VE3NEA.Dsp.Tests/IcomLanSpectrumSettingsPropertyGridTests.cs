@@ -40,6 +40,7 @@ public sealed class IcomLanSpectrumSettingsPropertyGridTests
     Assert.Equal(nameof(IcomLanSpectrumSettings.ControlPath), fields[2]);
     Assert.Contains(nameof(IcomLanSpectrumSettings.RadioAddress), fields);
     Assert.Contains(nameof(IcomLanSpectrumSettings.SkyCatScopePort), fields);
+    Assert.Contains(nameof(IcomLanSpectrumSettings.SkyCatControlPort), fields);
     Assert.Contains(nameof(IcomLanSpectrumSettings.AutoStart), fields);
     Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.SerialPort), fields);
     Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.DirectLanControlPort), fields);
@@ -60,6 +61,18 @@ public sealed class IcomLanSpectrumSettingsPropertyGridTests
     Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.SkyCatScopePort), fields);
     Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.DirectLanControlPort), fields);
     Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.DirectLanClientName), fields);
+  }
+
+  [Fact]
+  public void PassiveCaptureWithExplicitSkyCatControlShowsCatPort()
+  {
+    var fields = Visible(new IcomLanSpectrumSettings
+    {
+      Source = IcomLanSpectrumSource.RsBa1,
+      ControlPath = IcomScopeControlPath.SkyCat
+    });
+    Assert.Contains(nameof(IcomLanSpectrumSettings.SkyCatControlPort), fields);
+    Assert.DoesNotContain(nameof(IcomLanSpectrumSettings.SkyCatScopePort), fields);
   }
 
   [Fact]
