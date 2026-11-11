@@ -1420,9 +1420,6 @@ namespace SkyRoof
       }
     }
 
-    // The audio stream has its own SID pair: it must not reuse the CI-V SID.
-    // This is the same 03/04 then 06/06 exchange used by the CI-V stream,
-    // but isolated so it cannot mutate that stream's state or sequence.
     private async Task<uint> StartAudioHandshakeAsync(
       UdpClient audio, CancellationToken token)
     {
