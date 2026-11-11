@@ -35,8 +35,9 @@ public sealed class IcomLanSpectrumSettingsPropertyGridTests
     {
       Source = IcomLanSpectrumSource.SkyCat
     });
-    Assert.Equal(nameof(IcomLanSpectrumSettings.Source), fields[0]);
-    Assert.Equal(nameof(IcomLanSpectrumSettings.ControlPath), fields[1]);
+    Assert.Equal(nameof(IcomLanSpectrumSettings.RadioModel), fields[0]);
+    Assert.Equal(nameof(IcomLanSpectrumSettings.Source), fields[1]);
+    Assert.Equal(nameof(IcomLanSpectrumSettings.ControlPath), fields[2]);
     Assert.Contains(nameof(IcomLanSpectrumSettings.RadioAddress), fields);
     Assert.Contains(nameof(IcomLanSpectrumSettings.SkyCatScopePort), fields);
     Assert.Contains(nameof(IcomLanSpectrumSettings.AutoStart), fields);

@@ -90,9 +90,11 @@ namespace SkyRoof
           true);
       }
 
+      // The IC-905 can report a signed lower scope edge at 10 GHz.
+      // Geometry remains meaningful when that decoded edge is negative.
       bool hasEdges =
-        frame.FrequencyAHz > 0 &&
-        frame.FrequencyBHz > frame.FrequencyAHz;
+        frame.FrequencyBHz > frame.FrequencyAHz &&
+        frame.FrequencyBHz > 0;
 
       if (!hasEdges)
         return new IcomScopeGeometry(
