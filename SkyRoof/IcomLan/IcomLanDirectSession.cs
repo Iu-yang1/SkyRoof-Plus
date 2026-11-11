@@ -653,11 +653,18 @@ namespace SkyRoof
         packet,
         token);
 
-      if (packet.Length < 22 ||
+      if (packet.Length < 16 ||
           BinaryPrimitives.ReadUInt16LittleEndian(
             packet.AsSpan(4, 2)) != 0 ||
-          !MatchesControlEnvelope(packet, CivLocalSid, CivRemoteSid) ||
-          packet[16] != 0xC1)
+          !MatchesControlEnvelope(packet, CivLocalSid, CivRemoteSid))
+        return;
+
+      // Idle and open/close are tracked packets too. Include them in the
+      // transport sequence baseline or ordinary keepalives look like loss.
+      ushort sequence = BinaryPrimitives.ReadUInt16LittleEndian(
+        packet.AsSpan(6, 2));
+      if (!CivRxSequences.Accept(sequence) ||
+          packet.Length < 22 || packet[16] != 0xC1)
         return;
 
       int declaredLength =
@@ -666,11 +673,6 @@ namespace SkyRoof
 
       if (declaredLength <= 0 ||
           packet.Length != 21 + declaredLength)
-        return;
-
-      ushort sequence = BinaryPrimitives.ReadUInt16LittleEndian(
-        packet.AsSpan(6, 2));
-      if (!CivRxSequences.Accept(sequence))
         return;
 
       CivPayloadCount++;
