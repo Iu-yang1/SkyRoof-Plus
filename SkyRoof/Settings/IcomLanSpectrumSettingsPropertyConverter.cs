@@ -61,6 +61,7 @@ namespace SkyRoof
       // passive RS-BA1, so it intentionally remains accessible in all modes.
       string[] connectionOrder =
       {
+        nameof(IcomLanSpectrumSettings.RadioModel),
         nameof(IcomLanSpectrumSettings.Source),
         nameof(IcomLanSpectrumSettings.ControlPath),
         nameof(IcomLanSpectrumSettings.RadioAddress),
