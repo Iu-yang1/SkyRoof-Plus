@@ -21,6 +21,21 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void AcceptsRadioMeterBroadcastReadbackWhenRadioAddressMatches()
+    {
+      // The IC-9700 may direct its response to CI-V controller E0 or
+      // broadcast 00; the sender address and matching command remain fixed.
+      byte[] frame = [0xFE, 0xFE, 0x00, 0xA2, 0x15, 0x02,
+                      0x01, 0x20, 0xFD];
+      IcomMeterCivCodec.TryParse(frame, 0xA2, out var reading)
+        .Should().BeTrue();
+      reading.Raw.Should().Be(120);
+      frame[3] = 0xA4;
+      IcomMeterCivCodec.TryParse(frame, 0xA2, out _)
+        .Should().BeFalse();
+    }
+
+    [Fact]
     public void RejectsWrongSenderAndInvalidBcd()
     {
       byte[] frame = [0xFE, 0xFE, 0xE0, 0xA2, 0x15, 0x02, 0x01, 0x20, 0xFD];
