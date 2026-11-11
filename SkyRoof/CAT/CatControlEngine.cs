@@ -120,6 +120,9 @@ namespace SkyRoof
     private int IcomScopeReadbackIndex;
     private readonly object IcomScopeReadbackSync = new();
     private int IcomScopeReadbackGeneration;
+    private int LastIcomScopeReadbackFieldCount = -1;
+    internal int LastIcomScopeReadbackCount =>
+      Volatile.Read(ref LastIcomScopeReadbackFieldCount);
     // One documented IC-9700 network setting is read per CAT cycle.
     // Keep Doppler, PTT and all ordinary CAT work in the existing worker.
     private static readonly string[] IcomNetworkReadbackFields =
@@ -489,6 +492,7 @@ namespace SkyRoof
         IcomScopeReadbackIndex = 0;
         IcomScopeReadbackValues.Clear();
         IcomScopeReadbackGeneration++;
+        Volatile.Write(ref LastIcomScopeReadbackFieldCount, -1);
       }
       Volatile.Write(
         ref IcomFixedEdgeReadbackPending,
@@ -510,6 +514,7 @@ namespace SkyRoof
           IcomScopeReadbackIndex = 0;
           IcomScopeReadbackValues.Clear();
           IcomScopeReadbackGeneration++;
+          Volatile.Write(ref LastIcomScopeReadbackFieldCount, -1);
           IcomScopeReadbackPending = true;
         }
       }
@@ -1330,6 +1335,23 @@ namespace SkyRoof
       }
 
       string? reply = SendReadCommand($"U SCOPE_READ_FIELD {key}");
+      string? acceptedValue = null;
+      if (reply != null &&
+          reply.StartsWith(key + "=", StringComparison.Ordinal))
+      {
+        try
+        {
+          // Validate each register independently. One malformed response
+          // must not poison an otherwise valid partial synchronization.
+          _ = IcomScopeReadbackState.ParsePartial(reply);
+          acceptedValue = reply[(key.Length + 1)..];
+        }
+        catch (FormatException ex)
+        {
+          Log.Warning(ex, "Malformed SkyCAT scope field {Field}: {Reply}", key, reply);
+        }
+      }
+
       string? partial = null;
       int successful = 0;
       lock (IcomScopeReadbackSync)
@@ -1338,8 +1360,8 @@ namespace SkyRoof
             generation != IcomScopeReadbackGeneration)
           return;
 
-        if (reply != null && reply.StartsWith(key + "=", StringComparison.Ordinal))
-          IcomScopeReadbackValues[key] = reply[(key.Length + 1)..];
+        if (acceptedValue != null)
+          IcomScopeReadbackValues[key] = acceptedValue;
         else
           Log.Warning(
             "SkyCAT scope field {Field} unavailable: {Reply}; continuing other fields.",
@@ -1351,6 +1373,7 @@ namespace SkyRoof
         IcomScopeReadbackPending = false;
         IcomScopeReadbackIndex = 0;
         successful = IcomScopeReadbackValues.Count;
+        Volatile.Write(ref LastIcomScopeReadbackFieldCount, successful);
         if (successful > 0)
           partial = string.Join(";",
             IcomScopeReadbackValues.Select(kv => $"{kv.Key}={kv.Value}"));
