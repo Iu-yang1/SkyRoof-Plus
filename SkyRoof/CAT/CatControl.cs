@@ -12,6 +12,7 @@ namespace SkyRoof
     internal event Action<IcomScopeReadbackState>?
       IcomScopeReadbackReceived;
     internal event Action<int>? IcomRfGainReadbackReceived;
+    internal event Action<IcomNetworkReadbackState>? IcomNetworkReadbackReceived;
     internal event Action<IcomFixedEdgeReadbackState>?
       IcomFixedEdgeReadbackReceived;
 
@@ -78,6 +79,9 @@ namespace SkyRoof
 
     internal bool RequestIcomRfGain(int rawGain) =>
       GetIcomRfGainBackend()?.RequestIcomRfGainWrite(rawGain) == true;
+
+    internal bool RequestIcomNetworkReadback() =>
+      GetIcomRfGainBackend()?.RequestIcomNetworkReadback() == true;
 
     internal bool HasIcomScopeControlBackend =>
       GetIcomScopeControlBackend() != null;
@@ -405,6 +409,8 @@ namespace SkyRoof
       engine.StatusChanged += (s, e) => ctx.MainForm.ShowCatStatus();
       engine.IcomRfGainReadbackReceived +=
         value => IcomRfGainReadbackReceived?.Invoke(value);
+      engine.IcomNetworkReadbackReceived +=
+        state => IcomNetworkReadbackReceived?.Invoke(state);
       engine.IcomScopeReadbackReceived +=
         state =>
           IcomScopeReadbackReceived?.Invoke(
@@ -423,6 +429,8 @@ namespace SkyRoof
       engine.StatusChanged += (s, e) => ctx.MainForm.ShowCatStatus();
       engine.IcomRfGainReadbackReceived +=
         value => IcomRfGainReadbackReceived?.Invoke(value);
+      engine.IcomNetworkReadbackReceived +=
+        state => IcomNetworkReadbackReceived?.Invoke(state);
       engine.IcomScopeReadbackReceived +=
         state =>
           IcomScopeReadbackReceived?.Invoke(
