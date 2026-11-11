@@ -220,8 +220,12 @@ namespace SkyRoof
     private async Task ReadScopeAsync(int generation, CancellationToken token)
     {
       var fields = new List<string>(ReadbackKeys.Length);
+      bool first = true;
       foreach (string key in ReadbackKeys)
       {
+        if (!first)
+          await Task.Delay(40, token);
+        first = false;
         if (generation != Volatile.Read(ref SyncGeneration))
           return;
         string? response = await SendAsync($"U SCOPE_READ_FIELD {key}", token);
