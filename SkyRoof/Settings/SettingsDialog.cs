@@ -180,7 +180,6 @@ namespace SkyRoof
       {
         if (ctx.CatControl.RequestIcomNetworkReadback())
         {
-          readIcomLanButton.Enabled = false;
           readIcomLanHint!.Text = SettingsLanguage.Text(
             "正在读取 IC-9700 网络参数...", "Reading IC-9700 LAN parameters...");
         }
@@ -204,7 +203,6 @@ namespace SkyRoof
         BeginInvoke(new Action(() => OnIcomNetworkReadback(snapshot)));
         return;
       }
-      if (readIcomLanButton != null) readIcomLanButton.Enabled = true;
       if (grid.SelectedObject is not Settings edited) return;
 
       var target = edited.IcomLanSpectrum;
