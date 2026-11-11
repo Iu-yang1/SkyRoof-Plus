@@ -15,6 +15,7 @@ namespace SkyRoof
     public readonly string Host;
     protected readonly ushort Port;
     protected readonly int Delay;
+    protected virtual int CycleDelayMs => Delay;
     protected readonly bool log;
 
     protected Thread? processingThread;
@@ -119,7 +120,7 @@ namespace SkyRoof
             {
               Cycle();
               // A misconfigured Delay=0 used to busy-loop on TCP devices.
-              if(stopEvent.Wait(Math.Clamp(Delay,50,30000)))break;
+              if(stopEvent.Wait(Math.Clamp(CycleDelayMs,50,30000)))break;
             }
             catch (SocketException ex)
             {
