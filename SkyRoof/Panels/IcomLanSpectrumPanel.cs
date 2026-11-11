@@ -1705,8 +1705,13 @@ namespace SkyRoof
       DirectLanAudioDevices?.Dispose();
       DirectLanAudioDevices = null;
       capture.Dispose();
-      SkyCatScopeControl?.Dispose();
-      SkyCatScopeControl = null;
+      if (SkyCatScopeControl != null)
+      {
+        SkyCatScopeControl.ReadbackReceived -= CatControl_IcomScopeReadbackReceived;
+        SkyCatScopeControl.FixedEdgeReceived -= CatControl_IcomFixedEdgeReadbackReceived;
+        SkyCatScopeControl.Dispose();
+        SkyCatScopeControl = null;
+      }
       LastIndependentSkyCatReady = false;
       lock (meterStateSync) meterState = new IcomMeterSnapshot();
       NextCatMeterPollUtc = DateTime.MinValue;
@@ -2577,8 +2582,7 @@ namespace SkyRoof
         return;
       }
 
-      if (ctx.CatControl
-          .RequestIcomFixedEdgeReadback(
+      if (RequestSkyCatFixedEdgeReadback(
             frequencyRange,
             edgeNumber))
       {
