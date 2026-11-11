@@ -11,7 +11,7 @@ namespace SkyRoof
   /// Minimal authenticated Icom LAN client used only for the native CI-V stream.
   ///
   /// It opens its own control session, authenticates with the radio, requests a
-  /// CI-V media stream and enables IC-9700 scope waveform output on that stream.
+  /// CI-V media stream and enables model-selected Icom scope output on that stream.
   /// Unlike RS-BA1's virtual COM path, the LAN CI-V stream exposes the radio's
   /// combined one-division waveform, so a complete 475-bin sweep can be delivered
   /// in one CI-V frame.
@@ -75,6 +75,7 @@ namespace SkyRoof
     private string RadioAudioName = string.Empty;
     private byte RadioCivAddress;
     private string RadioName = string.Empty;
+    private readonly IcomRadioProfile ExpectedScopeProfile;
     private int RemoteCivPort = DefaultCivPort;
     private int RemoteAudioPort = DefaultAudioPort;
 
@@ -110,7 +111,8 @@ namespace SkyRoof
       int controlPort,
       string username,
       string password,
-      string clientName)
+      string clientName,
+      IcomRadioProfile? expectedScopeProfile = null)
     {
       if (!IPAddress.TryParse(radioAddress, out IPAddress? address) ||
           address.AddressFamily != AddressFamily.InterNetwork)
@@ -129,6 +131,7 @@ namespace SkyRoof
           nameof(password));
 
       RadioAddress = address;
+      ExpectedScopeProfile = expectedScopeProfile ?? IcomRadioProfiles.Ic9700;
       ControlPort = Math.Clamp(controlPort, 1, 65535);
       Username = username.Trim();
       Password = password;
@@ -185,7 +188,7 @@ namespace SkyRoof
       if (loginReply.AsSpan(0x30, 4).SequenceEqual(
             new byte[] { 0xFF, 0xFF, 0xFF, 0xFE }))
         throw new InvalidOperationException(
-          "IC-9700 rejected the network username/password.");
+          "Icom radio rejected the network username/password.");
 
       AuthId = loginReply.AsSpan(0x1A, 6).ToArray();
       IsAuthenticated = true;
@@ -264,21 +267,21 @@ namespace SkyRoof
 
       if (!gotCapabilities)
         throw new TimeoutException(
-          "IC-9700 did not return a correlated LAN capabilities response.");
+          "Icom radio did not return a correlated LAN capabilities response.");
 
       if (!gotAuthOk)
         throw new TimeoutException(
-          "IC-9700 did not return a correlated authentication-token response.");
+          "Icom radio did not return a correlated authentication-token response.");
 
-      // P0 identification is deliberately read-only for IC-705 and IC-905.
-      // The legacy network stream configures an IC-9700-specific scope;
-      // never send those writes to a different or unidentified radio.
-      if (!IcomRadioProfiles.SupportsExistingDirectLanScope(RadioName))
+      // The authenticated radio capabilities reply identifies the hardware.
+      // Match the configured decoder before opening any waveform control
+      // stream: IC-905 10 GHz metadata differs from IC-9700/IC-705.
+      if (!IcomRadioProfiles.SupportsAuthenticatedScope(
+            RadioName, ExpectedScopeProfile))
         throw new NotSupportedException(
-          $"Direct LAN spectrum setup currently supports IC-9700 only; " +
-          $"radio capabilities identify '{RadioName}' " +
-          $"(CI-V 0x{RadioCivAddress:X2}). " +
-          "IC-705/IC-905 network scope support requires the P1/P2 adapter.");
+          $"Direct Icom LAN scope model mismatch: radio reports '{RadioName}' " +
+          $"(CI-V 0x{RadioCivAddress:X2}), configured Scope model is " +
+          $"'{ExpectedScopeProfile.Model}'. Select the matching model.");
 
       byte[] streamAuthId = AuthId.ToArray();
       ushort streamSequence = await SendStreamRequestAsync(
@@ -322,7 +325,7 @@ namespace SkyRoof
 
           if (error != 0 || disconnected)
             throw new InvalidOperationException(
-              $"IC-9700 rejected the direct LAN media-stream request " +
+              $"Icom radio rejected the direct LAN media-stream request " +
               $"(error 0x{error:X8}, disconnected={disconnected}). " +
               "Close RS-BA1/other remote clients before starting experimental Direct LAN.");
 
@@ -353,7 +356,7 @@ namespace SkyRoof
 
       if (!streamAccepted)
         throw new TimeoutException(
-          "IC-9700 did not return a correlated grant for the requested direct CI-V stream. " +
+          "Icom radio did not return a correlated grant for the requested direct CI-V stream. " +
           "Close RS-BA1/other remote clients before retrying experimental Direct LAN.");
 
       control.Client.ReceiveTimeout = 1000;
@@ -586,7 +589,7 @@ namespace SkyRoof
 
         if (response != 0)
           throw new InvalidOperationException(
-            $"IC-9700 rejected Direct LAN authentication renewal " +
+            $"Icom radio rejected Direct LAN authentication renewal " +
             $"(0x{response:X8}).");
 
         AuthId = packet.AsSpan(0x1A, 6).ToArray();
@@ -1080,19 +1083,7 @@ namespace SkyRoof
       // Direct LAN periodically reasserts only the minimum commands needed
       // to keep scope waveform output alive. Do not force MAIN/SUB sweep speed
       // (or any other operator scope preference) from the transport layer.
-      byte[][] commands =
-      {
-        new byte[]
-        {
-          0xFE, 0xFE, RadioCivAddress, 0xE0,
-          0x27, 0x10, 0x01, 0xFD
-        },
-        new byte[]
-        {
-          0xFE, 0xFE, RadioCivAddress, 0xE0,
-          0x27, 0x11, 0x01, 0xFD
-        }
-      };
+      byte[][] commands = BuildScopeEnableCommands(RadioCivAddress);
 
       foreach (byte[] command in commands)
       {
@@ -1106,6 +1097,14 @@ namespace SkyRoof
 
       LastScopeCommandUtc = DateTime.UtcNow;
     }
+
+    // Preserves the authenticated device's actual CI-V address, including
+    // operator-customized addresses. It does not assume IC-9700 0xA2.
+    internal static byte[][] BuildScopeEnableCommands(byte civAddress) =>
+    [
+      [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x10, 0x01, 0xFD],
+      [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x11, 0x01, 0xFD]
+    ];
 
     private async Task SendCivDataAsync(
       UdpClient civ,
@@ -1387,7 +1386,7 @@ namespace SkyRoof
       }
 
       throw new TimeoutException(
-        "Timed out waiting for the IC-9700 LAN handshake.");
+        "Timed out waiting for the Icom LAN handshake.");
     }
 
     private static async Task<byte[]> ReceiveOneAsync(
@@ -1442,7 +1441,7 @@ namespace SkyRoof
 
       if (count <= 0)
         throw new InvalidDataException(
-          "IC-9700 returned an empty capabilities packet.");
+          "Icom radio returned an empty capabilities packet.");
 
       int selected = -1;
       for (int i = 0; i < count; i++)

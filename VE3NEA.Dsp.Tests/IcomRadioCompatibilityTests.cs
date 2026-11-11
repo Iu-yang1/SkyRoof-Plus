@@ -24,14 +24,43 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
-    public void LegacyDirectLanScopeOnlyAcceptsNamedIc9700()
+    public void AuthenticatedScopeAdmitsMatchingNetworkRadiosWithoutCivAddressAssumptions()
     {
-      Assert.True(IcomRadioProfiles.SupportsExistingDirectLanScope("IC-9700"));
-      Assert.True(IcomRadioProfiles.SupportsExistingDirectLanScope(" ic-9700 "));
-      Assert.False(IcomRadioProfiles.SupportsExistingDirectLanScope("IC-705"));
-      Assert.False(IcomRadioProfiles.SupportsExistingDirectLanScope("IC-905"));
-      Assert.False(IcomRadioProfiles.SupportsExistingDirectLanScope(null));
-      Assert.False(IcomRadioProfiles.SupportsExistingDirectLanScope(""));
+      foreach (IcomRadioProfile profile in IcomRadioProfiles.All)
+      {
+        Assert.True(IcomRadioProfiles.SupportsAuthenticatedScope(
+          profile.Model, profile));
+        Assert.True(IcomRadioProfiles.SupportsAuthenticatedScope(
+          " " + profile.Model.ToLowerInvariant() + " ", profile));
+      }
+
+      Assert.False(IcomRadioProfiles.SupportsAuthenticatedScope(
+        "IC-905", IcomRadioProfiles.Ic9700));
+      Assert.False(IcomRadioProfiles.SupportsAuthenticatedScope(
+        "IC-705", IcomRadioProfiles.Ic905));
+      Assert.False(IcomRadioProfiles.SupportsAuthenticatedScope(
+        "UNKNOWN", IcomRadioProfiles.Ic905));
+      Assert.False(IcomRadioProfiles.SupportsAuthenticatedScope(
+        null, IcomRadioProfiles.Ic905));
+    }
+
+    [Theory]
+    [InlineData(0xA2)]
+    [InlineData(0xA4)]
+    [InlineData(0xAC)]
+    [InlineData(0x67)]
+    public void AuthenticatedScopeUsesActualCivAddressForOutputCommands(
+      int address)
+    {
+      byte[][] commands =
+        IcomLanDirectSession.BuildScopeEnableCommands((byte)address);
+      Assert.Equal(2, commands.Length);
+      Assert.Equal(new byte[] {
+        0xFE, 0xFE, (byte)address, 0xE0, 0x27, 0x10, 0x01, 0xFD
+      }, commands[0]);
+      Assert.Equal(new byte[] {
+        0xFE, 0xFE, (byte)address, 0xE0, 0x27, 0x11, 0x01, 0xFD
+      }, commands[1]);
     }
 
     [Fact]

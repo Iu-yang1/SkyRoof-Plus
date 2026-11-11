@@ -108,11 +108,17 @@ namespace SkyRoof
       return false;
     }
 
-    // The existing Direct LAN scope writer is IC-9700-specific. New models
-    // may be identified read-only but must not reach this legacy writer.
-    internal static bool SupportsExistingDirectLanScope(string? model) =>
-      TryGetByModel(model, out IcomRadioProfile? profile) &&
-      ReferenceEquals(profile, Ic9700);
+    // The model identity comes from a correlated, authenticated Icom LAN
+    // capabilities reply. Match it to the operator's waveform decoder choice,
+    // since an IC-905 10 GHz header cannot be parsed as an IC-9700 sweep.
+    // CI-V addresses themselves are editable and are not identity proof.
+    internal static bool SupportsAuthenticatedScope(
+      string? detectedModel, IcomRadioProfile configuredProfile) =>
+      TryGetByModel(detectedModel, out IcomRadioProfile? detected) &&
+      ReferenceEquals(detected, configuredProfile) &&
+      detected.Scope != IcomCapabilityStatus.Unavailable &&
+      (detected.Transports &
+        (IcomRadioTransport.Ethernet | IcomRadioTransport.Wlan)) != 0;
 
     // Returns only a candidate based on an observed *default* address.
     // Callers must not use this as proof of identity or enable TX/Split.

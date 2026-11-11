@@ -28,6 +28,7 @@ namespace SkyRoof
     private readonly string DirectLanPassword;
     private readonly string DirectLanClientName;
     private readonly CivStreamAssembler StreamAssembler;
+    private readonly IcomRadioProfile ScopeRadioProfile;
     private readonly IcomScopeAssembler ScopeAssembler;
 
     private CancellationTokenSource? Cancellation;
@@ -135,6 +136,7 @@ namespace SkyRoof
         IcomScopeRadioModel.Ic905 => IcomRadioProfiles.Ic905,
         _ => IcomRadioProfiles.Ic9700
       };
+      ScopeRadioProfile = profile;
       ScopeAssembler = new IcomScopeAssembler(profile);
       StreamAssembler = new CivStreamAssembler(OnCivFrame);
     }
@@ -245,7 +247,8 @@ namespace SkyRoof
           DirectLanControlPort,
           DirectLanUsername,
           DirectLanPassword,
-          DirectLanClientName);
+          DirectLanClientName,
+          ScopeRadioProfile);
 
         session.StatusChanged += DirectSession_StatusChanged;
         session.CivDataReceived += DirectSession_CivDataReceived;

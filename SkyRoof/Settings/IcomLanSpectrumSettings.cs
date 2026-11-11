@@ -55,11 +55,11 @@ namespace SkyRoof
       IcomScopeRadioModel.Ic9700;
 
     [DisplayName("Radio IPv4 address")]
-    [Description("IC-9700 IPv4 address. Optional for passive RS-BA1 capture, but required for the authenticated Direct LAN source.")]
+    [Description("Icom radio IPv4 address. Optional for passive RS-BA1 capture, but required for authenticated IC-9700 Ethernet, IC-705 WLAN, or IC-905 Ethernet Scope.")]
     public string RadioAddress { get; set; } = "";
 
     [DisplayName("CI-V LAN port")]
-    [Description("Icom LAN serial/CI-V UDP source port. IC-9700 default is 50002.")]
+    [Description("Icom LAN serial/CI-V UDP source port. The IC-9700 default is 50002; actual ports may be negotiated.")]
     [DefaultValue(50002)]
     public int SerialPort { get; set; } = 50002;
 
@@ -69,7 +69,7 @@ namespace SkyRoof
     public IcomLanScopeBand ScopeBand { get; set; } = IcomLanScopeBand.Auto;
 
     [DisplayName("Scope source")]
-    [Description("Direct LAN is an experimental, manually started authenticated IC-9700 network session. SkyCAT uses skycatd's loopback scope stream. RS-BA1 passively observes an existing RS-BA1 LAN session.")]
+    [Description("Direct LAN is an experimental, manually started authenticated Icom Scope session. Choose the matching Scope radio model; SkyCAT uses skycatd's loopback Scope stream and RS-BA1 passive mode observes existing network traffic.")]
     [DefaultValue(IcomLanSpectrumSource.SkyCat)]
     public IcomLanSpectrumSource Source { get; set; } = IcomLanSpectrumSource.SkyCat;
 
