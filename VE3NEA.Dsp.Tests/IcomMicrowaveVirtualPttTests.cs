@@ -46,6 +46,46 @@ namespace VE3NEA.Dsp.Tests
         $"PTT OFF was blocked by CAT tune failure: {rig.Commands}");
     }
 
+    [Fact]
+    public void TenGigahertzDopplerMayUpdateTxWhileKeyedAndReturnToRx()
+    {
+      using var rig = new SimulatedIcomRig();
+      using var cat = Start(rig);
+      var link = new RadioLink
+      {
+        IsTerrestrial = false,
+        Tx = new SatnogsDbTransmitter
+        {
+          uplink_low = 10_368_100_000
+        },
+        SatCust = new SatelliteCustomization(),
+        TxCust = new TransmitterCustomization(),
+        DopplerFactor = 7.2 / RadioLink.SpeedOfLightKmPerSecond
+      };
+      link.UplinkDopplerCorrectionEnabled = true;
+      link.UplinkManualCorrectionEnabled = false;
+
+      link.ComputeFrequencies();
+      cat.SetTxFrequency(link.CorrectedUplinkFrequency);
+      cat.SetTxMode(Slicer.Mode.USB);
+      cat.SetPtt(true);
+      Assert.True(Until(() => rig.OnCommands > 0),
+        $"Initial microwave key never completed: {rig.Commands}");
+
+      link.DopplerFactor = 7.5 / RadioLink.SpeedOfLightKmPerSecond;
+      link.ComputeFrequencies();
+      string expected = CatControlEngine.QuantizeCatFrequency(
+        link.CorrectedUplinkFrequency, 10, 1).ToString();
+      cat.SetTxFrequency(link.CorrectedUplinkFrequency);
+      Assert.True(Until(() => rig.LastAcceptedFrequency == expected),
+        $"Transmitting 10 GHz Doppler CAT update was lost: {rig.Commands}");
+
+      cat.SetPtt(false);
+      Assert.True(Until(() => rig.OffCommands > 0 && !rig.IsKeyed),
+        $"Stop after frequency update failed: {rig.Commands}");
+      Assert.False(rig.KeyedBeforeTuned);
+    }
+
     private static CatControlEngine Start(SimulatedIcomRig rig)
     {
       var previous = SynchronizationContext.Current;
@@ -138,6 +178,8 @@ namespace VE3NEA.Dsp.Tests
                 "T 1" => KeyOn(),
                 "T 0" => KeyOff(),
                 _ when line.StartsWith("F ", StringComparison.Ordinal) =>
+                  WriteFrequency(line[2..]),
+                _ when line.StartsWith("I ", StringComparison.Ordinal) =>
                   WriteFrequency(line[2..]),
                 _ when line.StartsWith("M ", StringComparison.Ordinal) =>
                   WriteMode(),
