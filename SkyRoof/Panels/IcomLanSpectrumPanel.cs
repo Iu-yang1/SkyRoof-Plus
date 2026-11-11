@@ -56,7 +56,7 @@ namespace SkyRoof
     private readonly System.Windows.Forms.Timer UiTimer = new() { Interval = 500 };
     private readonly IcomScopeState ScopeState = new();
     private readonly IcomScopeController ScopeController;
-    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new();
+    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new(12);
     private int ScopeCaptureEpoch;
     private byte LastGeometryUiScope = byte.MaxValue;
     private byte LastGeometryUiMode = byte.MaxValue;
@@ -1554,7 +1554,8 @@ namespace SkyRoof
         directLanUsername: settings.DirectLanUsername,
         directLanPassword: settings.DirectLanPassword,
         directLanClientName: settings.DirectLanClientName,
-        radioModel: settings.RadioModel);
+        radioModel: settings.RadioModel,
+        directLanFastSweep: settings.DirectLanFastSweep);
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
@@ -3030,8 +3031,14 @@ namespace SkyRoof
       LastDiagnosticsText =
         string.Join(
           Environment.NewLine,
-          "SkyRoof IC-9700 Spectrum Diagnostics",
+          "SkyRoof Icom Spectrum Diagnostics",
           $"Data source: {FormatSpectrumSource(spectrumSettings.Source)}",
+          $"Direct LAN FAST: {spectrumSettings.DirectLanFastSweep}",
+          $"Native RX ingress pending: {capture.NativeIngressQueued:N0}",
+          $"Native RX ingress dropped: {capture.NativeIngressDrops:N0}",
+          $"Native CI-V transport missing: {capture.NativeCivSequenceGaps:N0}",
+          $"Native CI-V transport duplicates: {capture.NativeCivDuplicates:N0}",
+          $"Native CI-V transport reordered: {capture.NativeCivReordered:N0}",
           $"Transport: {radio}",
           $"Control path: {FormatControlPath(resolvedControlPath)}",
           $"Scope readback: {(LastScopeReadbackUtc.HasValue ? LastScopeReadbackUtc.Value.ToString("O") : "not completed")}",

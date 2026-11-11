@@ -63,6 +63,11 @@ namespace SkyRoof
     [DefaultValue(50002)]
     public int SerialPort { get; set; } = 50002;
 
+    [DisplayName("Native LAN FAST sweep")]
+    [Description("When starting a Direct LAN session, send CI-V 27 1A FAST once for the available scope receivers. Can increase radio-produced sweep cadence; explicitly changes the radio-side sweep speed. Uncheck to preserve the front-panel setting.")]
+    [DefaultValue(true)]
+    public bool DirectLanFastSweep { get; set; } = true;
+
     [DisplayName("Scope band")]
     [Description("Auto shows whichever scope stream is present. MAIN or SUB filters CI-V 27 00 frames to that scope only.")]
     [DefaultValue(IcomLanScopeBand.Auto)]

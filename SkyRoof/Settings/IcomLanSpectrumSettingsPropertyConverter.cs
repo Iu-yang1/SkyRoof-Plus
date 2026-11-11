@@ -50,6 +50,7 @@ namespace SkyRoof
           nameof(IcomLanSpectrumSettings.SerialPort) => !skycat,
           nameof(IcomLanSpectrumSettings.SkyCatScopePort) => skycat,
           nameof(IcomLanSpectrumSettings.AutoStart) => !directSource,
+          nameof(IcomLanSpectrumSettings.DirectLanFastSweep) => directSource,
           _ when DirectLanOnly.Contains(p.Name) => showDirect,
           _ => true
         })
@@ -71,6 +72,7 @@ namespace SkyRoof
         nameof(IcomLanSpectrumSettings.DirectLanUsername),
         nameof(IcomLanSpectrumSettings.DirectLanPassword),
         nameof(IcomLanSpectrumSettings.DirectLanClientName),
+        nameof(IcomLanSpectrumSettings.DirectLanFastSweep),
         nameof(IcomLanSpectrumSettings.AutoStart)
       };
 

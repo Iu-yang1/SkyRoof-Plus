@@ -27,6 +27,7 @@ namespace SkyRoof
     private readonly string DirectLanUsername;
     private readonly string DirectLanPassword;
     private readonly string DirectLanClientName;
+    private readonly bool DirectLanFastSweep;
     private readonly CivStreamAssembler StreamAssembler;
     private readonly IcomRadioProfile ScopeRadioProfile;
     private readonly IcomScopeAssembler ScopeAssembler;
@@ -39,6 +40,8 @@ namespace SkyRoof
     private readonly object SkyCatClientSync = new();
     private IcomLanDirectSession? DirectSession;
     private readonly object DirectSessionSync = new();
+    private IcomDirectScopeIngress? NativeIngress;
+    private long LastNativeIngressDrops;
 
     private const int RecentTransportSequenceWindow = 512;
     private readonly HashSet<ushort> RecentTransportSequences = new();
@@ -91,6 +94,15 @@ namespace SkyRoof
     internal long SequenceResetCount => Interlocked.Read(ref SequenceResetCountValue);
     internal long InvalidScopeFrameCount => Interlocked.Read(ref InvalidScopeFrameCountValue);
     internal long LanLengthOverflowPacketCount => Interlocked.Read(ref LanLengthOverflowPacketCountValue);
+    internal long NativeIngressDrops =>
+      NativeIngress?.Dropped ?? Interlocked.Read(ref LastNativeIngressDrops);
+    internal int NativeIngressQueued => NativeIngress?.Queued ?? 0;
+    internal long NativeCivSequenceGaps =>
+      DirectSession?.NativeCivSequenceGaps ?? 0;
+    internal long NativeCivDuplicates =>
+      DirectSession?.NativeCivDuplicates ?? 0;
+    internal long NativeCivReordered =>
+      DirectSession?.NativeCivReordered ?? 0;
 
     internal DateTime? LastScopeFrameUtc
     {
@@ -115,7 +127,8 @@ namespace SkyRoof
       string directLanUsername = "",
       string directLanPassword = "",
       string directLanClientName = "SkyRoof",
-      IcomScopeRadioModel radioModel = IcomScopeRadioModel.Ic9700)
+      IcomScopeRadioModel radioModel = IcomScopeRadioModel.Ic9700,
+      bool directLanFastSweep = false)
     {
       ConfiguredRadioAddress = (radioAddress ?? string.Empty).Trim();
       SerialPort = Math.Clamp(serialPort, 1, 65535);
@@ -129,6 +142,7 @@ namespace SkyRoof
       DirectLanClientName = string.IsNullOrWhiteSpace(directLanClientName)
         ? "SkyRoof"
         : directLanClientName.Trim();
+      DirectLanFastSweep = directLanFastSweep;
 
       if (UseSkyCatStream && UseDirectLan)
         throw new ArgumentException(
@@ -238,6 +252,10 @@ namespace SkyRoof
     private async Task DirectLanLoop(CancellationToken token)
     {
       IcomLanDirectSession? session = null;
+      var ingress = new IcomDirectScopeIngress();
+      NativeIngress = ingress;
+      Task decoder = Task.Run(
+        () => ProcessNativeDatagramsAsync(ingress, token), token);
 
       try
       {
@@ -252,7 +270,10 @@ namespace SkyRoof
           DirectLanUsername,
           DirectLanPassword,
           DirectLanClientName,
-          ScopeRadioProfile);
+          ScopeRadioProfile)
+        {
+          PreferFastScopeSweep = DirectLanFastSweep
+        };
 
         session.StatusChanged += DirectSession_StatusChanged;
         session.CivDataReceived += DirectSession_CivDataReceived;
@@ -276,6 +297,11 @@ namespace SkyRoof
       finally
       {
         IsRunning = false;
+        ingress.Complete();
+        try { await decoder; }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        Interlocked.Exchange(ref LastNativeIngressDrops, ingress.Dropped);
+        NativeIngress = null;
 
         if (session != null)
         {
@@ -329,18 +355,30 @@ namespace SkyRoof
         return;
 
       Interlocked.Increment(ref PacketCountValue);
-      Interlocked.Increment(ref SerialChunkCountValue);
       Interlocked.Add(ref CapturedBytesValue, bytes.Length);
+      NativeIngress?.Offer(bytes);
+    }
 
-      IcomLanDirectSession? session;
-      lock (DirectSessionSync)
-        session = DirectSession;
-
-      if (session != null && session.RemoteCivPortNumber > 0)
-        DetectedCivPort = session.RemoteCivPortNumber;
-
-      if (!TryDeliverCompleteCivPayload(bytes))
-        StreamAssembler.Feed(bytes);
+    private async Task ProcessNativeDatagramsAsync(
+      IcomDirectScopeIngress ingress, CancellationToken token)
+    {
+      try
+      {
+        await foreach (byte[] payload in ingress.Reader.ReadAllAsync(token))
+        {
+          Interlocked.Increment(ref SerialChunkCountValue);
+          if (!TryDeliverCompleteCivPayload(payload))
+            StreamAssembler.Feed(payload);
+        }
+      }
+      catch (OperationCanceledException) when (token.IsCancellationRequested)
+      {
+      }
+      catch (Exception ex)
+      {
+        Fail("Direct Icom LAN waveform decoding stopped: " + ex.Message, ex);
+        Cancellation?.Cancel();
+      }
     }
 
     private async Task SkyCatScopeLoop(CancellationToken token)
@@ -791,7 +829,11 @@ namespace SkyRoof
       // can report both the smooth display cadence and the true sweep cadence.
       Interlocked.Increment(ref ScopeUpdateCountValue);
       if (scope.SweepComplete)
+      {
         Interlocked.Increment(ref ScopeFrameCountValue);
+        if (UseDirectLan)
+          DirectSession?.MarkNativeScopeWaveformReceived();
+      }
 
       Interlocked.Exchange(ref LastScopeFrameTicks, scope.TimestampUtc.Ticks);
       Volatile.Write(ref LatestScopeFrameValue, scope);

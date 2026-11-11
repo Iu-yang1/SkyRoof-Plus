@@ -78,6 +78,9 @@ namespace SkyRoof
     private byte RadioCivAddress;
     private string RadioName = string.Empty;
     private readonly IcomRadioProfile ExpectedScopeProfile;
+    internal bool PreferFastScopeSweep { get; init; }
+    private readonly IcomNativeCivSequenceTracker CivRxSequences = new();
+    private long LastNativeScopeTicks;
     private int RemoteCivPort = DefaultCivPort;
     private int RemoteAudioPort = DefaultAudioPort;
 
@@ -110,6 +113,12 @@ namespace SkyRoof
     internal int RemoteCivPortNumber => RemoteCivPort;
     internal long DatagramCount { get; private set; }
     internal long CivPayloadCount { get; private set; }
+    internal long NativeCivDuplicates => CivRxSequences.Duplicates;
+    internal long NativeCivSequenceGaps => CivRxSequences.MissingPackets;
+    internal long NativeCivReordered => CivRxSequences.Reordered;
+
+    internal void MarkNativeScopeWaveformReceived() =>
+      Interlocked.Exchange(ref LastNativeScopeTicks, DateTime.UtcNow.Ticks);
 
     internal IcomLanDirectSession(
       string radioAddress,
@@ -158,6 +167,7 @@ namespace SkyRoof
       ControlLocalSid = BuildSessionId(localAddress, controlLocalPort);
 
       using UdpClient civ = CreateBoundClient(localAddress);
+      civ.Client.ReceiveBufferSize = 1_048_576;
       Civ = civ;
       LocalCivPort = ((IPEndPoint)civ.Client.LocalEndPoint!).Port;
       CivLocalSid = BuildSessionId(localAddress, LocalCivPort);
@@ -402,6 +412,13 @@ namespace SkyRoof
       }
 
       await SendScopeConfigurationAsync(civ, token);
+      if (PreferFastScopeSweep)
+      {
+        foreach (byte[] frame in BuildFastSweepCommands(
+                   RadioCivAddress, ExpectedScopeProfile.ReceiverCount))
+          await SendCivDataAsync(civ, frame, token);
+        Publish("Direct Icom LAN: FAST scope sweep requested (radio-side setting).");
+      }
 
       try
       {
@@ -569,7 +586,11 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
-      if ((now - LastScopeCommandUtc).TotalSeconds >= 5)
+      DateTime lastSweepUtc = new DateTime(
+        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
+        DateTimeKind.Utc);
+      if (IcomScopeRecoveryPolicy.ShouldReassert(
+            now, LastScopeCommandUtc, lastSweepUtc))
         await SendScopeConfigurationAsync(civ, token);
     }
 
@@ -630,8 +651,18 @@ namespace SkyRoof
         packet,
         token);
 
-      if (packet.Length < 22 ||
-          packet[16] != 0xC1)
+      if (packet.Length < 16 ||
+          BinaryPrimitives.ReadUInt16LittleEndian(
+            packet.AsSpan(4, 2)) != 0 ||
+          !MatchesControlEnvelope(packet, CivLocalSid, CivRemoteSid))
+        return;
+
+      // Idle and open/close are tracked packets too. Include them in the
+      // transport sequence baseline or ordinary keepalives look like loss.
+      ushort sequence = BinaryPrimitives.ReadUInt16LittleEndian(
+        packet.AsSpan(6, 2));
+      if (!CivRxSequences.Accept(sequence) ||
+          packet.Length < 22 || packet[16] != 0xC1)
         return;
 
       int declaredLength =
@@ -639,7 +670,7 @@ namespace SkyRoof
         (packet[18] << 8);
 
       if (declaredLength <= 0 ||
-          packet.Length < 21 + declaredLength)
+          packet.Length != 21 + declaredLength)
         return;
 
       CivPayloadCount++;
@@ -1114,6 +1145,16 @@ namespace SkyRoof
       [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x10, 0x01, 0xFD],
       [0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x11, 0x01, 0xFD]
     ];
+
+    internal static byte[][] BuildFastSweepCommands(
+      byte civAddress, int receiverCount) =>
+      Enumerable.Range(0, receiverCount)
+        .Select(index => new byte[]
+        {
+          0xFE, 0xFE, civAddress, 0xE0, 0x27, 0x1A,
+          (byte)index, 0x00, 0xFD
+        })
+        .ToArray();
 
     private async Task SendCivDataAsync(
       UdpClient civ,

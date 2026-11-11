@@ -223,3 +223,34 @@ GitHub Light/Dark 等主题选择；内层频谱继续保持原有
 RS-BA1 风格暗色仪表配色。此项重构不修改
 `IcomLanSpectrumCapture`、`IcomScopeAssembler`、HOLD、
 FrameMailbox、瀑布图时间映射或 CAT/PTT/Doppler 控制。
+
+## 无需 RS-BA1 的原生高速 LAN 频谱
+
+SkyRoof-Plus 可使用 `Icom LAN Spectrum → Source = DirectLan` 自行建立 Icom LAN/WLAN 认证会话。**不需要启动 RS-BA1，也不需要 WinDivert**。它通过控制端口（通常 UDP/50001）完成认证和媒体流授权，再通过协商得到的 CI-V 数据端口（通常 UDP/50002）接收无线电自己发出的 `27 00` 频谱数据。
+
+根据 Icom IC-9700 CI-V Reference Guide 第 25–26 页，LAN 通常每次发送一整行 **475 个幅度点**（division maximum = 01），而 USB CI-V 通常分为 11 段。发送 `27 10 01`、`27 11 01` 开启 Scope 输出后，电台主动产生频谱流；不应轮询 `27 00` 来人为提高 FPS。实测帧率取决于电台硬件设置、链路质量及接收/绘制开销。
+
+### 配置
+
+1. 电台已启用网络远控，知道电台的 IP、用户名、密码；尽量使用有线网络连接 IC-9700 / IC-905。
+2. SkyRoof `Tools → Settings → Icom LAN Spectrum`：正确选择 `Scope radio model`；`Scope source = DirectLan`；填写 `Radio IPv4 address`、`Direct LAN username` / `password`（默认控制端口 50001）。此配置与独立的 CAT/PTT 后端配置互不替代。
+3. `Native LAN FAST sweep = true`（默认）：仅在**手动启动 Direct LAN** 时发送一次 `27 1A MAIN FAST`；IC-9700 同时向 SUB 发送。该操作会**改变电台自身的扫描速度设置**；取消勾选则完全尊重当前电台前面板设置。不会反复强制恢复 FAST。
+4. 打开 `Icom LAN Spectrum` 面板并点击 `START`。不需要启动 RS-BA1，不需要 RS-BA1 Remote Utility 及其频谱窗口。
+5. 在 Diagnostics 对照 `Complete sweeps/s` / `upd/s`（电台解码端），`WF/s`（WinForms 实际交付的完整行数）、`Native RX ingress pending/dropped`、`Native CI-V transport ...` 等指标，以区分电台输出速度、网络收包、解码及显示性能。
+
+### 本迭代的高帧率改进
+
+- 将 UDP 收包与 CI-V/Scope 组帧拆成**独立的收包任务与单线程解码队列**。有界队列最多 256 个 CI-V 数据块，高峰时记录丢弃数，网络收包不再同步等待 UI 及 475-bin 解析。
+- 将 CI-V UDP socket 接收缓冲区提升至 **1 MiB**，降低短时间线程调度抖动造成的内核收包丢失。
+- 在完整的授权会话中按实际远端/本地 SID 关联接收数据；按独立的 16-bit **outer transport sequence** 去重并记录前向跳号、乱序。所有 type=0 的 idle/open-close 数据包均进入序列统计，避免把正常 idle 误判为丢包。**这里尚未实现发起远端重传请求**；跳号只是诊断，不能等同于丢失的完整频谱行数。
+- 不再每隔 5 秒无条件写入 `27 10/11`。当超过 8 秒未重新开启输出，且 2 秒内没有完成的有效波形时，才重发最小 Scope 输出开启命令。不在恢复过程中改动频宽、频谱模式、REF 等用户设置。
+- UI 邮箱仍最多安排一个待执行 WinForms 回调，但可缓存每个接收机最近 **12 行完整频谱**，而非仅一行；回调按时间顺序刷新瀑布。严重 UI 卡顿时只保留最新行并记录真实丢弃计数，避免无限排队。
+
+### 验收边界
+
+新增自动化测试覆盖 30 行 475-bin 连续数据突发、256 包限长、音频/频谱收包隔离、序号回绕/重复/乱序、单/双接收机 FAST 命令、定时恢复及旧 UI 邮箱默认行为。**这些是协议和软件测试，不是实机测得的 30 FPS**。
+
+如果 Direct LAN 认证失败或 `Complete sweeps/s` 为 0，需要导出 *去除凭证* 的日志（网络连接状态、CI-V 远端端口、Scope 帧率和失效计数），并与同配置下 RS-BA1 的原生帧率比较，才能判断是否还有 Icom 固件或 RS-BA1 协议差异。不可凭空宣称硬件输出能够达到固定 FPS。
+
+官方协议参考：Icom [IC-9700 CI-V Reference Guide](https://www.icomfrance.com/uploads/files/produit/not-IC-9700_ENG_CI-V_3a-en.pdf)（第 25–26 页）和 [wfview Icom LAN 实现](https://wfview.org/)；RS-BA1 UDP 握手及音频会话属于第三方逆向协议，参见 [Rafe 协议研究](https://patrick.lidstone.net/wiki/rsba1-protocol/)。
+
