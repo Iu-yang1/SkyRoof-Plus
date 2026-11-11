@@ -16,7 +16,7 @@
 
 通过 Embedded SkyCAT 操作电台时，CAT 的 Radio Model（IC-705 USB: 3085；无线模型 30850；IC-905: 3090）与本页 Scope radio model 必须一致。USB CAT 与本地声卡 AF/IF 是两条不同链路；本 PR 只交付 Scope 解码，不声称已完成新机型 AF/IF 接入。
 
-**Direct LAN** 现有会话仍采用已验证的 IC-9700 专用设置流程；不能仅将 IP 换为 IC-905 就得到经过验收的 905 原生 LAN 控制。
+**Direct LAN / WLAN（实验性 Scope）** 可以在选择相应的 Scope radio model 后连接 IC-9700 Ethernet、IC-705 WLAN 或 IC-905 Ethernet。建立认证会话后必须从设备能力响应读取具体型号，并与用户所选的解码器型号一致，才发送 `27 10 / 27 11` Scope 控制；CI-V 地址使用会话实际返回值，不硬编码 A2/A4/AC。保留原有会话认证、关联应答、超时重连和波形接收链路。**仅协议级/CI 验收，不等于已经通过 705/905 的实际 WLAN/LAN 连接测试。**
 
 ## 测试依据与剩余事项
 
