@@ -180,7 +180,8 @@ namespace SkyRoof
       {
         if (ctx.CatControl.RequestIcomNetworkReadback())
         {
-          readIcomLanHint!.Text = SettingsLanguage.Text(
+          if (readIcomLanHint is Label hint)
+            hint.Text = SettingsLanguage.Text(
             "正在读取 IC-9700 网络参数...", "Reading IC-9700 LAN parameters...");
         }
         else
@@ -191,7 +192,7 @@ namespace SkyRoof
             "IC-9700", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
       };
-      settingsLayout!.Controls.Add(bar, 0, 2);
+      settingsLayout?.Controls.Add(bar, 0, 2);
       RefreshLanguageCaptions();
     }
 
@@ -231,7 +232,8 @@ namespace SkyRoof
       {
         true => "ON", false => "OFF", _ => "?"
       };
-      readIcomLanHint!.Text = snapshot.AvailableCount == 0
+      if (readIcomLanHint is Label resultHint)
+        resultHint.Text = snapshot.AvailableCount == 0
         ? SettingsLanguage.Text("未获得有效 CI-V 应答", "No valid CI-V network replies")
         : SettingsLanguage.Text(
           $"已读取 {snapshot.AvailableCount}/5；LAN {enabled}；Audio UDP {audio}",
