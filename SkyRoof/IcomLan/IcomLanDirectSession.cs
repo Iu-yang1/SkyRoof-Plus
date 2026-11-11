@@ -61,6 +61,8 @@ namespace SkyRoof
     private uint NegotiatedRxRate;
     private uint NegotiatedTxRate;
     private volatile bool AudioTxReady;
+    private volatile bool AudioLinkConnected;
+    private long AudioTxRejectedWithoutPtt;
     private long AudioRxDatagrams;
     private long AudioRxDecodedFrames;
     private long AudioTxDatagrams;
@@ -187,9 +189,13 @@ namespace SkyRoof
       // This transport never asserts PTT. An active CAT PTT readback is
       // required at both capture and UDP-send time; stale audio is discarded.
       if (!AudioOptions.Transmit.Enabled || !AudioTxReady ||
-          IsPttActive?.Invoke() != true || count <= 0 ||
-          count > samples.Length)
+          count <= 0 || count > samples.Length)
         return false;
+      if (IsPttActive?.Invoke() != true)
+      {
+        Interlocked.Increment(ref AudioTxRejectedWithoutPtt);
+        return false;
+      }
 
       var copy = new float[count];
       Array.Copy(samples, copy, count);
@@ -464,6 +470,7 @@ namespace SkyRoof
         {
           audio.Connect(RadioAddress, RemoteAudioPort);
           AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
+          AudioLinkConnected = true;
           audioDrain = DrainAudioAsync(
             audio, (int)NegotiatedRxRate, token);
           audioKeepAlive = KeepAudioAliveAsync(audio, token);
@@ -480,6 +487,7 @@ namespace SkyRoof
         catch (Exception ex)
         {
           // Scope remains usable, but failed RX/TX audio must be visible.
+          AudioLinkConnected = false;
           Log.Warning(ex,
             "Direct LAN audio UDP handshake failed; scope/CI-V session remains active");
           Publish("Direct LAN AUDIO FAILED: " + ex.GetType().Name +
@@ -507,6 +515,7 @@ namespace SkyRoof
       {
         IsStreaming = false;
         AudioTxReady = false;
+        AudioLinkConnected = false;
         TxAudio.Writer.TryComplete();
 
         try
@@ -671,11 +680,12 @@ namespace SkyRoof
       {
         LastAudioDiagnosticsUtc = now;
         Log.Information(
-          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} TX UDP={Transmitted} pendingMeter={Meter} CI-V datagrams={CivPackets}",
-          IsStreaming, AudioTxReady || NegotiatedRxRate != 0,
+          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} TX UDP={Transmitted} TX rejected/no CAT PTT={NoPtt} pendingMeter={Meter} CI-V datagrams={CivPackets}",
+          IsStreaming, AudioLinkConnected,
           Interlocked.Read(ref AudioRxDatagrams),
           Interlocked.Read(ref AudioRxDecodedFrames),
           Interlocked.Read(ref AudioTxDatagrams),
+          Interlocked.Read(ref AudioTxRejectedWithoutPtt),
           PendingMeter?.ToString() ?? "none", CivPayloadCount);
       }
 
