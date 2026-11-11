@@ -17,6 +17,8 @@ namespace SkyRoof
     private UiLanguage appliedLanguage = UiLanguage.SimplifiedChinese;
     private ComboBox? languageSelector;
     private Label? languageLabel;
+    private Button? readIcomLanButton;
+    private Label? readIcomLanHint;
     private Button? cableOfficialDownload;
     private Button? cableRefresh;
     private Button? cableUninstall;
@@ -37,6 +39,8 @@ namespace SkyRoof
       grid.SelectedObject = Utils.DeepClone(ctx.Settings);
       InstallLanguageSelector();
       InstallSignedCableToolbar();
+      InstallIcomLanToolbar();
+      ctx.CatControl.IcomNetworkReadbackReceived += OnIcomNetworkReadback;
 
       if (section == null)
         grid.CollapseAllGridItems();
@@ -104,18 +108,19 @@ namespace SkyRoof
         Margin = Padding.Empty,
         Padding = Padding.Empty,
         ColumnCount = 1,
-        RowCount = 3
+        RowCount = 4
       };
       settingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 37F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+      settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 37F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
       languageBar.Dock = DockStyle.Fill;
       grid.Dock = DockStyle.Fill;
       grid.Margin = Padding.Empty;
       Controls.Remove(grid);
       settingsLayout.Controls.Add(languageBar, 0, 1);
-      settingsLayout.Controls.Add(grid, 0, 2);
+      settingsLayout.Controls.Add(grid, 0, 3);
       Controls.Add(settingsLayout);
       // Match the original Designer ordering of Dock=Fill grid and bottom
       // command button panel. The TableLayoutPanel owns all top spacing.
@@ -147,6 +152,94 @@ namespace SkyRoof
         throw new InvalidOperationException("Settings layout has not been initialized.");
       settingsLayout.Controls.Add(bar, 0, 0);
       RefreshLanguageCaptions();
+    }
+
+    private void InstallIcomLanToolbar()
+    {
+      var bar = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 3, 8, 3) };
+      readIcomLanButton = new Button
+      {
+        Left = 8, Top = 3, Width = 171, Height = 29,
+        Text = "READ FROM CI-V"
+      };
+      readIcomLanHint = new Label
+      {
+        Left = 188, Top = 4, Height = 27,
+        TextAlign = ContentAlignment.MiddleLeft,
+        AutoEllipsis = true,
+        Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+      };
+      bar.Controls.Add(readIcomLanButton);
+      bar.Controls.Add(readIcomLanHint);
+      bar.Resize += (_, _) =>
+      {
+        if (readIcomLanHint != null)
+          readIcomLanHint.Width = Math.Max(80, bar.ClientSize.Width - 197);
+      };
+      readIcomLanButton.Click += (_, _) =>
+      {
+        if (ctx.CatControl.RequestIcomNetworkReadback())
+        {
+          readIcomLanButton.Enabled = false;
+          readIcomLanHint!.Text = SettingsLanguage.Text(
+            "正在读取 IC-9700 网络参数...", "Reading IC-9700 LAN parameters...");
+        }
+        else
+        {
+          MessageBox.Show(SettingsLanguage.Text(
+            "需要已连接 IC-9700 的 SkyCAT CAT 通道；当前 CAT 后端无法执行只读 CI-V 网络查询。",
+            "An active IC-9700 SkyCAT CAT connection is required to read network settings."),
+            "IC-9700", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+      };
+      settingsLayout!.Controls.Add(bar, 0, 2);
+      RefreshLanguageCaptions();
+    }
+
+    private void OnIcomNetworkReadback(IcomNetworkReadbackState snapshot)
+    {
+      if (IsDisposed || Disposing || !IsHandleCreated) return;
+      if (InvokeRequired)
+      {
+        BeginInvoke(new Action(() => OnIcomNetworkReadback(snapshot)));
+        return;
+      }
+      if (readIcomLanButton != null) readIcomLanButton.Enabled = true;
+      if (grid.SelectedObject is not Settings edited) return;
+
+      var target = edited.IcomLanSpectrum;
+      void Update<T>(string name, T oldValue, T newValue, Action write)
+      {
+        if (EqualityComparer<T>.Default.Equals(oldValue, newValue)) return;
+        write();
+        ChangedFields.Add("SkyRoof.IcomLanSpectrumSettings." + name);
+      }
+      if (snapshot.IpAddress != null)
+        Update(nameof(target.RadioAddress), target.RadioAddress,
+          snapshot.IpAddress, () => target.RadioAddress = snapshot.IpAddress);
+      if (snapshot.ControlPort.HasValue)
+        Update(nameof(target.DirectLanControlPort), target.DirectLanControlPort,
+          snapshot.ControlPort.Value,
+          () => target.DirectLanControlPort = snapshot.ControlPort.Value);
+      if (snapshot.SerialPort.HasValue)
+        Update(nameof(target.SerialPort), target.SerialPort,
+          snapshot.SerialPort.Value,
+          () => target.SerialPort = snapshot.SerialPort.Value);
+
+      TypeDescriptor.Refresh(target);
+      grid.Refresh();
+      string audio = snapshot.AudioPort?.ToString() ?? "—";
+      string enabled = snapshot.NetworkEnabled switch
+      {
+        true => "ON", false => "OFF", _ => "?"
+      };
+      readIcomLanHint!.Text = snapshot.AvailableCount == 0
+        ? SettingsLanguage.Text("未获得有效 CI-V 应答", "No valid CI-V network replies")
+        : SettingsLanguage.Text(
+          $"已读取 {snapshot.AvailableCount}/5；LAN {enabled}；Audio UDP {audio}",
+          $"Read {snapshot.AvailableCount}/5; LAN {enabled}; Audio UDP {audio}");
+      // Audio UDP is informational. User credentials are never queried or altered.
+      // The modified settings are saved only when Apply/OK is pressed.
     }
 
     private async Task ManageVendorCableAsync(string action)
@@ -261,6 +354,9 @@ namespace SkyRoof
         cableUninstall.Text = SettingsLanguage.Text("卸载 VB-CABLE", "Remove VB-CABLE");
       if (cableRefresh != null)
         cableRefresh.Text = SettingsLanguage.Text("重新检测音频端点", "Rescan audio endpoints");
+      if (readIcomLanHint != null && string.IsNullOrEmpty(readIcomLanHint.Text))
+        readIcomLanHint.Text = SettingsLanguage.Text(
+          "IC-9700 Direct LAN 参数", "IC-9700 Direct LAN settings");
       if (languageLabel != null)
         languageLabel.Text = SettingsLanguage.Text("界面语言", "Interface language");
       applyBtn.Text = SettingsLanguage.Text("应用", "Apply");
@@ -276,6 +372,7 @@ namespace SkyRoof
 
     private void SettingsDialog_FormClosing(object? sender, FormClosingEventArgs e)
     {
+      ctx.CatControl.IcomNetworkReadbackReceived -= OnIcomNetworkReadback;
       ctx.Settings.Ui.SavePropertyGridLabelWidth("SettingsDialog", grid);
       // Cancel must also undo a language preview. Apply commits the preview
       // independently of subsequent edits, matching standard Settings UX.
