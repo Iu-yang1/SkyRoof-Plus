@@ -3126,6 +3126,9 @@ namespace SkyRoof
         PendingScopeControls.Count, unconfirmed.Length);
       if (ScopeReadbackCompletedForSession && LastScopeReadback?.IsPartial == true)
         StatsLabel.Text += $" · PARTIAL {LastScopeReadback.FieldsPresent?.Count ?? 0}/16";
+      else if (!ScopeReadbackCompletedForSession &&
+               scopeBackend?.LastIcomScopeReadbackCount == 0)
+        StatsLabel.Text += " · SYNC ERROR (0/16 valid registers)";
       // Diagnostics tooltip updated after the full details are assembled below.
 
       LastDiagnosticsText =
@@ -3142,6 +3145,7 @@ namespace SkyRoof
           $"Transport: {radio}",
           $"Control path: {FormatControlPath(resolvedControlPath)}",
           $"Scope readback: {(LastScopeReadbackUtc.HasValue ? LastScopeReadbackUtc.Value.ToString("O") : "not completed")}",
+          $"SkyCAT scope fields in last survey: {(scopeBackend?.LastIcomScopeReadbackCount is int count && count >= 0 ? $"{count}/16" : "survey pending")}",
           $"Queue pending: {queueStats?.Pending.ToString("N0") ?? "n/a"}",
           $"Queue dropped: {queueStats?.Dropped.ToString("N0") ?? "n/a"}",
           $"Queue rejected: {queueStats?.Rejected.ToString("N0") ?? "n/a"}",
