@@ -120,6 +120,69 @@ namespace SkyRoof
     private int IcomScopeReadbackIndex;
     private readonly object IcomScopeReadbackSync = new();
     private int IcomScopeReadbackGeneration;
+    // One documented IC-9700 network setting is read per CAT cycle.
+    // Keep Doppler, PTT and all ordinary CAT work in the existing worker.
+    private static readonly string[] IcomNetworkReadbackFields =
+      { "IP", "ENABLED", "CONTROL", "SERIAL", "AUDIO" };
+    private readonly object IcomNetworkReadbackSync = new();
+    private readonly Dictionary<string, string> IcomNetworkReadbackValues = new(
+      StringComparer.Ordinal);
+    private bool IcomNetworkReadbackPending;
+    private int IcomNetworkReadbackIndex;
+    private int IcomNetworkReadbackGeneration;
+    internal event Action<IcomNetworkReadbackState>? IcomNetworkReadbackReceived;
+
+    internal bool RequestIcomNetworkReadback()
+    {
+      if (!SupportsIcomRfGain)
+        return false;
+      lock (IcomNetworkReadbackSync)
+      {
+        IcomNetworkReadbackGeneration++;
+        IcomNetworkReadbackIndex = 0;
+        IcomNetworkReadbackValues.Clear();
+        IcomNetworkReadbackPending = true;
+      }
+      return true;
+    }
+
+    private void TryReadIcomNetworkField()
+    {
+      string key;
+      int generation;
+      lock (IcomNetworkReadbackSync)
+      {
+        if (!IcomNetworkReadbackPending) return;
+        key = IcomNetworkReadbackFields[IcomNetworkReadbackIndex++];
+        generation = IcomNetworkReadbackGeneration;
+      }
+
+      string? reply = SendReadCommand("U NETWORK_READ_FIELD " + key);
+      IcomNetworkReadbackState? completed = null;
+      lock (IcomNetworkReadbackSync)
+      {
+        if (!IcomNetworkReadbackPending ||
+            generation != IcomNetworkReadbackGeneration)
+          return;
+        if (reply != null &&
+            reply.StartsWith(key + "=", StringComparison.Ordinal))
+          IcomNetworkReadbackValues[key] = reply[(key.Length + 1)..];
+        else
+          Log.Warning("IC-9700 network readback {Key} unavailable: {Reply}",
+            key, reply ?? "<no reply>");
+
+        if (IcomNetworkReadbackIndex == IcomNetworkReadbackFields.Length)
+        {
+          IcomNetworkReadbackPending = false;
+          IcomNetworkReadbackIndex = 0;
+          completed = IcomNetworkReadbackState.Parse(IcomNetworkReadbackValues);
+          IcomNetworkReadbackValues.Clear();
+        }
+      }
+      if (completed != null)
+        syncContext.Post(_ => IcomNetworkReadbackReceived?.Invoke(completed), null);
+    }
+
     private volatile bool IcomRfGainReadbackPending;
     private int RequestedIcomRfGain = -1;
     internal bool SupportsIcomRfGain =>
@@ -469,6 +532,8 @@ namespace SkyRoof
 
       if (IcomRfGainReadbackPending)
         TryReadIcomRfGain();
+
+       TryReadIcomNetworkField();
 
       if (IcomScopeReadbackPending)
         TryReadIcomScopeState();
