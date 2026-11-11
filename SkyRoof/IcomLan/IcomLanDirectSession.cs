@@ -676,6 +676,18 @@ namespace SkyRoof
       }
 
       await PollMetersAsync(civ, now, token);
+      ReportAudioDiagnostics(now);
+
+      DateTime lastSweepUtc = new DateTime(
+        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
+        DateTimeKind.Utc);
+      if (IcomScopeRecoveryPolicy.ShouldReassert(
+            now, LastScopeCommandUtc, lastSweepUtc))
+        await SendScopeConfigurationAsync(civ, token);
+    }
+
+    private void ReportAudioDiagnostics(DateTime now)
+    {
       if ((now - LastAudioDiagnosticsUtc).TotalSeconds >= 5)
       {
         LastAudioDiagnosticsUtc = now;
@@ -689,12 +701,6 @@ namespace SkyRoof
           PendingMeter?.ToString() ?? "none", CivPayloadCount);
       }
 
-      DateTime lastSweepUtc = new DateTime(
-        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
-        DateTimeKind.Utc);
-      if (IcomScopeRecoveryPolicy.ShouldReassert(
-            now, LastScopeCommandUtc, lastSweepUtc))
-        await SendScopeConfigurationAsync(civ, token);
     }
 
     private async Task PollMetersAsync(
