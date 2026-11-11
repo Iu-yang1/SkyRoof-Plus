@@ -575,6 +575,9 @@ namespace SkyRoof
         await RunStreamingLoopsAsync(
           control,
           civ,
+          audioDrain,
+          audioKeepAlive,
+          audioTransmit,
           token);
       }
       finally
@@ -627,11 +630,30 @@ namespace SkyRoof
       }
     }
 
+    // The audio UDP socket has independent workers. If its RX or keepalive
+    // worker exits unexpectedly while native CI-V remains healthy, leaving
+    // the LAN session alive produces permanently silent receive audio.
+    // Promote that failure into the existing authenticated media recovery.
+    internal static Task<Task>? MonitorAudioWorkers(
+      bool connected, bool transmitReady,
+      Task audioDrain, Task audioKeepAlive, Task audioTransmit)
+    {
+      if (!connected) return null;
+      return transmitReady
+        ? Task.WhenAny(audioDrain, audioKeepAlive, audioTransmit)
+        : Task.WhenAny(audioDrain, audioKeepAlive);
+    }
+
     private async Task RunStreamingLoopsAsync(
       UdpClient control,
       UdpClient civ,
+      Task audioDrain,
+      Task audioKeepAlive,
+      Task audioTransmit,
       CancellationToken token)
     {
+      Task<Task>? audioWorkerExit = MonitorAudioWorkers(
+        AudioLinkConnected, AudioTxReady, audioDrain, audioKeepAlive, audioTransmit);
       Task<UdpReceiveResult> controlReceive = control.ReceiveAsync(token).AsTask();
       Task<UdpReceiveResult> civReceive = civ.ReceiveAsync(token).AsTask();
       using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
@@ -639,11 +661,17 @@ namespace SkyRoof
 
       while (!token.IsCancellationRequested)
       {
-        Task completed = await Task.WhenAny(
-          controlReceive,
-          civReceive,
-          tick);
+        Task completed = audioWorkerExit == null
+          ? await Task.WhenAny(controlReceive, civReceive, tick)
+          : await Task.WhenAny(controlReceive, civReceive, tick, audioWorkerExit);
 
+        if (completed == audioWorkerExit)
+        {
+          Task terminated = await audioWorkerExit!;
+          await terminated; // Preserve the worker's original failure details.
+          throw new IOException(
+            "Direct LAN audio UDP worker stopped unexpectedly; recovering authenticated media session.");
+        }
         if (completed == controlReceive)
         {
           UdpReceiveResult result = await controlReceive;
