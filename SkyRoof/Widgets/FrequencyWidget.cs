@@ -733,7 +733,7 @@ namespace SkyRoof
       long catHz = QuantizeCatHz(catFrequency);
       AfcCatTimeline.RecordRequest(catHz, DateTime.UtcNow, source);
       lastAfcExpectedRf = rxRf;
-      ctx.CatControl.Rx!.SetRxFrequency(catHz);
+      ctx.CatControl.Rx?.SetRxFrequency(catHz);
     }
 
     private void SendCatTxFrequency(double txRf)
@@ -754,7 +754,7 @@ namespace SkyRoof
         catFrequency -= band.LoOffset;
       }
 
-      ctx.CatControl.Tx!.SetTxFrequency(QuantizeCatHz(catFrequency));
+      ctx.CatControl.Tx?.SetTxFrequency(QuantizeCatHz(catFrequency));
     }
 
     // True when RX CAT transverter offset is enabled but the current downlink RF falls outside
