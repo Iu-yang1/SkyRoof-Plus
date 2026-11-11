@@ -73,7 +73,9 @@ namespace SkyRoof
     private DateTime NextCatMeterPollUtc = DateTime.MinValue;
     private int CatMeterPollIndex;
     internal IcomDirectLanTxAudioStatus TxAudioStatus =>
-      Capture?.TxAudioStatus ?? default;
+      Capture?.TxAudioStatus ??
+        new IcomDirectLanTxAudioStatus(
+          false, ctx.Settings.IcomDirectLan.Transmit.Enabled, 0, -120, 0);
     internal IcomMeterSnapshot MeterSnapshot
     {
       get { lock (meterStateSync) return meterState; }
