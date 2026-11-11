@@ -16,7 +16,7 @@ Open **Icom LAN Spectrum** from the application's panel/window menu. Configure *
 
 The **Scope control path** is a **different** setting: `Auto`, `SkyCat`, `DirectLan` or `ReadOnly`. Auto follows the selected source, but **passive RS-BA1 is read-only in Auto**. To control scope settings while observing passive RS-BA1 frames, explicitly choose **SkyCat** and maintain SkyCAT CAT access. `ReadOnly` never writes scope controls.
 
-**Recommended with RS-BA1 + SkyRoof:** choose **RsBa1** as waveform source and **SkyCat** as control path when the currently connected SkyCAT supports IC-9700 scope commands. If no control path is available, continue in read-only mode. Do **not** open the experimental independent Direct LAN session merely to improve FPS.
+**Recommended with RS-BA1 + SkyRoof:** choose **RsBa1** as waveform source and **SkyCat** as control path when the currently connected SkyCAT supports IC-9700 scope commands. If no control path is available, continue in read-only mode. For independent operation without RS-BA1, choose **DirectLan** explicitly and start it manually; inspect raw sweep rate and packet counters rather than interpreting display FPS as the radio's sweep rate.
 
 ## Source-specific Settings controls
 
