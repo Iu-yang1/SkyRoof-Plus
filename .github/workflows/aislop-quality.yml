@@ -20,8 +20,17 @@ jobs:
       - name: Install native/static tooling
         shell: bash
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq cppcheck
+          # Ubuntu archive DNS was unavailable on hosted runners on 2026-11-11.
+          # Build the actual C/C++ analyzer from a pinned upstream release,
+          # keeping failOnMissingTools and the complete aislop gate intact.
+          if ! command -v cppcheck >/dev/null 2>&1; then
+            git clone --depth 1 --branch 2.22.0 \
+              https://github.com/cppcheck-opensource/cppcheck.git \
+              "$RUNNER_TEMP/aislop-cppcheck"
+            make -C "$RUNNER_TEMP/aislop-cppcheck" -j 2 cppcheck
+            echo "$RUNNER_TEMP/aislop-cppcheck" >> "$GITHUB_PATH"
+            "$RUNNER_TEMP/aislop-cppcheck/cppcheck" --version
+          fi
           python3 -m venv "$RUNNER_TEMP/aislop-python"
           "$RUNNER_TEMP/aislop-python/bin/python" -m pip install --disable-pip-version-check --quiet ruff==0.14.2
           echo "$RUNNER_TEMP/aislop-python/bin" >> "$GITHUB_PATH"
