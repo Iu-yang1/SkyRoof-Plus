@@ -1,7 +1,7 @@
 namespace SkyRoof
 {
   /// <summary>
-  /// Reassembles IC-9700 CI-V 27 00 scope waveform messages.
+  /// Reassembles Icom CI-V 27 00 scope waveform messages.
   ///
   /// The radio can expose scope data in two layouts:
   ///  - single-frame: sequence maximum 01, header + up to 475 pixels in one CI-V frame;
@@ -22,6 +22,13 @@ namespace SkyRoof
       new ScopeState()
     };
 
+    private readonly IcomRadioProfile Radio;
+
+    internal IcomScopeAssembler(IcomRadioProfile? radio = null)
+    {
+      Radio = radio ?? IcomRadioProfiles.Ic9700;
+    }
+
     internal bool TryFeed(byte[] frame, out IcomScopeFrame? completed)
     {
       completed = null;
@@ -33,7 +40,7 @@ namespace SkyRoof
         return false;
 
       byte receiver = frame[6];
-      if (receiver > 1)
+      if (receiver >= Radio.ReceiverCount)
         return false;
 
       if (!TryDecodeBcdByte(frame[7], out int sequence) ||
@@ -53,8 +60,11 @@ namespace SkyRoof
         state.Reset();
 
         if (sequence != 1 ||
-            !TryReadWaveInfo(frame, out byte mode, out long frequencyA,
-              out long frequencyB, out bool outOfRange))
+            !IcomScopeWaveInfoCodec.TryDecode(
+              frame, Radio, singleFrame: true,
+              out byte mode, out long frequencyA,
+              out long frequencyB, out bool outOfRange,
+              out int samplesStart))
           return false;
 
         if (outOfRange)
@@ -66,7 +76,6 @@ namespace SkyRoof
           return true;
         }
 
-        const int samplesStart = 21;
         int availableSamples = frame.Length - samplesStart - 1;
         if (availableSamples < ScopePointCount)
           return false;
@@ -91,8 +100,11 @@ namespace SkyRoof
       {
         state.Reset(preserveDisplaySamples: true);
 
-        if (!TryReadWaveInfo(frame, out byte mode, out long frequencyA,
-              out long frequencyB, out bool outOfRange))
+        if (!IcomScopeWaveInfoCodec.TryDecode(
+              frame, Radio, singleFrame: false,
+              out byte mode, out long frequencyA,
+              out long frequencyB, out bool outOfRange,
+              out _))
           return false;
 
         state.Active = true;
@@ -192,43 +204,6 @@ namespace SkyRoof
       frame[4] == 0x27 &&
       frame[5] == 0x00;
 
-    private static bool TryReadWaveInfo(
-      byte[] frame,
-      out byte mode,
-      out long frequencyA,
-      out long frequencyB,
-      out bool outOfRange)
-    {
-      mode = 0;
-      frequencyA = 0;
-      frequencyB = 0;
-      outOfRange = false;
-
-      // FE FE <to> <from> 27 00 <rx> <seq> <seqMax>
-      // <mode> <freqA:5> <freqB/span:5> <outOfRange> ... FD
-      if (frame.Length < 22)
-        return false;
-
-      mode = frame[9];
-      if (mode > 3)
-        return false;
-
-      if (!TryDecodeBcdFrequency(
-            new ReadOnlySpan<byte>(frame, 10, 5),
-            out frequencyA) ||
-          !TryDecodeBcdFrequency(
-            new ReadOnlySpan<byte>(frame, 15, 5),
-            out frequencyB))
-        return false;
-
-      byte oor = frame[20];
-      if (oor > 1)
-        return false;
-
-      outOfRange = oor != 0;
-      return true;
-    }
-
     private static IcomScopeFrame BuildFrame(
       byte receiver,
       byte divisionCurrent,
@@ -265,31 +240,6 @@ namespace SkyRoof
       }
 
       decoded = high * 10 + low;
-      return true;
-    }
-
-    private static bool TryDecodeBcdFrequency(
-      ReadOnlySpan<byte> bytes,
-      out long value)
-    {
-      value = 0;
-      long multiplier = 1;
-
-      foreach (byte b in bytes)
-      {
-        int low = b & 0x0F;
-        int high = (b >> 4) & 0x0F;
-
-        if (low > 9 || high > 9)
-        {
-          value = 0;
-          return false;
-        }
-
-        value += (low + high * 10L) * multiplier;
-        multiplier *= 100;
-      }
-
       return true;
     }
 
