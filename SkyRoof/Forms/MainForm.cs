@@ -1189,9 +1189,10 @@ namespace SkyRoof
 
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
+      IcomMeterSnapshot snapshot =
+        ctx.IcomLanSpectrumPanel?.MeterSnapshot ?? new IcomMeterSnapshot();
       directLanMeters.UpdateMeters(
-        ctx.IcomLanSpectrumPanel?.MeterSnapshot ?? new IcomMeterSnapshot(),
-        meters);
+        IcomMeterPollingPolicy.VisibleForMode(snapshot, catPtt), meters);
       directLanMetersHost.ToolTipText =
         "Direct LAN CI-V meter readback (raw data, not calibrated Watts)\n" +
         directLanMeters.StatusText;
