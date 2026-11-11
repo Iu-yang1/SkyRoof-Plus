@@ -39,6 +39,9 @@ namespace SkyRoof
       // even when passive RS-BA1 supplies the waveform.
       bool directControl = settings.ControlPath == IcomScopeControlPath.DirectLan;
       bool showDirect = directSource || directControl;
+      bool showSkyCatControl =
+        IcomScopeController.ResolveControlPath(settings.Source, settings.ControlPath)
+          == IcomScopeControlPath.SkyCat;
 
       var properties = TypeDescriptor.GetProperties(
         settings, attributes ?? Array.Empty<Attribute>(), true);
@@ -49,6 +52,7 @@ namespace SkyRoof
         {
           nameof(IcomLanSpectrumSettings.SerialPort) => !skycat,
           nameof(IcomLanSpectrumSettings.SkyCatScopePort) => skycat,
+          nameof(IcomLanSpectrumSettings.SkyCatControlPort) => showSkyCatControl,
           nameof(IcomLanSpectrumSettings.AutoStart) => !directSource,
           nameof(IcomLanSpectrumSettings.DirectLanFastSweep) => directSource,
           _ when DirectLanOnly.Contains(p.Name) => showDirect,
@@ -68,6 +72,7 @@ namespace SkyRoof
         nameof(IcomLanSpectrumSettings.RadioAddress),
         nameof(IcomLanSpectrumSettings.SerialPort),
         nameof(IcomLanSpectrumSettings.SkyCatScopePort),
+        nameof(IcomLanSpectrumSettings.SkyCatControlPort),
         nameof(IcomLanSpectrumSettings.DirectLanControlPort),
         nameof(IcomLanSpectrumSettings.DirectLanUsername),
         nameof(IcomLanSpectrumSettings.DirectLanPassword),
