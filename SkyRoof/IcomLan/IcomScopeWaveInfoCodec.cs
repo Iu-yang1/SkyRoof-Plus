@@ -6,6 +6,13 @@ namespace SkyRoof
   /// FIXED/SCROLL uses two 6-byte edges. The signed lower-edge marker
   /// is permitted only in the 100 GHz BCD digit of the first edge.
   /// </summary>
+  internal readonly record struct IcomScopeWaveInfo(
+    byte Mode,
+    long FrequencyAHz,
+    long FrequencyBHz,
+    bool OutOfRange,
+    int SamplesStart);
+
   internal static class IcomScopeWaveInfoCodec
   {
     private const int MetadataStart = 9;
@@ -16,17 +23,9 @@ namespace SkyRoof
       byte[] frame,
       IcomRadioProfile radio,
       bool singleFrame,
-      out byte mode,
-      out long frequencyA,
-      out long frequencyB,
-      out bool outOfRange,
-      out int samplesStart)
+      out IcomScopeWaveInfo info)
     {
-      mode = 0;
-      frequencyA = 0;
-      frequencyB = 0;
-      outOfRange = false;
-      samplesStart = 0;
+      info = default;
 
       if (frame.Length < 22 || frame[^1] != 0xFD)
         return false;
@@ -87,11 +86,8 @@ namespace SkyRoof
             secondHz < TenGigahertzHz)
           continue;
 
-        mode = rawMode;
-        frequencyA = firstHz;
-        frequencyB = secondHz;
-        outOfRange = rangeFlag != 0;
-        samplesStart = dataStart;
+        info = new IcomScopeWaveInfo(
+          rawMode, firstHz, secondHz, rangeFlag != 0, dataStart);
         return true;
       }
 
