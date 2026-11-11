@@ -17,6 +17,7 @@ namespace SkyRoof
     private AvailableCommands Caps;
     private readonly int TuningStep;
     private readonly int MicrowaveTuningStep;
+    private readonly int MicrowaveCycleDelayMs;
     private readonly bool IgnoreDialKnob;
 
     public bool Ptt { get; private set; } = false;
@@ -165,6 +166,7 @@ namespace SkyRoof
     {
       TuningStep = catSettings.TuningStep;
       MicrowaveTuningStep = catSettings.MicrowaveTuningStep;
+      MicrowaveCycleDelayMs = catSettings.MicrowaveCycleDelayMs;
       IgnoreDialKnob = catSettings.IgnoreDialKnob;
     }
 
@@ -179,6 +181,18 @@ namespace SkyRoof
     }
 
     // some radios use 10 Hz steps and some don't, round frequency to the tuning step
+    protected override int CycleDelayMs =>
+      SelectCatCycleDelayMs(
+        Delay, MicrowaveCycleDelayMs,
+        RequestedRxFrequency, RequestedTxFrequency);
+
+    internal static int SelectCatCycleDelayMs(
+      int normalDelayMs, int microwaveDelayMs,
+      long rxHz, long txHz) =>
+      rxHz >= 1_000_000_000L || txHz >= 1_000_000_000L
+        ? Math.Min(normalDelayMs, microwaveDelayMs)
+        : normalDelayMs;
+
     private long RoundToStep(double freq) =>
       QuantizeCatFrequency(freq, TuningStep, MicrowaveTuningStep);
 
