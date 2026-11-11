@@ -705,49 +705,56 @@ namespace SkyRoof
         ctx.MainForm?.ShowCatStatus();
     }
 
+    private long QuantizeCatHz(double frequencyHz) =>
+      CatControlEngine.QuantizeCatFrequency(
+        frequencyHz,
+        ctx.Settings.Cat.TuningStep,
+        ctx.Settings.Cat.MicrowaveTuningStep);
+
     private void SendCatRxFrequency(double rxRf,
       AfcCatWriteSource source = AfcCatWriteSource.SatelliteModel)
     {
       var transverter = ctx.Settings.Transverter;
+      double catFrequency = rxRf;
       if (transverter.RxCatOffsetEnabled)
       {
         var band = transverter.GetCatBand(rxRf);
         if (band == null)
-          Serilog.Log.Warning($"RX CAT transverter offset enabled but no CAT band matches RF {rxRf:n0} Hz — skipping CAT command");
-        else
         {
-          long catHz = (long)Math.Truncate(rxRf - band.LoOffset);
-          long step = Math.Max(1, ctx.Settings.Cat.TuningStep);
-          AfcCatTimeline.RecordRequest((catHz / step) * step,
-            DateTime.UtcNow, source);
-          lastAfcExpectedRf = rxRf;
-          ctx.CatControl.Rx!.SetRxFrequency(catHz);
+          Serilog.Log.Warning(
+            "RX CAT transverter offset enabled but no CAT band matches RF {RfHz:n0} Hz — skipping CAT command",
+            rxRf);
+          return;
         }
+
+        catFrequency -= band.LoOffset;
       }
-      else
-      {
-        long catHz = (long)Math.Truncate(rxRf);
-        long step = Math.Max(1, ctx.Settings.Cat.TuningStep);
-        AfcCatTimeline.RecordRequest((catHz / step) * step,
-          DateTime.UtcNow, source);
-        lastAfcExpectedRf = rxRf;
-        ctx.CatControl.Rx!.SetRxFrequency(catHz);
-      }
+
+      long catHz = QuantizeCatHz(catFrequency);
+      AfcCatTimeline.RecordRequest(catHz, DateTime.UtcNow, source);
+      lastAfcExpectedRf = rxRf;
+      ctx.CatControl.Rx?.SetRxFrequency(catHz);
     }
 
     private void SendCatTxFrequency(double txRf)
     {
       var transverter = ctx.Settings.Transverter;
+      double catFrequency = txRf;
       if (transverter.TxCatOffsetEnabled)
       {
         var band = transverter.GetCatBand(txRf);
         if (band == null)
-          Serilog.Log.Warning($"TX CAT transverter offset enabled but no CAT band matches RF {txRf:n0} Hz — skipping CAT command");
-        else
-          ctx.CatControl.Tx!.SetTxFrequency((long)Math.Truncate(txRf - band.LoOffset));
+        {
+          Serilog.Log.Warning(
+            "TX CAT transverter offset enabled but no CAT band matches RF {RfHz:n0} Hz — skipping CAT command",
+            txRf);
+          return;
+        }
+
+        catFrequency -= band.LoOffset;
       }
-      else
-        ctx.CatControl.Tx!.SetTxFrequency((long)Math.Truncate(txRf));
+
+      ctx.CatControl.Tx?.SetTxFrequency(QuantizeCatHz(catFrequency));
     }
 
     // True when RX CAT transverter offset is enabled but the current downlink RF falls outside
