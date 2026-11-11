@@ -62,6 +62,10 @@ namespace SkyRoof
 
     internal event Action<IcomScopeFrame>? ScopeFrameReceived;
     internal event Action<string>? StatusChanged;
+    // Only emitted for the authenticated Direct LAN receive-audio stream.
+    // Consumers must interpret the samples as AF or IF according to the
+    // radio's actual Output Select; this event makes no such assumption.
+    internal event Action<int, IcomLanLpcmAudioCodec.RxFrame>? AudioFrameReceived;
 
     internal string? DetectedRadioAddress { get; private set; }
     internal int? DetectedCivPort { get; private set; }
@@ -252,6 +256,7 @@ namespace SkyRoof
 
         session.StatusChanged += DirectSession_StatusChanged;
         session.CivDataReceived += DirectSession_CivDataReceived;
+        session.AudioFrameReceived += DirectSession_AudioFrameReceived;
 
         lock (DirectSessionSync)
           DirectSession = session;
@@ -276,6 +281,7 @@ namespace SkyRoof
         {
           session.StatusChanged -= DirectSession_StatusChanged;
           session.CivDataReceived -= DirectSession_CivDataReceived;
+          session.AudioFrameReceived -= DirectSession_AudioFrameReceived;
 
           DetectedCivPort =
             session.RemoteCivPortNumber > 0
@@ -312,6 +318,10 @@ namespace SkyRoof
 
       PublishStatus(message);
     }
+
+    private void DirectSession_AudioFrameReceived(
+      int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame) =>
+      AudioFrameReceived?.Invoke(sampleRate, frame);
 
     private void DirectSession_CivDataReceived(byte[] bytes)
     {
