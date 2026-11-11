@@ -23,6 +23,8 @@ namespace SkyRoof
     private readonly EmbeddedSkyCatHost EmbeddedSkyCat = new();
     private readonly ToolStripStatusLabel[] ifAfStageLeds = new ToolStripStatusLabel[4];
     private readonly ToolStripStatusLabel[] ifAfStageLabels = new ToolStripStatusLabel[4];
+    private readonly IcomDirectLanMeterBar directLanMeters = new();
+    private ToolStripControlHost? directLanMetersHost;
     private IfAfStatus? previousIfAfStatus;
     private DateTime lastIfAfClipUtc;
     private long recentIfAfClips, recentIfAfOutputSamples;
@@ -46,6 +48,7 @@ namespace SkyRoof
       ConfigureSstvConsoleMenuItem();
       ConfigureOnvifCameraMenu();
       ConfigureIfAfLinkBar();
+      ConfigureIcomDirectLanMeterBar();
       ConfigureGitHubThemeMenuItems();
       AddOrbitSourceMenuItems();
       AddLogArchiveMenuItem();
@@ -1129,6 +1132,43 @@ namespace SkyRoof
       UpdateIfAfLinkBar();
     }
 
+    private void ConfigureIcomDirectLanMeterBar()
+    {
+      directLanMetersHost = new ToolStripControlHost(directLanMeters)
+      {
+        Name = "IcomDirectLanMeters",
+        AutoSize = false,
+        Size = new Size(350, 29),
+        Margin = Padding.Empty,
+        Padding = Padding.Empty,
+        ToolTipText = "Icom Direct LAN CI-V meter readback"
+      };
+      int position = StatusStrip.Items.IndexOf(CpuLoadlabel);
+      StatusStrip.Items.Insert(
+        position >= 0 ? position : StatusStrip.Items.Count,
+        directLanMetersHost);
+      UpdateIcomDirectLanMeterBar();
+    }
+
+    internal void UpdateIcomDirectLanMeterBar()
+    {
+      if (directLanMetersHost == null) return;
+      IcomDirectLanMeterSettings meters = ctx.Settings.IcomDirectLan.Meters;
+      bool visible = meters.Enabled &&
+        (meters.S || meters.Power || meters.Alc || meters.Swr) &&
+        ctx.Settings.IcomLanSpectrum.Source == IcomLanSpectrumSource.DirectLan;
+      directLanMetersHost.Visible = visible;
+      if (!visible) return;
+      directLanMeters.ForeColor = StatusStrip.ForeColor;
+      directLanMeters.BackColor = StatusStrip.BackColor;
+      directLanMeters.UpdateMeters(
+        ctx.IcomLanSpectrumPanel?.MeterSnapshot ?? new IcomMeterSnapshot(),
+        meters);
+      directLanMetersHost.ToolTipText =
+        "Direct LAN CI-V meter readback (raw data, not calibrated Watts)\n" +
+        directLanMeters.StatusText;
+    }
+
     private void ShowIfAfLinkDiagnostics(object? sender, EventArgs e)
     {
       if (ctx.IfAf == null) return;
@@ -2096,7 +2136,11 @@ namespace SkyRoof
     private void timer_Tick(object sender, EventArgs e)
     {
       ctx.IfAf?.UpdateMode(CurrentIfAfMode());
-      if ((TickCount & 3) == 0) UpdateIfAfLinkBar();
+      if ((TickCount & 3) == 0)
+      {
+        UpdateIfAfLinkBar();
+        UpdateIcomDirectLanMeterBar();
+      }
       // 8 Hz (125 ms) ticks
       TickCount += 1;
 
