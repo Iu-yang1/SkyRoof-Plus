@@ -2036,11 +2036,11 @@ namespace SkyRoof
         }
         wasKeyed = true;
 
+        long previousOverflow = pcm.OverflowSamples;
         while (TxAudio.Reader.TryRead(out float[]? captured))
           pcm.Push(captured);
 
         long previousUnderrun = pcm.UnderrunSamples;
-        long previousOverflow = pcm.OverflowSamples;
         float[] frame = pcm.NextFrame();
         Interlocked.Add(ref AudioTxPaddedSamples,
           pcm.UnderrunSamples - previousUnderrun);
