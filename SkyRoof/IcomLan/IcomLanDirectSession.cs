@@ -8,6 +8,30 @@ using Serilog;
 
 namespace SkyRoof
 {
+  internal readonly record struct IcomDirectLanTxAudioStatus(
+    bool AudioConnected,
+    bool TxEnabled,
+    long UdpSent,
+    double LastSentDbfs,
+    long LastSentUtcTicks);
+
+  internal static class IcomDirectLanTxAudioDisplay
+  {
+    internal static string Format(
+      IcomDirectLanTxAudioStatus status, bool catPtt, DateTime utcNow)
+    {
+      if (!status.TxEnabled) return "LAN TX disabled";
+      if (!status.AudioConnected) return "LAN TX offline";
+      if (status.LastSentUtcTicks > 0 &&
+          utcNow.Ticks >= status.LastSentUtcTicks &&
+          utcNow.Ticks - status.LastSentUtcTicks <
+            TimeSpan.FromMilliseconds(1500).Ticks)
+        return $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS";
+      return catPtt ? "LAN TX PTT ON · no PCM" :
+        $"LAN TX idle · {status.UdpSent} pkts";
+    }
+  }
+
   /// <summary>
   /// Minimal authenticated Icom LAN client used only for the native CI-V stream.
   ///
@@ -69,6 +93,14 @@ namespace SkyRoof
     private long MeterReadRequests;
     private long MeterReadbacks;
     private long AudioTxDatagrams;
+    private double LastSentAudioDbfs = -120;
+    private long LastSentAudioTicks;
+    internal Func<bool>? ExternalMeterReadbackAvailable { get; init; }
+    internal IcomDirectLanTxAudioStatus TxAudioStatus => new(
+      AudioLinkConnected, AudioOptions.Transmit.Enabled,
+      Interlocked.Read(ref AudioTxDatagrams),
+      Volatile.Read(ref LastSentAudioDbfs),
+      Interlocked.Read(ref LastSentAudioTicks));
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
@@ -709,12 +741,13 @@ namespace SkyRoof
       {
         LastAudioDiagnosticsUtc = now;
         Log.Information(
-          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} rejected={Rejected} TX UDP={Transmitted} TX rejected/no CAT PTT={NoPtt} meter requests={Requests} readbacks={Readbacks} pendingMeter={Meter} CI-V datagrams={CivPackets}",
+          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} rejected={Rejected} TX UDP={Transmitted} TX level={TxDbfs:F1}dBFS TX rejected/no CAT PTT={NoPtt} native meter requests={Requests} readbacks={Readbacks} pendingMeter={Meter} CI-V datagrams={CivPackets}",
           IsStreaming, AudioLinkConnected,
           Interlocked.Read(ref AudioRxDatagrams),
           Interlocked.Read(ref AudioRxDecodedFrames),
           Interlocked.Read(ref AudioRxRejectedFrames),
           Interlocked.Read(ref AudioTxDatagrams),
+          Volatile.Read(ref LastSentAudioDbfs),
           Interlocked.Read(ref AudioTxRejectedWithoutPtt),
           Interlocked.Read(ref MeterReadRequests),
           Interlocked.Read(ref MeterReadbacks),
@@ -727,6 +760,7 @@ namespace SkyRoof
       UdpClient civ, DateTime now, CancellationToken token)
     {
       if (AudioOptions.Meters.Enabled &&
+          ExternalMeterReadbackAvailable?.Invoke() != true &&
           (now - LastMeterPollUtc).TotalMilliseconds >=
             Math.Clamp(AudioOptions.Meters.PollIntervalMs, 100, 2000) &&
           (!PendingMeter.HasValue ||
@@ -1880,6 +1914,10 @@ namespace SkyRoof
             }
           }
           await SendAudioRawAsync(audio, datagram, token);
+          double rms = Math.Sqrt(chunk.Average(v => (double)v * v));
+          Volatile.Write(ref LastSentAudioDbfs,
+            rms > 0 ? 20 * Math.Log10(rms) : -120);
+          Interlocked.Exchange(ref LastSentAudioTicks, DateTime.UtcNow.Ticks);
           Interlocked.Increment(ref AudioTxDatagrams);
         }
       }

@@ -25,6 +25,16 @@ namespace SkyRoof
     private readonly ToolStripStatusLabel[] ifAfStageLabels = new ToolStripStatusLabel[4];
     private readonly IcomDirectLanMeterBar directLanMeters = new();
     private ToolStripControlHost? directLanMetersHost;
+    private readonly ToolStripStatusLabel directLanTxAudioLabel = new()
+    {
+      Name = "IcomDirectLanTxAudio",
+      Alignment = ToolStripItemAlignment.Right,
+      AutoSize = true,
+      Visible = false,
+      Text = "LAN TX offline",
+      Margin = new Padding(4, 3, 4, 2),
+      ToolTipText = "LAN transmit audio is measured on the PC/UDP side only, not verified RF power"
+    };
     private IfAfStatus? previousIfAfStatus;
     private DateTime lastIfAfClipUtc;
     private long recentIfAfClips, recentIfAfOutputSamples;
@@ -1149,9 +1159,9 @@ namespace SkyRoof
       directLanMetersHost.Alignment = ToolStripItemAlignment.Right;
       directLanMetersHost.Overflow = ToolStripItemOverflow.Never;
       int position = StatusStrip.Items.IndexOf(CpuLoadlabel);
-      StatusStrip.Items.Insert(
-        position >= 0 ? position : StatusStrip.Items.Count,
-        directLanMetersHost);
+      int insertAt = position >= 0 ? position : StatusStrip.Items.Count;
+      StatusStrip.Items.Insert(insertAt, directLanTxAudioLabel);
+      StatusStrip.Items.Insert(insertAt + 1, directLanMetersHost);
       UpdateIcomDirectLanMeterBar();
     }
 
@@ -1163,7 +1173,20 @@ namespace SkyRoof
         (meters.S || meters.Power || meters.Alc || meters.Swr) &&
         ctx.Settings.IcomLanSpectrum.Source == IcomLanSpectrumSource.DirectLan;
       directLanMetersHost.Visible = visible;
+      directLanTxAudioLabel.Visible = visible && ctx.Settings.IcomDirectLan.Transmit.Enabled;
       if (!visible) return;
+
+      var tx = ctx.IcomLanSpectrumPanel?.TxAudioStatus ?? default;
+      bool catPtt = ctx.CatControl.Tx?.Ptt == true ||
+                    ctx.CatControl.Rx?.Ptt == true;
+      directLanTxAudioLabel.Text = IcomDirectLanTxAudioDisplay.Format(
+        tx, catPtt, DateTime.UtcNow);
+      directLanTxAudioLabel.ForeColor = StatusStrip.ForeColor;
+      directLanTxAudioLabel.ToolTipText =
+        $"PC microphone → LAN UDP audio. Sent {tx.UdpSent} PCM packets in this session; " +
+        $"last sent sample level {tx.LastSentDbfs:F1} dBFS. " +
+        "UDP send does not prove the IC-9700 selected LAN MOD input or radiated RF.";
+
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
       directLanMeters.UpdateMeters(
