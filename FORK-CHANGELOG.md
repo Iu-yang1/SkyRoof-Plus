@@ -1,3 +1,23 @@
+# SkyRoof Fork v.1.68 / SkyRoof Fork 1.68 版本说明
+
+Release date / 发布日期: 2026-11-11. Direct LAN CI-V network settings readback release, superseding v.1.67 without modifying its tag or installer.
+
+## 中文
+- **SkyRoof-Plus PR #179**：Direct LAN 设置增加 `READ FROM CI-V`，通过已连接的 SkyCAT 复用 CAT/CI-V 会话，不单独建立 Icom LAN 登录。
+- **SkyCAT PR #37**：支持 IC-9700 网络参数只读 CI-V 查询。读取 IP、Network Control 开关、Control / Serial / Audio UDP 端口；IP、Control / Serial 端口按有效字段回填，Audio 和开关状态只供显示；账户及密码原样保留。
+- 在 CAT 周期中逐个查询参数，保持正常频率、多普勒和 PTT 操作流程；对响应来源、命令和字段进行匹配，拒绝畸形 BCD 数据。缺失字段不重置设置，点击 Apply / OK 才持久化。
+- SkyCAT Windows 编译与测试、SkyRoof-Plus Windows x64 构建、全量 xUnit、Settings 四行工具栏布局回归及固定版本 aislop 门禁已经通过。
+- **实机边界**：尚未在 IC-9700 上直接完成网络参数回读实测，不声明真实电台读回兼容性已经验收。
+
+## English
+- **SkyRoof-Plus #179** adds `READ FROM CI-V` to Direct LAN settings using the existing SkyCAT CAT transport, without another Icom LAN login.
+- **SkyCAT #37** exposes read-only IC-9700 network IP, Network Control, and Control/Serial/Audio UDP port registers. Valid IP and Control/Serial ports populate pending settings; audio port/status are informational, and credentials remain unchanged.
+- One CI-V query is executed per CAT cycle, with strict response matching and BCD validation. Missing fields preserve existing settings and values are saved only on Apply/OK.
+- SkyCAT Windows build/tests, SkyRoof-Plus Windows x64 build, full xUnit tests, settings-layout regression, and pinned aislop gate passed.
+- **Hardware caveat:** Real IC-9700 network readback has not been validated on hardware; automated tests do not prove real-radio interoperability.
+
+---
+
 # SkyRoof Fork v.1.66 / SkyRoof Fork 1.66 版本说明
 
 Release date / 发布日期: 2026-11-05. P0–P3 risk-assessed code-quality and lifecycle maintenance release.
