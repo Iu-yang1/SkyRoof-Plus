@@ -135,7 +135,24 @@ namespace SkyRoof
           Volatile.Write(ref ReadyValue, 1);
           while (!token.IsCancellationRequested)
           {
-            if (!await Jobs.Reader.WaitToReadAsync(token)) break;
+            bool hasWork;
+            try
+            {
+              hasWork = await Jobs.Reader.WaitToReadAsync(token).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5), token);
+            }
+            catch (TimeoutException)
+            {
+              // The scope TCP stream can keep running after the separate CAT
+              // socket goes stale. Check the already-supported static "a"
+              // capability reply without touching radio frequency/PTT.
+              string? health = await SendAsync("a", token);
+              if (health == null ||
+                  !health.Contains("IC-9700", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("SkyCAT CAT capability heartbeat failed.");
+              continue;
+            }
+            if (!hasWork) break;
             while (Jobs.Reader.TryRead(out Work? work))
               await ExecuteAsync(work, token);
           }
