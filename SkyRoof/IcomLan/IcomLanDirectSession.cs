@@ -78,7 +78,7 @@ namespace SkyRoof
     private byte RadioCivAddress;
     private string RadioName = string.Empty;
     private readonly IcomRadioProfile ExpectedScopeProfile;
-    private readonly bool PreferFastScopeSweep;
+    internal bool PreferFastScopeSweep { get; init; }
     private readonly IcomNativeCivSequenceTracker CivRxSequences = new();
     private long LastNativeScopeTicks;
     private int RemoteCivPort = DefaultCivPort;
@@ -126,8 +126,7 @@ namespace SkyRoof
       string username,
       string password,
       string clientName,
-      IcomRadioProfile? expectedScopeProfile = null,
-      bool preferFastScopeSweep = false)
+      IcomRadioProfile? expectedScopeProfile = null)
     {
       if (!IPAddress.TryParse(radioAddress, out IPAddress? address) ||
           address.AddressFamily != AddressFamily.InterNetwork)
@@ -147,7 +146,6 @@ namespace SkyRoof
 
       RadioAddress = address;
       ExpectedScopeProfile = expectedScopeProfile ?? IcomRadioProfiles.Ic9700;
-      PreferFastScopeSweep = preferFastScopeSweep;
       ControlPort = Math.Clamp(controlPort, 1, 65535);
       Username = username.Trim();
       Password = password;
