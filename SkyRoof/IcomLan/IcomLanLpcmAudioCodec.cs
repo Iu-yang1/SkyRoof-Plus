@@ -42,7 +42,6 @@ namespace SkyRoof
           (datagram[16] == 0xC1 || datagram[16] == 0xC0))
         return false;
 
-      int length = BinaryPrimitives.ReadUInt16BigEndian(datagram.Slice(22, 2));
       int bytesPerSample = codec == IcomLanAudioCodec.Lpcm16Mono ? 2 : 1;
       // The radio's RX audio dataLength metadata is not guaranteed to
       // equal the UDP payload size on every firmware/codec combination.
