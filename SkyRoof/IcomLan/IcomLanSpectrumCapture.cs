@@ -270,8 +270,10 @@ namespace SkyRoof
           DirectLanUsername,
           DirectLanPassword,
           DirectLanClientName,
-          ScopeRadioProfile,
-          DirectLanFastSweep);
+          ScopeRadioProfile)
+        {
+          PreferFastScopeSweep = DirectLanFastSweep
+        };
 
         session.StatusChanged += DirectSession_StatusChanged;
         session.CivDataReceived += DirectSession_CivDataReceived;
