@@ -35,6 +35,9 @@ namespace SkyRoof
       IcomMeterSnapshot snapshot, bool transmitting) =>
       transmitting
         ? snapshot with { S = null }
-        : snapshot with { Power = null, Alc = null, Swr = null };
+        : snapshot with
+        {
+          Power = null, Alc = null, Swr = null, PowerPeak = null
+        };
   }
 }
