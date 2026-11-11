@@ -38,7 +38,7 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
-    public async Task ScopeOnlyConnectionCanWriteModeAndSpanWithoutPttOrFrequency()
+    public void ScopeOnlyConnectionCanWriteModeAndSpanWithoutPttOrFrequency()
     {
       using var server = new StubSkyCat();
       using var client = new IcomSkyCatScopeClient(server.Port);
