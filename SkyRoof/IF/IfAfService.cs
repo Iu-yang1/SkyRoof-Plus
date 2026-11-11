@@ -109,7 +109,7 @@ namespace SkyRoof.IF
           string.Equals(config.InputDeviceId, signed.CaptureId,
             StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException(
-          "IF capture must not be the selected virtual cable recording endpoint. Select IC-9700 USB IF.");
+          "IF capture must not be the virtual cable recording endpoint. Select the IC-9700 / IC-705 / IC-905 USB 12-kHz IF recording device.");
       if (config.AudioRoute == IfAfAudioRoute.AutoSignedCable && !signed.Ready)
         throw new InvalidOperationException(signed.Status +
           " Get VB-CABLE from https://vb-audio.com/Cable/ or use ExistingVirtualCable.");
