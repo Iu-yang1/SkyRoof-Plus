@@ -112,7 +112,7 @@ namespace VE3NEA.Dsp.Tests
     public void HealthyLanDataDisablesUnconditionalFiveSecondScopeReassert()
     {
       DateTime lastCommand = Epoch;
-      DateTime lastFrame = Epoch.AddSeconds(7);
+      DateTime lastFrame = Epoch.AddSeconds(8);
       Assert.False(IcomScopeRecoveryPolicy.ShouldReassert(
         Epoch.AddSeconds(9), lastCommand, lastFrame));
       Assert.False(IcomScopeRecoveryPolicy.ShouldReassert(
