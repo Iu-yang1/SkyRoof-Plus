@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Channels;
 using Serilog;
 
 namespace SkyRoof
@@ -42,6 +43,31 @@ namespace SkyRoof
     private readonly string Username;
     private readonly string Password;
     private readonly string ClientName;
+    private readonly IcomDirectLanSettings AudioOptions;
+
+    private readonly Channel<float[]> TxAudio = Channel.CreateBounded<float[]>(
+      new BoundedChannelOptions(12)
+      {
+        SingleReader = true,
+        SingleWriter = true,
+        FullMode = BoundedChannelFullMode.DropOldest
+      });
+    private readonly SemaphoreSlim AudioSendLock = new(1, 1);
+    private readonly object AudioHistoryLock = new();
+    private readonly Dictionary<ushort, byte[]> AudioTxHistory = new();
+    private readonly Queue<ushort> AudioTxOrder = new();
+    private ushort AudioOuterSeq = 1;
+    private ushort AudioPayloadSeq;
+    private uint NegotiatedRxRate;
+    private uint NegotiatedTxRate;
+    private volatile bool AudioTxReady;
+    internal Func<bool>? IsPttActive { get; init; }
+
+    private IcomMeterKind? PendingMeter;
+    private DateTime PendingMeterUtc;
+    private DateTime LastMeterPollUtc;
+    private int NextMeterIndex;
+    internal event Action<IcomMeterReading>? MeterReceived;
 
     private UdpClient? Control;
     private UdpClient? Civ;
@@ -126,7 +152,8 @@ namespace SkyRoof
       string username,
       string password,
       string clientName,
-      IcomRadioProfile? expectedScopeProfile = null)
+      IcomRadioProfile? expectedScopeProfile = null,
+      IcomDirectLanSettings? audioSettings = null)
     {
       if (!IPAddress.TryParse(radioAddress, out IPAddress? address) ||
           address.AddressFamily != AddressFamily.InterNetwork)
@@ -150,6 +177,21 @@ namespace SkyRoof
       Username = username.Trim();
       Password = password;
       ClientName = NormalizeClientName(clientName);
+      AudioOptions = audioSettings ?? new IcomDirectLanSettings();
+    }
+
+    internal bool TryQueueTransmitAudio(float[] samples, int count)
+    {
+      // This transport never asserts PTT. An active CAT PTT readback is
+      // required at both capture and UDP-send time; stale audio is discarded.
+      if (!AudioOptions.Transmit.Enabled || !AudioTxReady ||
+          IsPttActive?.Invoke() != true || count <= 0 ||
+          count > samples.Length)
+        return false;
+
+      var copy = new float[count];
+      Array.Copy(samples, copy, count);
+      return TxAudio.Writer.TryWrite(copy);
     }
 
     internal async Task RunAsync(CancellationToken token)
@@ -299,6 +341,17 @@ namespace SkyRoof
           $"(CI-V 0x{RadioCivAddress:X2}), configured Scope model is " +
           $"'{ExpectedScopeProfile.Model}'. Select the matching model.");
 
+      NegotiatedRxRate = AudioOptions.Receive.Enabled
+        ? ChooseSampleRate(AudioOptions.Receive.SampleRate, RadioRxSampleCapabilities)
+        : 0;
+      NegotiatedTxRate = AudioOptions.Transmit.Enabled
+        ? ChooseSampleRate(AudioOptions.Transmit.SampleRate, RadioTxSampleCapabilities)
+        : 0;
+
+      if (AudioOptions.Receive.Enabled && NegotiatedRxRate == 0)
+        Publish("Direct LAN: radio does not advertise supported RX audio sample rates.");
+      if (AudioOptions.Transmit.Enabled && NegotiatedTxRate == 0)
+        Publish("Direct LAN: radio does not advertise supported TX audio sample rates.");
       byte[] streamAuthId = AuthId.ToArray();
       ushort streamSequence = await SendStreamRequestAsync(
         control,
@@ -392,15 +445,18 @@ namespace SkyRoof
         $"{RadioAddress}:{RemoteCivPort} -> local UDP/{LocalCivPort}.");
 
       Task audioDrain = Task.CompletedTask;
-      if (RadioRxSampleCapabilities != 0 && RemoteAudioPort > 0)
+      Task audioTransmit = Task.CompletedTask;
+      if ((NegotiatedRxRate != 0 || NegotiatedTxRate != 0) && RemoteAudioPort > 0)
       {
         try
         {
           audio.Connect(RadioAddress, RemoteAudioPort);
           AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
           audioDrain = DrainAudioAsync(
-            audio, (int)SelectReceiveSampleRate(RadioRxSampleCapabilities),
-            token);
+            audio, (int)NegotiatedRxRate, token);
+          AudioTxReady = NegotiatedTxRate != 0;
+          if (AudioTxReady)
+            audioTransmit = TransmitAudioAsync(audio, token);
         }
         catch (Exception ex)
         {
@@ -430,6 +486,8 @@ namespace SkyRoof
       finally
       {
         IsStreaming = false;
+        AudioTxReady = false;
+        TxAudio.Writer.TryComplete();
 
         try
         {
@@ -451,11 +509,11 @@ namespace SkyRoof
 
         try
         {
-          await Task.WhenAny(audioDrain, Task.Delay(150));
+          await Task.WhenAny(Task.WhenAll(audioDrain, audioTransmit), Task.Delay(150));
         }
         catch (Exception ex)
         {
-          Log.Debug("Icom Direct LAN audio drain did not settle ({Type})", ex.GetType().Name);
+          Log.Debug("Icom Direct LAN audio workers did not settle ({Type})", ex.GetType().Name);
         }
       }
     }
@@ -586,6 +644,24 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
+      if (AudioOptions.Meters.Enabled &&
+          (now - LastMeterPollUtc).TotalMilliseconds >=
+            Math.Clamp(AudioOptions.Meters.PollIntervalMs, 100, 2000) &&
+          (!PendingMeter.HasValue ||
+            (now - PendingMeterUtc).TotalMilliseconds >= 800))
+      {
+        IcomMeterKind[] meters = EnabledMeters(AudioOptions.Meters);
+        if (meters.Length != 0)
+        {
+          IcomMeterKind next = meters[NextMeterIndex++ % meters.Length];
+          await SendCivDataAsync(civ,
+            IcomMeterCivCodec.BuildRead(RadioCivAddress, next), token);
+          PendingMeter = next;
+          PendingMeterUtc = now;
+          LastMeterPollUtc = now;
+        }
+      }
+
       DateTime lastSweepUtc = new DateTime(
         Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
         DateTimeKind.Utc);
@@ -679,7 +755,34 @@ namespace SkyRoof
         .AsSpan(21, declaredLength)
         .ToArray();
 
+      // Only the active request and the authenticated radio's address
+      // can update a meter; the high-rate 27 00 Scope stream stays independent.
+      if (PendingMeter.HasValue)
+      {
+        for (int offset = 0; offset + 9 <= payload.Length; offset++)
+        {
+          if (IcomMeterCivCodec.TryParse(
+                payload.AsSpan(offset, 9), RadioCivAddress,
+                out IcomMeterReading reading) &&
+              reading.Kind == PendingMeter.Value)
+          {
+            PendingMeter = null;
+            MeterReceived?.Invoke(reading);
+            break;
+          }
+        }
+      }
       CivDataReceived?.Invoke(payload);
+    }
+
+    private static IcomMeterKind[] EnabledMeters(IcomDirectLanMeterSettings options)
+    {
+      var kinds = new List<IcomMeterKind>(4);
+      if (options.S) kinds.Add(IcomMeterKind.S);
+      if (options.Power) kinds.Add(IcomMeterKind.Power);
+      if (options.Alc) kinds.Add(IcomMeterKind.Alc);
+      if (options.Swr) kinds.Add(IcomMeterKind.Swr);
+      return kinds.ToArray();
     }
 
     private async Task HandleCommonPacketAsync(
@@ -907,7 +1010,12 @@ namespace SkyRoof
         RadioMacAddress,
         RadioRxSampleCapabilities,
         localCivPort,
-        localAudioPort);
+        localAudioPort,
+        (byte)AudioOptions.Receive.Codec,
+        NegotiatedRxRate,
+        (byte)AudioOptions.Transmit.Codec,
+        NegotiatedTxRate,
+        (uint)Math.Clamp(AudioOptions.Transmit.PrebufferMs, 20, 500));
 
       await SendTrackedAsync(
         control,
@@ -997,7 +1105,12 @@ namespace SkyRoof
       ReadOnlySpan<byte> radioMac,
       ushort rxSampleCapabilities,
       int localCivPort,
-      int localAudioPort)
+      int localAudioPort,
+      byte rxCodec = Lpcm16MonoCodec,
+      uint rxSampleRate = 0,
+      byte txCodec = 0,
+      uint txSampleRate = 0,
+      uint txBufferMs = 0)
     {
       if (authId.Length != 6)
         throw new ArgumentException(
@@ -1044,21 +1157,22 @@ namespace SkyRoof
       WriteAsciiZ(packet.AsSpan(0x40, 32), radioName);
       EncodePasscode(username).CopyTo(packet, 0x60);
 
-      uint receiveSampleRate =
-        SelectReceiveSampleRate(rxSampleCapabilities);
+      // Legacy test callers retain receive-only default negotiation.
+      uint receiveSampleRate = rxSampleRate != 0
+        ? rxSampleRate
+        : txSampleRate != 0 ? 0 : SelectReceiveSampleRate(rxSampleCapabilities);
       bool receiveAudio = receiveSampleRate != 0;
+      bool transmitAudio = txSampleRate != 0;
 
       packet[0x70] = receiveAudio ? (byte)0x01 : (byte)0x00;
-      packet[0x71] = 0x00;
-      packet[0x72] = receiveAudio ? Lpcm16MonoCodec : (byte)0x00;
-      packet[0x73] = 0x00;
+      packet[0x71] = transmitAudio ? (byte)0x01 : (byte)0x00;
+      packet[0x72] = receiveAudio ? rxCodec : (byte)0x00;
+      packet[0x73] = transmitAudio ? txCodec : (byte)0x00;
 
       BinaryPrimitives.WriteUInt32BigEndian(
-        packet.AsSpan(0x74, 4),
-        receiveSampleRate);
+        packet.AsSpan(0x74, 4), receiveSampleRate);
       BinaryPrimitives.WriteUInt32BigEndian(
-        packet.AsSpan(0x78, 4),
-        0);
+        packet.AsSpan(0x78, 4), txSampleRate);
       BinaryPrimitives.WriteUInt32BigEndian(
         packet.AsSpan(0x7C, 4),
         checked((uint)localCivPort));
@@ -1066,8 +1180,7 @@ namespace SkyRoof
         packet.AsSpan(0x80, 4),
         checked((uint)localAudioPort));
       BinaryPrimitives.WriteUInt32BigEndian(
-        packet.AsSpan(0x84, 4),
-        0);
+        packet.AsSpan(0x84, 4), txBufferMs);
       packet[0x88] = 0x01;
       return packet;
     }
@@ -1086,6 +1199,26 @@ namespace SkyRoof
       if ((capabilityMask & 0x0010) != 0) return 11025;
       if ((capabilityMask & 0x0001) != 0) return 8000;
       return 0;
+    }
+
+    internal static uint ChooseSampleRate(
+      IcomLanAudioSampleRate requested, ushort advertised)
+    {
+      int value = (int)requested;
+      ushort bit = value switch
+      {
+        48000 => 0x0008,
+        32000 => 0x0004,
+        16000 => 0x0002,
+        12000 => 0x0080,
+        44100 => 0x0040,
+        22050 => 0x0020,
+        11025 => 0x0010,
+        8000 => 0x0001,
+        _ => (ushort)0
+      };
+      return bit != 0 && (advertised & bit) != 0
+        ? (uint)value : SelectReceiveSampleRate(advertised);
     }
 
     private async Task SendOpenCloseAsync(
@@ -1543,8 +1676,28 @@ namespace SkyRoof
             continue;
           }
 
-          if (IcomLanLpcmAudioCodec.TryDecode(
-                packet, AudioRemoteSid, AudioLocalSid, out var pcm))
+          if (packet.Length == 16 &&
+              BinaryPrimitives.ReadUInt16LittleEndian(
+                packet.AsSpan(4, 2)) == 0x0001 &&
+              MatchesControlEnvelope(packet, AudioLocalSid, AudioRemoteSid))
+          {
+            if (AudioOptions.RetransmitAudio)
+            {
+              ushort requested = BinaryPrimitives.ReadUInt16LittleEndian(
+                packet.AsSpan(6, 2));
+              byte[]? original;
+              lock (AudioHistoryLock)
+                AudioTxHistory.TryGetValue(requested, out original);
+              if (original != null && IsPttActive?.Invoke() == true)
+                await SendAudioRawAsync(audio, original, token);
+            }
+            continue;
+          }
+
+          if (sampleRate > 0 && AudioOptions.Receive.Enabled &&
+              IcomLanLpcmAudioCodec.TryDecode(
+                packet, AudioRemoteSid, AudioLocalSid,
+                AudioOptions.Receive.Codec, out var pcm))
           {
             try
             {
@@ -1576,6 +1729,53 @@ namespace SkyRoof
       }
     }
 
+    private async Task TransmitAudioAsync(
+      UdpClient audio, CancellationToken token)
+    {
+      int bytesPerSample = AudioOptions.Transmit.Codec ==
+        IcomLanAudioCodec.Lpcm16Mono ? 2 : 1;
+      int maxSamples = 1364 / bytesPerSample;
+      await foreach (float[] captured in TxAudio.Reader.ReadAllAsync(token))
+      {
+        if (!IsStreaming || IsPttActive?.Invoke() != true)
+          continue;
+        for (int offset = 0; offset < captured.Length; offset += maxSamples)
+        {
+          if (!IsStreaming || IsPttActive?.Invoke() != true) break;
+          int length = Math.Min(maxSamples, captured.Length - offset);
+          var gain = Math.Clamp(AudioOptions.Transmit.MicrophoneGain, 0, 200) / 100f;
+          var chunk = new float[length];
+          for (int i = 0; i < length; i++)
+            chunk[i] = Math.Clamp(captured[offset + i] * gain, -1f, 1f);
+
+          ushort sequence = AudioOuterSeq++;
+          byte[] datagram = IcomLanLpcmAudioCodec.EncodeTransmit(
+            chunk, AudioLocalSid, AudioRemoteSid,
+            sequence, AudioPayloadSeq++, AudioOptions.Transmit.Codec);
+
+          if (AudioOptions.RetransmitAudio)
+          {
+            lock (AudioHistoryLock)
+            {
+              AudioTxHistory[sequence] = datagram;
+              AudioTxOrder.Enqueue(sequence);
+              while (AudioTxOrder.Count > 256)
+                AudioTxHistory.Remove(AudioTxOrder.Dequeue());
+            }
+          }
+          await SendAudioRawAsync(audio, datagram, token);
+        }
+      }
+    }
+
+    private async Task SendAudioRawAsync(
+      UdpClient audio, byte[] datagram, CancellationToken token)
+    {
+      await AudioSendLock.WaitAsync(token);
+      try { await audio.SendAsync(datagram, token); }
+      finally { AudioSendLock.Release(); }
+    }
+
     private async Task SendAudioPingAsync(
       UdpClient audio, CancellationToken token)
     {
@@ -1591,7 +1791,7 @@ namespace SkyRoof
       ping[19] = (byte)(AudioPingInnerSeq >> 8);
       ping[20] = 0x06;
       AudioPingInnerSeq++;
-      await SendRawAsync(audio, ping, false, false, token);
+      await SendAudioRawAsync(audio, ping, token);
     }
 
     private void ParseCapabilities(byte[] packet)
@@ -1962,8 +2162,10 @@ namespace SkyRoof
       Civ = null;
       AudioSink = null;
 
+      TxAudio.Writer.TryComplete();
       ControlSendLock.Dispose();
       CivSendLock.Dispose();
+      AudioSendLock.Dispose();
     }
   }
 }
