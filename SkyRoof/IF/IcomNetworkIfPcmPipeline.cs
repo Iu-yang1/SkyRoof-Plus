@@ -87,8 +87,8 @@ namespace SkyRoof.IF
   /// <summary>
   /// Reorders audio frames by the UDP outer transport sequence, as used by
   /// Icom/wfview RX audio. The inner audio sequence can remain constant or
-  /// advance differently and must not suppress every RX frame. A missing
-  /// than splicing noncontiguous 12-kHz IF phases together.
+  /// advance differently and must not suppress every RX frame. Missing
+  /// frames reset the IF phase rather than splicing discontinuous samples.
   /// </summary>
   internal sealed class IcomNetworkIfPcmPipeline
   {
