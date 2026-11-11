@@ -217,8 +217,10 @@ public sealed class SettingsLanguageTests
           .Invoke(dialog, null);
         typeof(SettingsDialog).GetMethod("InstallSignedCableToolbar", flags)!
           .Invoke(dialog, null);
-        typeof(SettingsDialog).GetMethod("InstallIcomLanToolbar", flags)!
-          .Invoke(dialog, null);
+        var installIcomLanToolbar = typeof(SettingsDialog)
+          .GetMethod("InstallIcomLanToolbar", flags);
+        Assert.NotNull(installIcomLanToolbar);
+        installIcomLanToolbar.Invoke(dialog, null);
 
         dialog.CreateControl();
         dialog.PerformLayout();
