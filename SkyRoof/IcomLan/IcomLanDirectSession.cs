@@ -61,6 +61,12 @@ namespace SkyRoof
     private uint NegotiatedRxRate;
     private uint NegotiatedTxRate;
     private volatile bool AudioTxReady;
+    private volatile bool AudioLinkConnected;
+    private long AudioTxRejectedWithoutPtt;
+    private long AudioRxDatagrams;
+    private long AudioRxDecodedFrames;
+    private long AudioTxDatagrams;
+    private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
     private IcomMeterKind? PendingMeter;
@@ -183,9 +189,13 @@ namespace SkyRoof
       // This transport never asserts PTT. An active CAT PTT readback is
       // required at both capture and UDP-send time; stale audio is discarded.
       if (!AudioOptions.Transmit.Enabled || !AudioTxReady ||
-          IsPttActive?.Invoke() != true || count <= 0 ||
-          count > samples.Length)
+          count <= 0 || count > samples.Length)
         return false;
+      if (IsPttActive?.Invoke() != true)
+      {
+        Interlocked.Increment(ref AudioTxRejectedWithoutPtt);
+        return false;
+      }
 
       var copy = new float[count];
       Array.Copy(samples, copy, count);
@@ -355,6 +365,10 @@ namespace SkyRoof
         Publish("Direct LAN: radio does not advertise supported RX audio sample rates.");
       if (AudioOptions.Transmit.Enabled && NegotiatedTxRate == 0)
         Publish("Direct LAN: radio does not advertise supported TX audio sample rates.");
+      Log.Information(
+        "Direct LAN media negotiated: RX={RxRate}Hz codec={RxCodec}; TX={TxRate}Hz codec={TxCodec}; CI-V 0x{CivAddress:X2}; scope remains independent",
+        NegotiatedRxRate, AudioOptions.Receive.Codec,
+        NegotiatedTxRate, AudioOptions.Transmit.Codec, RadioCivAddress);
       byte[] streamAuthId = AuthId.ToArray();
       ushort streamSequence = await SendStreamRequestAsync(
         control,
@@ -449,24 +463,35 @@ namespace SkyRoof
 
       Task audioDrain = Task.CompletedTask;
       Task audioTransmit = Task.CompletedTask;
+      Task audioKeepAlive = Task.CompletedTask;
       if ((NegotiatedRxRate != 0 || NegotiatedTxRate != 0) && RemoteAudioPort > 0)
       {
         try
         {
           audio.Connect(RadioAddress, RemoteAudioPort);
           AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
+          AudioLinkConnected = true;
           audioDrain = DrainAudioAsync(
             audio, (int)NegotiatedRxRate, token);
+          audioKeepAlive = KeepAudioAliveAsync(audio, token);
           AudioTxReady = NegotiatedTxRate != 0;
+          Publish(
+            $"Direct LAN audio UDP/{RemoteAudioPort} ready: RX={NegotiatedRxRate}Hz, TX={NegotiatedTxRate}Hz. " +
+            "Check the radio's LAN AF/MOD input/output selections.");
+          Log.Information(
+            "Direct LAN audio session established on UDP/{Port}: RX {RxRate} Hz, TX {TxRate} Hz",
+            RemoteAudioPort, NegotiatedRxRate, NegotiatedTxRate);
           if (AudioTxReady)
             audioTransmit = TransmitAudioAsync(audio, token);
         }
         catch (Exception ex)
         {
-          // The dedicated optional audio socket may fail while CI-V is usable.
-          // Log only the exception type: endpoint details can carry secrets.
-          Log.Debug("Icom Direct LAN auxiliary audio unavailable ({Type})",
-            ex.GetType().Name);
+          // Scope remains usable, but failed RX/TX audio must be visible.
+          AudioLinkConnected = false;
+          Log.Warning(ex,
+            "Direct LAN audio UDP handshake failed; scope/CI-V session remains active");
+          Publish("Direct LAN AUDIO FAILED: " + ex.GetType().Name +
+            " during UDP audio handshake; scope may continue without audio.");
         }
       }
 
@@ -490,6 +515,7 @@ namespace SkyRoof
       {
         IsStreaming = false;
         AudioTxReady = false;
+        AudioLinkConnected = false;
         TxAudio.Writer.TryComplete();
 
         try
@@ -512,7 +538,9 @@ namespace SkyRoof
 
         try
         {
-          await Task.WhenAny(Task.WhenAll(audioDrain, audioTransmit), Task.Delay(150));
+          await Task.WhenAny(
+            Task.WhenAll(audioDrain, audioTransmit, audioKeepAlive),
+            Task.Delay(150));
         }
         catch (Exception ex)
         {
@@ -648,6 +676,7 @@ namespace SkyRoof
       }
 
       await PollMetersAsync(civ, now, token);
+      ReportAudioDiagnostics(now);
 
       DateTime lastSweepUtc = new DateTime(
         Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
@@ -655,6 +684,23 @@ namespace SkyRoof
       if (IcomScopeRecoveryPolicy.ShouldReassert(
             now, LastScopeCommandUtc, lastSweepUtc))
         await SendScopeConfigurationAsync(civ, token);
+    }
+
+    private void ReportAudioDiagnostics(DateTime now)
+    {
+      if ((now - LastAudioDiagnosticsUtc).TotalSeconds >= 5)
+      {
+        LastAudioDiagnosticsUtc = now;
+        Log.Information(
+          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} TX UDP={Transmitted} TX rejected/no CAT PTT={NoPtt} pendingMeter={Meter} CI-V datagrams={CivPackets}",
+          IsStreaming, AudioLinkConnected,
+          Interlocked.Read(ref AudioRxDatagrams),
+          Interlocked.Read(ref AudioRxDecodedFrames),
+          Interlocked.Read(ref AudioTxDatagrams),
+          Interlocked.Read(ref AudioTxRejectedWithoutPtt),
+          PendingMeter?.ToString() ?? "none", CivPayloadCount);
+      }
+
     }
 
     private async Task PollMetersAsync(
@@ -1666,7 +1712,7 @@ namespace SkyRoof
           }
           catch (OperationCanceledException) when (!token.IsCancellationRequested)
           {
-            await SendAudioPingAsync(audio, token);
+            // KeepAudioAliveAsync independently pings every 100 ms.
             continue;
           }
 
@@ -1696,6 +1742,8 @@ namespace SkyRoof
       UdpClient audio, int sampleRate, byte[] packet,
       CancellationToken token)
     {
+      if (packet.Length > IcomLanLpcmAudioCodec.HeaderBytes)
+        Interlocked.Increment(ref AudioRxDatagrams);
           if (packet.Length == 21 &&
               BinaryPrimitives.ReadUInt16LittleEndian(
                 packet.AsSpan(4, 2)) == 0x0007 &&
@@ -1709,7 +1757,7 @@ namespace SkyRoof
             reply[16] = 0x01;
             WriteSid(reply, 8, AudioLocalSid);
             WriteSid(reply, 12, AudioRemoteSid);
-            await SendRawAsync(audio, reply, false, false, token);
+            await SendAudioRawAsync(audio, reply, token);
             return;
           }
 
@@ -1736,6 +1784,7 @@ namespace SkyRoof
                 packet, AudioRemoteSid, AudioLocalSid,
                 AudioOptions.Receive.Codec, out var pcm))
           {
+            Interlocked.Increment(ref AudioRxDecodedFrames);
             try
             {
               AudioFrameReceived?.Invoke(sampleRate, pcm);
@@ -1782,6 +1831,7 @@ namespace SkyRoof
             }
           }
           await SendAudioRawAsync(audio, datagram, token);
+          Interlocked.Increment(ref AudioTxDatagrams);
         }
       }
     }
@@ -1792,6 +1842,21 @@ namespace SkyRoof
       await AudioSendLock.WaitAsync(token);
       try { await audio.SendAsync(datagram, token); }
       finally { AudioSendLock.Release(); }
+    }
+
+    private async Task KeepAudioAliveAsync(
+      UdpClient audio, CancellationToken token)
+    {
+      // Icom UDP audio uses an independent ping clock. Five-second receive
+      // timeout pings are too sparse for the real radio's media watchdog.
+      using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+      try
+      {
+        while (await timer.WaitForNextTickAsync(token))
+          await SendAudioPingAsync(audio, token);
+      }
+      catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+      catch (ObjectDisposedException) when (token.IsCancellationRequested) { }
     }
 
     private async Task SendAudioPingAsync(

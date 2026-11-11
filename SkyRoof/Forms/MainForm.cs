@@ -1138,15 +1138,18 @@ namespace SkyRoof
       {
         Name = "IcomDirectLanMeters",
         AutoSize = false,
-        Size = new Size(350, 29),
+        Size = new Size(292, 29),
         Margin = Padding.Empty,
         Padding = Padding.Empty,
         ToolTipText = "Icom Direct LAN CI-V meter readback"
       };
-      int position = StatusStrip.Items.IndexOf(CpuLoadlabel);
+      // A late StatusStrip item is put into the overflow dropdown as CAT
+      // status labels grow when changing satellites. Keep the compact meters
+      // at the beginning of the strip so they cannot disappear on retune.
+      // Index zero is the existing narrow leading spacer.
+      directLanMetersHost.Alignment = ToolStripItemAlignment.Left;
       StatusStrip.Items.Insert(
-        position >= 0 ? position : StatusStrip.Items.Count,
-        directLanMetersHost);
+        Math.Min(1, StatusStrip.Items.Count), directLanMetersHost);
       UpdateIcomDirectLanMeterBar();
     }
 
