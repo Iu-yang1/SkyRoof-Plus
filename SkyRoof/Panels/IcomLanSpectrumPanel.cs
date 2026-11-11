@@ -56,7 +56,7 @@ namespace SkyRoof
     private readonly System.Windows.Forms.Timer UiTimer = new() { Interval = 500 };
     private readonly IcomScopeState ScopeState = new();
     private readonly IcomScopeController ScopeController;
-    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new();
+    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new(12);
     private int ScopeCaptureEpoch;
     private byte LastGeometryUiScope = byte.MaxValue;
     private byte LastGeometryUiMode = byte.MaxValue;
