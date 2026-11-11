@@ -258,89 +258,101 @@ namespace SkyRoof
 
     private async Task DirectLanLoop(CancellationToken token)
     {
-      IcomLanDirectSession? session = null;
-      var ingress = new IcomDirectScopeIngress();
-      NativeIngress = ingress;
-      Task decoder = Task.Run(
-        () => ProcessNativeDatagramsAsync(ingress, token), token);
-
-      try
+      int reconnectCount = 0;
+      while (!token.IsCancellationRequested)
       {
-        LastError = null;
-        DetectedRadioAddress = ConfiguredRadioAddress;
-        PublishStatus(
-          $"Direct Icom LAN: connecting to {ConfiguredRadioAddress}:{DirectLanControlPort}...");
+        IcomLanDirectSession? session = null;
+        var ingress = new IcomDirectScopeIngress();
+        NativeIngress = ingress;
+        Task decoder = Task.Run(
+          () => ProcessNativeDatagramsAsync(ingress, token), token);
 
-        session = new IcomLanDirectSession(
-          ConfiguredRadioAddress,
-          DirectLanControlPort,
-          DirectLanUsername,
-          DirectLanPassword,
-          DirectLanClientName,
-          ScopeRadioProfile)
+        try
         {
-          AudioOptions = DirectLanAudioSettings,
-          PreferFastScopeSweep = DirectLanFastSweep,
-          IsPttActive = DirectLanPttActive
-        };
+          LastError = null;
+          DetectedRadioAddress = ConfiguredRadioAddress;
+          PublishStatus(reconnectCount == 0
+            ? $"Direct Icom LAN: connecting to {ConfiguredRadioAddress}:{DirectLanControlPort}..."
+            : $"Direct Icom LAN: reconnecting attempt {reconnectCount + 1}...");
 
-        session.StatusChanged += DirectSession_StatusChanged;
-        session.CivDataReceived += DirectSession_CivDataReceived;
-        session.AudioFrameReceived += DirectSession_AudioFrameReceived;
-        session.MeterReceived += DirectSession_MeterReceived;
+          session = new IcomLanDirectSession(
+            ConfiguredRadioAddress,
+            DirectLanControlPort,
+            DirectLanUsername,
+            DirectLanPassword,
+            DirectLanClientName,
+            ScopeRadioProfile)
+          {
+            AudioOptions = DirectLanAudioSettings,
+            PreferFastScopeSweep = DirectLanFastSweep,
+            IsPttActive = DirectLanPttActive
+          };
 
-        lock (DirectSessionSync)
-          DirectSession = session;
-
-        IsRunning = true;
-        await session.RunAsync(token);
-      }
-      catch (OperationCanceledException)
-      {
-        // Normal stop path.
-      }
-      catch (Exception ex)
-      {
-        if (!token.IsCancellationRequested)
-          Fail($"Direct Icom LAN failed: {ex.Message}", ex);
-      }
-      finally
-      {
-        IsRunning = false;
-        ingress.Complete();
-        try { await decoder; }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        Interlocked.Exchange(ref LastNativeIngressDrops, ingress.Dropped);
-        NativeIngress = null;
-
-        if (session != null)
-        {
-          session.StatusChanged -= DirectSession_StatusChanged;
-          session.CivDataReceived -= DirectSession_CivDataReceived;
-          session.AudioFrameReceived -= DirectSession_AudioFrameReceived;
-          session.MeterReceived -= DirectSession_MeterReceived;
-
-          DetectedCivPort =
-            session.RemoteCivPortNumber > 0
-              ? session.RemoteCivPortNumber
-              : null;
+          session.StatusChanged += DirectSession_StatusChanged;
+          session.CivDataReceived += DirectSession_CivDataReceived;
+          session.AudioFrameReceived += DirectSession_AudioFrameReceived;
+          session.MeterReceived += DirectSession_MeterReceived;
 
           lock (DirectSessionSync)
-          {
-            if (ReferenceEquals(DirectSession, session))
-              DirectSession = null;
-          }
+            DirectSession = session;
 
-          try { session.Dispose(); }
-          catch (Exception ex)
+          IsRunning = true;
+          await session.RunAsync(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+          break;
+        }
+        catch (Exception ex)
+        {
+          if (!token.IsCancellationRequested)
+            Fail($"Direct Icom LAN session disconnected: {ex.Message}; reconnecting.", ex);
+        }
+        finally
+        {
+          IsRunning = false;
+          ingress.Complete();
+          try { await decoder; }
+          catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+          Interlocked.Exchange(ref LastNativeIngressDrops, ingress.Dropped);
+          NativeIngress = null;
+
+          if (session != null)
           {
-            Log.Debug("Icom LAN session disposal failed ({Type})", ex.GetType().Name);
+            session.StatusChanged -= DirectSession_StatusChanged;
+            session.CivDataReceived -= DirectSession_CivDataReceived;
+            session.AudioFrameReceived -= DirectSession_AudioFrameReceived;
+            session.MeterReceived -= DirectSession_MeterReceived;
+
+            DetectedCivPort =
+              session.RemoteCivPortNumber > 0
+                ? session.RemoteCivPortNumber
+                : null;
+
+            lock (DirectSessionSync)
+            {
+              if (ReferenceEquals(DirectSession, session))
+                DirectSession = null;
+            }
+
+            try { session.Dispose(); }
+            catch (Exception ex)
+            {
+              Log.Debug("Icom LAN session disposal failed ({Type})", ex.GetType().Name);
+            }
           }
         }
 
-        if (token.IsCancellationRequested)
-          PublishStatus("Direct Icom LAN scope capture stopped.");
+        if (!token.IsCancellationRequested)
+        {
+          reconnectCount++;
+          PublishStatus("Direct Icom LAN: reconnecting control/CI-V/audio after disconnect...");
+          try { await Task.Delay(TimeSpan.FromSeconds(4), token); }
+          catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+        }
       }
+
+      PublishStatus("Direct Icom LAN scope capture stopped.");
     }
 
     private void DirectSession_StatusChanged(string message)
