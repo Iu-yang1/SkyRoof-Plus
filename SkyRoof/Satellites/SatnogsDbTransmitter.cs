@@ -2,6 +2,20 @@
 
 namespace SkyRoof
 {
+  // Software RF-band classification for CAT/Satellite routing; NOT a legal
+  // authorization list. National allocations and station licence prevail.
+  internal enum AmateurRadioBand
+  {
+    Unknown,
+    SixMeters,
+    TwoMeters,
+    SeventyCentimeters,
+    TwentyThreeCentimeters,
+    ThirteenCentimeters,
+    FiveCentimeters,
+    ThreeCentimeters
+  }
+
   public class SatnogsDbTransmitter
   {
     public string uuid { get; set; }
@@ -152,10 +166,33 @@ namespace SkyRoof
       return freq >= 430000000 && freq <= 440000000;
     }
 
-    public static bool IsHamFrequency(double freq)
-    {
-      return IsVhfFrequency(freq) || IsUhfFrequency(freq);
-    }
+    // Band recognition is used to surface plausible satellite uplinks; it
+    // does not verify privileges, national allocations or equipment limits.
+    // In particular, IC-905's 1.2/2.4/5.7/10 GHz bands must not be
+    // classified as Unknown merely because older SkyRoof code only knew
+    // the 2 m and 70 cm satellite bands.
+    internal static AmateurRadioBand GetAmateurBand(double freq) =>
+      freq switch
+      {
+        >= 50_000_000 and <= 54_000_000 =>
+          AmateurRadioBand.SixMeters,
+        >= 144_000_000 and <= 148_000_000 =>
+          AmateurRadioBand.TwoMeters,
+        >= 430_000_000 and <= 440_000_000 =>
+          AmateurRadioBand.SeventyCentimeters,
+        >= 1_240_000_000 and <= 1_300_000_000 =>
+          AmateurRadioBand.TwentyThreeCentimeters,
+        >= 2_300_000_000 and <= 2_450_000_000 =>
+          AmateurRadioBand.ThirteenCentimeters,
+        >= 5_650_000_000 and <= 5_925_000_000 =>
+          AmateurRadioBand.FiveCentimeters,
+        >= 10_000_000_000 and <= 10_500_000_000 =>
+          AmateurRadioBand.ThreeCentimeters,
+        _ => AmateurRadioBand.Unknown
+      };
+
+    public static bool IsHamFrequency(double freq) =>
+      GetAmateurBand(freq) != AmateurRadioBand.Unknown;
 
     internal bool HasUplink()
     {
