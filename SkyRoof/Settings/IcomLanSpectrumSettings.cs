@@ -157,6 +157,11 @@ namespace SkyRoof
     [DefaultValue(4535)]
     public int SkyCatScopePort { get; set; } = 4535;
 
+    [DisplayName("SkyCAT CAT control TCP port")]
+    [Description("Loopback CAT TCP endpoint used for scope-only MODE/SPAN/REF control when SkyRoof RX/TX CAT uses another backend. Usually 4532. Embedded SkyCAT uses its configured Main CAT TCP Port instead.")]
+    [DefaultValue(4532)]
+    public int SkyCatControlPort { get; set; } = 4532;
+
     [DisplayName("Direct LAN control port")]
     [Description("IC-9700 authenticated LAN control port. The factory/default RS-BA1 control port is 50001.")]
     [DefaultValue(50001)]

@@ -110,16 +110,21 @@ namespace SkyRoof
     private IcomScopeReadbackState? LastScopeReadback;
     private DateTime? LastScopeReadbackUtc;
     private CatControlEngine? LastScopeControlBackend;
+    private IcomSkyCatScopeClient? SkyCatScopeControl;
+    private bool LastIndependentSkyCatReady;
 
     public IcomLanSpectrumPanel(Context ctx)
     {
       this.ctx = ctx;
       ScopeController =
         new IcomScopeController(
-          () => ctx.CatControl.RequestIcomScopeOutput(),
+          () => ctx.CatControl.GetIcomScopeControlBackend() != null
+            ? ctx.CatControl.RequestIcomScopeOutput()
+            : SkyCatScopeControl?.RequestScopeOutput() == true,
           request =>
-            ctx.CatControl.RequestIcomScopeControl(
-              request),
+            ctx.CatControl.GetIcomScopeControlBackend() != null
+              ? ctx.CatControl.RequestIcomScopeControl(request)
+              : SkyCatScopeControl?.RequestControl(request) == true,
           directLanControlRequest: request =>
             Capture?.RequestDirectScopeControl(request) == true);
 
@@ -1665,6 +1670,7 @@ namespace SkyRoof
       LastScopeControlBackend =
         ctx.CatControl
           .GetIcomScopeControlBackend();
+      EnsureIndependentSkyCatControl();
 
       // Enabling scope output is required to obtain waveform data, but do
       // not push saved MODE/SPAN/EDGE/REF/SPEED/VBW values on startup. Query
@@ -1673,7 +1679,7 @@ namespace SkyRoof
       RequestScopeOutputIfDue(
         force: true);
 
-      if (LastScopeControlBackend != null)
+      if (CanReadScopeViaSkyCat())
         RequestInitialScopeReadbackIfNeeded();
     }
 
@@ -1699,6 +1705,14 @@ namespace SkyRoof
       DirectLanAudioDevices?.Dispose();
       DirectLanAudioDevices = null;
       capture.Dispose();
+      if (SkyCatScopeControl != null)
+      {
+        SkyCatScopeControl.ReadbackReceived -= CatControl_IcomScopeReadbackReceived;
+        SkyCatScopeControl.FixedEdgeReceived -= CatControl_IcomFixedEdgeReadbackReceived;
+        SkyCatScopeControl.Dispose();
+        SkyCatScopeControl = null;
+      }
+      LastIndependentSkyCatReady = false;
       lock (meterStateSync) meterState = new IcomMeterSnapshot();
       NextCatMeterPollUtc = DateTime.MinValue;
       CatMeterPollIndex = 0;
@@ -1957,21 +1971,48 @@ namespace SkyRoof
 
       if (frame == null)
       {
+        // Register readback can populate MODE/SPAN before a waveform arrives.
         UpdatingScopeControlUi = true;
         try
         {
-          if (!ScopeModeBox.ContainsFocus)
-            ScopeModeBox.SelectedIndex = -1;
-          if (!SpanEdgeBox.ContainsFocus)
-            SpanEdgeBox.SelectedIndex = -1;
+          if (TryGetControlScope(out byte scope) &&
+              LastScopeReadback is { } readback)
+          {
+            bool main = scope == 0;
+            bool hasMode = readback.HasField(main ? "MAIN.MODE" : "SUB.MODE");
+            if (hasMode)
+            {
+              IcomScopeMode mode = main ? readback.MainMode : readback.SubMode;
+              SetRadioSelectedIndex(ScopeModeBox, (int)mode);
+              bool showSpan = mode is IcomScopeMode.Center or
+                IcomScopeMode.ScrollCenter;
+              ConfigureSpanEdgeControl(showSpan);
+              if (showSpan && readback.HasField(
+                    main ? "MAIN.SPAN" : "SUB.SPAN"))
+              {
+                long span = main ? readback.MainSpanHz : readback.SubSpanHz;
+                int index = Array.IndexOf(ScopeSpanValues, span);
+                if (index >= 0)
+                  SetRadioSelectedIndex(SpanEdgeBox, index);
+              }
+              else if (!showSpan && readback.HasField(
+                         main ? "MAIN.EDGE" : "SUB.EDGE"))
+              {
+                int edge = main ? readback.MainEdge : readback.SubEdge;
+                SetRadioSelectedIndex(SpanEdgeBox,
+                  Math.Clamp(edge, 1, 4) - 1);
+              }
+            }
+          }
         }
         finally
         {
           UpdatingScopeControlUi = false;
         }
 
-        GeometryLabel.Text =
-          "Waiting for scope";
+        GeometryLabel.Text = TryGetControlScope(out _)
+          ? "Waiting for scope waveform"
+          : "Select MAIN or SUB to control scope";
         UpdateScopeControlAvailability();
         return;
       }
@@ -2160,41 +2201,12 @@ namespace SkyRoof
       FitToolbarsToWidth();
     }
 
-    private bool TryGetControlScope(
-      out byte scope)
-    {
-      IcomLanScopeBand selected =
-        ScopeState.SelectedBand;
-
-      if (selected ==
-          IcomLanScopeBand.Main)
-      {
-        scope = 0;
-        return true;
-      }
-
-      if (selected ==
-          IcomLanScopeBand.Sub)
-      {
-        scope = 1;
-        return true;
-      }
-
-      IcomScopeFrame? frame =
-        ScopeState.LatestSelectedFrame;
-
-      if (frame != null)
-      {
-        scope =
-          frame.Scope == 1
-            ? (byte)1
-            : (byte)0;
-        return true;
-      }
-
-      scope = 0;
-      return false;
-    }
+    private bool TryGetControlScope(out byte scope) =>
+      IcomScopeControlTarget.TryResolve(
+        ScopeState.SelectedBand,
+        ScopeState.LatestSelectedFrame,
+        LastScopeReadback,
+        out scope);
 
     private bool IsSkyCatScopeControlConfigured()
     {
@@ -2207,15 +2219,56 @@ namespace SkyRoof
           IcomScopeControlPath.SkyCat;
     }
 
+    private bool SkyCatScopeConnectionAvailable =>
+      ctx.CatControl.HasIcomScopeControlBackend ||
+      SkyCatScopeControl?.IsReady == true;
+
     private bool CanUseSkyCatScopeControl() =>
       ctx.Settings.IcomLanSpectrum.RadioModel == IcomScopeRadioModel.Ic9700 &&
       IsSkyCatScopeControlConfigured() &&
-      ctx.CatControl.HasIcomScopeControlBackend;
+      SkyCatScopeConnectionAvailable;
 
     private bool CanReadScopeViaSkyCat() =>
       Capture != null &&
       ctx.Settings.IcomLanSpectrum.RadioModel == IcomScopeRadioModel.Ic9700 &&
-      ctx.CatControl.HasIcomScopeControlBackend;
+      SkyCatScopeConnectionAvailable;
+
+    private void EnsureIndependentSkyCatControl()
+    {
+      IcomLanSpectrumSettings settings = ctx.Settings.IcomLanSpectrum;
+      if (Capture == null || SkyCatScopeControl != null ||
+          IcomScopeController.ResolveControlPath(
+            settings.Source, settings.ControlPath) != IcomScopeControlPath.SkyCat ||
+          settings.RadioModel != IcomScopeRadioModel.Ic9700 ||
+          ctx.CatControl.HasIcomScopeControlBackend)
+        return;
+
+      // An embedded SkyCAT process may not have opened its listener yet.
+      // Resolve its configured port once and let the client connect/retry.
+      int port = ctx.Settings.Cat.Embedded.Enabled
+        ? ctx.Settings.Cat.Embedded.CatPort
+        : settings.SkyCatControlPort;
+      if (port is < 1 or > 65535)
+      {
+        StatusLabel.Text = "Invalid SkyCAT CAT TCP port: use 1–65535 in Spectrum settings.";
+        return;
+      }
+      SkyCatScopeControl = new IcomSkyCatScopeClient(port);
+      SkyCatScopeControl.ReadbackReceived += CatControl_IcomScopeReadbackReceived;
+      SkyCatScopeControl.FixedEdgeReceived += CatControl_IcomFixedEdgeReadbackReceived;
+      SkyCatScopeControl.Start();
+    }
+
+    private bool RequestSkyCatScopeReadback(bool restart = false) =>
+      ctx.CatControl.GetIcomScopeControlBackend() != null
+        ? ctx.CatControl.RequestIcomScopeReadback(restart)
+        : SkyCatScopeControl?.RequestReadback(restart) == true;
+
+    private bool RequestSkyCatFixedEdgeReadback(int range, int edge) =>
+      ctx.CatControl.GetIcomScopeControlBackend() != null
+        ? ctx.CatControl.RequestIcomFixedEdgeReadback(range, edge)
+        : SkyCatScopeControl?.RequestFixedEdgeReadback(range, edge) == true;
+
 
     private bool CanSendScopeControl()
     {
@@ -2286,8 +2339,7 @@ namespace SkyRoof
           !CanReadScopeViaSkyCat())
         return;
 
-      if (ctx.CatControl
-          .RequestIcomScopeReadback(restart))
+      if (RequestSkyCatScopeReadback(restart))
       {
         ScopeReadbackRequestedForSession = true;
         LastScopeReadbackRequestUtc = DateTime.UtcNow;
@@ -2435,7 +2487,7 @@ namespace SkyRoof
         UpdatingScopeControlUi = false;
       }
 
-      UpdateScopeControlAvailability();
+      RefreshScopeGeometryUi();
 
       if (applyPendingSettings)
       {
@@ -2536,8 +2588,7 @@ namespace SkyRoof
         return;
       }
 
-      if (ctx.CatControl
-          .RequestIcomFixedEdgeReadback(
+      if (RequestSkyCatFixedEdgeReadback(
             frequencyRange,
             edgeNumber))
       {
@@ -2930,11 +2981,15 @@ namespace SkyRoof
       CatControlEngine? scopeBackend =
         ctx.CatControl
           .GetIcomScopeControlBackend();
+      EnsureIndependentSkyCatControl();
+      bool independentReady = SkyCatScopeControl?.IsReady == true;
 
       if (!ReferenceEquals(
             scopeBackend,
-            LastScopeControlBackend))
+            LastScopeControlBackend) ||
+          independentReady != LastIndependentSkyCatReady)
       {
+        LastIndependentSkyCatReady = independentReady;
         LastScopeControlBackend =
           scopeBackend;
         ScopeReadbackCompletedForSession =
@@ -2955,8 +3010,7 @@ namespace SkyRoof
 
       if (!LocalHold &&
           !ScopeReadbackCompletedForSession &&
-          CanReadScopeViaSkyCat() &&
-          scopeBackend != null)
+          CanReadScopeViaSkyCat())
       {
         // Do not flood SCOPE_DATA every 500 ms while readback is missing.
         RequestScopeOutputIfDue(force: false);
@@ -3060,7 +3114,7 @@ namespace SkyRoof
             out IcomScopeControlRequest pendingFixedEdge) &&
           now - LastFixedEdgeConfirmationRequestUtc >
             TimeSpan.FromSeconds(4) &&
-          ctx.CatControl.RequestIcomFixedEdgeReadback(
+          RequestSkyCatFixedEdgeReadback(
             pendingFixedEdge.FrequencyRange,
             pendingFixedEdge.EdgeNumber))
       {
@@ -3075,7 +3129,7 @@ namespace SkyRoof
           queueStats.HasValue &&
           queueStats.Value.Pending == 0 &&
           CanReadScopeViaSkyCat() &&
-          ctx.CatControl.RequestIcomScopeReadback())
+          RequestSkyCatScopeReadback())
       {
         ScopeReadbackRequestedForSession =
           true;
@@ -3121,13 +3175,14 @@ namespace SkyRoof
         transportSummary, WaterfallDeliveryFps,
         FormatControlPath(resolvedControlPath),
         resolvedControlPath == IcomScopeControlPath.ReadOnly,
-        scopeBackend != null,
+        SkyCatScopeConnectionAvailable,
         ScopeReadbackCompletedForSession,
         PendingScopeControls.Count, unconfirmed.Length);
       if (ScopeReadbackCompletedForSession && LastScopeReadback?.IsPartial == true)
         StatsLabel.Text += $" · PARTIAL {LastScopeReadback.FieldsPresent?.Count ?? 0}/16";
       else if (!ScopeReadbackCompletedForSession &&
-               scopeBackend?.LastIcomScopeReadbackCount == 0)
+               (scopeBackend?.LastIcomScopeReadbackCount ??
+                SkyCatScopeControl?.LastReadbackFieldCount) == 0)
         StatsLabel.Text += " · SYNC ERROR (0/16 valid registers)";
       // Diagnostics tooltip updated after the full details are assembled below.
 
@@ -3144,8 +3199,14 @@ namespace SkyRoof
           $"Native CI-V transport reordered: {capture.NativeCivReordered:N0}",
           $"Transport: {radio}",
           $"Control path: {FormatControlPath(resolvedControlPath)}",
+          $"Scope write backend: {(CanSendScopeControl() ? "READY" : "NOT READY")}",
+          $"Scope target receiver: {(TryGetControlScope(out byte targetScope) ? (targetScope == 1 ? "SUB" : "MAIN") : "unknown; select MAIN/SUB or wait for CI-V SELECT")}",
+          $"MODE enabled: {ScopeModeBox.Enabled}; SPAN/EDGE enabled: {SpanEdgeBox.Enabled}; mode index: {ScopeModeBox.SelectedIndex}",
           $"Scope readback: {(LastScopeReadbackUtc.HasValue ? LastScopeReadbackUtc.Value.ToString("O") : "not completed")}",
-          $"SkyCAT scope fields in last survey: {(scopeBackend?.LastIcomScopeReadbackCount is int count && count >= 0 ? $"{count}/16" : "survey pending")}",
+          $"SkyCAT scope fields in last survey: {((scopeBackend?.LastIcomScopeReadbackCount ?? SkyCatScopeControl?.LastReadbackFieldCount) is int count && count >= 0 ? $"{count}/16" : "survey pending")}",
+          $"SkyCAT scope-only CAT TCP: {(SkyCatScopeControl == null ? "using RX/TX CAT engine" : $"{(independentReady ? "connected" : "offline")} / 127.0.0.1:{SkyCatScopeControl.PortNumber}")}",
+          $"SkyCAT scope-only CAT last error: {SkyCatScopeControl?.LastError ?? "none"}",
+          $"SkyCAT scope-only CAT rejected writes: {SkyCatScopeControl?.RejectedWriteCount ?? 0}",
           $"Queue pending: {queueStats?.Pending.ToString("N0") ?? "n/a"}",
           $"Queue dropped: {queueStats?.Dropped.ToString("N0") ?? "n/a"}",
           $"Queue rejected: {queueStats?.Rejected.ToString("N0") ?? "n/a"}",
@@ -3167,6 +3228,7 @@ namespace SkyRoof
       ScopeTips.SetToolTip(StatsLabel,
         "双击打开诊断详情。可查看连接端点、完整 CI-V 统计、序列缺口和 CAT 队列。");
       ScopeTips.SetToolTip(StatusLabel, StatusLabel.Text);
+      UpdateScopeControlAvailability();
 
       DateTime? last = effectiveCapture.LastScopeFrameUtc;
       bool scopeStale =
