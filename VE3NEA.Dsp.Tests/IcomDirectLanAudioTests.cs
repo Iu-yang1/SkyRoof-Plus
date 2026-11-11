@@ -132,7 +132,7 @@ namespace VE3NEA.Dsp.Tests
     {
       DateTime now = new DateTime(2026, 11, 11, 13, 37, 0, DateTimeKind.Utc);
       var sent = new IcomDirectLanTxAudioStatus(
-        true, true, 1784, -22.5, now.AddMilliseconds(-250).Ticks);
+        true, true, 1784, -22.6, now.AddMilliseconds(-250).Ticks);
       string active = IcomDirectLanTxAudioDisplay.Format(sent, true, now);
       active.Should().Contain("1784 pkts");
       active.Should().Contain("MIC -23 dBFS");
