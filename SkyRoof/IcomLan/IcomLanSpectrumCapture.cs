@@ -318,7 +318,23 @@ namespace SkyRoof
           NativeIngress = null;
 
           if (session != null)
-          {
+            ReleaseDirectSession(session);
+        }
+
+        if (!token.IsCancellationRequested)
+        {
+          reconnectCount++;
+          PublishStatus("Direct Icom LAN: reconnecting control/CI-V/audio after disconnect...");
+          try { await Task.Delay(TimeSpan.FromSeconds(4), token); }
+          catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+        }
+      }
+
+      PublishStatus("Direct Icom LAN scope capture stopped.");
+    }
+
+    private void ReleaseDirectSession(IcomLanDirectSession session)
+    {
             session.StatusChanged -= DirectSession_StatusChanged;
             session.CivDataReceived -= DirectSession_CivDataReceived;
             session.AudioFrameReceived -= DirectSession_AudioFrameReceived;
@@ -340,19 +356,6 @@ namespace SkyRoof
             {
               Log.Debug("Icom LAN session disposal failed ({Type})", ex.GetType().Name);
             }
-          }
-        }
-
-        if (!token.IsCancellationRequested)
-        {
-          reconnectCount++;
-          PublishStatus("Direct Icom LAN: reconnecting control/CI-V/audio after disconnect...");
-          try { await Task.Delay(TimeSpan.FromSeconds(4), token); }
-          catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
-        }
-      }
-
-      PublishStatus("Direct Icom LAN scope capture stopped.");
     }
 
     private void DirectSession_StatusChanged(string message)
