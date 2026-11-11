@@ -84,8 +84,7 @@ namespace SkyRoof
         IcomScopeFrame[] result = completed
           .SelectMany(queue => queue)
           .Concat(partial)
-          .Where(frame => frame != null)
-          .Select(frame => frame!)
+          .OfType<IcomScopeFrame>()
           .OrderBy(frame => frame.TimestampUtc.Ticks)
           .ToArray();
         foreach (Queue<IcomScopeFrame> queue in completed)
