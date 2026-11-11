@@ -301,31 +301,29 @@ jobs:
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body: |
-            SkyRoof Plus v.${{ steps.get_version.outputs.version }} — November 2026 tested P0 quality maintenance release.
+            SkyRoof-Plus v.${{ steps.get_version.outputs.version }} — Native Icom LAN Scope and IC-705/IC-905 compatibility release (2026-11-11).
+
+            ### 中文更新
+            - **无需 RS-BA1 的高速原生频谱（PR #177）**：直接登录 IC-9700 Ethernet / IC-705 WLAN / IC-905 Ethernet，接收电台 CI-V 27 00 原生 475 点 Scope。UDP 接收与解码解耦、1 MiB 内核接收缓冲、256 包有界收包队列、最多 12 行/接收机的 UI 完整瀑布缓存。
+            - **Direct LAN FAST**：可选在连接成功后发送一次 27 1A FAST（默认开启，仅影响 DirectLan），有新的 UDP 序号/丢包与收包速率诊断；当波形实际中断时才请求重启 Scope 输出，不再无条件每 5 秒重发。
+            - **IC-705 / IC-905 兼容基础（PR #167–#172）**：核对并固定 SkyCAT master 依赖；设备能力档案、5/6 字节 CI-V BCD Hz、IC-905 10 GHz Scope 字段、单接收机识别、认证式网络 Scope 会话及独立 USB IF 路径。
+            - **原生网络音频 → IF-AF（PR #174–#175）**：RS-BA1 LPCM16 收帧与独立音频会话认证、16-bit 音频序号重排、缺包 DSP 重置、采样率转换至 48 kHz、现有 IF→AF DSP 与 VAC 输出。网络端须在电台选择 IF 而非 AF。
+            - **微波卫星（PR #173、#176）**：1296/2400/5760/10368 MHz 频段识别、精确光速 Doppler、微波 1 Hz CAT 频率量化、默认 100 ms 微波 CAT 周期，以及 TX 调谐/模式先于 PTT ON、PTT OFF 不被等待阻塞。
+            - **保留的原有功能**：IC-9700 双接收机、SkyCAT/RS-BA1 被动 Scope、CAT/PTT、CW/SSTV、旋转器与现有录音和音频处理路径。
+            - **验证标准**：固定版本 aislop@0.18.1、Windows x64 Release 全量 xUnit、6 组 CW FFT、安装包与 VB-CABLE/WinDivert 内容校验、发布资产回读 SHA-256 与签名状态。
+            - **实机验证边界**：自动测试不是 IC-9700/705/905 的真实 LAN FPS 或 RF/10 GHz PTT 验收。请使用 Diagnostics 比对 captured complete sweeps/s、delivered WF/s 与 native ingress dropped；音频 Output Select 与硬件兼容性需实机核对。
+            - **网络配置**：IC-9700 `MENU → SET → Network` 获取电台 IP，设置 `Network Control = ON`、`Network User1 ID/Password`，默认 UDP 控制端口 50001。电台相关网络设置变更后需重启。
+            - **签名说明**：SignPath 可用时签署安装包；否则明确以未签名 prerelease 发布，绝不冒称已签名。
 
             ### English
-            - Recover diagnostic evidence from the isolated Rotator child/IPC, SkyCAT lifecycle, WASAPI/ONVIF, SSTV/FT4 cleanup, SatNOGS uploader and telemetry download fallbacks.
-            - Keep existing CW/DSP mathematics, CAT/PTT protocol and control ownership, physical STOP-first behavior, and persisted settings unchanged.
-            - Build and Release itself waits for pinned aislop v0.18.1, then requires Windows x64 Release, full xUnit, six CW R2C FFT microbenchmarks and verified installer payload before publishing.
-            - P1: AMSAT status submission no longer blocks WinForms and is cancelled on dialog teardown; RadioLink tuning now fails explicitly on missing customization (PR #164/#165).
-            - P2: AFC observation/polarity/servo separation retains independent numerical/regression checks; CW/DSP/CAT/rotator safety rules were not rewritten to inflate a scanner score.
-            - Risk-scoped P0–P3 release review: pinned aislop 64/100, 781 historical findings (1 reviewed native-callback error, 779 warnings, 1 info). This release does not claim zero technical debt.
-            - See docs/quality/p0-p3-release-acceptance-20261105.md for master CI evidence and unverified field tests.
-            - One intentional SoapySDR native callback catch is explicitly reviewed; see docs/quality/aislop-native-callback-exception-20261105.md.
-            - Physical rotator STOP/C2 feedback, IC-9700 CAT/PTT, WASAPI hot-unplug and ONVIF devices still require field validation. Signing status must be verified from the shipped installer.
+            - **Independent high-rate Scope without RS-BA1 (#177):** Authenticated native Icom Ethernet/WLAN CI-V 27 00 sweep stream, large receive buffers, bounded decoding and UI waterfall backlog, explicit once-only FAST sweep control and rate/loss instrumentation.
+            - **IC-705/IC-905 profiles (#167–#172):** SkyCAT synchronization, 5/6-byte BCD frequency support, IC-905 10 GHz scope metadata, correct single-receiver capabilities, authenticated Direct LAN scope sessions, preserved USB IF input.
+            - **Network LPCM → IF-AF (#174–#175):** RX PCM16 session decoding, sequence reordering/gap recovery, 48-kHz resampling, IF demodulation and virtual AF output; select IF output at the radio.
+            - **Microwave satellites (#173, #176):** Band recognition through 10.368 GHz, accurate Doppler/Hz CAT, faster microwave tracking and TX tune-before-PTT sequencing with unconditional PTT OFF.
+            - **Quality and limitations:** Pinned aislop, complete Windows x64 tests, installer checks and published artifact integrity verification. CI protocol simulations do not establish measured radio FPS, actual hardware/network compatibility, or transmitted RF safety.
 
-            ### 中文
-            - 完善旋转器独立进程与 IPC、SkyCAT、WASAPI/ONVIF、SSTV/FT4、SatNOGS 与遥测下载清理的异常诊断。
-            - 保留既有 CW/DSP 数学、CAT/PTT 协议与控制权、旋转器 STOP 优先级及持久化设置。
-            - Build and Release 发布前先通过固定版本 aislop v0.18.1，再通过 Windows x64、全量 xUnit、六组 CW R2C FFT 基准及安装包依赖检查。
-            - P1：AMSAT 上报不再阻塞 WinForms，关闭窗口时取消请求；RadioLink 对缺失的调谐配置对象明确拒绝访问（#164、#165）。
-            - P2：AFC 观测、极性与伺服职责已分离，独立数学与控制回归测试保留；不为静态评分重写 CW/DSP/CAT/旋转器安全逻辑。
-            - P0–P3 采用风险边界明确的维护版发布验收：固定版本 aislop 64/100，仍有 781 项历史发现（1 项已审查原生回调 error、779 warnings、1 info），并非技术债清零。
-            - 参见 docs/quality/p0-p3-release-acceptance-20261105.md 的主分支验证证据与实机待验项目。
-            - SoapySDR 原生回调保留一项已审查的非传播异常边界，详见仓库对应质量说明。
-            - 旋转器物理 STOP/C2、IC-9700 CAT/PTT、WASAPI 热拔插及 ONVIF 设备尚需实机验收；安装包签名以发布产物为准。
-
-            Fork changelog: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/FORK-CHANGELOG.md
+            Updated guides: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/zh-cn/fork-guide/spectrum.md
+            Changelog: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/FORK-CHANGELOG.md
 
           files:  install/SkyRoofSetup-v.${{ steps.get_version.outputs.version }}.exe
         env:
