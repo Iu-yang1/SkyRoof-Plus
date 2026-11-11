@@ -667,9 +667,9 @@ namespace SkyRoof
           ? await Task.WhenAny(controlReceive, civReceive, tick)
           : await Task.WhenAny(controlReceive, civReceive, tick, audioWorkerExit);
 
-        if (completed == audioWorkerExit)
+        if (audioWorkerExit != null && completed == audioWorkerExit)
         {
-          Task terminated = await audioWorkerExit!;
+          Task terminated = await audioWorkerExit;
           await terminated; // Preserve the worker's original failure details.
           throw new IOException(
             "Direct LAN audio UDP worker stopped unexpectedly; recovering authenticated media session.");
@@ -718,6 +718,42 @@ namespace SkyRoof
     {
       DateTime now = DateTime.UtcNow;
 
+      await MaintainControlSessionAsync(control, civ, now, token);
+
+      // At most one operator scope write per 50-ms tick; keep the native
+      // session responsive to auth, pings, audio and incoming 475-bin sweeps.
+      if (ScopeControlWrites.Reader.TryRead(out byte[]? scopeWrite))
+      {
+        await SendCivDataAsync(civ, scopeWrite, token);
+        Interlocked.Increment(ref ScopeControlWritesSent);
+      }
+
+      await PollMetersAsync(civ, now, token);
+      ReportAudioDiagnostics(now);
+
+      DateTime lastSweepUtc = new DateTime(
+        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
+        DateTimeKind.Utc);
+      if (IcomScopeRecoveryPolicy.ShouldReassert(
+            now, LastScopeCommandUtc, lastSweepUtc))
+        await SendScopeConfigurationAsync(civ, token);
+
+      // A missed waveform is first repaired in-place by 27 10 / 27 11.
+      // If the native stream has had no complete sweep for 25 seconds,
+      // the session's media ownership is likely stale even if UDP idle
+      // and authentication pings still arrive: restart the login/CI-V/audio
+      // transaction rather than leaving a permanently frozen waterfall.
+      if (ShouldRestartStalledScope(now, NativeStreamStartedUtc, lastSweepUtc))
+        throw new TimeoutException(
+          "Direct LAN 475-bin scope stalled for 25 seconds despite CI-V reassert; renewing media session.");
+    }
+
+    private async Task MaintainControlSessionAsync(
+      UdpClient control,
+      UdpClient civ,
+      DateTime now,
+      CancellationToken token)
+    {
       if ((now - LastControlIdleUtc).TotalMilliseconds >= 1000)
       {
         await SendIdleAsync(
@@ -783,32 +819,6 @@ namespace SkyRoof
         LastAuthRequestUtc = now;
       }
 
-      // At most one operator scope write per 50-ms tick; keep the native
-      // session responsive to auth, pings, audio and incoming 475-bin sweeps.
-      if (ScopeControlWrites.Reader.TryRead(out byte[]? scopeWrite))
-      {
-        await SendCivDataAsync(civ, scopeWrite, token);
-        Interlocked.Increment(ref ScopeControlWritesSent);
-      }
-
-      await PollMetersAsync(civ, now, token);
-      ReportAudioDiagnostics(now);
-
-      DateTime lastSweepUtc = new DateTime(
-        Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
-        DateTimeKind.Utc);
-      if (IcomScopeRecoveryPolicy.ShouldReassert(
-            now, LastScopeCommandUtc, lastSweepUtc))
-        await SendScopeConfigurationAsync(civ, token);
-
-      // A missed waveform is first repaired in-place by 27 10 / 27 11.
-      // If the native stream has had no complete sweep for 25 seconds,
-      // the session's media ownership is likely stale even if UDP idle
-      // and authentication pings still arrive: restart the login/CI-V/audio
-      // transaction rather than leaving a permanently frozen waterfall.
-      if (ShouldRestartStalledScope(now, NativeStreamStartedUtc, lastSweepUtc))
-        throw new TimeoutException(
-          "Direct LAN 475-bin scope stalled for 25 seconds despite CI-V reassert; renewing media session.");
     }
 
     internal static bool ShouldRestartStalledScope(
