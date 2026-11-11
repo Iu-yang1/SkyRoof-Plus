@@ -254,7 +254,7 @@ namespace SkyRoof
           loginSequence,
           loginRequestId),
         TimeSpan.FromSeconds(3),
-        token);
+        token, "control login");
 
       if (loginReply.AsSpan(0x30, 4).SequenceEqual(
             new byte[] { 0xFF, 0xFF, 0xFF, 0xFE }))
@@ -967,7 +967,7 @@ namespace SkyRoof
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == localSid,
         TimeSpan.FromSeconds(2),
-        token);
+        token, isControl ? "control greeting" : "CI-V greeting");
 
       uint remoteSid = BinaryPrimitives.ReadUInt32BigEndian(
         here.AsSpan(8, 4));
@@ -1011,7 +1011,7 @@ namespace SkyRoof
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == localSid,
         TimeSpan.FromSeconds(2),
-        token);
+        token, isControl ? "control ready" : "CI-V ready");
     }
 
     private async Task<(ushort InnerSequence, ushort TokenRequest)> SendLoginAsync(
@@ -1629,7 +1629,8 @@ namespace SkyRoof
       UdpClient client,
       Func<byte[], bool> predicate,
       TimeSpan timeout,
-      CancellationToken token)
+      CancellationToken token,
+      string phase = "handshake")
     {
       DateTime deadline = DateTime.UtcNow + timeout;
 
@@ -1649,7 +1650,7 @@ namespace SkyRoof
       }
 
       throw new TimeoutException(
-        "Timed out waiting for the Icom LAN handshake.");
+        $"Timed out waiting for Icom LAN {phase} reply.");
     }
 
     private static async Task<byte[]> ReceiveOneAsync(
@@ -1688,7 +1689,7 @@ namespace SkyRoof
             packet.AsSpan(4, 2)) == 0x0004 &&
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == AudioLocalSid,
-        TimeSpan.FromSeconds(2), token);
+        TimeSpan.FromSeconds(2), token, "audio greeting");
 
       uint remoteSid = BinaryPrimitives.ReadUInt32BigEndian(
         here.AsSpan(8, 4));
@@ -1709,7 +1710,7 @@ namespace SkyRoof
             packet.AsSpan(8, 4)) == remoteSid &&
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == AudioLocalSid,
-        TimeSpan.FromSeconds(2), token);
+        TimeSpan.FromSeconds(2), token, "audio ready");
 
       return remoteSid;
     }
