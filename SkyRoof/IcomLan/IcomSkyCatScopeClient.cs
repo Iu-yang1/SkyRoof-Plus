@@ -208,8 +208,11 @@ namespace SkyRoof
         LastFailure = $"{work.Command}: {response ?? "<no reply>"}";
         Log.Warning("SkyCAT scope command rejected: {Error}", LastFailure);
       }
-      else if (work.Command.StartsWith("U SCOPE_", StringComparison.Ordinal))
+      else if (work.Command.StartsWith("U SCOPE_", StringComparison.Ordinal) &&
+               !work.Command.StartsWith("U SCOPE_DATA ", StringComparison.Ordinal))
       {
+        // A repeated waveform-output reassert is not an operator change.
+        // Avoid starting a 16-register survey for every lost 27 00 sweep.
         RequestReadback();
       }
     }
