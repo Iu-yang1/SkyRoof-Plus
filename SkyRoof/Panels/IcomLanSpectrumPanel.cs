@@ -2248,6 +2248,11 @@ namespace SkyRoof
       int port = ctx.Settings.Cat.Embedded.Enabled
         ? ctx.Settings.Cat.Embedded.CatPort
         : settings.SkyCatControlPort;
+      if (port is < 1 or > 65535)
+      {
+        StatusLabel.Text = "Invalid SkyCAT CAT TCP port: use 1–65535 in Spectrum settings.";
+        return;
+      }
       SkyCatScopeControl = new IcomSkyCatScopeClient(port);
       SkyCatScopeControl.ReadbackReceived += CatControl_IcomScopeReadbackReceived;
       SkyCatScopeControl.FixedEdgeReceived += CatControl_IcomFixedEdgeReadbackReceived;
