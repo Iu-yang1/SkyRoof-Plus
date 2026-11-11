@@ -508,7 +508,7 @@ namespace SkyRoof
         if (!ReadbackBtn.Visible)
         {
           var readback = menu.Items.Add("Read back from IC-9700", null,
-            (_, _) => RequestScopeReadback());
+            (_, _) => RequestScopeReadback(restart: true));
           readback.Enabled = ReadbackBtn.Enabled;
         }
         if (!ScopeGroups["d-clear"].Visible)
@@ -1198,7 +1198,7 @@ namespace SkyRoof
       ReadbackBtn.Margin =
         new Padding(0, 2, 6, 2);
       ReadbackBtn.Click +=
-        (_, _) => RequestScopeReadback();
+        (_, _) => RequestScopeReadback(restart: true);
       DisplayToolbar.Controls.Add(
         ReadbackBtn);
 
@@ -2280,14 +2280,14 @@ namespace SkyRoof
       UpdateScopeControlAvailability();
     }
 
-    private void RequestScopeReadback()
+    private void RequestScopeReadback(bool restart = false)
     {
       if (LocalHold ||
           !CanReadScopeViaSkyCat())
         return;
 
       if (ctx.CatControl
-          .RequestIcomScopeReadback())
+          .RequestIcomScopeReadback(restart))
       {
         ScopeReadbackRequestedForSession = true;
         LastScopeReadbackRequestUtc = DateTime.UtcNow;
@@ -2343,15 +2343,19 @@ namespace SkyRoof
       ScopeReadbackRequestedForSession = true;
       ScopeReadbackAttempts = 0;
 
-      byte activeScope;
-      if (!TryGetControlScope(
-            out activeScope))
-        activeScope =
-          state.SelectedScope;
+      // A partial reply may omit SELECT. Its parser supplies a neutral
+      // placeholder, not a confirmed radio receiver selection. Use the
+      // displayed waveform receiver or an actual SELECT readback only.
+      bool hasActiveScope = TryGetControlScope(out byte activeScope);
+      if (!hasActiveScope && state.HasField("SELECT"))
+      {
+        activeScope = state.SelectedScope;
+        hasActiveScope = true;
+      }
 
       if (!applyPendingSettings)
       {
-        if (activeScope == 1)
+        if (hasActiveScope && activeScope == 1)
         {
           if (state.HasField("SUB.EDGE") &&
               !PendingScopeControls.TryGet(
@@ -2370,7 +2374,7 @@ namespace SkyRoof
                 1, IcomScopeControlKind.Vbw, out _))
             settings.ScopeVbw = state.SubVbw;
         }
-        else
+        else if (hasActiveScope)
         {
           if (state.HasField("MAIN.EDGE") &&
               !PendingScopeControls.TryGet(
@@ -2445,10 +2449,13 @@ namespace SkyRoof
       }
       else
       {
+        string receiver = hasActiveScope
+          ? (activeScope == 1 ? "SUB" : "MAIN")
+          : "receiver not confirmed";
         StatusLabel.Text =
           state.IsPartial
-            ? $"IC-9700 partial scope readback ({(activeScope == 1 ? "SUB" : "MAIN")}); unavailable fields kept unchanged."
-            : $"IC-9700 scope readback synchronized ({(activeScope == 1 ? "SUB" : "MAIN")}).";
+            ? $"IC-9700 partial scope readback ({receiver}, {state.FieldsPresent?.Count ?? 0}/16); missing fields remain unchanged."
+            : $"IC-9700 scope readback synchronized ({receiver}).";
       }
     }
 
@@ -3117,6 +3124,11 @@ namespace SkyRoof
         scopeBackend != null,
         ScopeReadbackCompletedForSession,
         PendingScopeControls.Count, unconfirmed.Length);
+      if (ScopeReadbackCompletedForSession && LastScopeReadback?.IsPartial == true)
+        StatsLabel.Text += $" · PARTIAL {LastScopeReadback.FieldsPresent?.Count ?? 0}/16";
+      else if (!ScopeReadbackCompletedForSession &&
+               scopeBackend?.LastIcomScopeReadbackCount == 0)
+        StatsLabel.Text += " · SYNC ERROR (0/16 valid registers)";
       // Diagnostics tooltip updated after the full details are assembled below.
 
       LastDiagnosticsText =
@@ -3133,6 +3145,7 @@ namespace SkyRoof
           $"Transport: {radio}",
           $"Control path: {FormatControlPath(resolvedControlPath)}",
           $"Scope readback: {(LastScopeReadbackUtc.HasValue ? LastScopeReadbackUtc.Value.ToString("O") : "not completed")}",
+          $"SkyCAT scope fields in last survey: {(scopeBackend?.LastIcomScopeReadbackCount is int count && count >= 0 ? $"{count}/16" : "survey pending")}",
           $"Queue pending: {queueStats?.Pending.ToString("N0") ?? "n/a"}",
           $"Queue dropped: {queueStats?.Dropped.ToString("N0") ?? "n/a"}",
           $"Queue rejected: {queueStats?.Rejected.ToString("N0") ?? "n/a"}",

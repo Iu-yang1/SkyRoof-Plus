@@ -161,8 +161,11 @@ namespace SkyRoof
         defaults[key] = field[(separator + 1)..];
       }
 
-      if (!received.Contains("SELECT"))
-        throw new FormatException("Partial scope response requires SELECT.");
+      // SELECT may be rejected while other scope registers are readable.
+      // Preserve field presence and let the caller resolve MAIN/SUB from
+      // current waveform geometry without treating a fallback as radio data.
+      if (received.Count == 0)
+        throw new FormatException("Partial scope response contains no fields.");
       var parsed = Parse(string.Join(";",
         defaults.Select(kv => $"{kv.Key}={kv.Value}")));
       parsed.FieldsPresent = received;

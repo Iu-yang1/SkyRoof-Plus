@@ -120,6 +120,9 @@ namespace SkyRoof
     private int IcomScopeReadbackIndex;
     private readonly object IcomScopeReadbackSync = new();
     private int IcomScopeReadbackGeneration;
+    private int LastIcomScopeReadbackFieldCount = -1;
+    internal int LastIcomScopeReadbackCount =>
+      Volatile.Read(ref LastIcomScopeReadbackFieldCount);
     // One documented IC-9700 network setting is read per CAT cycle.
     // Keep Doppler, PTT and all ordinary CAT work in the existing worker.
     private static readonly string[] IcomNetworkReadbackFields =
@@ -489,6 +492,7 @@ namespace SkyRoof
         IcomScopeReadbackIndex = 0;
         IcomScopeReadbackValues.Clear();
         IcomScopeReadbackGeneration++;
+        Volatile.Write(ref LastIcomScopeReadbackFieldCount, -1);
       }
       Volatile.Write(
         ref IcomFixedEdgeReadbackPending,
@@ -496,18 +500,21 @@ namespace SkyRoof
       IcomScopeControlCommands.Clear();
     }
 
-    internal bool RequestIcomScopeReadback()
+    internal bool RequestIcomScopeReadback(bool restart = false)
     {
       if (!SupportsIcomScopeOutput)
         return false;
 
       lock (IcomScopeReadbackSync)
       {
-        if (!IcomScopeReadbackPending)
+        // Explicit SYNC must restart an incomplete 16-register survey.
+        // Previous in-flight replies are discarded by the generation ID.
+        if (restart || !IcomScopeReadbackPending)
         {
           IcomScopeReadbackIndex = 0;
           IcomScopeReadbackValues.Clear();
           IcomScopeReadbackGeneration++;
+          Volatile.Write(ref LastIcomScopeReadbackFieldCount, -1);
           IcomScopeReadbackPending = true;
         }
       }
@@ -1328,6 +1335,7 @@ namespace SkyRoof
       }
 
       string? reply = SendReadCommand($"U SCOPE_READ_FIELD {key}");
+      string? acceptedValue = ValidateIcomScopeFieldValue(key, reply);
       string? partial = null;
       int successful = 0;
       lock (IcomScopeReadbackSync)
@@ -1336,8 +1344,8 @@ namespace SkyRoof
             generation != IcomScopeReadbackGeneration)
           return;
 
-        if (reply != null && reply.StartsWith(key + "=", StringComparison.Ordinal))
-          IcomScopeReadbackValues[key] = reply[(key.Length + 1)..];
+        if (acceptedValue != null)
+          IcomScopeReadbackValues[key] = acceptedValue;
         else
           Log.Warning(
             "SkyCAT scope field {Field} unavailable: {Reply}; continuing other fields.",
@@ -1349,7 +1357,8 @@ namespace SkyRoof
         IcomScopeReadbackPending = false;
         IcomScopeReadbackIndex = 0;
         successful = IcomScopeReadbackValues.Count;
-        if (IcomScopeReadbackValues.ContainsKey("SELECT"))
+        Volatile.Write(ref LastIcomScopeReadbackFieldCount, successful);
+        if (successful > 0)
           partial = string.Join(";",
             IcomScopeReadbackValues.Select(kv => $"{kv.Key}={kv.Value}"));
         IcomScopeReadbackValues.Clear();
@@ -1357,7 +1366,10 @@ namespace SkyRoof
 
       if (partial == null)
       {
-        Log.Warning("IC-9700 scope receiver selection unavailable; cannot apply partial state.");
+        Log.Warning(
+          "IC-9700 scope synchronization received zero of {Total} fields. " +
+          "The 27 xx query path is unresponsive although the waveform stream may remain live.",
+          IcomScopeReadbackFields.Length);
         return;
       }
       try
@@ -1375,6 +1387,26 @@ namespace SkyRoof
       }
     }
 
+
+    private string? ValidateIcomScopeFieldValue(string key, string? reply)
+    {
+      if (reply == null ||
+          !reply.StartsWith(key + "=", StringComparison.Ordinal))
+        return null;
+
+      try
+      {
+        // Reject only the malformed field, not valid results collected
+        // from other radio registers in this synchronization survey.
+        _ = IcomScopeReadbackState.ParsePartial(reply);
+        return reply[(key.Length + 1)..];
+      }
+      catch (FormatException ex)
+      {
+        Log.Warning(ex, "Malformed SkyCAT scope field {Field}: {Reply}", key, reply);
+        return null;
+      }
+    }
 
     private void TryWriteIcomScopeControl(
       string command)

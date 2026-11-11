@@ -105,6 +105,29 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void MissingSelectReadbackNeverAcknowledgesReceiverSwitch()
+    {
+      var pending = new IcomScopePendingControls();
+      pending.Track(IcomScopeControlRequest.ForSelectedScope(1), Epoch);
+      pending.Track(IcomScopeControlRequest.ForReferenceLevel(1, -3.5), Epoch);
+
+      // SUB reference was actually queried. SELECT was not. The neutral
+      // parser default must never be mistaken for hardware confirmation.
+      pending.ObserveReadback(IcomScopeReadbackState.ParsePartial(
+        "SUB.REF=-3.5"));
+
+      pending.TryGet(1, IcomScopeControlKind.ReferenceLevel, out _)
+        .Should().BeFalse();
+      pending.TryGet(1, IcomScopeControlKind.SelectedScope, out _)
+        .Should().BeTrue();
+      pending.Count.Should().Be(1);
+
+      pending.ObserveReadback(IcomScopeReadbackState.ParsePartial(
+        "SELECT=SUB"));
+      pending.Count.Should().Be(0);
+    }
+
+    [Fact]
     public void OldRequestsExpireButNeverBecomeAcknowledged()
     {
       var pending = new IcomScopePendingControls();
