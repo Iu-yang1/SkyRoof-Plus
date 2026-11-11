@@ -96,6 +96,30 @@ namespace VE3NEA.Dsp.Tests
         .Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(0, 10, false)]
+    [InlineData(0, 24, false)]
+    [InlineData(0, 25, true)]
+    [InlineData(15, 30, false)]
+    [InlineData(15, 40, true)]
+    public void ScopeSessionOnlyRestartsAfterTwentyFiveSecondsWithoutFullSweep(
+      int lastSweepSeconds, int nowSeconds, bool restart)
+    {
+      DateTime started = new(2026, 11, 11, 15, 0, 0, DateTimeKind.Utc);
+      IcomLanDirectSession.ShouldRestartStalledScope(
+        started.AddSeconds(nowSeconds),
+        started,
+        started.AddSeconds(lastSweepSeconds)).Should().Be(restart);
+    }
+
+    [Fact]
+    public void InvalidReceiverIndexIsNotSilentlyMappedToSub()
+    {
+      Action invalid = () => IcomDirectScopeControlCodec.Encode(
+        0xA2, IcomScopeControlRequest.ForSelectedScope(2));
+      invalid.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
     [Fact]
     public void InvalidNativeScopeRequestNeverProducesCivPacket()
     {
