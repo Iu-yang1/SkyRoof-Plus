@@ -57,8 +57,8 @@ namespace SkyRoof
           !ValidBcd(frame[6]) || !ValidBcd(frame[7]))
         return false;
 
-      int value = 100 * (frame[6] >> 4) +
-                  10 * (frame[6] & 0x0F) +
+      int value = 1000 * (frame[6] >> 4) +
+                  100 * (frame[6] & 0x0F) +
                   10 * (frame[7] >> 4) +
                   (frame[7] & 0x0F);
       // CI-V level is conventionally 0000–0255.
