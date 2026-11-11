@@ -78,6 +78,19 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Theory]
+    [InlineData(500, 100, 145_900_000L, 435_600_000L, 500)]
+    [InlineData(500, 100, 1_296_100_000L, 435_600_000L, 100)]
+    [InlineData(500, 100, 435_600_000L, 10_368_100_000L, 100)]
+    [InlineData(50, 100, 10_368_100_000L, 0L, 50)]
+    [InlineData(500, 500, 10_368_100_000L, 0L, 500)]
+    public void MicrowaveCatCycleIsFasterWithoutChangingVhfUhfPacing(
+      int legacyDelay, int microwaveDelay, long rx, long tx, int expected)
+    {
+      Assert.Equal(expected, CatControlEngine.SelectCatCycleDelayMs(
+        legacyDelay, microwaveDelay, rx, tx));
+    }
+
+    [Theory]
     [InlineData(true, true, true, true)]
     [InlineData(true, false, true, false)]
     [InlineData(true, true, false, false)]
