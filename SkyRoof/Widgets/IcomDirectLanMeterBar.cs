@@ -12,7 +12,7 @@ namespace SkyRoof
     internal IcomDirectLanMeterBar()
     {
       DoubleBuffered = true;
-      Size = new Size(290, 28);
+      Size = new Size(290, 25);
       Font = new Font("Segoe UI", 8.2f);
       Margin = Padding.Empty;
     }
@@ -109,7 +109,7 @@ namespace SkyRoof
             x, 19, width * fill, 5);
         }
         if (i > 0)
-          e.Graphics.DrawLine(separator, x - 5, 2, x - 5, 25);
+          e.Graphics.DrawLine(separator, x - 5, 2, x - 5, 24);
       }
     }
   }
