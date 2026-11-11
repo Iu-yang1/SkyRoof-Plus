@@ -1558,6 +1558,7 @@ namespace SkyRoof
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
+      capture.AudioFrameReceived += Capture_AudioFrameReceived;
 
       Capture = capture;
 
@@ -1653,7 +1654,9 @@ namespace SkyRoof
 
       capture.ScopeFrameReceived -= Capture_ScopeFrameReceived;
       capture.StatusChanged -= Capture_StatusChanged;
+      capture.AudioFrameReceived -= Capture_AudioFrameReceived;
       capture.Dispose();
+      ctx.IfAf?.NetworkIfDisconnected();
 
       // A stopped capture is a complete acquisition-session boundary. Cancel
       // unsent scope-only CAT writes, but leave ordinary RX/TX/PTT CAT state
@@ -1716,6 +1719,12 @@ namespace SkyRoof
           selectedFrame);
 
       RefreshScopeGeometryUi();
+    }
+
+    private void Capture_AudioFrameReceived(
+      int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame)
+    {
+      ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
     }
 
     private void Capture_ScopeFrameReceived(IcomScopeFrame frame)
