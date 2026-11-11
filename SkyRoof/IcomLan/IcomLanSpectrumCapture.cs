@@ -362,11 +362,22 @@ namespace SkyRoof
     private async Task ProcessNativeDatagramsAsync(
       IcomDirectScopeIngress ingress, CancellationToken token)
     {
-      await foreach (byte[] payload in ingress.Reader.ReadAllAsync(token))
+      try
       {
-        Interlocked.Increment(ref SerialChunkCountValue);
-        if (!TryDeliverCompleteCivPayload(payload))
-          StreamAssembler.Feed(payload);
+        await foreach (byte[] payload in ingress.Reader.ReadAllAsync(token))
+        {
+          Interlocked.Increment(ref SerialChunkCountValue);
+          if (!TryDeliverCompleteCivPayload(payload))
+            StreamAssembler.Feed(payload);
+        }
+      }
+      catch (OperationCanceledException) when (token.IsCancellationRequested)
+      {
+      }
+      catch (Exception ex)
+      {
+        Fail("Direct Icom LAN waveform decoding stopped: " + ex.Message, ex);
+        Cancellation?.Cancel();
       }
     }
 
