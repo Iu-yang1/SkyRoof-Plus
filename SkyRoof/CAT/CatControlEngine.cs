@@ -183,6 +183,56 @@ namespace SkyRoof
         syncContext.Post(_ => IcomNetworkReadbackReceived?.Invoke(completed), null);
     }
 
+    // Meter reads are scheduled after frequency and PTT operations, and use
+    // the same SkyCAT serialized CI-V owner instead of a competing LAN session.
+    private int PendingIcomMeter = -1;
+    private bool MeterCommandUnsupported;
+    internal event Action<IcomMeterReading>? IcomMeterReadbackReceived;
+
+    internal bool RequestIcomMeterReadback(IcomMeterKind kind)
+    {
+      if (!SupportsIcomRfGain || MeterCommandUnsupported ||
+          !Enum.IsDefined(kind))
+        return false;
+      Interlocked.Exchange(ref PendingIcomMeter, (int)kind);
+      return true;
+    }
+
+    private void TryReadIcomMeter()
+    {
+      int request = Interlocked.Exchange(ref PendingIcomMeter, -1);
+      if (request < 0 || MeterCommandUnsupported) return;
+      IcomMeterKind kind = (IcomMeterKind)request;
+      string field = kind switch
+      {
+        IcomMeterKind.S => "S",
+        IcomMeterKind.Power => "PWR",
+        IcomMeterKind.Alc => "ALC",
+        IcomMeterKind.Swr => "SWR",
+        _ => ""
+      };
+      if (field.Length == 0) return;
+
+      string? reply = SendReadCommand("U METER_READ_FIELD " + field);
+      if (reply == "RPRT -11")
+      {
+        MeterCommandUnsupported = true;
+        Log.Warning("The current SkyCAT server does not support IC-9700 meter readback. Update the pinned SkyCAT implementation.");
+        return;
+      }
+      if (reply == null ||
+          !reply.StartsWith(field + "=", StringComparison.Ordinal) ||
+          !int.TryParse(reply.AsSpan(field.Length + 1),
+            System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out int raw) ||
+          raw is < 0 or > 255)
+        return;
+
+      var reading = new IcomMeterReading(kind, raw);
+      syncContext.Post(_ => IcomMeterReadbackReceived?.Invoke(reading), null);
+    }
+
     private volatile bool IcomRfGainReadbackPending;
     private int RequestedIcomRfGain = -1;
     internal bool SupportsIcomRfGain =>
@@ -533,7 +583,8 @@ namespace SkyRoof
       if (IcomRfGainReadbackPending)
         TryReadIcomRfGain();
 
-       TryReadIcomNetworkField();
+      TryReadIcomNetworkField();
+      TryReadIcomMeter();
 
       if (IcomScopeReadbackPending)
         TryReadIcomScopeState();
