@@ -504,6 +504,23 @@ namespace SkyRoof
           ValidateInt(e, 5000, 2000);
           break;
 
+        case "SkyRoof.IcomDirectLanReceiveSettings.PrebufferMs":
+        case "SkyRoof.IcomDirectLanTransmitSettings.PrebufferMs":
+          ValidateInt(e, 500, 20);
+          break;
+
+        case "SkyRoof.IcomDirectLanMeterSettings.PollIntervalMs":
+          ValidateInt(e, 2000, 100);
+          break;
+
+        case "SkyRoof.IcomDirectLanReceiveSettings.SpeakerVolume":
+          ValidateInt(e, 100);
+          break;
+
+        case "SkyRoof.IcomDirectLanTransmitSettings.MicrophoneGain":
+          ValidateInt(e, 200);
+          break;
+
         case "SkyRoof.IcomLanSpectrumSettings.WaterfallRows":
           ValidateInt(e, 800, 40);
           break;
@@ -686,6 +703,16 @@ namespace SkyRoof
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.WaterfallSettings.")))
         ctx.WaterfallPanel?.ApplySettings();
+
+      if (ChangedFields.Exists(s =>
+            s.StartsWith("SkyRoof.IcomDirectLanSettings.") ||
+            s.StartsWith("SkyRoof.IcomDirectLanReceiveSettings.") ||
+            s.StartsWith("SkyRoof.IcomDirectLanTransmitSettings.") ||
+            s.StartsWith("SkyRoof.IcomDirectLanMeterSettings.")))
+      {
+        ctx.IcomLanSpectrumPanel?.ApplySettings();
+        ctx.MainForm.UpdateIcomDirectLanMeterBar();
+      }
 
       if (ChangedFields.Exists(
             s => s.StartsWith(

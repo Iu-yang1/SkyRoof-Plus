@@ -55,6 +55,11 @@ namespace SkyRoof
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public CatSettings Cat { get; set; } = new();
 
+    [DisplayName("Icom Direct LAN")]
+    [Description("Authenticated Icom LAN receive/transmit audio and CI-V meter settings. Endpoint credentials and spectrum source remain under Icom LAN Spectrum.")]
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public IcomDirectLanSettings IcomDirectLan { get; set; } = new();
+
     [DisplayName("Icom LAN Spectrum")]
     [TypeConverter(typeof(IcomLanSpectrumSettingsPropertyConverter))]
     public IcomLanSpectrumSettings IcomLanSpectrum { get; set; } = new();

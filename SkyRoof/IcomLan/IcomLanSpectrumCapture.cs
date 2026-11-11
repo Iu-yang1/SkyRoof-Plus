@@ -28,6 +28,8 @@ namespace SkyRoof
     private readonly string DirectLanPassword;
     private readonly string DirectLanClientName;
     private readonly bool DirectLanFastSweep;
+    private readonly IcomDirectLanSettings DirectLanAudioSettings;
+    private readonly Func<bool>? DirectLanPttActive;
     private readonly CivStreamAssembler StreamAssembler;
     private readonly IcomRadioProfile ScopeRadioProfile;
     private readonly IcomScopeAssembler ScopeAssembler;
@@ -69,6 +71,7 @@ namespace SkyRoof
     // Consumers must interpret the samples as AF or IF according to the
     // radio's actual Output Select; this event makes no such assumption.
     internal event Action<int, IcomLanLpcmAudioCodec.RxFrame>? AudioFrameReceived;
+    internal event Action<IcomMeterReading>? MeterReceived;
 
     internal string? DetectedRadioAddress { get; private set; }
     internal int? DetectedCivPort { get; private set; }
@@ -128,7 +131,9 @@ namespace SkyRoof
       string directLanPassword = "",
       string directLanClientName = "SkyRoof",
       IcomScopeRadioModel radioModel = IcomScopeRadioModel.Ic9700,
-      bool directLanFastSweep = false)
+      bool directLanFastSweep = false,
+      IcomDirectLanSettings? directLanAudioSettings = null,
+      Func<bool>? directLanPttActive = null)
     {
       ConfiguredRadioAddress = (radioAddress ?? string.Empty).Trim();
       SerialPort = Math.Clamp(serialPort, 1, 65535);
@@ -143,6 +148,8 @@ namespace SkyRoof
         ? "SkyRoof"
         : directLanClientName.Trim();
       DirectLanFastSweep = directLanFastSweep;
+      DirectLanAudioSettings = directLanAudioSettings ?? new();
+      DirectLanPttActive = directLanPttActive;
 
       if (UseSkyCatStream && UseDirectLan)
         throw new ArgumentException(
@@ -272,12 +279,15 @@ namespace SkyRoof
           DirectLanClientName,
           ScopeRadioProfile)
         {
-          PreferFastScopeSweep = DirectLanFastSweep
+          AudioOptions = DirectLanAudioSettings,
+          PreferFastScopeSweep = DirectLanFastSweep,
+          IsPttActive = DirectLanPttActive
         };
 
         session.StatusChanged += DirectSession_StatusChanged;
         session.CivDataReceived += DirectSession_CivDataReceived;
         session.AudioFrameReceived += DirectSession_AudioFrameReceived;
+        session.MeterReceived += DirectSession_MeterReceived;
 
         lock (DirectSessionSync)
           DirectSession = session;
@@ -308,6 +318,7 @@ namespace SkyRoof
           session.StatusChanged -= DirectSession_StatusChanged;
           session.CivDataReceived -= DirectSession_CivDataReceived;
           session.AudioFrameReceived -= DirectSession_AudioFrameReceived;
+          session.MeterReceived -= DirectSession_MeterReceived;
 
           DetectedCivPort =
             session.RemoteCivPortNumber > 0
@@ -348,6 +359,15 @@ namespace SkyRoof
     private void DirectSession_AudioFrameReceived(
       int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame) =>
       AudioFrameReceived?.Invoke(sampleRate, frame);
+
+    private void DirectSession_MeterReceived(IcomMeterReading reading) =>
+      MeterReceived?.Invoke(reading);
+
+    internal bool TryQueueTransmitAudio(float[] samples, int count)
+    {
+      lock (DirectSessionSync)
+        return DirectSession?.TryQueueTransmitAudio(samples, count) == true;
+    }
 
     private void DirectSession_CivDataReceived(byte[] bytes)
     {
