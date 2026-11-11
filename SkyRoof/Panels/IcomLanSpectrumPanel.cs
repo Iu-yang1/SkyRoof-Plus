@@ -1578,7 +1578,8 @@ namespace SkyRoof
       if (UsingDirectLanSource)
       {
         DirectLanAudioDevices = new IcomDirectLanAudioDevices(
-          ctx.Settings.IcomDirectLan, capture);
+          ctx.Settings.IcomDirectLan, capture,
+          (sampleRate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame));
         DirectLanAudioDevices.Start();
       }
 
@@ -1749,8 +1750,12 @@ namespace SkyRoof
     private void Capture_AudioFrameReceived(
       int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame)
     {
-      ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
-      DirectLanAudioDevices?.AcceptReceiveAudio(sampleRate, frame);
+      // The bounded audio worker owns both IF processing and local speaker
+      // rendering. Never run either on the UDP transport callback.
+      if (DirectLanAudioDevices != null)
+        DirectLanAudioDevices.AcceptReceiveAudio(sampleRate, frame);
+      else
+        ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
     }
 
     private void Capture_MeterReceived(IcomMeterReading reading)
