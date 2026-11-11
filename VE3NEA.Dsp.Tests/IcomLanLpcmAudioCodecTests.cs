@@ -84,6 +84,24 @@ namespace VE3NEA.Dsp.Tests
         wrongIdent, SenderSid, ReceiverSid, out _));
     }
 
+    [Theory]
+    [InlineData(0x94, 0x01)]
+    [InlineData(0x80, 0x00)]
+    [InlineData(0x44, 0x02)]
+    public void AcceptsFirmwareAudioIdentifiersWhenUdpSessionAndSizeMatch(
+      byte identLow, byte identHigh)
+    {
+      byte[] frame = AudioPacket(123, 321, [0x10, 0x20, 0x30, 0x40]);
+      frame[16] = identLow;
+      frame[17] = identHigh;
+      Assert.True(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out var audio));
+      Assert.Equal(2, audio.Samples.Length);
+      frame[12] ^= 0x01;
+      Assert.False(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out _));
+    }
+
     [Fact]
     public void EmptyAudioAndOddSamplePayloadsAreNotFrames()
     {
