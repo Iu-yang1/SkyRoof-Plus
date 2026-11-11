@@ -1148,8 +1148,10 @@ namespace SkyRoof
       {
         Name = "IcomDirectLanMeters",
         AutoSize = false,
-        Size = new Size(292, 29),
-        Margin = Padding.Empty,
+        Size = new Size(292, 25),
+        // Explicit inset keeps the hosted control entirely inside the
+        // 35-px StatusStrip, even with the custom theme renderer.
+        Margin = new Padding(0, 3, 0, 2),
         Padding = Padding.Empty,
         ToolTipText = "Icom Direct LAN CI-V meter readback"
       };
