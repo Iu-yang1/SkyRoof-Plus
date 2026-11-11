@@ -6,40 +6,42 @@ namespace VE3NEA.Dsp.Tests
   public sealed class IcomMicrowaveSatelliteBandTests
   {
     [Theory]
-    [InlineData(52_000_000d, AmateurRadioBand.SixMeters)]
-    [InlineData(145_900_000d, AmateurRadioBand.TwoMeters)]
-    [InlineData(435_600_000d, AmateurRadioBand.SeventyCentimeters)]
-    [InlineData(1_296_100_000d, AmateurRadioBand.TwentyThreeCentimeters)]
-    [InlineData(2_400_100_000d, AmateurRadioBand.ThirteenCentimeters)]
-    [InlineData(5_760_100_000d, AmateurRadioBand.FiveCentimeters)]
-    [InlineData(10_368_100_000d, AmateurRadioBand.ThreeCentimeters)]
-    [InlineData(900_000_000d, AmateurRadioBand.Unknown)]
-    [InlineData(2_800_000_000d, AmateurRadioBand.Unknown)]
+    [InlineData(52_000_000d, (int)AmateurRadioBand.SixMeters)]
+    [InlineData(145_900_000d, (int)AmateurRadioBand.TwoMeters)]
+    [InlineData(435_600_000d, (int)AmateurRadioBand.SeventyCentimeters)]
+    [InlineData(1_296_100_000d, (int)AmateurRadioBand.TwentyThreeCentimeters)]
+    [InlineData(2_400_100_000d, (int)AmateurRadioBand.ThirteenCentimeters)]
+    [InlineData(5_760_100_000d, (int)AmateurRadioBand.FiveCentimeters)]
+    [InlineData(10_368_100_000d, (int)AmateurRadioBand.ThreeCentimeters)]
+    [InlineData(900_000_000d, (int)AmateurRadioBand.Unknown)]
+    [InlineData(2_800_000_000d, (int)AmateurRadioBand.Unknown)]
     public void IdentifiesSatelliteAndMicrowaveAmateurBand(
-      double frequencyHz, AmateurRadioBand band)
+      double frequencyHz, int bandId)
     {
+      AmateurRadioBand band = (AmateurRadioBand)bandId;
       Assert.Equal(band, SatnogsDbTransmitter.GetAmateurBand(frequencyHz));
       Assert.Equal(band != AmateurRadioBand.Unknown,
         SatnogsDbTransmitter.IsHamFrequency(frequencyHz));
     }
 
     [Theory]
-    [InlineData(144_000_000d, AmateurRadioBand.TwoMeters)]
-    [InlineData(148_000_000d, AmateurRadioBand.TwoMeters)]
-    [InlineData(430_000_000d, AmateurRadioBand.SeventyCentimeters)]
-    [InlineData(440_000_000d, AmateurRadioBand.SeventyCentimeters)]
-    [InlineData(1_240_000_000d, AmateurRadioBand.TwentyThreeCentimeters)]
-    [InlineData(1_300_000_000d, AmateurRadioBand.TwentyThreeCentimeters)]
-    [InlineData(2_300_000_000d, AmateurRadioBand.ThirteenCentimeters)]
-    [InlineData(2_450_000_000d, AmateurRadioBand.ThirteenCentimeters)]
-    [InlineData(5_650_000_000d, AmateurRadioBand.FiveCentimeters)]
-    [InlineData(5_925_000_000d, AmateurRadioBand.FiveCentimeters)]
-    [InlineData(10_000_000_000d, AmateurRadioBand.ThreeCentimeters)]
-    [InlineData(10_500_000_000d, AmateurRadioBand.ThreeCentimeters)]
+    [InlineData(144_000_000d, (int)AmateurRadioBand.TwoMeters)]
+    [InlineData(148_000_000d, (int)AmateurRadioBand.TwoMeters)]
+    [InlineData(430_000_000d, (int)AmateurRadioBand.SeventyCentimeters)]
+    [InlineData(440_000_000d, (int)AmateurRadioBand.SeventyCentimeters)]
+    [InlineData(1_240_000_000d, (int)AmateurRadioBand.TwentyThreeCentimeters)]
+    [InlineData(1_300_000_000d, (int)AmateurRadioBand.TwentyThreeCentimeters)]
+    [InlineData(2_300_000_000d, (int)AmateurRadioBand.ThirteenCentimeters)]
+    [InlineData(2_450_000_000d, (int)AmateurRadioBand.ThirteenCentimeters)]
+    [InlineData(5_650_000_000d, (int)AmateurRadioBand.FiveCentimeters)]
+    [InlineData(5_925_000_000d, (int)AmateurRadioBand.FiveCentimeters)]
+    [InlineData(10_000_000_000d, (int)AmateurRadioBand.ThreeCentimeters)]
+    [InlineData(10_500_000_000d, (int)AmateurRadioBand.ThreeCentimeters)]
     public void KeepsBandEdgesInclusive(
-      double frequencyHz, AmateurRadioBand expected)
+      double frequencyHz, int expectedBandId)
     {
-      Assert.Equal(expected, SatnogsDbTransmitter.GetAmateurBand(frequencyHz));
+      Assert.Equal((AmateurRadioBand)expectedBandId,
+        SatnogsDbTransmitter.GetAmateurBand(frequencyHz));
     }
 
     [Theory]
