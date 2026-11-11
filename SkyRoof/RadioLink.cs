@@ -147,9 +147,8 @@ namespace SkyRoof
       Tx.downlink_high.HasValue && Tx.downlink_high != Tx.downlink_low &&
       Tx.uplink_low.HasValue && Tx.uplink_high.HasValue;
     public bool IsCrossBand => HasDownlink && HasUplink &&
-      ((SatnogsDbTransmitter.IsUhfFrequency(UplinkFrequency) != SatnogsDbTransmitter.IsUhfFrequency(DownlinkFrequency))
-      ||
-      (SatnogsDbTransmitter.IsVhfFrequency(UplinkFrequency) != SatnogsDbTransmitter.IsVhfFrequency(DownlinkFrequency)));
+      SatnogsDbTransmitter.GetAmateurBand(UplinkFrequency) !=
+      SatnogsDbTransmitter.GetAmateurBand(DownlinkFrequency);
 
 
     public void ObserveSatellite(SatellitePasses engine)
