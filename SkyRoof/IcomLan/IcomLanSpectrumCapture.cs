@@ -30,6 +30,7 @@ namespace SkyRoof
     private readonly bool DirectLanFastSweep;
     private readonly IcomDirectLanSettings DirectLanAudioSettings;
     private readonly Func<bool>? DirectLanPttActive;
+    private readonly Func<bool>? DirectLanExternalMeterReadback;
     private readonly CivStreamAssembler StreamAssembler;
     private readonly IcomRadioProfile ScopeRadioProfile;
     private readonly IcomScopeAssembler ScopeAssembler;
@@ -100,6 +101,15 @@ namespace SkyRoof
     internal long NativeIngressDrops =>
       NativeIngress?.Dropped ?? Interlocked.Read(ref LastNativeIngressDrops);
     internal int NativeIngressQueued => NativeIngress?.Queued ?? 0;
+    internal IcomDirectLanTxAudioStatus TxAudioStatus
+    {
+      get
+      {
+        lock (DirectSessionSync)
+          return DirectSession?.TxAudioStatus ?? default;
+      }
+    }
+
     internal long NativeCivSequenceGaps =>
       DirectSession?.NativeCivSequenceGaps ?? 0;
     internal long NativeCivDuplicates =>
@@ -133,7 +143,8 @@ namespace SkyRoof
       IcomScopeRadioModel radioModel = IcomScopeRadioModel.Ic9700,
       bool directLanFastSweep = false,
       IcomDirectLanSettings? directLanAudioSettings = null,
-      Func<bool>? directLanPttActive = null)
+      Func<bool>? directLanPttActive = null,
+      Func<bool>? directLanExternalMeterReadback = null)
     {
       ConfiguredRadioAddress = (radioAddress ?? string.Empty).Trim();
       SerialPort = Math.Clamp(serialPort, 1, 65535);
@@ -150,6 +161,7 @@ namespace SkyRoof
       DirectLanFastSweep = directLanFastSweep;
       DirectLanAudioSettings = directLanAudioSettings ?? new();
       DirectLanPttActive = directLanPttActive;
+      DirectLanExternalMeterReadback = directLanExternalMeterReadback;
 
       if (UseSkyCatStream && UseDirectLan)
         throw new ArgumentException(
@@ -297,7 +309,8 @@ namespace SkyRoof
           {
             AudioOptions = DirectLanAudioSettings,
             PreferFastScopeSweep = DirectLanFastSweep,
-            IsPttActive = DirectLanPttActive
+            IsPttActive = DirectLanPttActive,
+            ExternalMeterReadbackAvailable = DirectLanExternalMeterReadback
           };
 
           session.StatusChanged += DirectSession_StatusChanged;
