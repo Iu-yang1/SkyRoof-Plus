@@ -3,10 +3,10 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        runs build/Set-Version.ps1 to propagate it to the installer script and the docs. -->
-  <!-- SkyRoof Plus v1.67 IC-705/905 and standalone high-rate Icom LAN scope release: 2026-11-11. -->
+  <!-- SkyRoof Plus v1.68 Direct LAN READ FROM CI-V release: 2026-11-11. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <Version>1.67</Version>
+    <Version>1.68</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
