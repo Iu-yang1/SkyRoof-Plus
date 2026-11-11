@@ -18,6 +18,23 @@ fork 新增可停靠的 **Icom LAN Spectrum** 面板，与原来的 SDR 宽带�
 
 **RS-BA1 与 SkyRoof 并行时推荐：** `Source = RsBa1`，`Control path = SkyCat`（前提是 SkyCAT 已连接且支持对应 CI-V scope 指令）。没有可用控制通道就维持只读。**不要仅为了提高帧率启动实验性 Direct LAN 争用会话**。
 
+### 独立的 SkyCAT 频谱控制连接
+
+**频谱数据 TCP/4535 只负责接收波形，不负责 MODE/SPAN 等寄存器控制。**
+当 SkyRoof 的卫星 RX/TX CAT 已使用 SkyCAT 时，频谱控制继续复用原有
+CAT 引擎；否则现在会另外建立一条**仅用于频谱设置**的 SkyCAT 本地
+CAT TCP 连接，默认 `127.0.0.1:4532`。此端口可在 **SkyCAT CAT control
+TCP port** 中调整；内嵌 SkyCAT 自动使用其 Main CAT TCP Port。
+该客户端只发送 `U SCOPE_*` 及频谱输出控制，不发送电台工作频率、
+发射模式或 PTT 指令，并通过寄存器真实回读确认设置。
+
+如果 MODE/SPAN 仍呈灰色，请打开「诊断」查看 **Scope write backend**、
+**SkyCAT scope-only CAT TCP**、**last error** 和接收机目标。确保配置的是
+SkyCAT **主 CAT 端口**，不是波形端口 4535。在 AUTO 未收到波形、同时
+也未取得真实 `SELECT` 回读时，可先手动选择 MAIN 或 SUB，明确控制对象。
+这里的 MODE/SPAN 调节的是**频谱仪显示模式和频率跨度**，不是
+SSB/FM 接收机的 IF 滤波器带宽。
+
 ## 按频谱来源动态显示设置项
 
 **Icom LAN Spectrum** 设置页会根据 **Scope source** 和
