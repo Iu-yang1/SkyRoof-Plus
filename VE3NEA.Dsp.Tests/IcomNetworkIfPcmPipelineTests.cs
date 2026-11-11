@@ -11,7 +11,23 @@ namespace VE3NEA.Dsp.Tests
 
     private static IcomLanLpcmAudioCodec.RxFrame Packet(
       int sequence, float sample) =>
-      new(0, (ushort)sequence, Enumerable.Repeat(sample, 960).ToArray());
+      new((ushort)sequence, 0, Enumerable.Repeat(sample, 960).ToArray());
+
+    [Fact]
+    public void RxUsesOuterTransportSequenceWhenInnerSequenceDoesNotAdvance()
+    {
+      var pipeline = new IcomNetworkIfPcmPipeline();
+      var one = pipeline.Push(48_000,
+        new IcomLanLpcmAudioCodec.RxFrame(100, 0, new float[] { 0.1f }),
+        Epoch);
+      var two = pipeline.Push(48_000,
+        new IcomLanLpcmAudioCodec.RxFrame(101, 0, new float[] { 0.2f }),
+        Epoch.AddMilliseconds(20));
+      Assert.Single(one);
+      Assert.Single(two);
+      Assert.Equal(0, pipeline.DuplicateOrLateFrames);
+      Assert.Equal(0.2f, two[0].Samples[0]);
+    }
 
     [Fact]
     public void ReordersPacketsWithoutResettingDspForNaturalReordering()
@@ -174,7 +190,7 @@ namespace VE3NEA.Dsp.Tests
       Assert.Single(first);
       Assert.Empty(pipeline.Push(44_100,
         new IcomLanLpcmAudioCodec.RxFrame(
-          2, 3, Enumerable.Repeat(-0.9f, 2000).ToArray()),
+          3, 2, Enumerable.Repeat(-0.9f, 2000).ToArray()),
         Epoch.AddMilliseconds(20)));
       var restarted = pipeline.Flush(Epoch.AddMilliseconds(160));
       Assert.Single(restarted);
