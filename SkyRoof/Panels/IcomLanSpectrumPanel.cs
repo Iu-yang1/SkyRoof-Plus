@@ -1553,7 +1553,8 @@ namespace SkyRoof
         directLanControlPort: settings.DirectLanControlPort,
         directLanUsername: settings.DirectLanUsername,
         directLanPassword: settings.DirectLanPassword,
-        directLanClientName: settings.DirectLanClientName);
+        directLanClientName: settings.DirectLanClientName,
+        radioModel: settings.RadioModel);
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
@@ -1572,7 +1573,8 @@ namespace SkyRoof
           settings.SerialPort,
           useSkyCatStream: false,
           skyCatScopePort: settings.SkyCatScopePort,
-          autoDiscoverCivPort: true);
+          autoDiscoverCivPort: true,
+          radioModel: settings.RadioModel);
 
         nativeLan.ScopeFrameReceived += NativeLanAssist_ScopeFrameReceived;
         NativeLanAssistCapture = nativeLan;
@@ -2109,6 +2111,7 @@ namespace SkyRoof
     }
 
     private bool CanUseSkyCatScopeControl() =>
+      ctx.Settings.IcomLanSpectrum.RadioModel == IcomScopeRadioModel.Ic9700 &&
       IsSkyCatScopeControlConfigured() &&
       ctx.CatControl.HasIcomScopeControlBackend;
 
