@@ -114,7 +114,7 @@ namespace SkyRoof.IF
 
   /// <summary>IF-AF receive path. Uses only receiver PCM; no CAT or PTT
   /// writes. VAC device must be an explicit Windows RENDER endpoint and never
-  /// the IC-9700 USB Audio CODEC playback/TX input.</summary>
+  /// a radio's USB Audio CODEC playback/TX input.</summary>
   public sealed class IfAfSettings
   {
     [DisplayName("Enable USB IF -> AF")]
@@ -122,6 +122,7 @@ namespace SkyRoof.IF
     public bool Enabled { get; set; } = false;
 
     [DisplayName("12 kHz IF capture (USB)")]
+    [Description("Windows recording endpoint for the radio's 12-kHz IF. On IC-705 use Connectors > USB AF/IF Output > Output Select = IF; on IC-905 use USB/AV-OUT AF/IF Output > Output Select = IF. Requires 48-kHz USB PCM capture; selecting ordinary AF cannot produce the 12-kHz IF spectrum.")]
     [TypeConverter(typeof(InputSoundcardNameConverter))]
     public string? InputDeviceId { get; set; } =
       Soundcard.GetPreferredSoundcardId(DataFlow.Capture, "USB Audio CODEC", "ICOM");
@@ -166,7 +167,7 @@ namespace SkyRoof.IF
       "(No automatically paired recording endpoint)";
 
     [DisplayName("Virtual audio render device")]
-    [Description("Only for ExistingVirtualCable; choose the third-party cable playback end (e.g. CABLE Input). Never select IC-9700 USB Audio CODEC TX.")]
+    [Description("Only for ExistingVirtualCable; choose the third-party cable playback end (e.g. CABLE Input). Never select any IC-9700 / IC-705 / IC-905 USB Audio CODEC transmit endpoint.")]
     [TypeConverter(typeof(OutputSoundcardNameConverter))]
     public string? VacRenderDeviceId { get; set; }
 

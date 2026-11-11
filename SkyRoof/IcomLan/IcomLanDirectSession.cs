@@ -64,6 +64,8 @@ namespace SkyRoof
     private uint ControlRemoteSid;
     private uint CivLocalSid;
     private uint CivRemoteSid;
+    private uint AudioLocalSid;
+    private uint AudioRemoteSid;
 
     private byte[] AuthId = new byte[6];
     private byte[] RadioGuid = new byte[16];
@@ -92,12 +94,15 @@ namespace SkyRoof
 
     private ushort ControlPingSeq = 2;
     private ushort CivPingSeq = 1;
+    private ushort AudioPingSeq = 1;
+    private ushort AudioPingInnerSeq = 0x8304;
     private ushort PingInnerSeq = 0x8304;
 
     private bool Disposed;
 
     internal event Action<byte[]>? CivDataReceived;
     internal event Action<string>? StatusChanged;
+    internal event Action<int, IcomLanLpcmAudioCodec.RxFrame>? AudioFrameReceived;
 
     internal bool IsAuthenticated { get; private set; }
     internal bool IsStreaming { get; private set; }
@@ -161,6 +166,7 @@ namespace SkyRoof
       AudioSink = audio;
       int localAudioPort =
         ((IPEndPoint)audio.Client.LocalEndPoint!).Port;
+      AudioLocalSid = BuildSessionId(localAddress, localAudioPort);
 
       Publish(
         $"Direct Icom LAN (experimental): authenticating {RadioAddress}:{ControlPort} " +
@@ -381,7 +387,10 @@ namespace SkyRoof
         try
         {
           audio.Connect(RadioAddress, RemoteAudioPort);
-          audioDrain = DrainAudioAsync(audio, token);
+          AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
+          audioDrain = DrainAudioAsync(
+            audio, (int)SelectReceiveSampleRate(RadioRxSampleCapabilities),
+            token);
         }
         catch (Exception ex)
         {
@@ -1411,26 +1420,137 @@ namespace SkyRoof
       }
     }
 
-    private static async Task DrainAudioAsync(
+    private async Task<uint> StartAudioHandshakeAsync(
+      UdpClient audio, CancellationToken token)
+    {
+      byte[] probe = BuildControlPacket(0x0003, 0, AudioLocalSid, 0);
+      await SendRawAsync(audio, probe, false, false, token);
+      await SendRawAsync(audio, probe, false, false, token);
+
+      byte[] here = await ReceiveMatchingAsync(
+        audio,
+        packet => packet.Length == 16 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(
+            packet.AsSpan(4, 2)) == 0x0004 &&
+          BinaryPrimitives.ReadUInt32BigEndian(
+            packet.AsSpan(12, 4)) == AudioLocalSid,
+        TimeSpan.FromSeconds(2), token);
+
+      uint remoteSid = BinaryPrimitives.ReadUInt32BigEndian(
+        here.AsSpan(8, 4));
+      if (remoteSid == 0)
+        throw new InvalidDataException(
+          "Icom LAN audio handshake returned an invalid remote SID.");
+
+      byte[] ready = BuildControlPacket(
+        0x0006, 1, AudioLocalSid, remoteSid);
+      await SendRawAsync(audio, ready, false, false, token);
+      await SendRawAsync(audio, ready, false, false, token);
+      _ = await ReceiveMatchingAsync(
+        audio,
+        packet => packet.Length == 16 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(
+            packet.AsSpan(4, 2)) == 0x0006 &&
+          BinaryPrimitives.ReadUInt32BigEndian(
+            packet.AsSpan(8, 4)) == remoteSid &&
+          BinaryPrimitives.ReadUInt32BigEndian(
+            packet.AsSpan(12, 4)) == AudioLocalSid,
+        TimeSpan.FromSeconds(2), token);
+
+      return remoteSid;
+    }
+
+    private async Task DrainAudioAsync(
       UdpClient audio,
+      int sampleRate,
       CancellationToken token)
     {
       while (!token.IsCancellationRequested)
       {
         try
         {
-          _ = await audio.ReceiveAsync(token);
+          // Audio has its own independent keepalive cycle. A muted or
+          // squelched receiver must not silently expire the UDP session.
+          using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+          timeout.CancelAfter(TimeSpan.FromSeconds(5));
+          UdpReceiveResult received;
+          try
+          {
+            received = await audio.ReceiveAsync(timeout.Token);
+          }
+          catch (OperationCanceledException) when (!token.IsCancellationRequested)
+          {
+            await SendAudioPingAsync(audio, token);
+            continue;
+          }
+
+          byte[] packet = received.Buffer;
+          if (packet.Length == 21 &&
+              BinaryPrimitives.ReadUInt16LittleEndian(
+                packet.AsSpan(4, 2)) == 0x0007 &&
+              BinaryPrimitives.ReadUInt32BigEndian(
+                packet.AsSpan(8, 4)) == AudioRemoteSid &&
+              BinaryPrimitives.ReadUInt32BigEndian(
+                packet.AsSpan(12, 4)) == AudioLocalSid &&
+              packet[16] == 0x00)
+          {
+            byte[] reply = packet.ToArray();
+            reply[16] = 0x01;
+            WriteSid(reply, 8, AudioLocalSid);
+            WriteSid(reply, 12, AudioRemoteSid);
+            await SendRawAsync(audio, reply, false, false, token);
+            continue;
+          }
+
+          if (IcomLanLpcmAudioCodec.TryDecode(
+                packet, AudioRemoteSid, AudioLocalSid, out var pcm))
+          {
+            try
+            {
+              AudioFrameReceived?.Invoke(sampleRate, pcm);
+            }
+            catch (Exception ex)
+            {
+              Log.Warning(ex, "Icom LAN audio consumer rejected a PCM frame");
+            }
+          }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
           break;
         }
-        catch (SocketException)
+        catch (SocketException ex)
         {
-          if (token.IsCancellationRequested)
-            break;
+          if (!token.IsCancellationRequested)
+            Log.Warning(ex, "Icom LAN audio socket stopped");
+          break;
+        }
+        catch (Exception ex)
+        {
+          // An invalid/closed audio endpoint should never form a hot loop
+          // or bring down the independently authenticated CAT/Scope session.
+          Log.Warning(ex, "Icom LAN audio receive failed");
+          break;
         }
       }
+    }
+
+    private async Task SendAudioPingAsync(
+      UdpClient audio, CancellationToken token)
+    {
+      byte[] ping = new byte[21];
+      BinaryPrimitives.WriteUInt32LittleEndian(ping.AsSpan(0, 4), 21);
+      BinaryPrimitives.WriteUInt16LittleEndian(ping.AsSpan(4, 2), 0x0007);
+      BinaryPrimitives.WriteUInt16LittleEndian(
+        ping.AsSpan(6, 2), AudioPingSeq++);
+      WriteSid(ping, 8, AudioLocalSid);
+      WriteSid(ping, 12, AudioRemoteSid);
+      ping[17] = RandomNumberGenerator.GetBytes(1)[0];
+      ping[18] = (byte)AudioPingInnerSeq;
+      ping[19] = (byte)(AudioPingInnerSeq >> 8);
+      ping[20] = 0x06;
+      AudioPingInnerSeq++;
+      await SendRawAsync(audio, ping, false, false, token);
     }
 
     private void ParseCapabilities(byte[] packet)
