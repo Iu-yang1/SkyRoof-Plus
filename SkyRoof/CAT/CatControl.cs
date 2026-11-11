@@ -126,12 +126,12 @@ namespace SkyRoof
         command);
     }
 
-    internal bool RequestIcomScopeReadback()
+    internal bool RequestIcomScopeReadback(bool restart = false)
     {
       CatControlEngine? engine =
         GetIcomScopeControlBackend();
 
-      return engine?.RequestIcomScopeReadback() ??
+      return engine?.RequestIcomScopeReadback(restart) ??
         false;
     }
 
