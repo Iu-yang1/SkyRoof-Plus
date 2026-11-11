@@ -2007,9 +2007,6 @@ namespace SkyRoof
       // payload limit. A bounded 60-ms prefill handles Windows jitter;
       // temporary microphone starvation is sent as silence, not a UDP gap.
       var pcm = new IcomLanTxAudioPacerBuffer((int)NegotiatedTxRate);
-      int bytesPerSample = AudioOptions.Transmit.Codec ==
-        IcomLanAudioCodec.Lpcm16Mono ? 2 : 1;
-      int maxSamples = 1364 / bytesPerSample;
       bool wasKeyed = false;
       long lastTick = 0;
       using var clock = new PeriodicTimer(TimeSpan.FromMilliseconds(20));
@@ -2049,47 +2046,60 @@ namespace SkyRoof
         Volatile.Write(ref AudioTxBufferedSamples, pcm.BufferedSamples);
         Interlocked.Increment(ref AudioTxFrames);
 
-        float gain = Math.Clamp(
-          AudioOptions.Transmit.MicrophoneGain, 0, 200) / 100f;
-        double energy = 0;
-        for (int i = 0; i < frame.Length; i++)
-        {
-          frame[i] = Math.Clamp(frame[i] * gain, -1f, 1f);
-          energy += (double)frame[i] * frame[i];
-        }
-
-        // All parts of one audio frame retain consecutively numbered packet
-        // sequences. The PTT check never keys the radio by itself.
-        for (int offset = 0; offset < frame.Length; offset += maxSamples)
-        {
-          if (!IsStreaming || IsPttActive?.Invoke() != true) break;
-          int length = Math.Min(maxSamples, frame.Length - offset);
-          ushort sequence = AudioOuterSeq++;
-          byte[] datagram = IcomLanLpcmAudioCodec.EncodeTransmit(
-            frame.AsSpan(offset, length),
-            AudioLocalSid, AudioRemoteSid,
-            sequence, AudioPayloadSeq++, AudioOptions.Transmit.Codec);
-
-          if (AudioOptions.RetransmitAudio)
-          {
-            lock (AudioHistoryLock)
-            {
-              AudioTxHistory[sequence] = datagram;
-              AudioTxOrder.Enqueue(sequence);
-              while (AudioTxOrder.Count > 256)
-                AudioTxHistory.Remove(AudioTxOrder.Dequeue());
-            }
-          }
-
-          await SendAudioRawAsync(audio, datagram, token);
-          Interlocked.Increment(ref AudioTxDatagrams);
-        }
-
-        double rms = Math.Sqrt(energy / frame.Length);
-        Volatile.Write(ref LastSentAudioDbfs,
-          rms > 0 ? 20 * Math.Log10(rms) : -120);
-        Interlocked.Exchange(ref LastSentAudioTicks, DateTime.UtcNow.Ticks);
+        await SendTxPcmFrameAsync(audio, frame, token);
       }
+    }
+
+    private async Task SendTxPcmFrameAsync(
+      UdpClient audio, float[] frame, CancellationToken token)
+    {
+      float gain = Math.Clamp(
+        AudioOptions.Transmit.MicrophoneGain, 0, 200) / 100f;
+      double energy = ScaleTxPcm(frame, gain);
+      int bytesPerSample = AudioOptions.Transmit.Codec ==
+        IcomLanAudioCodec.Lpcm16Mono ? 2 : 1;
+      int maxSamples = 1364 / bytesPerSample;
+
+      // All parts of a 20-ms frame use consecutive UDP sequences.
+      for (int offset = 0; offset < frame.Length; offset += maxSamples)
+      {
+        if (!IsStreaming || IsPttActive?.Invoke() != true) break;
+        int length = Math.Min(maxSamples, frame.Length - offset);
+        ushort sequence = AudioOuterSeq++;
+        byte[] datagram = IcomLanLpcmAudioCodec.EncodeTransmit(
+          frame.AsSpan(offset, length), AudioLocalSid, AudioRemoteSid,
+          sequence, AudioPayloadSeq++, AudioOptions.Transmit.Codec);
+
+        if (AudioOptions.RetransmitAudio)
+        {
+          lock (AudioHistoryLock)
+          {
+            AudioTxHistory[sequence] = datagram;
+            AudioTxOrder.Enqueue(sequence);
+            while (AudioTxOrder.Count > 256)
+              AudioTxHistory.Remove(AudioTxOrder.Dequeue());
+          }
+        }
+
+        await SendAudioRawAsync(audio, datagram, token);
+        Interlocked.Increment(ref AudioTxDatagrams);
+      }
+
+      double rms = Math.Sqrt(energy / frame.Length);
+      Volatile.Write(ref LastSentAudioDbfs,
+        rms > 0 ? 20 * Math.Log10(rms) : -120);
+      Interlocked.Exchange(ref LastSentAudioTicks, DateTime.UtcNow.Ticks);
+    }
+
+    private static double ScaleTxPcm(Span<float> frame, float gain)
+    {
+      double energy = 0;
+      foreach (ref float sample in frame)
+      {
+        sample = Math.Clamp(sample * gain, -1f, 1f);
+        energy += (double)sample * sample;
+      }
+      return energy;
     }
 
     private async Task SendAudioRawAsync(
