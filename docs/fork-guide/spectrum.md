@@ -235,3 +235,18 @@ The spectrum itself retains its existing high-contrast instrument
 rendering. This changes UI layout and status presentation only,
 not the scope capture, assembler, frame mailbox, waterfall time
 mapping, HOLD, CAT/PTT or Doppler code.
+
+
+## High-rate standalone native Icom LAN Scope (without RS-BA1)
+
+Select **Icom LAN Spectrum → Scope source: DirectLan**, enter the radio's network IP and credentials, choose the matching IC-9700/705/905 profile, and press START. SkyRoof authenticates directly to the radio (usually UDP control/50001, negotiated CI-V/50002), enables CI-V `27 10/11` output and receives complete **475-bin** `27 00` sweeps. RS-BA1, its Remote Utility scope window and WinDivert are **not required**.
+
+The official [IC-9700 CI-V Reference Guide](https://www.icomfrance.com/uploads/files/produit/not-IC-9700_ENG_CI-V_3a-en.pdf), pages 25–26, specifies a single waveform division over LAN versus 11 divisions over USB CI-V. This is a radio-generated rate; increasing UI timer FPS cannot create radio sweeps.
+
+**Native LAN FAST sweep** is enabled by default *for manually started Direct LAN sessions only*. SkyRoof sends one `27 1A MAIN FAST` write (and SUB FAST when available) after connecting. This deliberately changes the radio's scope-speed preference; disable the option to leave the radio's front-panel choice unchanged. The native session will not repeatedly force FAST.
+
+The high-rate path now uses a larger 1 MiB UDP receive buffer, a 256-packet bounded single-consumer decode queue, transport SID/outer-sequence correlation and duplicate/gap diagnostics. Complete-sweep preservation in the UI mailbox increases to 12 recent rows per receiver, maintaining a single scheduled WinForms callback. Scope enable writes are reasserted only after a waveform stall (minimum 8 seconds between writes; no valid complete sweeps for at least 2 seconds), rather than unconditionally every 5 seconds.
+
+**Diagnose independently**: compare captured complete sweeps/s and updates/s with delivered waterfall WF/s and Native RX ingress queued/dropped. Forward sequence skips do not necessarily imply dropped complete sweeps; a temporarily busy display can deliver fewer WF rows than the source produces. The software tests simulate high-rate input; **no measured hardware FPS is claimed** without a real IC-9700/705/905 capture and firmware/version/transport details.
+
+See [中文原生高速频谱配置](../zh-cn/fork-guide/spectrum.md).
