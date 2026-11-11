@@ -33,7 +33,10 @@ namespace SkyRoof
             expectedSenderSid ||
           BinaryPrimitives.ReadUInt32BigEndian(datagram.Slice(12, 4)) !=
             expectedReceiverSid ||
-          !KnownAudioIdentifier(datagram[16], datagram[17]))
+          // The IC-9700 emits firmware/codec-specific RX identifiers.
+          // Audio identity is established by authenticated UDP SIDs, packet
+          // type and exact payload length, not a fixed five-ID allowlist.
+          (datagram[16] == 0xC1 || datagram[16] == 0xC0))
         return false;
 
       int length = BinaryPrimitives.ReadUInt16BigEndian(datagram.Slice(22, 2));
@@ -65,15 +68,6 @@ namespace SkyRoof
         samples);
       return true;
     }
-
-    // Identifiers differ between Icom audio codecs and initial/subsequent
-    // packets. Never mistake ping/control packets for audio data.
-    private static bool KnownAudioIdentifier(byte lo, byte hi) =>
-      (lo == 0x80 && hi == 0x00) ||
-      (lo == 0x44 && hi == 0x02) ||
-      (lo == 0x6C && hi == 0x05) ||
-      (lo == 0x70 && hi == 0x04) ||
-      (lo == 0xD8 && hi == 0x03);
 
     internal static byte[] EncodeTransmit(
       ReadOnlySpan<float> samples,
