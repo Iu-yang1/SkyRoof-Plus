@@ -1335,23 +1335,7 @@ namespace SkyRoof
       }
 
       string? reply = SendReadCommand($"U SCOPE_READ_FIELD {key}");
-      string? acceptedValue = null;
-      if (reply != null &&
-          reply.StartsWith(key + "=", StringComparison.Ordinal))
-      {
-        try
-        {
-          // Validate each register independently. One malformed response
-          // must not poison an otherwise valid partial synchronization.
-          _ = IcomScopeReadbackState.ParsePartial(reply);
-          acceptedValue = reply[(key.Length + 1)..];
-        }
-        catch (FormatException ex)
-        {
-          Log.Warning(ex, "Malformed SkyCAT scope field {Field}: {Reply}", key, reply);
-        }
-      }
-
+      string? acceptedValue = ValidateIcomScopeFieldValue(key, reply);
       string? partial = null;
       int successful = 0;
       lock (IcomScopeReadbackSync)
@@ -1403,6 +1387,26 @@ namespace SkyRoof
       }
     }
 
+
+    private string? ValidateIcomScopeFieldValue(string key, string? reply)
+    {
+      if (reply == null ||
+          !reply.StartsWith(key + "=", StringComparison.Ordinal))
+        return null;
+
+      try
+      {
+        // Reject only the malformed field, not valid results collected
+        // from other radio registers in this synchronization survey.
+        _ = IcomScopeReadbackState.ParsePartial(reply);
+        return reply[(key.Length + 1)..];
+      }
+      catch (FormatException ex)
+      {
+        Log.Warning(ex, "Malformed SkyCAT scope field {Field}: {Reply}", key, reply);
+        return null;
+      }
+    }
 
     private void TryWriteIcomScopeControl(
       string command)
