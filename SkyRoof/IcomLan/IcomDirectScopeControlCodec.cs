@@ -14,7 +14,12 @@ namespace SkyRoof
     internal static byte[] Encode(
       byte radioCivAddress, IcomScopeControlRequest request)
     {
-      string receiver = request.Scope == 0 ? "MAIN" : "SUB";
+      string receiver = request.Scope switch
+      {
+        0 => "MAIN",
+        1 => "SUB",
+        _ => throw new ArgumentOutOfRangeException(nameof(request))
+      };
       string[] args = request.Kind switch
       {
         IcomScopeControlKind.SelectedScope =>
