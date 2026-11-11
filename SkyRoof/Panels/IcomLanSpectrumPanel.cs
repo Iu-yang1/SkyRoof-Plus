@@ -67,6 +67,13 @@ namespace SkyRoof
 
     private IcomLanSpectrumCapture? Capture;
     private IcomLanSpectrumCapture? NativeLanAssistCapture;
+    private IcomDirectLanAudioDevices? DirectLanAudioDevices;
+    private readonly object meterStateSync = new();
+    private IcomMeterSnapshot meterState = new();
+    internal IcomMeterSnapshot MeterSnapshot
+    {
+      get { lock (meterStateSync) return meterState; }
+    }
     private long LastScopeFrames;
     private long LastScopeUpdates;
     private DateTime LastRateTime = DateTime.UtcNow;
@@ -1532,6 +1539,7 @@ namespace SkyRoof
 
       IcomLanSpectrumSettings settings = ctx.Settings.IcomLanSpectrum;
       SpectrumView.SetHistoryRows(settings.WaterfallRows);
+      lock (meterStateSync) meterState = new IcomMeterSnapshot();
 
       if (UsingDirectLanSource &&
           (string.IsNullOrWhiteSpace(settings.RadioAddress) ||
@@ -1555,13 +1563,24 @@ namespace SkyRoof
         directLanPassword: settings.DirectLanPassword,
         directLanClientName: settings.DirectLanClientName,
         radioModel: settings.RadioModel,
-        directLanFastSweep: settings.DirectLanFastSweep);
+        directLanFastSweep: settings.DirectLanFastSweep,
+        directLanAudioSettings: ctx.Settings.IcomDirectLan,
+        directLanPttActive: () =>
+          ctx.CatControl.Tx?.Ptt == true ||
+          ctx.CatControl.Rx?.Ptt == true);
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
       capture.AudioFrameReceived += Capture_AudioFrameReceived;
+      capture.MeterReceived += Capture_MeterReceived;
 
       Capture = capture;
+      if (UsingDirectLanSource)
+      {
+        DirectLanAudioDevices = new IcomDirectLanAudioDevices(
+          ctx.Settings.IcomDirectLan, capture);
+        DirectLanAudioDevices.Start();
+      }
 
       // SkyCAT can receive serial-style multi-division 27 00 frames from the
       // Remote Utility path. Observe the RS-BA1 LAN C1 transport independently
@@ -1656,7 +1675,12 @@ namespace SkyRoof
       capture.ScopeFrameReceived -= Capture_ScopeFrameReceived;
       capture.StatusChanged -= Capture_StatusChanged;
       capture.AudioFrameReceived -= Capture_AudioFrameReceived;
+      capture.MeterReceived -= Capture_MeterReceived;
+      DirectLanAudioDevices?.Dispose();
+      DirectLanAudioDevices = null;
       capture.Dispose();
+      lock (meterStateSync) meterState = new IcomMeterSnapshot();
+      ctx.MainForm.UpdateIcomDirectLanMeterBar();
       ctx.IfAf?.NetworkIfDisconnected();
 
       // A stopped capture is a complete acquisition-session boundary. Cancel
@@ -1726,6 +1750,13 @@ namespace SkyRoof
       int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame)
     {
       ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
+      DirectLanAudioDevices?.AcceptReceiveAudio(sampleRate, frame);
+    }
+
+    private void Capture_MeterReceived(IcomMeterReading reading)
+    {
+      lock (meterStateSync)
+        meterState = meterState.With(reading, DateTime.UtcNow);
     }
 
     private void Capture_ScopeFrameReceived(IcomScopeFrame frame)
