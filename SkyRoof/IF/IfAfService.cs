@@ -6,6 +6,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Serilog;
 using VE3NEA;
+using SkyRoof;
 
 namespace SkyRoof.IF
 {
@@ -27,7 +28,7 @@ namespace SkyRoof.IF
   /// to AFC and SSTV synchronously and produces filtered AF on a separate
   /// bounded worker for VAC. No downstream processor opens the same device
   /// when it can subscribe to this service.</summary>
-  public sealed class IfAfService : IDisposable
+  public sealed partial class IfAfService : IDisposable
   {
     private InputSoundcard<float>? capture;
     private OutputSoundcard<float> vac = new(samplingRate: 48000,
@@ -37,6 +38,10 @@ namespace SkyRoof.IF
     private Channel<Frame>? queue;
     private CancellationTokenSource? cancel;
     private Task? worker;
+    private Task? networkFlushTask;
+    private readonly object networkSync = new();
+    private readonly IcomNetworkIfPcmPipeline networkPcm = new();
+    private IfAfInputSource activeInputSource = IfAfInputSource.UsbAudio;
     private long lastProcessingLagUs;
     private IfAfSettings? settings;
     private int requestedMode;
@@ -55,7 +60,7 @@ namespace SkyRoof.IF
     private bool disposed;
     public event EventHandler<DataEventArgs<float>>? RawIfAvailable;
     private readonly record struct Frame(float[] Data, DateTime Utc,
-      int Version, long FirstSampleIndex);
+      int Version, long FirstSampleIndex, bool Discontinuity = false);
 
     // A missing 10-ms chunk does not exceed the 250-ms timestamp tolerance.
     internal static bool FramesContinuous(long expectedStart, long actualStart) =>
@@ -63,8 +68,13 @@ namespace SkyRoof.IF
 
     // A running WASAPI capture/render pair does not imply a living decoder.
     // Surface a worker that failed during startup as a stopped pipeline.
-    public bool IsRunning => capture?.IsRunning == true && vac.IsRunning &&
-      worker?.IsCompleted == false;
+    public bool IsRunning =>
+      (activeInputSource == IfAfInputSource.AuthenticatedLanIf
+        ? Interlocked.Read(ref lastUtcTicks) > 0 &&
+          DateTime.UtcNow.Ticks - Interlocked.Read(ref lastUtcTicks) <
+            TimeSpan.FromSeconds(2).Ticks
+        : capture?.IsRunning == true) &&
+      vac.IsRunning && worker?.IsCompleted == false;
     public string? InputDeviceId => settings?.InputDeviceId;
     public string? VacRenderDeviceId => resolvedRenderId;
     public AudioChannelChoice CaptureChannel => settings?.CaptureChannel ?? AudioChannelChoice.Left;
@@ -90,8 +100,12 @@ namespace SkyRoof.IF
       ArgumentNullException.ThrowIfNull(config);
       Stop();
       if (!config.Enabled) return;
-      if (string.IsNullOrWhiteSpace(config.InputDeviceId))
-        throw new InvalidOperationException("Select the IF capture endpoint.");
+      if (config.InputSource == IfAfInputSource.UsbAudio &&
+          string.IsNullOrWhiteSpace(config.InputDeviceId))
+        throw new InvalidOperationException("Select the USB IF capture endpoint.");
+      if (!Enum.IsDefined(config.InputSource))
+        throw new ArgumentOutOfRangeException(nameof(config),
+          "Unsupported IF input source.");
       if (!Enum.IsDefined(typeof(IfAfLatencyPreset), config.LatencyPreset) ||
           !Enum.IsDefined(typeof(IfAfAudioRoute), config.AudioRoute))
         throw new ArgumentOutOfRangeException(nameof(config),
@@ -105,7 +119,8 @@ namespace SkyRoof.IF
       string? outputId = IfAfSettings.ResolveRenderEndpoint(config.AudioRoute,
         config.VacRenderDeviceId, signed.RenderId);
       // This recording end belongs to WSJT-X; using it as IF creates feedback.
-      if (config.AudioRoute == IfAfAudioRoute.AutoSignedCable &&
+      if (config.InputSource == IfAfInputSource.UsbAudio &&
+          config.AudioRoute == IfAfAudioRoute.AutoSignedCable &&
           string.Equals(config.InputDeviceId, signed.CaptureId,
             StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException(
@@ -145,6 +160,7 @@ namespace SkyRoof.IF
       settings = new IfAfSettings
       {
         Enabled = config.Enabled,
+        InputSource = config.InputSource,
         InputDeviceId = config.InputDeviceId,
         CaptureChannel = config.CaptureChannel,
         Mode = config.Mode,
@@ -167,6 +183,8 @@ namespace SkyRoof.IF
         SsbNoiseReduction = config.SsbNoiseReduction
       };
       Volatile.Write(ref requestedMode, (int)mode);
+      activeInputSource = config.InputSource;
+      lock (networkSync) networkPcm.Reset();
       int version = ++generation;
       Interlocked.Exchange(ref inputSamples, 0);
       Interlocked.Exchange(ref outputSamples, 0);
@@ -199,10 +217,13 @@ namespace SkyRoof.IF
         latencyMilliseconds: (int)config.LatencyPreset,
         padSilenceOnUnderrun: true);
       resolvedRenderId = outputId;
-      capture = new InputSoundcard<float>(config.InputDeviceId, 48000,
-        captureBufferMilliseconds: 20, readerBlockSizeSamples: 480,
-        channelChoice: config.CaptureChannel, idleSleepMilliseconds: 2);
-      capture.SamplesAvailable += CaptureSamples;
+      if (config.InputSource == IfAfInputSource.UsbAudio)
+      {
+        capture = new InputSoundcard<float>(config.InputDeviceId, 48000,
+          captureBufferMilliseconds: 20, readerBlockSizeSamples: 480,
+          channelChoice: config.CaptureChannel, idleSleepMilliseconds: 2);
+        capture.SamplesAvailable += CaptureSamples;
+      }
       try
       {
         vac.SetDeviceId(outputId);
@@ -211,9 +232,18 @@ namespace SkyRoof.IF
         if (!vac.IsRunning) throw new InvalidOperationException("Virtual audio playback unavailable.");
         worker = Task.Run(() => RunAsync(next.Reader, source.Token, version,
           settings!));
-        capture.Enabled = true;
-        if (!capture.IsRunning) throw new InvalidOperationException("IF capture unavailable.");
-        detail = $"48-kHz IF -> {target.Name}, requested render period {(int)config.LatencyPreset} ms";
+        if (config.InputSource == IfAfInputSource.AuthenticatedLanIf)
+          networkFlushTask = Task.Run(() => FlushNetworkIfAsync(source.Token));
+        if (capture != null)
+        {
+          capture.Enabled = true;
+          if (!capture.IsRunning)
+            throw new InvalidOperationException("USB IF capture unavailable.");
+        }
+        detail = config.InputSource == IfAfInputSource.AuthenticatedLanIf
+          ? "Awaiting authenticated Icom Direct LAN/WLAN IF audio; " +
+            "start the Direct LAN Spectrum source and select IF at the radio"
+          : $"48-kHz USB IF -> {target.Name}, render period {(int)config.LatencyPreset} ms";
       }
       catch
       {
@@ -272,7 +302,8 @@ namespace SkyRoof.IF
           if (mode != dsp.Mode) dsp.Configure(mode);
           // Timestamp of captured block is its end. Discontinuities should
           // not splice unrelated IF phases into one decodable WSJT symbol.
-          bool discontinuity = !FramesContinuous(expectedStart, frame.FirstSampleIndex);
+          bool discontinuity = frame.Discontinuity ||
+            !FramesContinuous(expectedStart, frame.FirstSampleIndex);
           if (previous != default)
           {
             double elapsed = (frame.Utc - previous).TotalSeconds;
@@ -342,10 +373,13 @@ namespace SkyRoof.IF
     public void Stop()
     {
       generation++;
+      lock (networkSync) networkPcm.Reset();
+      activeInputSource = IfAfInputSource.UsbAudio;
       queue?.Writer.TryComplete();
       queue = null;
       cancel?.Cancel();
       cancel = null;
+      networkFlushTask = null;
       if (capture != null)
       {
         capture.SamplesAvailable -= CaptureSamples;

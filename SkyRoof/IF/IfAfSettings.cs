@@ -104,6 +104,12 @@ namespace SkyRoof.IF
   public enum IfAfSsbVoiceNotch { Off, Tone1000Hz, Tone1500Hz, AutoTracking }
   public enum IfAfSsbNoiseReduction { Off, Mild }
 
+  public enum IfAfInputSource
+  {
+    UsbAudio = 0,
+    AuthenticatedLanIf = 1
+  }
+
   public enum IfAfLatencyPreset
   {
     Fast20Ms = 20,
@@ -120,6 +126,12 @@ namespace SkyRoof.IF
     [DisplayName("Enable USB IF -> AF")]
     [DefaultValue(false)]
     public bool Enabled { get; set; } = false;
+
+    [DisplayName("IF input source")]
+    [Description("USB uses the radio's 48-kHz Windows recording endpoint. AuthenticatedLanIf consumes the Icom Spectrum panel's Direct LAN/WLAN RX PCM stream, which must be configured at the radio to carry 12-kHz IF (not AF).")]
+    [DefaultValue(IfAfInputSource.UsbAudio)]
+    public IfAfInputSource InputSource { get; set; } =
+      IfAfInputSource.UsbAudio;
 
     [DisplayName("12 kHz IF capture (USB)")]
     [Description("Windows recording endpoint for the radio's 12-kHz IF. On IC-705 use Connectors > USB AF/IF Output > Output Select = IF; on IC-905 use USB/AV-OUT AF/IF Output > Output Select = IF. Requires 48-kHz USB PCM capture; selecting ordinary AF cannot produce the 12-kHz IF spectrum.")]
