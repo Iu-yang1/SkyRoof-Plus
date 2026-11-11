@@ -106,7 +106,9 @@ namespace SkyRoof
       get
       {
         lock (DirectSessionSync)
-          return DirectSession?.TxAudioStatus ?? default;
+          return DirectSession?.TxAudioStatus ??
+            new IcomDirectLanTxAudioStatus(
+              false, DirectLanAudioSettings.Transmit.Enabled, 0, -120, 0);
       }
     }
 
