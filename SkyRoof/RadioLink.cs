@@ -4,6 +4,7 @@ namespace SkyRoof
 {
   public class RadioLink
   {
+    internal const double SpeedOfLightKmPerSecond = 299_792.458;
     public SatnogsDbSatellite? Sat;
     public SatnogsDbTransmitter? Tx;
     public SatelliteCustomization? SatCust;
@@ -164,7 +165,7 @@ namespace SkyRoof
       }
       else
       {
-        DopplerFactor = observation.RangeRate / 3e5;
+        DopplerFactor = observation.RangeRate / SpeedOfLightKmPerSecond;
         IsAboveHorizon = observation.Elevation > 0;
         HasObservation = true;
       }
