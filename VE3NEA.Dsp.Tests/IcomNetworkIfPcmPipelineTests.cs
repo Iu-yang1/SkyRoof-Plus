@@ -124,6 +124,47 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void Network44100HzIfCanReachExistingUsbDemodulatorWithoutPitchShift()
+    {
+      const int inputRate = 44_100;
+      var network = new IcomNetworkIfPcmPipeline();
+      var demod = new IfAfDemodulator(IfAfMode.Usb);
+      var output = new List<float>();
+      const int chunk = 441;
+      for (int sequence = 0; sequence < 100; sequence++)
+      {
+        float[] ifSamples = Enumerable.Range(sequence * chunk, chunk)
+          .Select(i => (float)(0.42 * Math.Cos(
+            2 * Math.PI * 13_000 * i / inputRate)))
+          .ToArray();
+        var frame = new IcomLanLpcmAudioCodec.RxFrame(
+          (ushort)sequence, (ushort)sequence, ifSamples);
+        foreach (IcomNetworkIfBlock block in network.Push(
+                   inputRate, frame, Epoch.AddMilliseconds(10 * sequence)))
+        {
+          if (block.Discontinuity)
+            demod.Reset();
+          float[] af = new float[block.Samples.Length];
+          demod.Process(block.Samples, af);
+          output.AddRange(af);
+        }
+      }
+
+      Assert.InRange(output.Count, 47_500, 48_100);
+      double real = 0, imaginary = 0;
+      for (int i = 7500; i < output.Count; i++)
+      {
+        double angle = 2 * Math.PI * 1000 * i / 48_000;
+        real += output[i] * Math.Cos(angle);
+        imaginary += output[i] * Math.Sin(angle);
+      }
+
+      double tone = 2 * Math.Sqrt(real * real + imaginary * imaginary) /
+        (output.Count - 7500);
+      Assert.InRange(tone, 0.24, 0.55);
+    }
+
+    [Fact]
     public void ResamplerStateResetsOnPacketLossRatherThanBlendingPhases()
     {
       var pipeline = new IcomNetworkIfPcmPipeline();
