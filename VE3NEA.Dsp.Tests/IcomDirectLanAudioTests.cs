@@ -76,6 +76,58 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public async Task AudioUdpCallbackIsQueuedAndDoesNotBlockIfConsumer()
+    {
+      var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var options = new IcomDirectLanSettings
+      {
+        Receive = new IcomDirectLanReceiveSettings { Enabled = false },
+        Transmit = new IcomDirectLanTransmitSettings { Enabled = false }
+      };
+      using var capture = new IcomLanSpectrumCapture("127.0.0.1", 50002);
+      using var audio = new IcomDirectLanAudioDevices(options, capture,
+        (rate, _) =>
+        {
+          if (rate == 48000)
+          {
+            entered.TrySetResult();
+            release.Task.GetAwaiter().GetResult();
+          }
+        });
+      audio.Start();
+      var frame = new IcomLanLpcmAudioCodec.RxFrame(
+        1, 1, new float[] { 0.2f, -0.2f });
+      audio.AcceptReceiveAudio(48000, frame);
+      await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+      var start = System.Diagnostics.Stopwatch.StartNew();
+      for (int i = 0; i < 80; i++)
+        audio.AcceptReceiveAudio(48000, frame);
+      start.Stop();
+      release.SetResult();
+      Assert.True(start.Elapsed < TimeSpan.FromSeconds(1),
+        "A blocked downstream WASAPI/IF worker must never block UDP scope processing");
+      Assert.True(audio.QueuedRxFrames > 1);
+    }
+
+    [Fact]
+    public void AudioDeviceStartNeverOpensOrBlocksTheRadioSession()
+    {
+      using var capture = new IcomLanSpectrumCapture("127.0.0.1", 50002);
+      var options = new IcomDirectLanSettings
+      {
+        Receive = new IcomDirectLanReceiveSettings { Enabled = false },
+        Transmit = new IcomDirectLanTransmitSettings { Enabled = false }
+      };
+      using var audio = new IcomDirectLanAudioDevices(options, capture);
+      var clock = System.Diagnostics.Stopwatch.StartNew();
+      audio.Start();
+      clock.Stop();
+      Assert.True(clock.Elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
     public void AudioSampleRateFollowsRadioCapabilities()
     {
       IcomLanDirectSession.ChooseSampleRate(
