@@ -88,7 +88,7 @@ namespace SkyRoof
       GetIcomRfGainBackend()?.RequestIcomMeterReadback(kind) == true;
 
     internal bool HasIcomMeterReadbackBackend =>
-      GetIcomRfGainBackend() != null;
+      GetIcomRfGainBackend()?.MeterReadbackAvailable == true;
 
     internal bool HasIcomScopeControlBackend =>
       GetIcomScopeControlBackend() != null;
