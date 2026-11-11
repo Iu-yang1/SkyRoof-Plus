@@ -62,10 +62,14 @@ namespace SkyRoof
         if (sequence != 1 ||
             !IcomScopeWaveInfoCodec.TryDecode(
               frame, Radio, singleFrame: true,
-              out byte mode, out long frequencyA,
-              out long frequencyB, out bool outOfRange,
-              out int samplesStart))
+              out IcomScopeWaveInfo info))
           return false;
+
+        byte mode = info.Mode;
+        long frequencyA = info.FrequencyAHz;
+        long frequencyB = info.FrequencyBHz;
+        bool outOfRange = info.OutOfRange;
+        int samplesStart = info.SamplesStart;
 
         if (outOfRange)
         {
@@ -102,10 +106,13 @@ namespace SkyRoof
 
         if (!IcomScopeWaveInfoCodec.TryDecode(
               frame, Radio, singleFrame: false,
-              out byte mode, out long frequencyA,
-              out long frequencyB, out bool outOfRange,
-              out _))
+              out IcomScopeWaveInfo info))
           return false;
+
+        byte mode = info.Mode;
+        long frequencyA = info.FrequencyAHz;
+        long frequencyB = info.FrequencyBHz;
+        bool outOfRange = info.OutOfRange;
 
         state.Active = true;
         state.SequenceMaximum = sequenceMaximum;
