@@ -228,6 +228,8 @@ namespace SkyRoof
         ((IPEndPoint)audio.Client.LocalEndPoint!).Port;
       AudioLocalSid = BuildSessionId(localAddress, localAudioPort);
 
+      try
+      {
       Publish(
         $"Direct Icom LAN (experimental): authenticating {RadioAddress}:{ControlPort} " +
         $"as '{Username}'...");
@@ -529,15 +531,6 @@ namespace SkyRoof
 
         try
         {
-          _ = await SendAuthAsync(control, 0x01, CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-          Log.Debug("Icom Direct LAN signout failed ({Type})", ex.GetType().Name);
-        }
-
-        try
-        {
           await Task.WhenAny(
             Task.WhenAll(audioDrain, audioTransmit, audioKeepAlive),
             Task.Delay(150));
@@ -545,6 +538,27 @@ namespace SkyRoof
         catch (Exception ex)
         {
           Log.Debug("Icom Direct LAN audio workers did not settle ({Type})", ex.GetType().Name);
+        }
+      }
+      }
+      finally
+      {
+        // Login may already have succeeded even when capability/media
+        // negotiation or the second CI-V handshake fails. Always release
+        // the radio's authenticated control session before closing sockets.
+        if (IsAuthenticated)
+        {
+          try
+          {
+            _ = await SendAuthAsync(control, 0x01, CancellationToken.None);
+            Log.Information("Direct Icom LAN authenticated control session signed out");
+          }
+          catch (Exception ex)
+          {
+            Log.Warning(ex,
+              "Direct Icom LAN logout could not be sent before socket close");
+          }
+          IsAuthenticated = false;
         }
       }
     }
