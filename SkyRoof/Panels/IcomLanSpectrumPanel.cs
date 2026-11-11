@@ -70,6 +70,10 @@ namespace SkyRoof
     private IcomDirectLanAudioDevices? DirectLanAudioDevices;
     private readonly object meterStateSync = new();
     private IcomMeterSnapshot meterState = new();
+    private DateTime NextCatMeterPollUtc = DateTime.MinValue;
+    private int CatMeterPollIndex;
+    internal IcomDirectLanTxAudioStatus TxAudioStatus =>
+      Capture?.TxAudioStatus ?? default;
     internal IcomMeterSnapshot MeterSnapshot
     {
       get { lock (meterStateSync) return meterState; }
@@ -118,6 +122,8 @@ namespace SkyRoof
         CatControl_IcomScopeReadbackReceived;
       ctx.CatControl.IcomFixedEdgeReadbackReceived +=
         CatControl_IcomFixedEdgeReadbackReceived;
+      ctx.CatControl.IcomMeterReadbackReceived +=
+        CatControl_IcomMeterReadbackReceived;
 
       Text = "Icom LAN Spectrum";
       Name = "IcomLanSpectrumPanel";
@@ -157,6 +163,7 @@ namespace SkyRoof
         RefreshTuningOverlay();
         RefreshScopeGeometryUi();
         RefreshUiStatus();
+        PollIcomMetersViaCatIfDue();
       };
       UiTimer.Start();
     }
@@ -1540,6 +1547,8 @@ namespace SkyRoof
       IcomLanSpectrumSettings settings = ctx.Settings.IcomLanSpectrum;
       SpectrumView.SetHistoryRows(settings.WaterfallRows);
       lock (meterStateSync) meterState = new IcomMeterSnapshot();
+      NextCatMeterPollUtc = DateTime.MinValue;
+      CatMeterPollIndex = 0;
 
       if (UsingDirectLanSource &&
           (string.IsNullOrWhiteSpace(settings.RadioAddress) ||
@@ -1567,7 +1576,9 @@ namespace SkyRoof
         directLanAudioSettings: ctx.Settings.IcomDirectLan,
         directLanPttActive: () =>
           ctx.CatControl.Tx?.Ptt == true ||
-          ctx.CatControl.Rx?.Ptt == true);
+          ctx.CatControl.Rx?.Ptt == true,
+        directLanExternalMeterReadback: () =>
+          ctx.CatControl.HasIcomMeterReadbackBackend);
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
@@ -1681,6 +1692,8 @@ namespace SkyRoof
       DirectLanAudioDevices = null;
       capture.Dispose();
       lock (meterStateSync) meterState = new IcomMeterSnapshot();
+      NextCatMeterPollUtc = DateTime.MinValue;
+      CatMeterPollIndex = 0;
       ctx.MainForm.UpdateIcomDirectLanMeterBar();
       ctx.IfAf?.NetworkIfDisconnected();
 
@@ -1762,6 +1775,35 @@ namespace SkyRoof
     {
       lock (meterStateSync)
         meterState = meterState.With(reading, DateTime.UtcNow);
+    }
+
+    private void CatControl_IcomMeterReadbackReceived(IcomMeterReading reading)
+    {
+      if (ctx.Settings.IcomLanSpectrum.Source == IcomLanSpectrumSource.DirectLan)
+        Capture_MeterReceived(reading);
+    }
+
+    private void PollIcomMetersViaCatIfDue()
+    {
+      if (Capture == null ||
+          ctx.Settings.IcomLanSpectrum.Source != IcomLanSpectrumSource.DirectLan ||
+          !ctx.Settings.IcomDirectLan.Meters.Enabled ||
+          !ctx.CatControl.HasIcomMeterReadbackBackend ||
+          DateTime.UtcNow < NextCatMeterPollUtc)
+        return;
+
+      IcomDirectLanMeterSettings options = ctx.Settings.IcomDirectLan.Meters;
+      var enabled = new List<IcomMeterKind>(4);
+      if (options.S) enabled.Add(IcomMeterKind.S);
+      if (options.Power) enabled.Add(IcomMeterKind.Power);
+      if (options.Alc) enabled.Add(IcomMeterKind.Alc);
+      if (options.Swr) enabled.Add(IcomMeterKind.Swr);
+      if (enabled.Count == 0) return;
+
+      IcomMeterKind kind = enabled[CatMeterPollIndex++ % enabled.Count];
+      if (ctx.CatControl.RequestIcomMeterReadback(kind))
+        NextCatMeterPollUtc = DateTime.UtcNow.AddMilliseconds(
+          Math.Clamp(options.PollIntervalMs, 100, 2000));
     }
 
     private void Capture_ScopeFrameReceived(IcomScopeFrame frame)
@@ -3407,6 +3449,8 @@ namespace SkyRoof
         CatControl_IcomScopeReadbackReceived;
       ctx.CatControl.IcomFixedEdgeReadbackReceived -=
         CatControl_IcomFixedEdgeReadbackReceived;
+      ctx.CatControl.IcomMeterReadbackReceived -=
+        CatControl_IcomMeterReadbackReceived;
       UiTimer.Stop();
       StopCapture();
 
