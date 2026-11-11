@@ -1143,13 +1143,15 @@ namespace SkyRoof
         Padding = Padding.Empty,
         ToolTipText = "Icom Direct LAN CI-V meter readback"
       };
-      // A late StatusStrip item is put into the overflow dropdown as CAT
-      // status labels grow when changing satellites. Keep the compact meters
-      // at the beginning of the strip so they cannot disappear on retune.
-      // Index zero is the existing narrow leading spacer.
-      directLanMetersHost.Alignment = ToolStripItemAlignment.Left;
+      // Preserve the original operator layout: S/PWR/ALC/SWR appear at the
+      // back, between Rotator and CPU load. Reserve room from the right so
+      // variable CAT/satellite labels do not squeeze meters into overflow.
+      directLanMetersHost.Alignment = ToolStripItemAlignment.Right;
+      directLanMetersHost.Overflow = ToolStripItemOverflow.Never;
+      int position = StatusStrip.Items.IndexOf(CpuLoadlabel);
       StatusStrip.Items.Insert(
-        Math.Min(1, StatusStrip.Items.Count), directLanMetersHost);
+        position >= 0 ? position : StatusStrip.Items.Count,
+        directLanMetersHost);
       UpdateIcomDirectLanMeterBar();
     }
 

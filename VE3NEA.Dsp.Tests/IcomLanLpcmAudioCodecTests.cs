@@ -53,8 +53,11 @@ namespace VE3NEA.Dsp.Tests
 
       byte[] wrongInnerLength = valid.ToArray();
       wrongInnerLength[23] = 0x06;
-      Assert.False(IcomLanLpcmAudioCodec.TryDecode(
-        wrongInnerLength, SenderSid, ReceiverSid, out _));
+      // Real RX firmware may report an inaccurate inner dataLength;
+      // the authenticated UDP envelope still gives exact safe bounds.
+      Assert.True(IcomLanLpcmAudioCodec.TryDecode(
+        wrongInnerLength, SenderSid, ReceiverSid, out var recovered));
+      Assert.Equal(2, recovered.Samples.Length);
 
       byte[] oddLength = AudioPacket(42, 24, [1, 2, 3]);
       Assert.False(IcomLanLpcmAudioCodec.TryDecode(
@@ -82,6 +85,40 @@ namespace VE3NEA.Dsp.Tests
       wrongIdent[16] = 0xC1;
       Assert.False(IcomLanLpcmAudioCodec.TryDecode(
         wrongIdent, SenderSid, ReceiverSid, out _));
+    }
+
+    [Fact]
+    public void RecoversRadioAudioWithVariantTypeAndZeroInnerLength()
+    {
+      byte[] frame = AudioPacket(18, 19, [0x00, 0x40, 0x00, 0xC0]);
+      frame[4] = 0x02;
+      frame[22] = 0x00;
+      frame[23] = 0x00;
+      frame[16] = 0x94;
+      Assert.True(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out var audio));
+      Assert.Equal(2, audio.Samples.Length);
+      frame[0] = 0x00;
+      Assert.False(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out _));
+    }
+
+    [Theory]
+    [InlineData(0x94, 0x01)]
+    [InlineData(0x80, 0x00)]
+    [InlineData(0x44, 0x02)]
+    public void AcceptsFirmwareAudioIdentifiersWhenUdpSessionAndSizeMatch(
+      byte identLow, byte identHigh)
+    {
+      byte[] frame = AudioPacket(123, 321, [0x10, 0x20, 0x30, 0x40]);
+      frame[16] = identLow;
+      frame[17] = identHigh;
+      Assert.True(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out var audio));
+      Assert.Equal(2, audio.Samples.Length);
+      frame[12] ^= 0x01;
+      Assert.False(IcomLanLpcmAudioCodec.TryDecode(
+        frame, SenderSid, ReceiverSid, out _));
     }
 
     [Fact]

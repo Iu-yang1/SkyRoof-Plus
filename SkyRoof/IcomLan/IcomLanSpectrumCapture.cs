@@ -209,21 +209,12 @@ namespace SkyRoof
         }
       }
 
-      // Dispose the authenticated session before waiting so any blocked socket
-      // operation is interrupted rather than relying on the timeout alone.
-      lock (DirectSessionSync)
-      {
-        try { DirectSession?.Dispose(); }
-        catch (Exception ex)
-        {
-          Log.Warning("Icom LAN direct capture disposal failed ({Type})", ex.GetType().Name);
-        }
-        DirectSession = null;
-      }
-
+      // First allow RunAsync to send CI-V close and network sign-out using
+      // its still-open sockets. Disposing first prevents both messages from
+      // reaching the IC-9700 and leaves its remote-control slot occupied.
       if (worker != null && !worker.IsCompleted)
       {
-        try { worker.Wait(2500); }
+        try { worker.Wait(1000); }
         catch (AggregateException ex)
         {
           if (cancellation?.IsCancellationRequested != true)
@@ -231,9 +222,30 @@ namespace SkyRoof
         }
       }
 
+      // Only a genuinely stuck receive/handshake requires forced socket
+      // teardown. The worker retains ownership of the session reference.
       if (worker != null && !worker.IsCompleted)
       {
-        LastError = "Icom LAN spectrum worker did not stop within 2.5 seconds; restart is blocked until it exits.";
+        lock (DirectSessionSync)
+        {
+          try { DirectSession?.Dispose(); }
+          catch (Exception ex)
+          {
+            Log.Warning(ex, "Icom LAN direct capture forced disposal failed");
+          }
+        }
+
+        try { worker.Wait(1500); }
+        catch (AggregateException ex)
+        {
+          if (cancellation?.IsCancellationRequested != true)
+            Log.Warning(ex, "Icom LAN capture worker faulted during forced shutdown");
+        }
+      }
+
+      if (worker != null && !worker.IsCompleted)
+      {
+        LastError = "Icom LAN capture worker did not stop after cancellation and forced socket teardown; restart is blocked until it exits.";
         PublishStatus(LastError);
         return;
       }

@@ -65,6 +65,9 @@ namespace SkyRoof
     private long AudioTxRejectedWithoutPtt;
     private long AudioRxDatagrams;
     private long AudioRxDecodedFrames;
+    private long AudioRxRejectedFrames;
+    private long MeterReadRequests;
+    private long MeterReadbacks;
     private long AudioTxDatagrams;
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
@@ -228,6 +231,8 @@ namespace SkyRoof
         ((IPEndPoint)audio.Client.LocalEndPoint!).Port;
       AudioLocalSid = BuildSessionId(localAddress, localAudioPort);
 
+      try
+      {
       Publish(
         $"Direct Icom LAN (experimental): authenticating {RadioAddress}:{ControlPort} " +
         $"as '{Username}'...");
@@ -249,7 +254,7 @@ namespace SkyRoof
           loginSequence,
           loginRequestId),
         TimeSpan.FromSeconds(3),
-        token);
+        token, "control login");
 
       if (loginReply.AsSpan(0x30, 4).SequenceEqual(
             new byte[] { 0xFF, 0xFF, 0xFF, 0xFE }))
@@ -529,15 +534,6 @@ namespace SkyRoof
 
         try
         {
-          _ = await SendAuthAsync(control, 0x01, CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-          Log.Debug("Icom Direct LAN signout failed ({Type})", ex.GetType().Name);
-        }
-
-        try
-        {
           await Task.WhenAny(
             Task.WhenAll(audioDrain, audioTransmit, audioKeepAlive),
             Task.Delay(150));
@@ -545,6 +541,27 @@ namespace SkyRoof
         catch (Exception ex)
         {
           Log.Debug("Icom Direct LAN audio workers did not settle ({Type})", ex.GetType().Name);
+        }
+      }
+      }
+      finally
+      {
+        // Login may already have succeeded even when capability/media
+        // negotiation or the second CI-V handshake fails. Always release
+        // the radio's authenticated control session before closing sockets.
+        if (IsAuthenticated)
+        {
+          try
+          {
+            _ = await SendAuthAsync(control, 0x01, CancellationToken.None);
+            Log.Information("Direct Icom LAN authenticated control session signed out");
+          }
+          catch (Exception ex)
+          {
+            Log.Warning(ex,
+              "Direct Icom LAN logout could not be sent before socket close");
+          }
+          IsAuthenticated = false;
         }
       }
     }
@@ -692,12 +709,15 @@ namespace SkyRoof
       {
         LastAudioDiagnosticsUtc = now;
         Log.Information(
-          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} TX UDP={Transmitted} TX rejected/no CAT PTT={NoPtt} pendingMeter={Meter} CI-V datagrams={CivPackets}",
+          "Direct LAN media: streaming={Streaming} audioReady={AudioReady} RX UDP={Received} decoded={Decoded} rejected={Rejected} TX UDP={Transmitted} TX rejected/no CAT PTT={NoPtt} meter requests={Requests} readbacks={Readbacks} pendingMeter={Meter} CI-V datagrams={CivPackets}",
           IsStreaming, AudioLinkConnected,
           Interlocked.Read(ref AudioRxDatagrams),
           Interlocked.Read(ref AudioRxDecodedFrames),
+          Interlocked.Read(ref AudioRxRejectedFrames),
           Interlocked.Read(ref AudioTxDatagrams),
           Interlocked.Read(ref AudioTxRejectedWithoutPtt),
+          Interlocked.Read(ref MeterReadRequests),
+          Interlocked.Read(ref MeterReadbacks),
           PendingMeter?.ToString() ?? "none", CivPayloadCount);
       }
 
@@ -718,6 +738,7 @@ namespace SkyRoof
           IcomMeterKind next = meters[NextMeterIndex++ % meters.Length];
           await SendCivDataAsync(civ,
             IcomMeterCivCodec.BuildRead(RadioCivAddress, next), token);
+          Interlocked.Increment(ref MeterReadRequests);
           PendingMeter = next;
           PendingMeterUtc = now;
           LastMeterPollUtc = now;
@@ -823,6 +844,7 @@ namespace SkyRoof
               reading.Kind == PendingMeter.Value)
           {
             PendingMeter = null;
+            Interlocked.Increment(ref MeterReadbacks);
             MeterReceived?.Invoke(reading);
             break;
           }
@@ -945,7 +967,7 @@ namespace SkyRoof
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == localSid,
         TimeSpan.FromSeconds(2),
-        token);
+        token, isControl ? "control greeting" : "CI-V greeting");
 
       uint remoteSid = BinaryPrimitives.ReadUInt32BigEndian(
         here.AsSpan(8, 4));
@@ -989,7 +1011,7 @@ namespace SkyRoof
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == localSid,
         TimeSpan.FromSeconds(2),
-        token);
+        token, isControl ? "control ready" : "CI-V ready");
     }
 
     private async Task<(ushort InnerSequence, ushort TokenRequest)> SendLoginAsync(
@@ -1607,7 +1629,8 @@ namespace SkyRoof
       UdpClient client,
       Func<byte[], bool> predicate,
       TimeSpan timeout,
-      CancellationToken token)
+      CancellationToken token,
+      string phase = "handshake")
     {
       DateTime deadline = DateTime.UtcNow + timeout;
 
@@ -1627,7 +1650,7 @@ namespace SkyRoof
       }
 
       throw new TimeoutException(
-        "Timed out waiting for the Icom LAN handshake.");
+        $"Timed out waiting for Icom LAN {phase} reply.");
     }
 
     private static async Task<byte[]> ReceiveOneAsync(
@@ -1666,7 +1689,7 @@ namespace SkyRoof
             packet.AsSpan(4, 2)) == 0x0004 &&
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == AudioLocalSid,
-        TimeSpan.FromSeconds(2), token);
+        TimeSpan.FromSeconds(2), token, "audio greeting");
 
       uint remoteSid = BinaryPrimitives.ReadUInt32BigEndian(
         here.AsSpan(8, 4));
@@ -1687,7 +1710,7 @@ namespace SkyRoof
             packet.AsSpan(8, 4)) == remoteSid &&
           BinaryPrimitives.ReadUInt32BigEndian(
             packet.AsSpan(12, 4)) == AudioLocalSid,
-        TimeSpan.FromSeconds(2), token);
+        TimeSpan.FromSeconds(2), token, "audio ready");
 
       return remoteSid;
     }
@@ -1779,12 +1802,23 @@ namespace SkyRoof
             return;
           }
 
-          if (sampleRate > 0 && AudioOptions.Receive.Enabled &&
-              IcomLanLpcmAudioCodec.TryDecode(
+          if (sampleRate <= 0 || !AudioOptions.Receive.Enabled ||
+              packet.Length <= IcomLanLpcmAudioCodec.HeaderBytes)
+            return;
+
+          if (IcomLanLpcmAudioCodec.TryDecode(
                 packet, AudioRemoteSid, AudioLocalSid,
                 AudioOptions.Receive.Codec, out var pcm))
           {
-            Interlocked.Increment(ref AudioRxDecodedFrames);
+            if (Interlocked.Increment(ref AudioRxDecodedFrames) == 1)
+            {
+              double rms = Math.Sqrt(pcm.Samples
+                .Select(v => (double)v * v).Average());
+              Log.Information(
+                "Direct LAN first decoded RX audio: samples={Count}, RMS={Rms:F4}, codec={Codec}, sampleRate={Rate}",
+                pcm.Samples.Length, rms, AudioOptions.Receive.Codec, sampleRate);
+            }
+
             try
             {
               AudioFrameReceived?.Invoke(sampleRate, pcm);
@@ -1793,6 +1827,21 @@ namespace SkyRoof
             {
               Log.Warning(ex, "Icom LAN audio consumer rejected a PCM frame");
             }
+          }
+          else
+          {
+            long rejected = Interlocked.Increment(ref AudioRxRejectedFrames);
+            if (rejected <= 3 || rejected % 500 == 0)
+              Log.Warning(
+                "Direct LAN rejected RX UDP audio framing: frame={Size}, type={Type}, ident=0x{Ident:X4}, declaredLength={Declared}, actualPayload={Payload}, remoteSidMatches={SenderMatch}, localSidMatches={ReceiverMatch}, codec={Codec}, rejectedCount={Rejected}",
+                packet.Length,
+                BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2)),
+                BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(16, 2)),
+                BinaryPrimitives.ReadUInt16BigEndian(packet.AsSpan(22, 2)),
+                packet.Length - IcomLanLpcmAudioCodec.HeaderBytes,
+                BinaryPrimitives.ReadUInt32BigEndian(packet.AsSpan(8, 4)) == AudioRemoteSid,
+                BinaryPrimitives.ReadUInt32BigEndian(packet.AsSpan(12, 4)) == AudioLocalSid,
+                AudioOptions.Receive.Codec, rejected);
           }
     }
 

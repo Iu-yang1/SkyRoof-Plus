@@ -85,9 +85,10 @@ namespace SkyRoof.IF
     float[] Samples, DateTime Utc, bool Discontinuity);
 
   /// <summary>
-  /// Reorders limited-latency audio UDP frames by their separate inner
-  /// sequence number. A missing frame causes one explicit DSP reset rather
-  /// than splicing noncontiguous 12-kHz IF phases together.
+  /// Reorders audio frames by the UDP outer transport sequence, as used by
+  /// Icom/wfview RX audio. The inner audio sequence can remain constant or
+  /// advance differently and must not suppress every RX frame. Missing
+  /// frames reset the IF phase rather than splicing discontinuous samples.
   /// </summary>
   internal sealed class IcomNetworkIfPcmPipeline
   {
@@ -133,9 +134,9 @@ namespace SkyRoof.IF
       sourceRate = sampleRate;
       lastPacketUtc = utc;
       if (!nextSequence.HasValue)
-        nextSequence = frame.AudioSequence;
+        nextSequence = frame.OuterSequence;
 
-      int ahead = (ushort)(frame.AudioSequence - nextSequence.Value);
+      int ahead = (ushort)(frame.OuterSequence - nextSequence.Value);
       if (ahead >= 0x8000)
       {
         DuplicateOrLateFrames++;
@@ -145,10 +146,10 @@ namespace SkyRoof.IF
       {
         Reset();
         sourceRate = sampleRate;
-        nextSequence = frame.AudioSequence;
+        nextSequence = frame.OuterSequence;
         lastPacketUtc = utc;
       }
-      if (!pending.TryAdd(frame.AudioSequence, frame))
+      if (!pending.TryAdd(frame.OuterSequence, frame))
       {
         DuplicateOrLateFrames++;
         return Array.Empty<IcomNetworkIfBlock>();
