@@ -177,6 +177,7 @@ namespace SkyRoof
     internal bool PreferFastScopeSweep { get; init; }
     private readonly IcomNativeCivSequenceTracker CivRxSequences = new();
     private long LastNativeScopeTicks;
+    private DateTime NativeStreamStartedUtc;
     private int RemoteCivPort = DefaultCivPort;
     private int RemoteAudioPort = DefaultAudioPort;
 
@@ -523,6 +524,7 @@ namespace SkyRoof
       await Task.Delay(80, token);
 
       IsStreaming = true;
+      NativeStreamStartedUtc = DateTime.UtcNow;
       Publish(
         $"Direct Icom LAN native CI-V connected: " +
         $"{RadioAddress}:{RemoteCivPort} -> local UDP/{LocalCivPort}.");
@@ -798,6 +800,23 @@ namespace SkyRoof
       if (IcomScopeRecoveryPolicy.ShouldReassert(
             now, LastScopeCommandUtc, lastSweepUtc))
         await SendScopeConfigurationAsync(civ, token);
+
+      // A missed waveform is first repaired in-place by 27 10 / 27 11.
+      // If the native stream has had no complete sweep for 25 seconds,
+      // the session's media ownership is likely stale even if UDP idle
+      // and authentication pings still arrive: restart the login/CI-V/audio
+      // transaction rather than leaving a permanently frozen waterfall.
+      if (ShouldRestartStalledScope(now, NativeStreamStartedUtc, lastSweepUtc))
+        throw new TimeoutException(
+          "Direct LAN 475-bin scope stalled for 25 seconds despite CI-V reassert; renewing media session.");
+    }
+
+    internal static bool ShouldRestartStalledScope(
+      DateTime now, DateTime started, DateTime lastSweep)
+    {
+      DateTime healthyUntil = lastSweep > started ? lastSweep : started;
+      return started != default &&
+        now - healthyUntil >= TimeSpan.FromSeconds(25);
     }
 
     private void ReportAudioDiagnostics(DateTime now)
