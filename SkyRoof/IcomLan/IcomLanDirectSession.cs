@@ -1710,7 +1710,7 @@ namespace SkyRoof
             WriteSid(reply, 8, AudioLocalSid);
             WriteSid(reply, 12, AudioRemoteSid);
             await SendRawAsync(audio, reply, false, false, token);
-            continue;
+            return;
           }
 
           if (packet.Length == 16 &&
@@ -1728,7 +1728,7 @@ namespace SkyRoof
               if (original != null && IsPttActive?.Invoke() == true)
                 await SendAudioRawAsync(audio, original, token);
             }
-            continue;
+            return;
           }
 
           if (sampleRate > 0 && AudioOptions.Receive.Enabled &&
