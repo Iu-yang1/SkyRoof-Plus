@@ -10,6 +10,13 @@ namespace SkyRoof
     Sub = 2
   }
 
+  public enum IcomScopeRadioModel
+  {
+    Ic9700 = 0,
+    Ic705 = 1,
+    Ic905 = 2
+  }
+
   public enum IcomLanSpectrumSource
   {
     SkyCat = 0,
@@ -41,6 +48,12 @@ namespace SkyRoof
 
   public class IcomLanSpectrumSettings
   {
+    [DisplayName("Scope radio model")]
+    [Description("Select the source model for CI-V 27 00 parsing. IC-705/IC-905 have one scope receiver; IC-905 10 GHz uses extended frequency fields. Does not change CAT/PTT settings.")]
+    [DefaultValue(IcomScopeRadioModel.Ic9700)]
+    public IcomScopeRadioModel RadioModel { get; set; } =
+      IcomScopeRadioModel.Ic9700;
+
     [DisplayName("Radio IPv4 address")]
     [Description("IC-9700 IPv4 address. Optional for passive RS-BA1 capture, but required for the authenticated Direct LAN source.")]
     public string RadioAddress { get; set; } = "";
