@@ -15,6 +15,23 @@ namespace SkyRoof
     double LastSentDbfs,
     long LastSentUtcTicks);
 
+  internal static class IcomDirectLanTxAudioDisplay
+  {
+    internal static string Format(
+      IcomDirectLanTxAudioStatus status, bool catPtt, DateTime utcNow)
+    {
+      if (!status.TxEnabled) return "LAN TX disabled";
+      if (!status.AudioConnected) return "LAN TX offline";
+      if (status.LastSentUtcTicks > 0 &&
+          utcNow.Ticks >= status.LastSentUtcTicks &&
+          utcNow.Ticks - status.LastSentUtcTicks <
+            TimeSpan.FromMilliseconds(1500).Ticks)
+        return $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS";
+      return catPtt ? "LAN TX PTT ON · no PCM" :
+        $"LAN TX idle · {status.UdpSent} pkts";
+    }
+  }
+
   /// <summary>
   /// Minimal authenticated Icom LAN client used only for the native CI-V stream.
   ///
