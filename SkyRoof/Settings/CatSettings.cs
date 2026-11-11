@@ -54,6 +54,11 @@ namespace SkyRoof
     [Description("The frequencies sent to the radio will be rounded to this step.")]
     public int TuningStep { get; set; } = 10;
 
+    [DefaultValue(1)]
+    [DisplayName("Microwave Tuning Step (Hz)")]
+    [Description("CAT frequency quantization at 1 GHz and above. Default 1 Hz preserves 1296/2400/5760/10368 MHz Doppler accuracy. Below 1 GHz the legacy Tuning Step remains unchanged.")]
+    public int MicrowaveTuningStep { get; set; } = 1;
+
     [DefaultValue(Keys.None)]
     [DisplayName("Physical PTT Key")]
     [Description("Global keyboard/HID key used as momentary PTT: key down transmits and key up returns to receive. Use a dedicated key such as F13-F24 for a USB foot switch when available.")]
