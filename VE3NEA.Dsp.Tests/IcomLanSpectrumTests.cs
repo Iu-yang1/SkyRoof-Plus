@@ -943,8 +943,25 @@ namespace VE3NEA.Dsp.Tests
       state.HasField("MAIN.REF").Should().BeFalse();
     }
 
+    [Fact]
+    public void PartialScopeReadbackWithoutSelectKeepsReceiverUnconfirmed()
+    {
+      var state = IcomScopeReadbackState.ParsePartial(
+        "SUB.REF=-3.5;MAIN.MODE=SCROLL-C;MAIN.SPAN=25000");
+
+      state.IsPartial.Should().BeTrue();
+      state.FieldsPresent.Should().HaveCount(3);
+      state.HasField("SELECT").Should().BeFalse();
+      state.HasField("SUB.REF").Should().BeTrue();
+      state.HasField("MAIN.MODE").Should().BeTrue();
+      state.HasField("MAIN.SPAN").Should().BeTrue();
+      state.HasField("SUB.MODE").Should().BeFalse();
+      state.SubReferenceDb.Should().Be(-3.5);
+      state.MainMode.Should().Be(IcomScopeMode.ScrollCenter);
+    }
+
     [Theory]
-    [InlineData("SUB.REF=-3.5")]
+    [InlineData("")]
     [InlineData("SELECT=MAIN;SELECT=SUB")]
     [InlineData("SELECT=MAIN;INVALID=1")]
     [InlineData("SELECT=MAIN;MAIN.REF=xyz")]
