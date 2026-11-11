@@ -232,8 +232,13 @@ namespace SkyRoof
 
     private async Task<string?> SendAsync(string command, CancellationToken token)
     {
-      await Writer!.WriteLineAsync(command.AsMemory(), token);
-      return await Reader!.ReadLineAsync(token).AsTask()
+      StreamWriter? writer = Writer;
+      StreamReader? reader = Reader;
+      if (writer == null || reader == null)
+        throw new IOException("SkyCAT scope TCP session is not connected.");
+
+      await writer.WriteLineAsync(command.AsMemory(), token);
+      return await reader.ReadLineAsync(token).AsTask()
         .WaitAsync(TimeSpan.FromMilliseconds(1300), token);
     }
 
