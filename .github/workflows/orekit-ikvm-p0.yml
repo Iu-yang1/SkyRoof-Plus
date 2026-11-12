@@ -9,6 +9,7 @@ on:
       - 'SkyRoof.Orbit.Contracts/**'
       - 'SkyRoof.Orbit.SgpNet/**'
       - 'SkyRoof.Orbit.Orekit.Smoke/**'
+      - '.gitattributes'
       - '.github/workflows/orekit-ikvm-p0.yml'
   workflow_dispatch:
 
