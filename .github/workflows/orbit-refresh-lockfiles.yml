@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   locks:
@@ -70,3 +70,20 @@ jobs:
             SkyRoof.Orbit.Orekit.Smoke/packages.lock.json
             SkyRoof.Orbit.SgpNet/packages.lock.json
           if-no-files-found: error
+
+      - name: Commit reviewed lockfile updates to the feature branch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- SkyRoof/packages.lock.json VE3NEA.Dsp.Tests/packages.lock.json SkyRoof.Orbit.Contracts/packages.lock.json SkyRoof.Orbit.Orekit/packages.lock.json SkyRoof.Orbit.Orekit.Smoke/packages.lock.json SkyRoof.Orbit.SgpNet/packages.lock.json
+          git diff --cached --check
+          if (git diff --cached --quiet) {
+            Write-Host 'Lockfiles already match the restored dependency graph.'
+            exit 0
+          }
+          git commit -m 'build(orbit): pin Windows and IKVM dependency lockfiles'
+          git fetch origin feature/orekit-ikvm-orbit-engine
+          git rebase origin/feature/orekit-ikvm-orbit-engine
+          git push origin HEAD:refs/heads/feature/orekit-ikvm-orbit-engine
