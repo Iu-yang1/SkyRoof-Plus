@@ -109,7 +109,9 @@ try
     if (args.Length == 2)
     {
         var path = Path.GetFullPath(args[1]);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string? parentDirectory = Path.GetDirectoryName(path);
+        if (parentDirectory is not null)
+            Directory.CreateDirectory(parentDirectory);
         File.WriteAllText(path, json);
     }
     return 0;
