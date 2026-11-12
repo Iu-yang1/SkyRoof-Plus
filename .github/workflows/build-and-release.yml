@@ -315,7 +315,7 @@ jobs:
 
             ### v.1.69 installer replacement / 安装包替换说明
             - **自动更新修正：** 改用 Iu-yang1/SkyRoof-Plus GitHub Releases API 检查包含预发布版在内的最新可安装版本；更新提示链接指向本 Fork 发布页。
-            - **关于页面署名：** 保留 Alex Shovkoplyas (VE3NEA) 原始版权和官网链接，同时添加 © 2026 Iu-yang1 Fork modifications 和 Fork 仓库链接。
+            - **关于页面署名：** 保留 Alex Shovkoplyas (VE3NEA) 原始版权和官网链接，同时添加 © 2026 Iu-yang1 BG5JSU Fork modifications 和 Fork 仓库链接。
             - **Updater/About:** update checks now use fork Releases (including packaged prereleases), and Help → About credits the fork maintainer without removing the original author's copyright or site.
 
             ### 中文更新
