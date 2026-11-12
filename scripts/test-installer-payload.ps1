@@ -60,13 +60,13 @@ foreach ($root in @($build, $target)) {
   if (-not (Test-Path -LiteralPath (Join-Path $root $ikvmProperties))) {
     throw "IKVM home properties are missing from: $root"
   }
-  $home = Join-Path $root $ikvmImage
-  if (-not (Test-Path -LiteralPath $home -PathType Container)) {
-    throw "IKVM Java home image is missing: $home"
+  $ikvmHomeDir = Join-Path $root $ikvmImage
+  if (-not (Test-Path -LiteralPath $ikvmHomeDir -PathType Container)) {
+    throw "IKVM Java home image is missing: $ikvmHomeDir"
   }
-  $count = (Get-ChildItem -LiteralPath $home -Recurse -File | Measure-Object).Count
+  $count = (Get-ChildItem -LiteralPath $ikvmHomeDir -Recurse -File | Measure-Object).Count
   if ($count -lt 10) {
-    throw "IKVM Java home image has only $count files: $home"
+    throw "IKVM Java home image has only $count files: $ikvmHomeDir"
   }
 }
 
