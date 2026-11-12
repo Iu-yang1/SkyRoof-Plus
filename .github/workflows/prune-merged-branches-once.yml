@@ -1,0 +1,103 @@
+name: One-time merged branch cleanup
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/prune-merged-branches-once.yml']
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: skyroof-one-time-branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout full history for safe ancestry checks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Remove only fully merged, nonessential branch refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          default="$(gh api "repos/$repo" --jq '.default_branch')"
+          if [[ "$default" != 'master' ]]; then
+            echo "Default branch has changed from master to $default; stop."
+            exit 1
+          fi
+
+          git fetch origin --no-tags --prune '+refs/heads/*:refs/remotes/origin/*'
+          default_sha="$(git rev-parse 'refs/remotes/origin/master')"
+          open_refs="$(gh api --paginate "repos/$repo/pulls?state=open&per_page=100" --jq '.[].head.ref')"
+          mapfile -t branches < <(gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[] | [.name, .commit.sha, (.protected | tostring)] | @tsv')
+          deleted=0
+          divergent=0
+          protected=0
+          errors=0
+
+          {
+            echo "### One-time SkyRoof-Plus merged-branch cleanup"
+            echo "- Default branch retained: `master` (`$default_sha`)"
+            echo "- Explicitly retained deployment branch: `gh-pages`"
+            echo "- Only delete branches whose exact tip is an ancestor of master and which have no open PR"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for record in "${branches[@]}"; do
+            IFS=$'\t' read -r branch sha is_protected <<< "$record"
+            if [[ "$branch" == "$default" || "$branch" == 'gh-pages' || "$is_protected" == 'true' ]]; then
+              ((protected+=1))
+              continue
+            fi
+            if printf '%s\n' "$open_refs" | grep -Fxq -- "$branch"; then
+              echo "KEEP open PR branch: $branch"
+              ((protected+=1))
+              continue
+            fi
+            local_sha="$(git rev-parse "refs/remotes/origin/$branch")"
+            if [[ "$local_sha" != "$sha" ]]; then
+              echo "KEEP changed branch $branch (snapshot mismatch)"
+              ((divergent+=1))
+              continue
+            fi
+            if ! git merge-base --is-ancestor "$sha" "$default_sha"; then
+              echo "KEEP unmerged: $branch"
+              ((divergent+=1))
+              continue
+            fi
+            remote_sha="$(gh api "repos/$repo/branches/$branch" --jq '.commit.sha')" || {
+              echo "KEEP lookup failed: $branch"
+              ((errors+=1))
+              continue
+            }
+            if [[ "$remote_sha" != "$sha" ]]; then
+              echo "KEEP updated branch $branch (remote head changed)"
+              ((divergent+=1))
+              continue
+            fi
+            if gh api --method DELETE "repos/$repo/git/refs/heads/$branch" >/dev/null; then
+              echo "DELETED merged: $branch"
+              ((deleted+=1))
+            else
+              echo "ERROR unable to delete: $branch"
+              ((errors+=1))
+            fi
+          done
+
+          {
+            echo "- Deleted already-merged branches: **$deleted**"
+            echo "- Kept branches with unmerged / changed tips: **$divergent**"
+            echo "- Kept default, deployment, protected, or active-PR branches: **$protected**"
+            echo "- API errors: **$errors**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Result: deleted=$deleted retained_unmerged=$divergent retained_protected=$protected errors=$errors"
+          test "$errors" -eq 0
