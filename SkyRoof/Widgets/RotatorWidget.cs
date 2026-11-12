@@ -189,7 +189,9 @@ namespace SkyRoof
           TrackingTriggerAngleRadians(
             ctx.Settings.Rotator.StepSize);
         var bearing = Sanitize(SatBearing);
-        if (AntBearing == null ||
+        // Bad feedback means open-loop tracking: keep sending evolving satellite
+        // targets even while the last trusted bearing is frozen.
+        if (engine.FeedbackDegraded || AntBearing == null ||
             AngleBetween(bearing, AntBearing) >= maxError)
           RotateTo(Path.GetNextAntennaBearing());
       }
@@ -715,6 +717,7 @@ namespace SkyRoof
 
     private void BearingToUi()
     {
+      UpdateFeedbackWarnings();
       var realSatBearing = Path?.GetRealSatelliteBearing();
       if (realSatBearing == null || SatBearing == null)
       {
@@ -758,6 +761,24 @@ namespace SkyRoof
         AntennaAzimuthLabel.Text = "---";
         AntennaElevationLabel.Text = "---";
       }
+    }
+
+    private void UpdateFeedbackWarnings()
+    {
+      bool az = engine?.FeedbackAzimuthSuspect == true;
+      bool el = engine?.FeedbackElevationSuspect == true;
+      FeedbackAzimuthWarningLabel.Visible = az;
+      FeedbackElevationWarningLabel.Visible = el;
+      if (!az && !el) return;
+
+      Bearing? rejected = engine?.LastRejectedBearing;
+      Bearing? trusted = engine?.LastReadBearing;
+      string detail = "Position reply outlier: continuing open-loop tracking from the last trusted angle." +
+        $"\\nTrusted: {trusted}\\nRejected: {rejected}";
+      if (engine?.FeedbackDegradedSinceUtc is { } since && since != DateTime.MinValue)
+        detail += $"\\nFirst detected: {since:HH:mm:ss} UTC";
+      toolTip1.SetToolTip(FeedbackAzimuthWarningLabel, detail);
+      toolTip1.SetToolTip(FeedbackElevationWarningLabel, detail);
     }
 
     private void Engine_PositionFaultDetected(object? sender, RotatorPositionFaultEventArgs e)
