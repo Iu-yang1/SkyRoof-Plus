@@ -45,22 +45,7 @@ public static class OrbitPassPredictor
         DateTimeOffset aos = startUtc;
 
         if (inPass)
-        {
-            // AOS must be recovered across the left edge, never silently relabelled start.
-            DateTimeOffset upper = startUtc;
-            for (DateTimeOffset candidate = startUtc - step;
-                 candidate >= startUtc.AddHours(-recoveryHours);
-                 candidate -= step)
-            {
-                if (elevationDegrees(candidate) < elevationMaskDegrees)
-                {
-                    aos = RefineCrossing(elevationDegrees, candidate, upper, elevationMaskDegrees, rising: true);
-                    actualAos = true;
-                    break;
-                }
-                upper = candidate;
-            }
-        }
+            (aos, actualAos) = RecoverAos(elevationDegrees, startUtc, elevationMaskDegrees, step);
 
         DateTimeOffset prevTime = startUtc;
         while (prevTime < endUtc)
@@ -109,6 +94,22 @@ public static class OrbitPassPredictor
         }
 
         return result;
+    }
+
+    private static (DateTimeOffset Aos, bool Actual) RecoverAos(
+        Func<DateTimeOffset, double> elevation, DateTimeOffset start,
+        double mask, TimeSpan step)
+    {
+        DateTimeOffset upper = start;
+        for (DateTimeOffset candidate = start - step;
+             candidate >= start.AddHours(-72);
+             candidate -= step)
+        {
+            if (elevation(candidate) < mask)
+                return (RefineCrossing(elevation, candidate, upper, mask, rising: true), true);
+            upper = candidate;
+        }
+        return (start, false);
     }
 
     private static OrbitPass BuildPass(
