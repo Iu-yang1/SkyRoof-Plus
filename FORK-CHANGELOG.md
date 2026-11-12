@@ -1,3 +1,30 @@
+# SkyRoof Fork v.1.69 / SkyRoof Fork 1.69 版本说明
+
+Release date / 发布日期: 2026-11-12. Chinese settings localization and IC-9700 native Direct LAN TX/RX reliability maintenance, based on v.1.68; previous release tags and installers remain unchanged.
+
+## 中文
+
+- **新增音频/频谱设置汉化：** 在现有「简体中文 / English」设置界面中补齐 RX 扬声器播放缓冲、TX 网络预缓冲、麦克风采集缓冲、抖动预填充/上限、麦克风增益、语音 AGC（目标 RMS、最大增益、噪声门限、启动/恢复时间、峰值上限）、自动选择 LAN MOD 输入及独立 SkyCAT 频谱控制 CAT TCP 端口的中文名称和中文帮助文字，折叠摘要也可随语言切换。
+- **保持配置兼容：** 所有 JSON 键名、默认值、频率/PTT 协议以及英文菜单均未改变，新增中英切换/序列化测试。音频软件增益仅改变本地 PCM，不代表电台 RF 输出。
+- **原生 LAN 频谱控制（PR #187）：** 独立的 SkyCAT CAT 控制连接支持 MODE/SPAN/REF 与真实寄存器读回，频谱数据 TCP/4535 与控制 CAT TCP/4532 分离；减少频谱周期性查询对多普勒和 PTT 的影响。
+- **发射语音连续性（PR #188）：** Direct LAN TX 以固定 20 ms PCM 节奏发送，使用 60 ms 软件预填充及 250 ms 最大抖动缓冲，新增欠载、丢样、PTT 状态和时钟迟滞诊断。
+- **可选 TX 语音 AGC 与缓冲拆分（PR #189）：** RX 播放 120 ms、TX 网络 150 ms、麦克风采集 150 ms、软件抖动预填充 60 ms/上限 250 ms 各自独立；AGC 默认关闭，语音目标 −18 dBFS、最大增益 +12 dB，含噪声门限、时间常数与峰值限制。FT4/FT8/Q65 等数字调制建议保持关闭。
+- **电台调制源读回和选择（PR #190）：** 经 CI-V 读取 IC-9700 DATA OFF MOD、DATA MOD、LAN MOD Level；仅在 CAT PTT 正在发射且最近存在 PC TX PCM 时才按设置自动切换 LAN，并独立读回核验。提示 MOD≠LAN、LAN MOD 0%，不将本机麦克风 dBFS 误认为电台已调制。电台 MOD 选择可能在程序退出后保留，使用原装麦克风时请检查并切回。
+- **仪表与调度（PR #184）：** 发射时优先查询 PO/ALC、SSB 功率峰值短暂保持，CAT PTT 与多普勒写频优先。全链路实际 RF 功率、音质及帧率仍需 IC-9700 实机核验，自动测试不等于完成射频验收。
+- **PR 整理：** 发布前仓库已无未关闭 PR；本次汉化 PR 合并后再次核对。签名是否存在由 CI 自动判断：无签名时发布明确标识的未签名预发布版，不冒称签名正式版。
+
+## English
+
+- Fully localized the newly added Icom Direct LAN RX/TX buffer, voice AGC, microphone gain, radio LAN MOD selection and SkyCAT scope-control PropertyGrid labels, help text and collapsed summaries in Simplified Chinese; English labels and persistent JSON keys remain unchanged.
+- Included scope-only SkyCAT CAT control and verified MODE/SPAN/REF register readback (#187), 20-ms paced TX PCM and jitter diagnostics (#188), independent native network/capture/jitter buffers and optional speech AGC (#189), and actual IC-9700 LAN modulation input CI-V readback/auto-selection (#190).
+- Automatic LAN MOD selection only runs with current CAT PTT and recent PC TX PCM; it does not silently change front-panel microphone preferences during RX-only scope operation. The setting may remain changed after SkyRoof exits.
+- Default AGC remains OFF for calibrated digital modulation. MIC dBFS/UDP send count is not hardware ALC, transmitter power or a proof of RF modulation. Actual radio TX/RX, voice quality, meter readback and Doppler compatibility require on-air validation.
+- Added bilingual documentation and PropertyGrid localization/serialization regression tests. The release workflow tests Windows x64, runs pinned aislop and installer integrity checks, and publishes an unsigned **pre-release** when SignPath signing is unavailable.
+
+Updated operator guides: [中文频谱与 Direct LAN](docs/zh-cn/fork-guide/spectrum.md) | [English](docs/fork-guide/spectrum.md) | [Direct LAN 音频技术说明](docs/architecture/icom-direct-lan-audio-meters.zh-CN.md).
+
+---
+
 # SkyRoof Fork v.1.68 / SkyRoof Fork 1.68 版本说明
 
 Release date / 发布日期: 2026-11-11. Direct LAN CI-V network settings readback release, superseding v.1.67 without modifying its tag or installer.
