@@ -123,6 +123,11 @@ if ([string]::IsNullOrWhiteSpace($resolved) -or
     -not (Test-Path -LiteralPath $resolved)) {
   throw 'Installed .NET dependency resolver cannot locate System.IO.Ports 10.0.0.0.'
 }
+# Validate class loading and orbit calculations from the installed root.
+dotnet run --project SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj -c Release -- "$target"
+if ($LASTEXITCODE -ne 0) {
+  throw "Installed Orekit runtime failed its clean-directory smoke test."
+}
 Write-Host "Actual assembly resolution: $resolved"
 Write-Host ("Installer payload OK: {0} root DLLs, {1} RID runtime assets, System.IO.Ports {2}" -f
   $expectedDlls.Count, @($windowsAssets | Select-Object -Unique).Count, $version)

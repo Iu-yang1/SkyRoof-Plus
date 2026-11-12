@@ -80,3 +80,9 @@
 - 正式 Compile Check 与主分支 Release 工作流新增独立的锁定 Orekit 恢复/编译步骤，调用 `scripts/stage-orekit-backend.ps1` 将 IKVM、Hipparchus、Orekit 转换程序集复制进 SkyRoof 构建目录。
 - Inno Setup 纳入 `orekit-data/tai-utc.dat`；安装后 payload 测试核对主要 IKVM/转换 DLL、UTC 时间数据哈希和原有 Windows Runtime DLL，避免“仅实验程序能运行”的半成品。
 - 当前仍需提交 regenerated lockfiles、确认第三方许可证、验证安装目录独立加载、UI 后端切换和路径恢复、CPU/内存。不能在这一步直接发布正式 Release。
+
+## Windows 安装后 IKVM 独立加载回归
+
+- 新增 `SkyRoof.Orbit.InstallerSmoke`，只依赖纯 .NET Contracts，模拟将应用安装在全新目录，再通过 `Assembly.LoadFrom` 加载已安装的 Orekit 插件。
+- 覆盖安装目录的 UTC 数据初始化、TLE/TEME、WGS-84 站心观测和六位 NORAD OMM；不注册额外 AssemblyLoadContext 解析器，防止测试掩盖生产端缺失依赖。
+- 原有安装器安装与 .deps.json RID 资产检查继续执行。该烟测不替代现场真实电台/旋转器确认。
