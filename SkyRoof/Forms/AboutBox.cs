@@ -4,7 +4,7 @@ namespace SkyRoof
 {
   public partial class AboutBox : Form
   {
-    internal const string ForkCopyright = "Fork modifications © 2026 Iu-yang1";
+    internal const string ForkCopyright = "Fork modifications © 2026 Iu-yang1 BG5JSU";
 
     public AboutBox()
     {
