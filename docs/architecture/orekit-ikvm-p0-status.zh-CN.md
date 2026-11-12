@@ -4,7 +4,7 @@
 
 ## 第一批代码
 
-- `SkyRoof.Orbit.Orekit`：独立 .NET 10 项目，通过 IKVM.Maven.Sdk 1.12.2 加载 `org.orekit:orekit:13.1.9` 的 Maven 依赖。
+- `SkyRoof.Orbit.Orekit`：独立 .NET 10 项目，通过 IKVM 8.16.3 和 IKVM.Maven.Sdk 1.12.2 加载 `org.orekit:orekit:13.1.9` 的 Maven 依赖。
 - `OrekitDataContext`：一次性加载独立数据目录。未提供 UTC 历史数据时抛出明确错误。
 - `OrekitTleTrack`：TLE → TEME 位置/速度、UTC 转换、WGS-84 地面站 ITRF 方位角/仰角/距离/距离速率；输出为纯 .NET 数据类型。
 - `SkyRoof.Orbit.Orekit.Smoke`：独立控制台烟测，固定 Vallado 卫星 00005 在 t=0、360 min 的 TEME 参考状态；验证 UTC/TAI 与时区处理；记录测量结果和加载程序集。
@@ -13,7 +13,7 @@
 ## 验证分界
 
 - **已完成**：源代码和实验 CI 已添加到开发分支。
-- **尚待流水线验证**：NuGet/Maven 传递解析、IKVM 生成程序集、编译、实际运行、性能/体积。
+- **首轮 CI 发现并修复**：Orekit 13.1 的 UTC 偏移返回 `TimeOffset` 而非 `double`（CS0023）；同时发现 IKVM 8.15.0 的 `CharBuffer.rewind()` 兼容警告，因此显式升级为 IKVM 8.16.3。\n- **尚待流水线验证**：升级后的 NuGet/Maven 传递解析、IKVM 生成程序集、编译、实际运行、性能/体积。
 - **尚未实施**：生产 NuGet/Maven 锁文件、独立 SGP.NET 第三路对比、EOP 正式资料包、P1 契约项目接入现有 SatelliteTracker、P2–P6。
 - 本实验项目未加入 `SkyRoof.sln`，未改变默认 SGP.NET、现有 JPL BSP、CAT、Rotator 和 Release。生产链路仍采用原来的锁定依赖。
 - 实验数据只包含 UTC-TAI 历史；没有独立 EOP 数据时的 ITRF 观测仅是连通性验证，质量标签为 `P0_UTC_ONLY_EOP_UNVERIFIED`，不能用作高精度或 CAT 控制验收。

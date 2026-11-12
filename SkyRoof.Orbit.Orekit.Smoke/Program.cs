@@ -18,7 +18,7 @@ try
 
     var utc = TimeScalesFactory.getUTC();
     var t2020 = new AbsoluteDate(2020, 1, 1, 0, 0, 0.0, utc);
-    double taiMinusUtcSeconds = -utc.offsetFromTAI(t2020);
+    double taiMinusUtcSeconds = -utc.offsetFromTAI(t2020).toDouble();
     Assert(Math.Abs(taiMinusUtcSeconds - 37.0) < 1e-9,
         $"UTC/TAI 2020 test failed: {taiMinusUtcSeconds:F6}s, expected 37s");
 

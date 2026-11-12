@@ -30,12 +30,7 @@ public sealed class OrekitTleTrack
     public OrbitState PredictTemeAtOffset(TimeSpan offset)
     {
         var date = tle.getDate().shiftedBy(offset.TotalSeconds);
-        // The epoch is carried as a UTC timestamp for reporting purposes only.
-        // For comparison against Vallado, use offset from TLE epoch directly.
-        var epoch = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var reportedUtc = epoch.AddSeconds(date.durationFrom(
-            new AbsoluteDate(2000, 1, 1, 0, 0, 0.0, TimeScalesFactory.getUTC())));
-        return Propagate(reportedUtc, date);
+        return Propagate(ToUtcDateTimeOffset(date), date);
     }
 
     private OrbitState Propagate(DateTimeOffset utc, AbsoluteDate date)
@@ -75,6 +70,24 @@ public sealed class OrekitTleTrack
             local.getRangeRate(pv, itrf, date),
             "ITRF/IERS2010",
             "P0_UTC_ONLY_EOP_UNVERIFIED");
+    }
+
+    private static DateTimeOffset ToUtcDateTimeOffset(AbsoluteDate date)
+    {
+        var parts = date.getComponents(TimeScalesFactory.getUTC());
+        var day = parts.getDate();
+        var clock = parts.getTime();
+        // DateTimeOffset has no representation for 23:59:60; keep the
+        // physically correct AbsoluteDate internally and report that case
+        // explicitly rather than silently identifying the leap second as
+        // an adjacent civil second.
+        if (clock.getSecond() >= 60.0)
+            throw new NotSupportedException(
+                "DateTimeOffset cannot represent the UTC leap second; use an explicit UTC instant.");
+        var minute = new DateTimeOffset(
+            day.getYear(), day.getMonth(), day.getDay(),
+            clock.getHour(), clock.getMinute(), 0, TimeSpan.Zero);
+        return minute.AddTicks((long)Math.Round(clock.getSecond() * TimeSpan.TicksPerSecond));
     }
 
     private static AbsoluteDate ToAbsoluteDate(DateTimeOffset time)
