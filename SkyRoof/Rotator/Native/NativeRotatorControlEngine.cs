@@ -48,6 +48,9 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   private readonly Thread worker;
   private IRotatorTransport? transport;
   private Bearing? requested,lastRead,lastWritten;
+  private readonly RotatorFeedbackFilter feedbackFilter;
+  // Issued open-loop endpoint reference; never presented as a measured angle.
+  private RotatorPosition? openLoopReference;
   private DateTime lastReadUtc = DateTime.MinValue;
   // Only C2 replies to queries initiated AFTER a management verification
   // checkpoint may confirm post-management feedback. A pre-checkpoint reply
@@ -105,6 +108,11 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
     lock(sync)parkDiagnosticsActive=active;
   }
   public bool PositionFaulted {get {lock(sync)return safetyLatched;}}
+  public bool FeedbackDegraded {get {lock(sync)return feedbackFilter.IsDegraded;}}
+  public bool FeedbackAzimuthSuspect {get {lock(sync)return feedbackFilter.AzimuthSuspect;}}
+  public bool FeedbackElevationSuspect {get {lock(sync)return feedbackFilter.ElevationSuspect;}}
+  public Bearing? LastRejectedBearing {get {lock(sync)return feedbackFilter.Rejected;}}
+  public DateTime FeedbackDegradedSinceUtc {get {lock(sync)return feedbackFilter.DegradedSinceUtc;}}
   public bool ManagementReviewRequired {get {lock(sync)return managementReviewRequired;}}
   public bool IsRunning {get {lock(sync)return connected;}}
   public bool IsReady => Volatile.Read(ref ready) == 1;
@@ -113,6 +121,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
     !IsRunning ? "Reconnecting" :
     ManagementReviewRequired ? "Management safety lock; inspect and reapply settings" :
     PositionFaulted ? "Position safety fault; STOP requested" :
+    FeedbackDegraded ? "Angle feedback rejected; open-loop tracking from last trusted AZ/EL" :
     !IsReady && Volatile.Read(ref consecutiveFeedbackMisses)>0
       ? $"Position feedback delayed ({Volatile.Read(ref consecutiveFeedbackMisses)} missed); motion paused"
       : !IsReady ? "Synchronizing" :
@@ -122,6 +131,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   public NativeRotatorControlEngine(RotatorSettings settings)
   {
     this.settings=settings;
+    feedbackFilter=new RotatorFeedbackFilter(settings.PositionJumpLimitDegrees);
     // Motion settings are sampled when the motor worker starts; changing
     // UI preferences never enables a new profile mid-movement. An operator
     // must stop and re-apply rotator settings to activate a new calibration.
@@ -472,52 +482,60 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   {
     if(!NativeRotatorCodec.Valid(p))throw new InvalidDataException("Out-of-range rotor position");
     Bearing current=new(p.Azimuth*Math.PI/180,p.Elevation*Math.PI/180);
-    Bearing? previous; DateTime oldUtc;
-    bool fault=false;
+    Bearing? previous;
+    bool accepted,changedToOpenLoop,restored;
+    DateTime receivedUtc=DateTime.UtcNow;
     lock(sync)
     {
-      previous=lastRead;oldUtc=lastReadUtc;
-      double azdiff=previous==null?0:Math.Abs(previous.AzDeg-current.AzDeg);
-      if(previous!=null && previous.AzDeg is >=0 and <=360 && current.AzDeg is >=0 and <=360)
-        azdiff=Math.Min(azdiff,360-azdiff);
-      double eldiff=previous==null?0:Math.Abs(previous.ElDeg-current.ElDeg);
-      if(previous!=null && oldUtc!=DateTime.MinValue &&
-         (DateTime.UtcNow-oldUtc).TotalSeconds<=2 &&
-         (azdiff>settings.PositionJumpLimitDegrees||eldiff>settings.PositionJumpLimitDegrees))
+      previous=lastRead;
+      bool wasDegraded=feedbackFilter.IsDegraded;
+      accepted=feedbackFilter.Observe(current,receivedUtc,lastWritten??requested);
+      changedToOpenLoop=!wasDegraded && feedbackFilter.IsDegraded;
+      restored=wasDegraded && !feedbackFilter.IsDegraded;
+      if(changedToOpenLoop)
       {
-        fault=safetyLatched=true;requested=lastWritten=null;
-        manualDirection=null;stopRequested=true;lastWire=null;
-        error="Position feedback jump: STOP sent or pending";
+        // The planner must never treat the cached bearing as a fresh C2
+        // observation. Advance from an explicitly commanded reference.
+        openLoopReference=previous==null ? null :
+          new RotatorPosition(previous.AzDeg,previous.ElDeg);
+        motionPlanner.Reset();plannerFeedback.Reset();
+        lastPlanTick=lastPlannerCommandTick=0;
       }
-      lastRead=current;lastReadUtc=DateTime.UtcNow;
-      lastSuccessfulQueryStartedUtc=queryStartedUtc;
-      if(settings.NativeProtocol==RotatorProtocolKind.Rc3040sLan)
+      if(restored)
       {
-        if(rateEstimator.Observe(p,lastReadUtc,out var observation))
+        openLoopReference=null;
+        motionPlanner.Reset();plannerFeedback.Reset();
+        lastPlanTick=lastPlannerCommandTick=0;
+      }
+      if(accepted)lastRead=current;
+      // Protocol liveness stays fresh with valid frames even when their
+      // bearing is rejected. LastReadBearing remains the trusted angle.
+      lastReadUtc=receivedUtc;
+      lastSuccessfulQueryStartedUtc=queryStartedUtc;
+      if(accepted && settings.NativeProtocol==RotatorProtocolKind.Rc3040sLan)
+      {
+        if(rateEstimator.Observe(p,receivedUtc,out var observation))
           latestRate=observation;
         else latestRate=null;
       }
-      // STOP after link loss is necessary only if a previously issued target
-      // may still be in motion. Two fresh measurements at the target, over
-      // at least 200ms, confirm the target has settled. Continuous manual jog
-      // never clears the interlock this way: it always requires STOP.
-      if(!fault && requested!=null && !manualDirection.HasValue &&
+      else if(!accepted)
+        latestRate=null;
+
+      // Rejected telemetry cannot confirm an endpoint or clear a STOP
+      // interlock carried over from a genuine connection failure.
+      if(accepted && requested!=null && !manualDirection.HasValue &&
          !appliedDirection.HasValue && lastWire!=null &&
          Math.Abs(current.AzDeg-requested.AzDeg)<=1.5 &&
          Math.Abs(current.ElDeg-requested.ElDeg)<=1.5 &&
-         // A changing Track target can coincide with old C2 while the
-         // controller still executes its previous W; never treat that as
-         // confirmed STOP. Compare with the actual last wire endpoint.
          Rc3040sPlannerFeedbackGuard.IsLastWireAtReportedPosition(
-           p,
-           lastWritten==null ? null :
+           p,lastWritten==null ? null :
              new RotatorPosition(lastWritten.AzDeg,lastWritten.ElDeg),
            plannerAuthorizedAtEngineStart))
       {
-        if(stableTargetReads==0)stableTargetFirstUtc=lastReadUtc;
+        if(stableTargetReads==0)stableTargetFirstUtc=receivedUtc;
         stableTargetReads++;
         if(stableTargetReads>=2 &&
-           (lastReadUtc-stableTargetFirstUtc).TotalMilliseconds>=200)
+           (receivedUtc-stableTargetFirstUtc).TotalMilliseconds>=200)
           requiresStopAfterReconnect=false;
       }
       else
@@ -526,33 +544,14 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
         stableTargetFirstUtc=DateTime.MinValue;
       }
     }
-    // Unlike the legacy engine, the first native implementation posted an
-    // event after EVERY position poll, even when the bearings were identical
-    // and no listener existed. Avoid flooding WinForms/xUnit contexts with
-    // thousands of redundant marshaled callbacks during idle tracking.
-    if((previous==null || previous!=current) && BearingChanged!=null)
+    if(changedToOpenLoop)
+      Log.Warning("Rotator position feedback outlier; continuing open-loop tracking without STOP or motor lock.");
+    if(restored)
+      Log.Information("Rotator trusted position feedback restored; resuming feedback-driven tracking.");
+    if(accepted && (previous==null || previous!=current) && BearingChanged!=null)
       Post(()=>BearingChanged?.Invoke(this,EventArgs.Empty));
-    if(fault && previous!=null)
-    {
-      // We're already on the dedicated I/O thread: attempt STOP before
-      // notifying WinForms, so the safety dialog cannot delay the write.
-      // The hardware has no physical STOP acknowledgement; always report
-      // its outcome as unconfirmed even after a successful serial write.
-      try
-      {
-        stopRequested = false;
-        SendStop();
-      }
-      catch(Exception ex)
-      {
-        Log.Error(ex,"Native rotator emergency STOP could not be confirmed");
-        lock(sync){stopRequested=true;}
-      }
-      Post(()=>PositionFaultDetected?.Invoke(this,new RotatorPositionFaultEventArgs(
-        previous,current,Math.Abs(previous.AzDeg-current.AzDeg),
-        Math.Abs(previous.ElDeg-current.ElDeg),false)));
-      wake.Set();
-    }
+    if(changedToOpenLoop || restored)
+      StateChanged();
   }
   private void Run()
   {
@@ -593,6 +592,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
           // Invalidate old connection's feedback and wire timestamps.
           lastTargetWriteUtc=lastStopWriteUtc=DateTime.MinValue;
           lastRead = null;
+          feedbackFilter.Reset();openLoopReference=null;
           lastReadUtc = DateTime.MinValue;
           lastSuccessfulQueryStartedUtc=DateTime.MinValue;
           lastSuccessfulSessionFeedbackUtc=DateTime.MinValue;
