@@ -39,7 +39,7 @@ namespace SkyRoof
       ReadOnlySpan<byte> frame, byte radio, out IcomLanModReading reading)
     {
       reading = default;
-      if (frame.Length is not (11 or 12) ||
+      if (frame.Length is not (10 or 11) ||
           frame[0] != 0xFE || frame[1] != 0xFE ||
           (frame[2] != 0xE0 && frame[2] != 0x00) ||
           frame[3] != radio ||
@@ -51,7 +51,7 @@ namespace SkyRoof
       var register = (IcomLanModRegister)frame[7];
       if (register == IcomLanModRegister.LanLevel)
       {
-        if (frame.Length != 12 ||
+        if (frame.Length != 11 ||
             !Bcd(frame[8]) || !Bcd(frame[9]))
           return false;
         int level = (frame[8] >> 4) * 1000 +
@@ -63,7 +63,7 @@ namespace SkyRoof
         return true;
       }
 
-      if (frame.Length != 11 || frame[8] > 5) return false;
+      if (frame.Length != 10 || frame[8] > 5) return false;
       reading = new(register, frame[8]);
       return true;
     }
