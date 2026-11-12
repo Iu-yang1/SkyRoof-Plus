@@ -6,6 +6,27 @@ fork 新增可停靠的 **Icom LAN Spectrum** 面板，与原来的 SDR 宽带�
 
 通过程序的面板/窗口菜单打开 **Icom LAN Spectrum**，先在 **Tools → Settings → Icom LAN Spectrum** 配置数据源。
 
+## v.1.69 设置菜单中文化（Direct LAN / TX 音频）
+
+在 **Tools → Settings** 的语言选择栏切换至 **简体中文**，展开 **ICOM Direct LAN 音频与仪表**。本次同时汉化设置项名称、悬停/选中时的底部帮助说明以及子项目摘要；英文模式仍保留原英文名称，配置文件键名不变。
+
+| 中文菜单项 | 英文设置项 | 默认值 |
+|---|---|---|
+| 接收扬声器播放缓冲 (ms) | RX speaker playback buffer | 120 ms |
+| 发射网络预缓冲 (ms) | TX network prebuffer | 150 ms |
+| 发射麦克风采集缓冲 (ms) | TX microphone capture buffer | 150 ms |
+| 发射软件抖动预填充 (ms) | TX software jitter prefill | 60 ms |
+| 发射软件抖动缓冲上限 (ms) | TX software jitter maximum | 250 ms |
+| 麦克风增益 (%) | Microphone gain | 100% |
+| 自动选择电台 LAN 调制输入 | Auto select LAN MOD input | 开启 |
+| 发射语音 AGC → 启用语音 AGC | Voice AGC → Enable voice AGC | 关闭 |
+| AGC 目标均方根电平 / 最大补偿增益 | Target RMS / Maximum gain | −18 dBFS / +12 dB |
+| AGC 噪声门限 / 启动 / 恢复 / 峰值上限 | Noise floor / Attack / Release / Peak ceiling | −48 dBFS / 40 ms / 450 ms / −3 dBFS |
+
+在 **ICOM LAN 频谱** 中，**SkyCAT 频谱控制 CAT TCP 端口（4532）** 与 **SkyCAT 频谱 TCP 端口（4535）** 是两项不同设置；前者发送 MODE/SPAN/REF 控制，后者接收波形。
+
+**特别说明：** TX AGC 默认关闭，FT4/FT8/Q65 等数字调制建议保持关闭。自动选择 LAN MOD 输入只有在 CAT PTT 确认处于发射状态、并且本机近期发送了 TX PCM 时才修改电台设置；该修改在断开软件后可能继续保留。底栏的 MIC dBFS 仅是本机 PCM 电平，不证明电台已经产生射频调制；应结合前面板 ALC/PO 和调制源回读。更详细的音频设置见 [Direct LAN 音频与仪表分析](../../architecture/icom-direct-lan-audio-meters.zh-CN.md)。
+
 ## 频谱来源与写入控制链分开选择
 
 | Scope source | 依赖 | 实际行为 |
