@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.71 / SkyRoof Fork 1.71 版本说明
+
+Release date / 发布日期：2026-11-13。正式发布统一 Orekit/IKVM 卫星与月地星历引擎；保留旧 v.1.70 标签与安装包。
+
+- **中文：** 全部 TLE/OMM 轨道统一使用 Orekit SGP4/SDP4 传播，移除运行中的 SGP.NET 后备计算；月球/太阳/金星统一 Orekit DE430 站心位置、方位角/仰角、径向距离变化率。旧版 SGP.NET DTO 仅用于 UI 兼容，不执行后备传播。
+- **数据与 UI：** 「轨道与星历来源」合并 IERS EOP 和 JPL DE430 下载来源、自动下载、目录与可视状态，并提供「更新 Orekit 星历」入口；中英文支持，改动后重启加载新数据；校验 DE430 Git Blob 和缓存完整性。
+- **质量与性能：** 通过 Windows x64 构建、xUnit、Vallado/DE430 专项、多普勒方向/距离变化率回归、安装后 IKVM 运行验证与固定版本 aislop。预热后中位耗时：TEME 1000 次 3.90 ms，站心 1000 次 118.25 ms，月球 200 次 7.68 ms；仅为共享 CI 主机测量。
+- **发布与限制：** v.1.71 根据明确授权发布为正式 Release，缺少 SignPath 时可能是**未签名**安装包并明确披露，保留 SHA-256/来源验证。未进行 IC-9700、CAT、GS232B 实机联动；特殊病态轨道、长期外推和 IKVM 非测试路径不作全面精度承诺。
+- **English:** One Orekit/IKVM engine for TLE/OMM SGP4 propagation and DE430 Moon/Sun/Venus observations. Bilingual consolidated ephemeris settings, verified IERS/DE430 downloads, local cache and status, restart-to-reload, tested Windows installer with IKVM dependencies. No SGP.NET runtime propagation fallback; old DTO adapters retained. CI numerical/performance tests and pinned code quality pass. This owner-authorized stable release may be unsigned if SignPath is not configured; no physical IC-9700 or rotator validation is claimed.
+
+Read full bilingual notes / 详细双语说明：[`RELEASE_NOTES.md`](RELEASE_NOTES.md)。
+
+---
+
 # SkyRoof Fork v.1.70 / SkyRoof Fork 1.70 版本说明
 
 Release target / 计划发布：2026-11-13. Orekit 13.1.9 / IKVM 8.16.3 集成；此前 v.1.69 不覆盖。
