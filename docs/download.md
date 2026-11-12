@@ -6,9 +6,7 @@
 The next candidate, **v.1.70**, adds a selectable Orekit / IKVM orbit backend, native CCSDS OMM, IERS data management and a corrected station-relative Doppler range rate. Until v.1.70 is actually published, use the existing [v.1.69 release](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.69).
 
 Use [GitHub Actions](https://github.com/Iu-yang1/SkyRoof-Plus/actions) for the latest build and verified installation smoke results. CI-produced unsigned test installers are **not** equivalent to signed production releases. Read the [English Orekit guide](users_guide/orekit-orbit-engine.md) or [Chinese guide](zh-cn/users_guide/orekit-orbit-engine.md) for backend selection, EOP and validation limits.
-A successful Compile Check may provide an **unsigned test installer**; it is not
-the upstream v1.56 installer. See
-[docs deployment status](https://github.com/Iu-yang1/SkyRoof/deployments).
+A successful Compile Check may provide an **unsigned test installer**; it is separate from official upstream SkyRoof installations. See [SkyRoof-Plus deployment status](https://github.com/Iu-yang1/SkyRoof-Plus/deployments).
 
 The section below lists the **upstream VE3NEA releases**, not fork-specific builds.
 
