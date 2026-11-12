@@ -15,7 +15,7 @@ using VE3NEA.SkyTlm.Core;   // SignalParams / Framing, for the save-to-overrides
 
 namespace SkyRoof
 {
-  public class SatnogsDb  public class SatnogsDb
+  public class SatnogsDb
   {
     internal const string MoonSatId = "MOON";
     internal const string SunSatId = "SUN";
@@ -128,7 +128,7 @@ namespace SkyRoof
           Satellites.Where(s => !s.IsEphemerisTarget)));
     }
 
-    internal int ConfigureSolarSystem(    internal int ConfigureSolarSystem(OrbitSourceSettings settings)
+    internal int ConfigureSolarSystem(OrbitSourceSettings settings)
     {
       SatelliteList.Remove(MoonSatId);
       SatelliteList.Remove(SunSatId);

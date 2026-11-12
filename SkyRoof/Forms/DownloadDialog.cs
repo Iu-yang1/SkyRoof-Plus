@@ -33,7 +33,7 @@ namespace SkyRoof
       return rc == DialogResult.OK;
     }
 
-    private void Button_Click    private void Button_Click(object sender, EventArgs e)
+    private void Button_Click(object sender, EventArgs e)
     {
       if (Button.Text == "Close")
       {
@@ -107,7 +107,7 @@ namespace SkyRoof
       }
     }
 
-    private void SatnogsDb_DownloadProgress(    private void SatnogsDb_DownloadProgress(
+    private void SatnogsDb_DownloadProgress(
       object? sender,
       ProgressChangedEventArgs e)
     {

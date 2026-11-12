@@ -878,7 +878,7 @@ namespace SkyRoof
       ctx.SatnogsDb.LoadTleFromFile(dlg.FileName);
     }
 
-    private void AddOrbitSourceMenuItems()    private void AddOrbitSourceMenuItems()
+    private void AddOrbitSourceMenuItems()
     {
       var sourceMenu =
         new ToolStripMenuItem("Orbit / TLE &Sources");
@@ -943,7 +943,7 @@ namespace SkyRoof
       }
     }
 
-    private async Task ReloadCustomTleSourcesAsync()    private async Task ReloadCustomTleSourcesAsync()
+    private async Task ReloadCustomTleSourcesAsync()
     {
       try
       {

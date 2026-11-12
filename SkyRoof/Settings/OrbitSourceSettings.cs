@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace SkyRoof
 {
-  public enum OrbitEngineMode  public enum OrbitEngineMode
+  public enum OrbitEngineMode
   {
     SgpNet = 0,
     Orekit = 1
@@ -100,12 +100,11 @@ namespace SkyRoof
     public string TleUrl { get; set; } = DefaultTleUrl;
 
     [Category("Orbit engine")]
-    [DisplayName("Show Solar-System Targets")]    [Category("Orbit engine")]
     [DisplayName("Show Solar-System Targets")]
     [Description("Automatically include Moon, Sun and Venus using Orekit's planetary ephemerides when a compatible DE data file is present.")]
     [DefaultValue(true)]
     public bool ShowSolarSystemTargets { get; set; } = true;
 
-    public override string ToString()    public override string ToString() => string.Empty;
+    public override string ToString() => string.Empty;
   }
 }
