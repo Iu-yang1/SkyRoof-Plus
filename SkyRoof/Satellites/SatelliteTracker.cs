@@ -131,7 +131,7 @@ namespace SkyRoof
             new DateTimeOffset(startTime.ToUniversalTime()),
             new DateTimeOffset(endTime.ToUniversalTime()))
           .Select(p => new SatelliteVisibilityPeriod(
-            null!, p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
+            null, p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
             Angle.FromDegrees(p.MaximumElevationDegrees),
             p.CulminationUtc.UtcDateTime, groundStation.Location))
           .ToList();

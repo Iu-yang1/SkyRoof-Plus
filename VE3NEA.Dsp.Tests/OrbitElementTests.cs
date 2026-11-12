@@ -37,7 +37,7 @@ public sealed class OrbitElementTests
 
         // Full Orekit propagation and six-digit NORAD tests run in the isolated
         // Orekit/IKVM smoke suite with a deterministic UTC data context.
-        Assert.Equal(100001, record.omm!.NoradCatID);
+        Assert.Equal((uint)100001, record.omm!.NoradCatID);
         Assert.Equal(15.5, record.omm.MeanMotion, 6);
     }
 
