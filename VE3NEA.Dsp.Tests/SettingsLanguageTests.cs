@@ -113,10 +113,16 @@ public sealed class SettingsLanguageTests
 
       // Localized metadata must not rename JSON keys or change defaults.
       string json = JsonConvert.SerializeObject(settings.IcomDirectLan);
-      Assert.Contains("\\"AutoSelectLanModInput\\":true", json);
-      Assert.Contains("\\"CaptureBufferMs\\":150", json);
-      Assert.Contains("\\"JitterPrefillMs\\":60", json);
-      Assert.Contains("\\"TargetRmsDbfs\\":-18", json);
+      Assert.Contains(nameof(tx.AutoSelectLanModInput), json);
+      Assert.Contains(nameof(tx.CaptureBufferMs), json);
+      Assert.Contains(nameof(tx.JitterPrefillMs), json);
+      Assert.Contains(nameof(agc.TargetRmsDbfs), json);
+      IcomDirectLanSettings restored =
+        JsonConvert.DeserializeObject<IcomDirectLanSettings>(json)!;
+      Assert.True(restored.Transmit.AutoSelectLanModInput);
+      Assert.Equal(150, restored.Transmit.CaptureBufferMs);
+      Assert.Equal(60, restored.Transmit.JitterPrefillMs);
+      Assert.Equal(-18.0, restored.Transmit.Agc.TargetRmsDbfs);
       Assert.DoesNotContain("自动选择电台", json);
     }
     finally { SettingsLanguage.Set(previous); }
