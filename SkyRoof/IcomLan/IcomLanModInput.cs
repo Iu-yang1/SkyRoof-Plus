@@ -94,8 +94,8 @@ namespace SkyRoof
     private int? dataOff;
     private int? data;
     private int? lanLevel;
-    private bool dataOffWriteAttempted;
-    private bool dataWriteAttempted;
+    private int dataOffWriteAttempts;
+    private int dataWriteAttempts;
     private string description = "radio LAN MOD input not read";
     private int confirmedWrong;
     private int levelZero;
@@ -120,11 +120,11 @@ namespace SkyRoof
       switch (reading.Register)
       {
         case IcomLanModRegister.DataOffSource:
-          if (dataOff != reading.Value) dataOffWriteAttempted = false;
+          if (dataOff != reading.Value) dataOffWriteAttempts = 0;
           dataOff = reading.Value;
           break;
         case IcomLanModRegister.DataSource:
-          if (data != reading.Value) dataWriteAttempted = false;
+          if (data != reading.Value) dataWriteAttempts = 0;
           data = reading.Value;
           break;
         case IcomLanModRegister.LanLevel:
@@ -153,16 +153,19 @@ namespace SkyRoof
       if (!autoSelectLan || reading.Value == IcomLanModCivCodec.LanSource)
         return false;
 
+      // A CI-V write can be lost even on a healthy LAN. Retry only after a
+      // fresh radio register reply confirms that the source is still not LAN.
+      // Bound writes per observed value rather than flooding the CAT link.
       if (register == IcomLanModRegister.DataOffSource &&
-          !dataOffWriteAttempted)
+          dataOffWriteAttempts < 3)
       {
-        dataOffWriteAttempted = true;
+        dataOffWriteAttempts++;
         return true;
       }
       if (register == IcomLanModRegister.DataSource &&
-          !dataWriteAttempted)
+          dataWriteAttempts < 3)
       {
-        dataWriteAttempted = true;
+        dataWriteAttempts++;
         return true;
       }
       return false;
