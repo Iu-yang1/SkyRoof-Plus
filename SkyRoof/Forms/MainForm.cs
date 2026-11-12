@@ -950,33 +950,8 @@ namespace SkyRoof
       reload.Click += async (_, _) =>
         await ReloadCustomTleSourcesAsync();
 
-      var de440s =
-        new ToolStripMenuItem(
-          "Download DE440&s (recommended)...");
-      de440s.Click += async (_, _) =>
-        await DownloadJplEphemerisAsync(
-          JplEphemerisKernel.DE440s);
-
-      var de421 =
-        new ToolStripMenuItem(
-          "Download DE&421...");
-      de421.Click += async (_, _) =>
-        await DownloadJplEphemerisAsync(
-          JplEphemerisKernel.DE421);
-
-      var load =
-        new ToolStripMenuItem(
-          "Load SPK/BSP From &File...");
-      load.Click += (_, _) =>
-        LoadJplEphemerisFromFile();
-
       sourceMenu.DropDownItems.Add(editSources);
       sourceMenu.DropDownItems.Add(reload);
-      sourceMenu.DropDownItems.Add(
-        new ToolStripSeparator());
-      sourceMenu.DropDownItems.Add(de440s);
-      sourceMenu.DropDownItems.Add(de421);
-      sourceMenu.DropDownItems.Add(load);
       var updateIers =
         new ToolStripMenuItem("Update Orekit IERS EOP Data...");
       updateIers.Click += async (_, _) =>

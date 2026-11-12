@@ -345,107 +345,60 @@ namespace SkyRoof
         string.Join("\r\n", failures));
     }
 
-    internal int ConfigureSolarSystem(
-      OrbitSourceSettings settings)
+    internal int ConfigureSolarSystem(OrbitSourceSettings settings)
     {
       SatelliteList.Remove(MoonSatId);
       SatelliteList.Remove(SunSatId);
       SatelliteList.Remove(VenusSatId);
-      PlanetaryKernel = null;
+      if (!settings.ShowSolarSystemTargets) return 0;
 
-      if (!settings.ShowSolarSystemTargets)
-        return 0;
+      int count = 0;
+      count += AddOrekitTarget(MoonSatId, "Moon", "Luna", "Natural satellite / EME", JplBody.Moon);
+      count += AddOrekitTarget(SunSatId, "Sun", "Sol", "Solar system", JplBody.Sun);
+      count += AddOrekitTarget(VenusSatId, "Venus", "", "Planet", JplBody.Venus);
+      Log.Information("Orekit planetary ephemeris activated: {Count} targets", count);
+      return count;
+    }
 
-      string path =
-        GetJplKernelPath(settings);
-      if (string.IsNullOrWhiteSpace(path) ||
-          !File.Exists(path))
-      {
-        Log.Information(
-          $"JPL ephemeris kernel not found: {path}");
-        return 0;
-      }
-
+    private int AddOrekitTarget(string id, string name, string aliases, string objectType, JplBody body)
+    {
       try
       {
-        PlanetaryKernel =
-          new JplSpkKernel(path);
+        var track = OrbitBackendRegistry.CreateCelestialTrack(body.ToString());
+        // Force a first PV read so an uninstalled/out-of-range DE file is detected now.
+        var probe = track.Observe(
+          new SkyRoof.Orbit.Contracts.GroundStationSpec(0, 0, 0), DateTimeOffset.UtcNow);
+        if (!double.IsFinite(probe.RangeMetres) || probe.RangeMetres <= 0)
+          throw new InvalidDataException($"Invalid {name} celestial range.");
 
-        int count = 0;
-        count += AddEphemerisTarget(
-          MoonSatId,
-          "Moon",
-          "Luna",
-          "Natural satellite / EME",
-          JplBody.Moon);
-        count += AddEphemerisTarget(
-          SunSatId,
-          "Sun",
-          "Sol",
-          "Solar system",
-          JplBody.Sun);
-        count += AddEphemerisTarget(
-          VenusSatId,
-          "Venus",
-          string.Empty,
-          "Planet",
-          JplBody.Venus);
-
-        Log.Information(
-          $"JPL ephemeris loaded: {Path.GetFileName(path)} ({count} targets)");
-        return count;
+        var target = new SatnogsDbSatellite
+        {
+          sat_id = id,
+          norad_cat_id = null,
+          name = name,
+          names = aliases,
+          image = string.Empty,
+          status = "in orbit",
+          website = string.Empty,
+          @operator = objectType,
+          countries = string.Empty,
+          telemetries = new SatnogsDbSatellite.Telemetries(),
+          citation = "Orekit / JPL DE430",
+          associated_satellites = new List<string>(),
+          updated = DateTime.UtcNow,
+          EphemerisBody = body
+        };
+        target.SetTracker(new SatelliteTracker(track, body));
+        target.BuildAllNames();
+        target.SetFlags();
+        SatelliteList[id] = target;
+        return 1;
       }
       catch (Exception ex)
       {
-        PlanetaryKernel = null;
-        Log.Error(
-          ex,
-          $"Unable to load JPL ephemeris kernel: {path}");
+        Log.Warning(ex, "Orekit {Body} ephemeris is unavailable.", name);
         return 0;
       }
-    }
-
-    private int AddEphemerisTarget(
-      string id,
-      string name,
-      string alternateNames,
-      string objectType,
-      JplBody body)
-    {
-      if (PlanetaryKernel == null ||
-          !PlanetaryKernel.Supports(
-            body,
-            DateTime.UtcNow))
-        return 0;
-
-      var target = new SatnogsDbSatellite
-      {
-        sat_id = id,
-        norad_cat_id = null,
-        name = name,
-        names = alternateNames,
-        image = string.Empty,
-        status = "in orbit",
-        website = string.Empty,
-        @operator = objectType,
-        countries = string.Empty,
-        telemetries = new SatnogsDbSatellite.Telemetries(),
-        citation =
-          $"JPL/NAIF {Path.GetFileName(PlanetaryKernel.FileName)}",
-        associated_satellites = new List<string>(),
-        updated = File.GetLastWriteTimeUtc(PlanetaryKernel.FileName),
-        EphemerisBody = body
-      };
-
-      target.SetTracker(
-        new SatelliteTracker(
-          PlanetaryKernel,
-          body));
-      target.BuildAllNames();
-      target.SetFlags();
-
-      SatelliteList[id] = target;
-      return 1;
     }
 
     internal void ReplaceSatelliteList(SatnogsDb db)

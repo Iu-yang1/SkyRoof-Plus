@@ -93,6 +93,16 @@ internal static class OrbitBackendRegistry
             backend.BackendId, dataDir);
     }
 
+    internal static IOrbitTrack CreateCelestialTrack(string bodyName)
+    {
+        IOrbitBackend? backend;
+        lock (Sync)
+            backend = selectedBackend;
+        if (backend is not ICelestialOrbitBackend celestial)
+            throw new InvalidOperationException("The Orekit planetary backend is not initialized.");
+        return celestial.CreateCelestialTrack(bodyName);
+    }
+
     internal static IOrbitTrack? CreateTrack(SatnogsDbTle elements)
     {
         IOrbitBackend? backend;
