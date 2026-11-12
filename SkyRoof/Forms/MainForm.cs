@@ -37,6 +37,8 @@ namespace SkyRoof
     };
     private IfAfStatus? previousIfAfStatus;
     private DateTime lastIfAfClipUtc;
+    private readonly CancellationTokenSource startupDataCancellation = new();
+    private bool initialPassRebuildPending;
     private long recentIfAfClips, recentIfAfOutputSamples;
     internal void ApplyEmbeddedSkyCatSettings() =>
       EmbeddedSkyCat.Apply(ctx.Settings.Cat.Embedded);
@@ -87,6 +89,7 @@ namespace SkyRoof
 
       Text = Utils.GetVersionString();
       ctx.MainForm = this;
+      Shown += (_, _) => CompleteDeferredStartupAsync().DoNotAwait();
 
       GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
@@ -182,18 +185,12 @@ namespace SkyRoof
       }
     }
 
-    private async void MainForm_Load(object sender, EventArgs e)
+    private void MainForm_Load(object sender, EventArgs e)
     {
-      // Download data before Orekit creates/caches its process-wide UTC and ITRF context.
-      // On network failure use whatever verified local data is already installed.
-      try
-      {
-        await OrekitDataBootstrapper.EnsureAsync(ctx.Settings.OrbitSources);
-      }
-      catch (Exception ex)
-      {
-        Log.Warning(ex, "Orekit automatic data bootstrap failed; trying local data.");
-      }
+      var startupTimer = Stopwatch.StartNew();
+      // Start from installed UTC data and the local satellite cache. Network
+      // requests must never delay restoring the saved DockPanel layout.
+      // Refreshed IERS EOP is applied by Orekit after the next restart.
       TryConfigureOrbitBackend();
       ReadOrDownloadSatelliteData();
 
@@ -201,6 +198,8 @@ namespace SkyRoof
       ctx.Settings.Ui.RestoreWindowPosition(this);
       Utils.EnsureFormVisible(this);
       ctx.Settings.Ui.RestoreDockingLayout(this);
+      Log.Information("Initial SkyRoof docking layout restored in {ElapsedMs} ms; network updates deferred",
+        startupTimer.ElapsedMilliseconds);
       Clock.UtcMode = ctx.Settings.Ui.ClockUtcMode;
 
       // the layout is back, so the Auto Selection panel exists again if it was open at the last shutdown
@@ -217,6 +216,77 @@ namespace SkyRoof
       ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();
     }
 
+    private async Task CompleteDeferredStartupAsync()
+    {
+      // Shown fires before the first complete paint. Allow the docking layout
+      // to render before scheduling any network maintenance or database refresh.
+      await Task.Delay(150);
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested) return;
+
+      if (initialPassRebuildPending)
+      {
+        initialPassRebuildPending = false;
+        ctx.HamPasses.FullRebuild();
+        ctx.GroupPasses.FullRebuild();
+        ctx.SdrPasses.FullRebuild();
+        ctx.PassesPanel?.ShowPasses();
+        ctx.GroupViewPanel?.LoadGroup();
+        ctx.SkyViewPanel?.ClearPass();
+        ctx.QsoSchedulerPanel?.UpdatePredictions();
+      }
+
+      // Keep weekly refresh at startup, not after a potentially long EOP
+      // timeout when the operator might already be on-air.
+      CheckDownloadSatelliteList();
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested) return;
+      CheckDownloadTle();
+      var sources = ctx.Settings.OrbitSources;
+      string directory = OrbitBackendRegistry.ResolveDataDirectory(sources.OrekitDataDirectory);
+      string eop = Path.Combine(directory, "finals2000A.all");
+      string de430 = Path.Combine(directory, "lnxp1990.430");
+      DateTime previousEopWrite = File.Exists(eop) ? File.GetLastWriteTimeUtc(eop) : DateTime.MinValue;
+      bool hadDe430 = File.Exists(de430);
+
+      try
+      {
+        // The HTTP client and cached DE430 SHA check execute outside WinForms.
+        await Task.Run(
+          () => OrekitDataBootstrapper.EnsureAsync(
+            sources, cancellationToken: startupDataCancellation.Token),
+          startupDataCancellation.Token);
+      }
+      catch (OperationCanceledException) when (startupDataCancellation.IsCancellationRequested)
+      {
+        return;
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Deferred Orekit data update failed; continuing with cached ephemerides.");
+      }
+
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested) return;
+
+      // DE430 may have been absent on the first start. Once it is installed,
+      // expose its targets without discarding the existing satellite selection.
+      if (!hadDe430 && File.Exists(de430))
+      {
+        int targets = ctx.SatnogsDb.ConfigureSolarSystem(sources);
+        if (targets > 0)
+          SatnogsDb_ListUpdated(null, EventArgs.Empty);
+      }
+
+      // IERS Earth-orientation tables are cached in the process-wide Orekit
+      // context. Do not replace a running tracking context behind CAT/rotator.
+      if (File.Exists(eop) && File.GetLastWriteTimeUtc(eop) > previousEopWrite)
+      {
+        const string restartHint = "IERS EOP updated. Restart SkyRoof to load the refreshed Orekit Earth-orientation data.";
+        SatDataStatusLabel.ToolTipText = restartHint;
+        SatDataLedLabel.ToolTipText = restartHint;
+        Log.Information(restartHint);
+      }
+
+    }
+
     private void UpdateAvailable_handler(object? sender, EventArgs e)
     {
       UpdateLabel.Text = $"Download {ctx.Settings.LatestVersion.Name}";
@@ -226,6 +296,7 @@ namespace SkyRoof
     private bool radioShutdownCompleted;
     private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
+      startupDataCancellation.Cancel();
       // CAT/CW radio release is deliberately asynchronous: an unreachable
       // SkyCAT worker or a stuck USB/serial port must not block WinForms.
       if(!radioShutdownCompleted)
@@ -774,10 +845,15 @@ namespace SkyRoof
     private void ReadOrDownloadSatelliteData()
     {
       LoadSatelliteData();
-      CheckDownloadSatelliteList();
-      if (!ctx.SatnogsDb.Loaded) Environment.Exit(1);
-
-      CheckDownloadTle();
+      // A clean installation still needs an initial database import before
+      // panels can populate. Existing users must not re-download stale data
+      // before the saved docking layout has been restored.
+      if (!ctx.SatnogsDb.Loaded)
+      {
+        initialPassRebuildPending = true;
+        CheckDownloadSatelliteList();
+        if (!ctx.SatnogsDb.Loaded) Environment.Exit(1);
+      }
     }
 
     private void LoadSatelliteData()
@@ -792,7 +868,10 @@ namespace SkyRoof
       ctx.Settings.Satellites.EnsureSolarSystemGroup(ctx.SatnogsDb);
 
       if (ctx.SatnogsDb.Loaded)
+      {
+        initialPassRebuildPending = true;
         SatnogsDb_ListUpdated(null, null);
+      }
     }
 
     private void CheckDownloadSatelliteList()
@@ -2106,9 +2185,12 @@ namespace SkyRoof
       SatelliteSelecionWidget.LoadSatelliteGroups();
       SatellitePhotoWidget.SetSatellite(ctx.SatelliteSelector.SelectedSatellite);
 
-      ctx.HamPasses.FullRebuild();
-      ctx.GroupPasses.FullRebuild();
-      ctx.SdrPasses.FullRebuild();
+      if (!initialPassRebuildPending)
+      {
+        ctx.HamPasses.FullRebuild();
+        ctx.GroupPasses.FullRebuild();
+        ctx.SdrPasses.FullRebuild();
+      }
 
       ctx.PassesPanel?.ShowPasses();
       ctx.SkyViewPanel?.ClearPass();
