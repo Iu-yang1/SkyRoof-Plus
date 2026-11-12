@@ -7,6 +7,7 @@ on:
     paths:
       - 'SkyRoof.Orbit.Orekit/**'
       - 'SkyRoof.Orbit.Contracts/**'
+      - 'SkyRoof.Orbit.SgpNet/**'
       - 'SkyRoof.Orbit.Orekit.Smoke/**'
       - '.github/workflows/orekit-ikvm-p0.yml'
   workflow_dispatch:

@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SkyRoof.Orbit.Orekit\SkyRoof.Orbit.Orekit.csproj" />
+    <ProjectReference Include="../SkyRoof.Orbit.SgpNet/SkyRoof.Orbit.SgpNet.csproj" />
   </ItemGroup>
 </Project>

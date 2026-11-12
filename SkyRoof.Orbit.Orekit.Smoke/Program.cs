@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using SkyRoof.Orbit.Orekit;
 using SkyRoof.Orbit.Contracts;
+using SkyRoof.Orbit.SgpNet;
 using org.orekit.time;
 
 if (args.Length is < 1 or > 2)
@@ -31,6 +32,10 @@ try
     IOrbitTrack interfaceTrack = backend.CreateTleTrack(line1, line2);
     Assert(backend.BackendId == "orekit-ikvm" && interfaceTrack.NoradNumber == 5,
         "P1 contract/backend connection failed");
+    IOrbitBackend baselineBackend = new SgpNetOrbitBackend();
+    IOrbitTrack sgpNetTrack = baselineBackend.CreateTleTrack(line1, line2);
+    Assert(baselineBackend.BackendId == "sgpnet" && sgpNetTrack.NoradNumber == 5,
+        "SGP.NET reference adapter failed");
     var track = new OrekitTleTrack(line1, line2);
     Assert(track.NoradNumber == 5, "NORAD parsing failed");
 
@@ -54,7 +59,28 @@ try
             $"Invalid TEME vector at t+{test.Minutes}min");
         Assert(positionErrorM <= 0.1 && velocityErrorMps <= 0.001,
             $"Vallado TEME mismatch at t+{test.Minutes}min: {positionErrorM}m, {velocityErrorMps}m/s");
-        comparisons.Add(new { test.Minutes, positionErrorM, velocityErrorMps, state });
+        var baselineState = sgpNetTrack.PredictTeme(state.Utc);
+        var baselineP = new[] { baselineState.XMetres, baselineState.YMetres, baselineState.ZMetres };
+        var baselineV = new[] { baselineState.VxMetresPerSecond, baselineState.VyMetresPerSecond, baselineState.VzMetresPerSecond };
+        double sgpNetReferencePositionErrorM = Distance(baselineP, test.P.Select(x => x * 1000.0).ToArray());
+        double sgpNetReferenceVelocityErrorMps = Distance(baselineV, test.V.Select(x => x * 1000.0).ToArray());
+        double orekitSgpPositionDifferenceM = Distance(predictedPosition, baselineP);
+        double orekitSgpVelocityDifferenceMps = Distance(predictedVelocity, baselineV);
+        Assert(double.IsFinite(sgpNetReferencePositionErrorM) &&
+               double.IsFinite(sgpNetReferenceVelocityErrorMps) &&
+               double.IsFinite(orekitSgpPositionDifferenceM) &&
+               double.IsFinite(orekitSgpVelocityDifferenceMps),
+            $"Invalid SGP.NET reference comparison at t+{test.Minutes}min");
+        comparisons.Add(new {
+            test.Minutes,
+            orekitReferencePositionErrorM = positionErrorM,
+            orekitReferenceVelocityErrorMps = velocityErrorMps,
+            sgpNetReferencePositionErrorM,
+            sgpNetReferenceVelocityErrorMps,
+            orekitSgpPositionDifferenceM,
+            orekitSgpVelocityDifferenceMps,
+            state
+        });
         Console.WriteLine($"Vallado 00005 t+{test.Minutes:F0}m: Δr={positionErrorM:F6} m; Δv={velocityErrorMps:F9} m/s");
     }
 
@@ -71,6 +97,11 @@ try
     var observation = interfaceTrack.Observe(
         new GroundStationSpec(28.5, 115.9, 40),
         instantUtc);
+    var baselineObservation = sgpNetTrack.Observe(
+        new GroundStationSpec(28.5, 115.9, 40), instantUtc);
+    Assert(double.IsFinite(baselineObservation.RangeMetres) &&
+           double.IsFinite(baselineObservation.RangeRateMetresPerSecond),
+        "SGP.NET station observation has invalid values");
     Assert(double.IsFinite(observation.AzimuthDegrees) &&
            double.IsFinite(observation.ElevationDegrees) &&
            double.IsFinite(observation.RangeMetres) &&
@@ -114,6 +145,7 @@ try
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
         observation,
+        baselineObservation,
         taiMinusUtcSeconds,
         loadedAssemblies = assemblies
     };
