@@ -301,33 +301,28 @@ jobs:
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body: |
-            SkyRoof-Plus v.${{ steps.get_version.outputs.version }} — Direct LAN READ FROM CI-V update (2026-11-11); includes prior native Icom Scope / IC-705 / IC-905 work.
+            SkyRoof-Plus v.1.69 — 2026-11-12: IC-9700 Direct LAN / SkyCAT scope reliability and bilingual settings update (based on v.1.68).
 
             ### 中文更新
-            - **Direct LAN 一键读取（SkyRoof-Plus PR #179、SkyCAT PR #37）**：设置页新增 `READ FROM CI-V`，通过现有 SkyCAT CAT/CI-V 连接只读查询 IC-9700 网络 IP、Network Control 状态及 Control / Serial / Audio UDP 端口。有效的 IP、Control 和 Serial 端口自动回填；Audio 和 Network Control 状态仅显示供核对；缺失或无效字段不覆盖原配置，点击 Apply/OK 才保存；不查询、更改用户名和密码。
-            - **独立验收**：IC-9700 CI-V 网络查询的严格报文关联和 BCD 解码已覆盖自动测试；Windows x64 编译、xUnit 和设置页四行布局测试已通过。实机网络读取尚未验证，不代表已经测试过 IC-9700 实机。
-            - **无需 RS-BA1 的高速原生频谱（PR #177）**：直接登录 IC-9700 Ethernet / IC-705 WLAN / IC-905 Ethernet，接收电台 CI-V 27 00 原生 475 点 Scope。UDP 接收与解码解耦、1 MiB 内核接收缓冲、256 包有界收包队列、最多 12 行/接收机的 UI 完整瀑布缓存。
-            - **Direct LAN FAST**：可选在连接成功后发送一次 27 1A FAST（默认开启，仅影响 DirectLan），有新的 UDP 序号/丢包与收包速率诊断；当波形实际中断时才请求重启 Scope 输出，不再无条件每 5 秒重发。
-            - **IC-705 / IC-905 兼容基础（PR #167–#172）**：核对并固定 SkyCAT master 依赖；设备能力档案、5/6 字节 CI-V BCD Hz、IC-905 10 GHz Scope 字段、单接收机识别、认证式网络 Scope 会话及独立 USB IF 路径。
-            - **原生网络音频 → IF-AF（PR #174–#175）**：RS-BA1 LPCM16 收帧与独立音频会话认证、16-bit 音频序号重排、缺包 DSP 重置、采样率转换至 48 kHz、现有 IF→AF DSP 与 VAC 输出。网络端须在电台选择 IF 而非 AF。
-            - **微波卫星（PR #173、#176）**：1296/2400/5760/10368 MHz 频段识别、精确光速 Doppler、微波 1 Hz CAT 频率量化、默认 100 ms 微波 CAT 周期，以及 TX 调谐/模式先于 PTT ON、PTT OFF 不被等待阻塞。
-            - **保留的原有功能**：IC-9700 双接收机、SkyCAT/RS-BA1 被动 Scope、CAT/PTT、CW/SSTV、旋转器与现有录音和音频处理路径。
-            - **验证标准**：固定版本 aislop@0.18.1、Windows x64 Release 全量 xUnit、6 组 CW FFT、安装包与 VB-CABLE/WinDivert 内容校验、发布资产回读 SHA-256 与签名状态。
-            - **实机验证边界**：自动测试不是 IC-9700/705/905 的真实 LAN FPS 或 RF/10 GHz PTT 验收。请使用 Diagnostics 比对 captured complete sweeps/s、delivered WF/s 与 native ingress dropped；音频 Output Select 与硬件兼容性需实机核对。
-            - **网络配置**：IC-9700 `MENU → SET → Network` 获取电台 IP，设置 `Network Control = ON`、`Network User1 ID/Password`，默认 UDP 控制端口 50001。电台相关网络设置变更后需重启。
-            - **签名说明**：SignPath 可用时签署安装包；否则明确以未签名 prerelease 发布，绝不冒称已签名。
+            - **设置菜单汉化：** 新增 RX 播放缓冲、TX 网络/采集/抖动缓冲、麦克风增益、语音 AGC 及其 RMS/门限/时间常数/限峰参数、自动选择 LAN MOD 输入、SkyCAT 独立频谱控制 CAT TCP 端口的中文名称、帮助文字和折叠摘要。沿用已有简体中文 / English 切换，不改旧版配置 JSON 键。
+            - **SkyCAT 频谱控制（PR #187）：** 单独连接 CAT TCP/4532 操作 MODE/SPAN/REF，频谱数据仍用 TCP/4535，真实 CI-V 回读、无波形时恢复控件、低优先级查询和断线重连。
+            - **Direct LAN TX 音频节奏（PR #188）：** 固定 20 ms PCM 发包，软件预填充与缓冲上限；记录采集欠载、丢样、发送迟滞及 PTT 状态，避免不规则 Windows 音频回调造成 UDP 突发/间断。
+            - **缓冲拆分与可选语音 AGC（PR #189）：** RX 本地播放默认 120 ms；TX 网络 150 ms、麦克风采集 150 ms、抖动预填充 60 ms、最大 250 ms 分开设置。AGC 默认 OFF，语音目标 −18 dBFS，最大增益 +12 dB，包含噪声门限、40/450 ms 启动/恢复与 −3 dBFS 峰值限制。FT4/FT8/Q65 数字模式建议保持 OFF。
+            - **调制源自动核验（PR #190）：** CI-V 读回 DATA OFF MOD / DATA MOD / LAN MOD Level；仅在实际 CAT PTT + 近期 PC TX PCM 时才纠正非 LAN 的调制输入，并通过独立读回核对；不会在纯接收/频谱浏览时切换电台话筒。电台选择可能在断线后持续保留，使用本机 MIC 前请手动检查。
+            - **仪表优先级（PR #184）：** RX S 表与发射 PO/ALC 差异化轮询、SSB 发射功率峰值保持，优先处理 PTT 和多普勒写频。
+            - **实机边界：** MIC dBFS/UDP TX 计数不是电台调制和 RF 功率证据。IC-9700 前面板 ALC/PO、LAN MOD、实际语音连续性及高帧率性能仍需实机验收。未配置 SignPath 时，安装包明确按未签名预发布版发布。
 
             ### English
-            - **One-click Direct LAN readback (SkyRoof-Plus #179 / SkyCAT #37):** `READ FROM CI-V` uses the existing SkyCAT CAT connection to query IC-9700 network IP, Network Control state, and Control / Serial / Audio UDP ports. Valid IP and Control/Serial ports fill the pending settings; audio port and enabled status are informational. Missing values do not overwrite existing fields; Apply/OK saves. Username and password are never queried or changed.
-            - **Validation:** Strict CI-V response association, BCD decoding, Windows x64 build, xUnit regression and four-row settings layout tests; real IC-9700 hardware readback remains unverified.
-            - **Independent high-rate Scope without RS-BA1 (#177):** Authenticated native Icom Ethernet/WLAN CI-V 27 00 sweep stream, large receive buffers, bounded decoding and UI waterfall backlog, explicit once-only FAST sweep control and rate/loss instrumentation.
-            - **IC-705/IC-905 profiles (#167–#172):** SkyCAT synchronization, 5/6-byte BCD frequency support, IC-905 10 GHz scope metadata, correct single-receiver capabilities, authenticated Direct LAN scope sessions, preserved USB IF input.
-            - **Network LPCM → IF-AF (#174–#175):** RX PCM16 session decoding, sequence reordering/gap recovery, 48-kHz resampling, IF demodulation and virtual AF output; select IF output at the radio.
-            - **Microwave satellites (#173, #176):** Band recognition through 10.368 GHz, accurate Doppler/Hz CAT, faster microwave tracking and TX tune-before-PTT sequencing with unconditional PTT OFF.
-            - **Quality and limitations:** Pinned aislop, complete Windows x64 tests, installer checks and published artifact integrity verification. CI protocol simulations do not establish measured radio FPS, actual hardware/network compatibility, or transmitted RF safety.
+            - Chinese labels, help and collapsed summaries for all recently added Icom Direct LAN RX/TX buffer, LAN MOD input, voice AGC and SkyCAT scope-only CAT settings; English names and persisted property keys unchanged.
+            - Independent SkyCAT scope CAT backend for MODE/SPAN/REF with real register readback (#187), retaining separate waveform TCP stream and priority for PTT/Doppler.
+            - Stable 20-ms TX PCM pacing, bounded microphone jitter buffering and underrun/overrun/PTT diagnostics (#188).
+            - Independent RX playback, TX network, mic capture and jitter buffers, plus optional voice RMS AGC and peak ceiling (#189). Default AGC OFF for FT4/FT8/Q65.
+            - Authenticated radio CI-V DATA OFF/DATA MOD and LAN level readback; optional LAN MOD auto-selection only during real PC audio transmission and CAT PTT, not passive RX/scope (#190).
+            - CI quality gates include Windows x64 build, xUnit, pinned aislop, installer/runtime checks and published artifact integrity. Real IC-9700 RF modulation, ALC/PO, RX audio and Doppler timing need operator hardware verification. Unsigned packages remain prereleases.
 
-            Updated guides: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/zh-cn/fork-guide/spectrum.md
-            Changelog: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/FORK-CHANGELOG.md
+            中文使用说明: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/zh-cn/fork-guide/spectrum.md
+            English guide: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/fork-guide/spectrum.md
+            Full changelog: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/FORK-CHANGELOG.md
 
           files:  install/SkyRoofSetup-v.${{ steps.get_version.outputs.version }}.exe
         env:
