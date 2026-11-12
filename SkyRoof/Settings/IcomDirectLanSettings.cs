@@ -43,8 +43,8 @@ namespace SkyRoof
     [DefaultValue(IcomLanAudioCodec.Lpcm16Mono)]
     public IcomLanAudioCodec Codec { get; set; } = IcomLanAudioCodec.Lpcm16Mono;
 
-    [DisplayName("RX prebuffer (ms)")]
-    [Description("Local WASAPI playback buffering; 20–500 ms. This setting does not delay the radio's scope stream.")]
+    [DisplayName("RX speaker playback buffer (ms)")]
+    [Description("Local Windows playback/output latency 20–500 ms; separate from network packet reordering and does not change radio RX latency.")]
     [DefaultValue(120)]
     public int PrebufferMs { get; set; } = 120;
 
@@ -54,10 +54,55 @@ namespace SkyRoof
     public string? SpeakerDeviceId { get; set; }
 
     [DisplayName("Speaker volume (%)")]
+    [Description("Local Windows playback level 0–100%; does not affect the IC-9700 received audio packets or IF demodulator.")]
     [DefaultValue(100)]
     public int SpeakerVolume { get; set; } = 100;
 
     public override string ToString() => Enabled ? "RX enabled" : "RX disabled";
+  }
+
+  /// <summary>Software voice leveling applied after fixed microphone gain,
+  /// before IC-9700 LAN PCM encoding. Disabled for digital modulation by default.</summary>
+  [JsonObject]
+  [TypeConverter(typeof(ExpandableObjectConverter))]
+  public sealed class IcomLanTxAgcSettings
+  {
+    [DisplayName("Enable voice AGC")]
+    [Description("Optional software speech leveler. Keep OFF for FT4/FT8/Q65 and calibrated digital waveforms.")]
+    [DefaultValue(false)]
+    public bool Enabled { get; set; }
+
+    [DisplayName("Target RMS (dBFS)")]
+    [Description("Desired voice RMS before Icom LAN encoding, typically -21 to -15 dBFS. Not a radio ALC or RF power setting.")]
+    [DefaultValue(-18.0)]
+    public double TargetRmsDbfs { get; set; } = -18.0;
+
+    [DisplayName("Maximum gain (dB)")]
+    [Description("Limits amplification of quiet speech; noise below the threshold is not boosted.")]
+    [DefaultValue(12.0)]
+    public double MaximumGainDb { get; set; } = 12.0;
+
+    [DisplayName("Noise floor (dBFS)")]
+    [Description("Below this RMS level the AGC stops adding gain, to avoid pumping microphone noise.")]
+    [DefaultValue(-48.0)]
+    public double NoiseFloorDbfs { get; set; } = -48.0;
+
+    [DisplayName("Attack (ms)")]
+    [Description("Reduction time when voice suddenly becomes louder. A short attack limits overshoot.")]
+    [DefaultValue(40)]
+    public int AttackMs { get; set; } = 40;
+
+    [DisplayName("Release (ms)")]
+    [Description("Recovery time when normal speech becomes quieter; slower release reduces pumping.")]
+    [DefaultValue(450)]
+    public int ReleaseMs { get; set; } = 450;
+
+    [DisplayName("Peak ceiling (dBFS)")]
+    [Description("Software PCM peak ceiling when AGC is enabled; does not replace IC-9700 ALC.")]
+    [DefaultValue(-3.0)]
+    public double PeakCeilingDbfs { get; set; } = -3.0;
+
+    public override string ToString() => Enabled ? "Voice AGC enabled" : "Voice AGC off";
   }
 
   [JsonObject]
@@ -77,10 +122,25 @@ namespace SkyRoof
     [DefaultValue(IcomLanAudioCodec.Lpcm16Mono)]
     public IcomLanAudioCodec Codec { get; set; } = IcomLanAudioCodec.Lpcm16Mono;
 
-    [DisplayName("TX prebuffer (ms)")]
-    [Description("Icom network transmit buffer negotiation (20–500 ms).")]
+    [DisplayName("TX network prebuffer (ms)")]
+    [Description("IC-9700 RS-BA1 connection-info TX buffer field; 20–500 ms. Independent from local microphone capture and software jitter buffers.")]
     [DefaultValue(150)]
     public int PrebufferMs { get; set; } = 150;
+
+    [DisplayName("TX microphone capture buffer (ms)")]
+    [Description("Local Windows WASAPI microphone capture buffer, 20–500 ms; does not change the Icom radio's network TX buffer.")]
+    [DefaultValue(150)]
+    public int CaptureBufferMs { get; set; } = 150;
+
+    [DisplayName("TX software jitter prefill (ms)")]
+    [Description("Additional local audio queued before the 20-ms TX clock starts sending speech, 0–250 ms. Does not alter the network TX buffer.")]
+    [DefaultValue(60)]
+    public int JitterPrefillMs { get; set; } = 60;
+
+    [DisplayName("TX software jitter maximum (ms)")]
+    [Description("Maximum local queued audio before oldest PCM is dropped, 60–500 ms. Must be at least the jitter prefill.")]
+    [DefaultValue(250)]
+    public int JitterMaximumMs { get; set; } = 250;
 
     [DisplayName("Microphone")]
     [Description("Windows recording endpoint; virtual audio cables are supported for digital modulation. The TX stream uses this audio only when CAT reports PTT ON.")]
@@ -88,8 +148,14 @@ namespace SkyRoof
     public string? MicrophoneDeviceId { get; set; }
 
     [DisplayName("Microphone gain (%)")]
+    [Description("Static PCM multiplier: 0–200%, applied before optional voice AGC. 100% is unity gain; 200% is +6.02 dB.")]
     [DefaultValue(100)]
     public int MicrophoneGain { get; set; } = 100;
+
+    [DisplayName("Voice AGC")]
+    [Description("Optional local speech leveling, noise-floor control and peak ceiling. Leave disabled for digital modulation.")]
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public IcomLanTxAgcSettings Agc { get; set; } = new();
 
     public override string ToString() => Enabled ? "TX enabled" : "TX disabled";
   }
