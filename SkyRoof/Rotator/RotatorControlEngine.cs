@@ -354,14 +354,14 @@ namespace SkyRoof
       // A valid protocol reply keeps the connection alive even when its angle
       // is an outlier. Preserve the last trusted bearing for open-loop tracking.
       long nowTicks = DateTime.UtcNow.Ticks;
-      Interlocked.Exchange(ref LastSuccessfulBearingReadTicks, nowTicks);
-      bool accepted, becameDegraded;
+      bool accepted, becameDegraded, recovered;
       lock (feedbackFilter)
       {
         bool wasDegraded = feedbackFilter.IsDegraded;
         accepted = feedbackFilter.Observe(bearing, new DateTime(nowTicks, DateTimeKind.Utc),
           LastWrittenBearing ?? RequestedBearing);
         becameDegraded = !wasDegraded && feedbackFilter.IsDegraded;
+        recovered = wasDegraded && !feedbackFilter.IsDegraded;
       }
       if (becameDegraded)
         Log.Warning("Rotator angle feedback outlier; continuing open-loop from last trusted AZ/EL without STOP.");
@@ -371,7 +371,10 @@ namespace SkyRoof
         OnBearingChanged();
         return;
       }
-      if (bearing == LastReadBearing && !FeedbackDegraded) return;
+      // PARK and the position display must not treat an outlier as fresh
+      // trusted feedback, even though the rotctld socket answered normally.
+      Interlocked.Exchange(ref LastSuccessfulBearingReadTicks, nowTicks);
+      if (bearing == LastReadBearing && !recovered) return;
       LastReadBearing = bearing;
       OnBearingChanged();
     }
