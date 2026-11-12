@@ -107,6 +107,13 @@ namespace SkyRoof
     internal int? Data => data;
     internal int? LanLevel => lanLevel;
 
+    internal static bool ShouldAutoSelect(
+      bool enabled, bool catPtt, long lastPcmTicks, long nowTicks) =>
+      enabled && catPtt && lastPcmTicks > 0 &&
+      nowTicks >= lastPcmTicks &&
+      nowTicks - lastPcmTicks <
+        TimeSpan.FromMilliseconds(1500).Ticks;
+
     internal IcomLanModRegister NextPoll(int index) =>
       (index % 3) switch
       {
