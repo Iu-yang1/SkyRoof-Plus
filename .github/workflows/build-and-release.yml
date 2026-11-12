@@ -237,6 +237,18 @@ jobs:
           (Get-Content $issFile) -replace '#define MyAppVersion ".*?"', "#define MyAppVersion `"$version`"" | Set-Content $issFile
         shell: pwsh
 
+      - name: Restore isolated Orekit runtime (locked)
+        run: dotnet restore SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj --locked-mode
+
+      - name: Build and stage Orekit IKVM assemblies
+        shell: pwsh
+        run: |
+          dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore
+          ./scripts/stage-orekit-backend.ps1 -Configuration Release
+
+      - name: Validate Orekit TLE and OMM before packaging
+        run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-build --no-restore -- SkyRoof.Orbit.Orekit.Smoke/TestData artifacts/orekit-release/p0-smoke.json
+
       - name: Package with Inno Setup
         run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DIF_AF_BUNDLE_VBCABLE "install\SkyRoof.iss"'
         shell: cmd

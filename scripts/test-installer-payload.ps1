@@ -9,7 +9,9 @@ $target = Join-Path $env:RUNNER_TEMP "SkyRoof-Installer-Smoke-$env:GITHUB_RUN_ID
 
 $mandatory = @('SkyRoof.exe', 'SkyRoof.dll', 'SkyRoof.deps.json',
   'SkyRoof.runtimeconfig.json', 'System.IO.Ports.dll',
-  'SkyCat.dll', 'skycatd.dll')
+  'SkyCat.dll', 'skycatd.dll', 'SkyRoof.Orbit.Contracts.dll',
+  'SkyRoof.Orbit.Orekit.dll', 'org.orekit.dll', 'hipparchus.core.dll',
+  'IKVM.Java.dll', 'IKVM.Runtime.dll')
 foreach ($name in $mandatory) {
   if (-not (Test-Path -LiteralPath (Join-Path $build $name))) {
     throw "Build output missing required runtime file: $name"
@@ -50,6 +52,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $target $rig))) {
 $rigJson = Get-Content -LiteralPath (Join-Path $target $rig) -Raw | ConvertFrom-Json
 if ($rigJson.id -ne 3081) {
   throw "Installed IC-9700 SkyCAT command file has unexpected model ID."
+}
+
+$leapRelative = 'orekit-data\tai-utc.dat'
+if (-not (Test-Path -LiteralPath (Join-Path $target $leapRelative))) {
+  throw 'Installer omitted Orekit UTC-TAI data.'
+}
+if ((Get-FileHash (Join-Path $build $leapRelative) -Algorithm SHA256).Hash -ne
+    (Get-FileHash (Join-Path $target $leapRelative) -Algorithm SHA256).Hash) {
+  throw 'Installed Orekit UTC-TAI data differs from the reviewed build data.'
 }
 
 # Every top-level application .dll must survive packaging and installation.

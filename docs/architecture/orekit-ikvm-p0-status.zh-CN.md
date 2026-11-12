@@ -74,3 +74,9 @@
 - `SatelliteTracker` 的 `Predict/Observe/ComputePasses` 通过契约适配到 Orekit，外部仍返回现有 SGP.NET 值对象。真实 JPL Moon/Sun/Venus 后端不修改。
 - 若某一元素的 Orekit 创建失败，保留原有效的 SGP.NET 传播能力并记录 WARN；整体引擎加载失败则显示错误并选择 SGP.NET。不会因无实机而关闭任何已实现的追踪控制。
 - 用户数据默认位于 `orekit-data`，第一次使用时从安装目录复制 UTC-TAI 历史；EOP 可通过自定义目录导入。尚需完成独立产物打包、NuGet 锁定、发行版实时控制验证。
+
+## P6 安装器集成（待 CI 复验）
+
+- 正式 Compile Check 与主分支 Release 工作流新增独立的锁定 Orekit 恢复/编译步骤，调用 `scripts/stage-orekit-backend.ps1` 将 IKVM、Hipparchus、Orekit 转换程序集复制进 SkyRoof 构建目录。
+- Inno Setup 纳入 `orekit-data/tai-utc.dat`；安装后 payload 测试核对主要 IKVM/转换 DLL、UTC 时间数据哈希和原有 Windows Runtime DLL，避免“仅实验程序能运行”的半成品。
+- 当前仍需提交 regenerated lockfiles、确认第三方许可证、验证安装目录独立加载、UI 后端切换和路径恢复、CPU/内存。不能在这一步直接发布正式 Release。
