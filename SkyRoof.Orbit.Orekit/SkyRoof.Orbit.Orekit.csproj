@@ -9,7 +9,7 @@
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\\SkyRoof.Orbit.Contracts\\SkyRoof.Orbit.Contracts.csproj" />
+    <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Explicitly align the IKVM Java class library with the tested runtime candidate. -->
