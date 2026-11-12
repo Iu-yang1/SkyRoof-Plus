@@ -21,6 +21,7 @@ internal static class ValladoReferenceSuite
     private readonly record struct TleCase(int Norad, string Line1, string Line2);
     private readonly record struct ReferenceSample(
         double Minutes, double[] PositionKm, double[] VelocityKmPerSecond);
+    private sealed record ReferenceBlock(int Norad, List<ReferenceSample> Samples);
 
     internal static ValladoReferenceReport Run(
         string dataDirectory, IOrbitBackend orekit, IOrbitBackend sgpNet)
@@ -35,15 +36,29 @@ internal static class ValladoReferenceSuite
 
         var cases = ReadCases(tlePath);
         var vectors = ReadVectors(vectorPath);
-        int referenceCount = vectors.Values.Sum(x => x.Count);
-        if (cases.Count < 30 || referenceCount < 600)
+        if (cases.Count != vectors.Count ||
+            cases.Where((c, i) => c.Norad != vectors[i].Norad).Any())
+            throw new InvalidDataException(
+                "Vallado element sets do not match reference blocks in sequence.");
+
+        int referenceCount = vectors.Sum(x => x.Samples.Count);
+        if (cases.Count != 33 || referenceCount < 600)
             throw new InvalidDataException("Vallado dataset is incomplete.");
 
-        var results = cases.Select(c =>
-            Evaluate(c, vectors.GetValueOrDefault(c.Norad), orekit, sgpNet)).ToArray();
+        // The last test reuses NORAD 20413 with a distinct TLE. Matching by
+        // NORAD alone aliases its two epochs and creates multi-megametre
+        // false errors; the upstream oracle is ordered by verification case.
+        var results = cases.Select((c, i) =>
+            Evaluate(c, vectors[i].Samples, orekit, sgpNet)).ToArray();
         int errors = results.Count(x => x.Error is not null);
         int compared = results.Sum(x => x.ComparedSamples);
         double maximum = results.Max(x => x.MaxOrekitPositionErrorMetres);
+        var unexpected = results.Where(x => x.Error is not null && x.Norad != 33334).ToArray();
+        if (unexpected.Length > 0 || compared < 650 ||
+            results.Count(x => x.Norad == 33334 && x.Error is not null) != 1)
+            throw new InvalidDataException(
+                $"Vallado valid-case coverage failure: {compared}/{referenceCount} " +
+                $"samples, unexpected failures: {string.Join("; ", unexpected.Select(x => x.Error))}");
         Console.WriteLine(
             $"Vallado 33-case verification: reference={referenceCount}, compared={compared}, " +
             $"incomplete/failed={errors}, max TEME Δr={maximum:F6} m");
@@ -85,6 +100,9 @@ internal static class ValladoReferenceSuite
                     double p = Delta(new[] { state.XMetres, state.YMetres, state.ZMetres }, sample.PositionKm);
                     double v = Delta(new[] { state.VxMetresPerSecond,
                         state.VyMetresPerSecond, state.VzMetresPerSecond }, sample.VelocityKmPerSecond);
+                    if (!double.IsFinite(p) || !double.IsFinite(v))
+                        throw new ArithmeticException(
+                            "Non-finite reference or propagated orbit state");
                     maxP = Math.Max(maxP, p);
                     maxV = Math.Max(maxV, v);
                     sumSqP += p * p;
@@ -93,9 +111,11 @@ internal static class ValladoReferenceSuite
                     if (sgpTrack is not null)
                     {
                         OrbitState baseline = sgpTrack.PredictTeme(epoch.AddMinutes(sample.Minutes));
-                        maxSgpP = Math.Max(maxSgpP,
-                            Delta(new[] { baseline.XMetres, baseline.YMetres, baseline.ZMetres },
-                                  sample.PositionKm));
+                        double sgpDelta = Delta(
+                            new[] { baseline.XMetres, baseline.YMetres, baseline.ZMetres },
+                            sample.PositionKm);
+                        if (double.IsFinite(sgpDelta))
+                            maxSgpP = Math.Max(maxSgpP, sgpDelta);
                     }
                 }
                 catch (Exception ex)
@@ -134,10 +154,10 @@ internal static class ValladoReferenceSuite
         return result;
     }
 
-    private static Dictionary<int, List<ReferenceSample>> ReadVectors(string path)
+    private static List<ReferenceBlock> ReadVectors(string path)
     {
-        var result = new Dictionary<int, List<ReferenceSample>>();
-        int? active = null;
+        var result = new List<ReferenceBlock>();
+        ReferenceBlock? current = null;
         foreach (string line in File.ReadLines(path))
         {
             string[] fields = line.Split((char[]?)null,
@@ -145,18 +165,18 @@ internal static class ValladoReferenceSuite
             if (fields.Length == 2 && fields[1] == "xx" &&
                 int.TryParse(fields[0], CultureInfo.InvariantCulture, out int id))
             {
-                active = id;
-                result.TryAdd(id, new List<ReferenceSample>());
+                current = new ReferenceBlock(id, new List<ReferenceSample>());
+                result.Add(current);
             }
-            else if (active is not null && fields.Length >= 7 &&
+            else if (current is not null && fields.Length >= 7 &&
                      double.TryParse(fields[0], NumberStyles.Float,
                          CultureInfo.InvariantCulture, out double minutes))
             {
-                var p = fields.Skip(1).Take(3)
+                var position = fields.Skip(1).Take(3)
                     .Select(v => double.Parse(v, CultureInfo.InvariantCulture)).ToArray();
-                var v = fields.Skip(4).Take(3)
-                    .Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
-                result[active.Value].Add(new ReferenceSample(minutes, p, v));
+                var velocity = fields.Skip(4).Take(3)
+                    .Select(v => double.Parse(v, CultureInfo.InvariantCulture)).ToArray();
+                current.Samples.Add(new ReferenceSample(minutes, position, velocity));
             }
         }
         return result;
