@@ -86,3 +86,9 @@
 - 新增 `SkyRoof.Orbit.InstallerSmoke`，只依赖纯 .NET Contracts，模拟将应用安装在全新目录，再通过 `Assembly.LoadFrom` 加载已安装的 Orekit 插件。
 - 覆盖安装目录的 UTC 数据初始化、TLE/TEME、WGS-84 站心观测和六位 NORAD OMM；不注册额外 AssemblyLoadContext 解析器，防止测试掩盖生产端缺失依赖。
 - 原有安装器安装与 .deps.json RID 资产检查继续执行。该烟测不替代现场真实电台/旋转器确认。
+
+## IKVM 8.16.3 平台资产定位
+
+- 正式 Windows P0 证据显示 `IKVM.CoreLib.dll`、`IKVM.Java.dll`、`IKVM.Runtime.dll` 主要位于 `runtimes/win/lib/net8.0`，`ikvm.dll` 位于 `runtimes/win-x64/native`。不能假定它们在烟测程序顶层目录。
+- 安装器准备脚本现按 RID 拷贝这三份 Windows 托管运行库及 x64 本地动态库到对应目录，同时提供顶层程序集以支持 SkyRoof 的显式 Orekit 插件加载；Inno Setup 与安装后检查明确覆盖这些路径。
+- 这是根据已获得的实际程序集清单对打包遗漏故障进行修复；等待完整安装器 CI 才能确认闭环。

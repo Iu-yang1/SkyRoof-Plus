@@ -54,6 +54,15 @@ if ($rigJson.id -ne 3081) {
   throw "Installed IC-9700 SkyCAT command file has unexpected model ID."
 }
 
+$ikvmNative = 'runtimes\win-x64\native\ikvm.dll'
+$ikvmManaged = 'runtimes\win\lib\net8.0\IKVM.Java.dll'
+foreach ($name in @($ikvmNative, $ikvmManaged)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $build $name)) -or
+      -not (Test-Path -LiteralPath (Join-Path $target $name))) {
+    throw "Installed IKVM runtime dependency missing: $name"
+  }
+}
+
 $leapRelative = 'orekit-data\tai-utc.dat'
 if (-not (Test-Path -LiteralPath (Join-Path $target $leapRelative))) {
   throw 'Installer omitted Orekit UTC-TAI data.'

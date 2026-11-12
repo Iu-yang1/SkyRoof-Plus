@@ -77,6 +77,8 @@ Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\lib\SoapySDR\modules0.8\LM
 ; System.IO.Ports 10.0 lives here; omitting it causes an assembly load error
 ; during SkyRoof startup even when {app}\System.IO.Ports.dll is present.
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\runtimes\win\lib\net10.0\*.dll; DestDir: {app}\runtimes\win\lib\net10.0; Flags: overwritereadonly ignoreversion
+Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\runtimes\win\lib\net8.0\IKVM*.dll; DestDir: {app}\runtimes\win\lib\net8.0; Flags: overwritereadonly ignoreversion
+Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\runtimes\win-x64\native\ikvm.dll; DestDir: {app}\runtimes\win-x64\native; Flags: overwritereadonly ignoreversion
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\orekit-data\tai-utc.dat; DestDir: {app}\orekit-data; Flags: overwritereadonly ignoreversion
 Source: ..\licenses\*; DestDir: {app}\licenses; Flags: overwritereadonly ignoreversion recursesubdirs createallsubdirs
 Source: ..\Vendor\SkyCAT\LICENSE.txt; DestDir: {app}\licenses; DestName: SkyCAT-MIT.txt; Flags: overwritereadonly ignoreversion

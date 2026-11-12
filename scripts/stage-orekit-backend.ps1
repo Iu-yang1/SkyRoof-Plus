@@ -17,12 +17,6 @@ $required = @(
   'IKVM.Java.dll',
   'IKVM.Runtime.dll'
 )
-foreach ($name in $required) {
-  if (-not (Test-Path (Join-Path $source $name))) {
-    throw "Orekit backend build is incomplete: $name"
-  }
-}
-
 $copied = @()
 $exclude = @(
   'SkyRoof.Orbit.Orekit.Smoke.dll',
@@ -42,6 +36,37 @@ foreach ($file in Get-ChildItem $source -Filter '*.dll' -File) {
   }
   Copy-Item $file.FullName -Destination $destination -Force
   $copied += $file.Name
+}
+
+# IKVM 8.16.3 places platform-specific managed assemblies under
+# runtimes/win/lib/net8.0, not beside the generated Orekit DLL.
+$ikvmManagedSource = Join-Path $source 'runtimes/win/lib/net8.0'
+$ikvmManagedDest = Join-Path $target 'runtimes/win/lib/net8.0'
+New-Item -ItemType Directory -Path $ikvmManagedDest -Force | Out-Null
+$ikvmManaged = @('IKVM.CoreLib.dll', 'IKVM.Java.dll', 'IKVM.Runtime.dll')
+foreach ($name in $ikvmManaged) {
+  $from = Join-Path $ikvmManagedSource $name
+  if (-not (Test-Path $from)) {
+    throw "IKVM 8.16.3 Windows runtime dependency missing: $from"
+  }
+  Copy-Item $from (Join-Path $ikvmManagedDest $name) -Force
+  Copy-Item $from (Join-Path $target $name) -Force
+  $copied += $name
+}
+
+$nativeSource = Join-Path $source 'runtimes/win-x64/native/ikvm.dll'
+if (-not (Test-Path $nativeSource)) {
+  throw "IKVM Windows x64 native runtime missing: $nativeSource"
+}
+$nativeTarget = Join-Path $target 'runtimes/win-x64/native'
+New-Item -ItemType Directory -Path $nativeTarget -Force | Out-Null
+Copy-Item $nativeSource (Join-Path $nativeTarget 'ikvm.dll') -Force
+Copy-Item $nativeSource (Join-Path $target 'ikvm.dll') -Force
+
+foreach ($name in $required) {
+  if (-not (Test-Path (Join-Path $target $name))) {
+    throw "Staged Orekit/IKVM runtime dependency missing: $name"
+  }
 }
 
 $out = "artifacts/orekit-release"
