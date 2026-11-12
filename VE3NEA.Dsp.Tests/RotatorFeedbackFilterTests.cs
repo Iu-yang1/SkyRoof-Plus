@@ -6,7 +6,7 @@ namespace VE3NEA.Dsp.Tests;
 
 public sealed class RotatorFeedbackFilterTests
 {
-  private static Bearing At(double az,double el) =>
+  private static SkyRoof.Bearing At(double az,double el) =>
     new(az*Math.PI/180,el*Math.PI/180);
 
   [Fact]
