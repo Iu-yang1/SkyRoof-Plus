@@ -111,3 +111,9 @@
 - 提交了附来源/哈希与再分发说明的 `TestData/Vallado/SGP4-VER.TLE` 和 `tcppver.out` 固定参考样本（33 组测试轨道、600 余组 TEME 状态）。
 - 新增 `ValladoReferenceSuite` 逐样本计算 Orekit 位置/速度和 SGP.NET 位置差，输出分类、最大/RMS 误差、失败输入、异常时间；测试代码将归档运行 JSON，引用来源为 Vallado 2006 的 WGS-72、AFSPC 模式。
 - 完整 33 组的状态验证目前是**诊断统计而非最终全量精度验收**，因为不同传播常数、运行模式及预期衰减/异常代码可能造成差异。后续应基于首次差异结果逐案例归因，再固定分组验收阈值，不能把一致性当成绝对轨道物理精度。
+
+## 安装后 IKVM HomePath 缺失的故障与修复
+
+- Windows 安装后烟测在 `JVM.Properties.GetHomePath` 报 `Could not locate ikvm home path`；当时 Inno 已包含转换 DLL 与 `runtimes/win-x64/native/ikvm.dll`，但缺少 Java 类库镜像目录和根目录 `ikvm.properties`。
+- 已对照 IKVM 8.16.3 源码 `src/IKVM.Runtime/JVM.Properties.cs` 和 `src/IKVM.Image/buildTransitive/IKVM.Image.targets`：默认 `ikvm.home.root=ikvm`，运行时搜索 `ikvm/win-x64`。现在 staging 和安装器一起复制 `ikvm.properties` 与 `ikvm/win-x64` 树，而不是仅拷贝 DLL。
+- 安装器校验增加 Java HomePath 镜像目录、属性文件与文件数量检查，并保留真正的独立目录反射启动和轨道计算测试。没有绕过 IKVM 原本的启动约束。

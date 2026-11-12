@@ -54,6 +54,22 @@ if ($rigJson.id -ne 3081) {
   throw "Installed IC-9700 SkyCAT command file has unexpected model ID."
 }
 
+$ikvmProperties = 'ikvm.properties'
+$ikvmImage = 'ikvm\win-x64'
+foreach ($root in @($build, $target)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $root $ikvmProperties))) {
+    throw "IKVM home properties are missing from: $root"
+  }
+  $home = Join-Path $root $ikvmImage
+  if (-not (Test-Path -LiteralPath $home -PathType Container)) {
+    throw "IKVM Java home image is missing: $home"
+  }
+  $count = (Get-ChildItem -LiteralPath $home -Recurse -File | Measure-Object).Count
+  if ($count -lt 10) {
+    throw "IKVM Java home image has only $count files: $home"
+  }
+}
+
 $ikvmNative = 'runtimes\win-x64\native\ikvm.dll'
 $ikvmManaged = 'runtimes\win\lib\net8.0\IKVM.Java.dll'
 foreach ($name in @($ikvmNative, $ikvmManaged)) {

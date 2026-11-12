@@ -69,6 +69,28 @@ foreach ($name in $required) {
   }
 }
 
+# IKVM.Image installs a Java class-library image under ikvm/<RID>.
+# A standalone plugin must carry the image AND ikvm.properties. The DLLs
+# alone cannot initialize JVM.Properties.GetHomePath().
+$ikvmHomeSource = Join-Path $source 'ikvm/win-x64'
+$ikvmHomeDest = Join-Path $target 'ikvm/win-x64'
+$ikvmPropsSource = Join-Path $source 'ikvm.properties'
+if (-not (Test-Path $ikvmHomeSource -PathType Container)) {
+  throw "IKVM Windows x64 runtime image directory missing: $ikvmHomeSource"
+}
+if (-not (Test-Path $ikvmPropsSource -PathType Leaf)) {
+  throw "IKVM home configuration file missing: $ikvmPropsSource"
+}
+New-Item -ItemType Directory -Path $ikvmHomeDest -Force | Out-Null
+Copy-Item (Join-Path $ikvmHomeSource '*') -Destination $ikvmHomeDest -Recurse -Force
+Copy-Item $ikvmPropsSource (Join-Path $target 'ikvm.properties') -Force
+
+$ikvmHomeFileCount = (Get-ChildItem $ikvmHomeDest -File -Recurse | Measure-Object).Count
+if ($ikvmHomeFileCount -lt 10) {
+  throw "Incomplete IKVM Java runtime image: only $ikvmHomeFileCount files"
+}
+Write-Host "IKVM Java home image staged: $ikvmHomeDest ($ikvmHomeFileCount files)"
+
 $out = "artifacts/orekit-release"
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 $manifest = foreach ($name in $required) {
