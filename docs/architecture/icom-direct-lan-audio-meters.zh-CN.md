@@ -104,7 +104,7 @@ TX 固定 `MicrophoneGain` 是 0–200% 的软件 PCM 倍率（100% = 0 dB、200
 
 - IC-9700 `MENU → SET → Connectors → MOD Input`：`DATA OFF MOD`（非 DATA 的 SSB/FM/AM）和 `DATA MOD`（USB-D/FM-D 等数据模式）均支持 `LAN`；出厂默认分别为 `MIC,ACC` 和 `ACC`。
 - CI-V 官方寄存器 `1A 05 0115` 为 DATA OFF MOD、`1A 05 0116` 为 DATA MOD；`05` 代表 LAN。`1A 05 0114` 为 LAN MOD Level，返回 0000–0255 的相对 BCD 刻度。
-- Native Direct LAN TX 开始后按低优先级轮询三个寄存器并显示真实回读状态；选中 `Transmit → Auto select LAN MOD input`（默认 ON）时，只有已确认电台当前选择非 LAN，才向对应寄存器发送一次 `05` 写入，然后继续独立轮询核验，不假设发出命令就是已生效。
+- Native Direct LAN TX 开始后按低优先级轮询三个寄存器并显示真实回读状态；选中 `Transmit → Auto select LAN MOD input`（默认 ON）时，只有已确认电台当前选择非 LAN，才向对应寄存器发送 `05` 写入，并通过新的电台回读核验；如果电台持续报告非 LAN，最多重试三次，不假设发出命令就是已生效。
 - 用户可以关闭自动选择，以保留电台的手动输入源。**自动选择是电台级持久设置，并不保证断开 SkyRoof 时自动恢复 MIC；使用手持麦克风或本机讲话前，请按需将该设置改回 MIC/MIC,ACC。**
 - 自动选择不发送 PTT、频率、模式或 LAN MOD Level 增益写入；LAN MOD Level 若为 0%，会显示警告但不会擅自放大电台的输入电平。TX AGC 与这个寄存器设置互相独立。
 
