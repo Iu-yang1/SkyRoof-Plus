@@ -1079,9 +1079,18 @@ namespace SkyRoof
               out IcomLanModReading reading))
           continue;
 
-        bool autoSelect = AudioOptions.Transmit.AutoSelectLanModInput;
-        ModInputState.Apply(reading, autoSelect);
-        if (ModInputState.TryGetCorrection(reading, autoSelect,
+        bool configuredAutoSelect = AudioOptions.Transmit.AutoSelectLanModInput;
+        // Merely opening the spectrum/RX session must not silently disable
+        // the front-panel microphone. Apply automatic LAN MOD switching only
+        // while SkyRoof is actually streaming TX audio with CAT PTT asserted.
+        long lastSentTicks = Interlocked.Read(ref LastSentAudioTicks);
+        bool streamingPcTx = IsPttActive?.Invoke() == true &&
+          lastSentTicks > 0 &&
+          DateTime.UtcNow.Ticks - lastSentTicks <
+            TimeSpan.FromMilliseconds(1500).Ticks;
+        ModInputState.Apply(reading, configuredAutoSelect);
+        if (ModInputState.TryGetCorrection(reading,
+              configuredAutoSelect && streamingPcTx,
               out IcomLanModRegister register))
         {
           await SendCivDataAsync(civ,
