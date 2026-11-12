@@ -90,11 +90,15 @@ namespace VE3NEA.Dsp.Tests
       state.TryGetCorrection(normal, true, out var toSet)
         .Should().BeTrue();
       toSet.Should().Be(IcomLanModRegister.DataOffSource);
+      state.TryGetCorrection(normal, true, out _).Should().BeTrue();
+      state.TryGetCorrection(normal, true, out _).Should().BeTrue();
       state.TryGetCorrection(normal, true, out _).Should().BeFalse();
 
       state.Apply(data, true);
       state.TryGetCorrection(data, true, out toSet).Should().BeTrue();
       toSet.Should().Be(IcomLanModRegister.DataSource);
+      state.TryGetCorrection(data, true, out _).Should().BeTrue();
+      state.TryGetCorrection(data, true, out _).Should().BeTrue();
       state.TryGetCorrection(data, true, out _).Should().BeFalse();
 
       var confirmedNormal = normal with { Value = 5 };
