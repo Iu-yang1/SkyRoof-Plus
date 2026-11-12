@@ -1060,19 +1060,19 @@ namespace SkyRoof
     private async Task ApplyRadioModReadbackAsync(
       UdpClient civ, byte[] payload, CancellationToken token)
     {
-      if (!AudioOptions.Transmit.Enabled || payload.Length < 11)
+      if (!AudioOptions.Transmit.Enabled || payload.Length < 10)
         return;
 
-      for (int offset = 0; offset + 11 <= payload.Length; offset++)
+      for (int offset = 0; offset + 10 <= payload.Length; offset++)
       {
         if (payload[offset] != 0xFE ||
             payload[offset + 1] != 0xFE ||
             payload[offset + 4] != 0x1A)
           continue;
 
-        int size = offset + 12 <= payload.Length &&
+        int size = offset + 11 <= payload.Length &&
           payload[offset + 7] == (byte)IcomLanModRegister.LanLevel
-          ? 12 : 11;
+          ? 11 : 10;
         if (offset + size > payload.Length ||
             !IcomLanModCivCodec.TryParse(
               payload.AsSpan(offset, size), RadioCivAddress,
