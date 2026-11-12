@@ -418,7 +418,7 @@ public sealed class NativeRotatorWorkerTests
   }
 
   [Fact]
-  public async Task SuddenPositionJumpLatchesFaultAndTransmitsStop()
+  public async Task SuddenPositionJumpIsIgnoredWhileNativeOpenLoopCommandsContinue()
   {
     int reads=0;
     await using var server=new FakeGs232Bridge(_=>
@@ -429,12 +429,20 @@ public sealed class NativeRotatorWorkerTests
     using var engine=new NativeRotatorControlEngine(settings);
 
     await UntilAsync(()=>engine.LastReadBearing!=null);
-    await UntilAsync(()=>engine.PositionFaulted);
-    await UntilAsync(()=>server.Count("S")>0);
-    int before=server.Commands.Count(x=>x.StartsWith("W",StringComparison.Ordinal));
-    engine.RotateTo(new SkyRoof.Bearing(Math.PI/3,Math.PI/6));
-    await Task.Delay(250);
-    Assert.Equal(before,server.Commands.Count(x=>x.StartsWith("W",StringComparison.Ordinal)));
+    await UntilAsync(()=>engine.FeedbackDegraded);
+    Assert.False(engine.PositionFaulted);
+    Assert.True(engine.FeedbackAzimuthSuspect);
+    Assert.Equal(90,engine.LastReadBearing!.AzDeg,1);
+    Assert.Equal(150,engine.LastRejectedBearing!.AzDeg,1);
+    Assert.Equal(0,server.Count("S"));
+
+    engine.RotateTo(new SkyRoof.Bearing(120*Math.PI/180,Math.PI/6));
+    await UntilAsync(()=>server.Count("W120 030")>0);
+    engine.RotateTo(new SkyRoof.Bearing(130*Math.PI/180,Math.PI/6));
+    await UntilAsync(()=>server.Count("W130 030")>0);
+    Assert.True(engine.FeedbackDegraded);
+    Assert.Equal(90,engine.LastReadBearing!.AzDeg,1);
+    Assert.Equal(0,server.Count("S"));
   }
 
   [Fact]
