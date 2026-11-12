@@ -668,8 +668,35 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
             // silently switch a live planned route to an unrestricted
             // Direct W command if a checkbox changed mid-movement.
             bool planning=plannerAuthorizedAtEngineStart;
+            bool openLoop=FeedbackDegraded;
             bool plannerBlocked=false;
-            if(planning)
+            if(planning && openLoop)
+            {
+              // Bad C2 frames are not new position evidence. Generate bounded
+              // open-loop waypoints from the last trusted/commanded reference;
+              // never bypass the selected acceleration/jerk profile.
+              if(!HasFreshPositionLockedThreadSafe() || openLoopReference==null)
+                plannerBlocked=true;
+              else if(lastPlannerCommandTick!=0 &&
+                      Environment.TickCount64-lastPlannerCommandTick<450)
+                plannerBlocked=true;
+              else
+              {
+                var reference=openLoopReference.Value;
+                long tick=Environment.TickCount64;
+                double dt=lastPlanTick==0 ? 0.45 :
+                  Math.Clamp((tick-lastPlanTick)/1000.0,0.02,0.5);
+                lastPlanTick=tick;
+                var next=motionPlanner.Step(
+                  reference.Azimuth,reference.Elevation,
+                  target.AzDeg,target.ElDeg,
+                  dt,plannerProfileAtEngineStart,plannerLimitsAtEngineStart);
+                p=plannerFeedback.BoundSetpoint(reference,
+                  new RotatorPosition(next.Azimuth,next.Elevation),
+                  plannerLimitsAtEngineStart);
+              }
+            }
+            else if(planning)
             {
               Bearing? actual;DateTime readUtc;bool fresh;
               lock(sync)
@@ -787,6 +814,16 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
               if(planning)
               {
                 lastPlannerCommandTick=Environment.TickCount64;
+                if(openLoop)
+                {
+                  // This advances the open-loop *command* reference only. It
+                  // must not be published as measured feedback or fed to C2.
+                  openLoopReference=p;
+                  Log.Information("RC-3040S open-loop W reference AZ={Az:F0} EL={El:F0}; physical shaft position unverified",
+                    p.Azimuth,p.Elevation);
+                }
+                else
+                {
                 Bearing? reported;
                 lock(sync)reported=lastRead;
                 if(reported!=null)
@@ -798,6 +835,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
                   Log.Information("RC-3040S planned W endpoint AZ={CommandAz:F0} EL={CommandEl:F0}, last C2 AZ={FeedbackAz:F1} EL={FeedbackEl:F1}, profile={Profile}; endpoint is not measured shaft position",
                     p.Azimuth,p.Elevation,observed.Azimuth,
                     observed.Elevation,plannerProfileAtEngineStart);
+                }
                 }
               }
               lock(sync)
