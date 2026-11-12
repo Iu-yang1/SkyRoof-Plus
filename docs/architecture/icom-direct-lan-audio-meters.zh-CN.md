@@ -73,6 +73,31 @@
 
 **实机复测**：建议与对方连续测试 30–60 秒 SSB 语音，或使用独立接收机录制；同时观察本机 TX 发射是否始终保持、`lateTicks`、`underrunSilenceSamples` 和 `captureQueueOverflows` 是否增加。若统计稳定但对方仍然听到间歇，应继续核对电台 LAN MOD 输入、网络丢包、外部监听录音，以及端到端实际 PTT 状态。官方 RS-BA1 / wfview 的经验同样表明 TX 预缓冲过低、网络负载过高和高采样率可能导致断续；这是后续排查方向，不是自动化测试已经证明的故障根因。
 
+## 2026-11-12 TX/RX 预缓冲重新核对与 TX 语音 AGC
+
+本轮拆分了原来共用 `Transmit.PrebufferMs` 的两套功能。原有 JSON 字段 `PrebufferMs` 保持原名和默认 150 ms，**仅用于发给 IC-9700 的 RS-BA1 TX network buffer 协商字段**；新字段 `CaptureBufferMs`（默认 150 ms）单独用于 Windows WASAPI `InputSoundcard` 录音缓冲；`JitterPrefillMs`（默认 60 ms）与 `JitterMaximumMs`（默认 250 ms）分别设定 SkyRoof 20 ms 音频定时发送器的启动预填充量和最大积压量。
+
+RX 的 `Receive.PrebufferMs` 默认 120 ms，只传给 48 kHz `OutputSoundcard` 的 `latencyMilliseconds` 参数；它不更改电台 UDP 接收参数。RX 网络包还受 `IcomNetworkIfPcmPipeline` 最大 8 包／100 ms 的乱序等待窗口影响，这是不同层级的缓存。RX 扬声器音量 `SpeakerVolume`（0–100%）设置本地播放器音量，不修改无线电的 AF 增益、RF 增益或 LAN 原始音频。
+
+TX 固定 `MicrophoneGain` 是 0–200% 的软件 PCM 倍率（100% = 0 dB、200% ≈ +6.02 dB），在音频编包前应用。新增 `Transmit → Voice AGC`：默认**关闭**，供 SSB/FM 语音手动开启；不要对 FT4/FT8/Q65 或经过校准的数字调制信号开启。语音 AGC 为每个 20 ms PCM 帧维护连续增益状态，按帧 RMS 和目标电平调整，静音／低于噪声门限时不提升到语音目标，并使用峰值上限避免数字采样削波。停止 PTT 时重置 AGC 增益状态，不进行独立的 CAT/PTT 操作。
+
+| 参数 | 默认值 | 作用 |
+|---|---:|---|
+| TX network prebuffer | 150 ms | 电台上行音频缓冲协商 |
+| TX microphone capture buffer | 150 ms | Windows 录音缓冲 |
+| TX software jitter prefill | 60 ms | 软件启动预填充 |
+| TX software jitter maximum | 250 ms | 软件缓冲上限，超出丢弃最旧 PCM |
+| RX speaker playback buffer | 120 ms | Windows 播放端延迟 |
+| Microphone gain | 100% | AGC 前固定软件增益 |
+| Voice AGC enabled | false | 语音电平自动控制 |
+| Voice AGC target RMS | -18 dBFS | 语音目标平均电平 |
+| Voice AGC maximum gain | +12 dB | 微弱语音最大增益 |
+| Voice AGC noise floor | -48 dBFS | 不把背景噪声抬到语音目标 |
+| Voice AGC attack / release | 40 / 450 ms | 增益下降与恢复的时间常数 |
+| Voice AGC peak ceiling | -3 dBFS | 软件 PCM 峰值上限 |
+
+每 5 秒的 `Direct LAN TX levels` 日志新增实际配置值、`voiceAgc`、`agcGain`、`agcFrames`，与 `TX pacing` 的欠载／丢包日志配合核对。注意 `agcGain`、`MIC dBFS` 仍只是本机 PCM 数据，不代表 IC-9700 的 ALC 或 RF 输出功率。SSB 模式最终应以电台 ALC 刻度和另一个台站的接收录音判断过载与失真；Icom 手册建议正常讲话 ALC 峰值大致落在 30–50% 刻度范围。
+
 ## 验收边界
 代码层提供 CI-V 相关响应校验、设备能力采样率协商、LPCM/PCM/u-law 封包与解码测试、状态栏数据显示与 stale 处理。Windows x64 CI 自动构建及单元测试不是实际 IC-9700 网络音频发射验收。需用真实电台检验 RF PTT 与 LAN MOD 模式、分组乱序/丢包及音频延迟，保留原有 RS-BA1 方案作为对照。
 
