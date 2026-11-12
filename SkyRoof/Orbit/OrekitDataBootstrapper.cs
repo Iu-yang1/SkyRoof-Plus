@@ -13,22 +13,20 @@ internal static class OrekitDataBootstrapper
 {
     // Provenance: eSpace-epfl/orekit-data, DE-430-ephemerides/lnxp1990.430,
     // blob 70ec728d3d5018ff3df2eaa4ae439e668de7ef6b.
-    private const string De430Source =
-        "https://raw.githubusercontent.com/eSpace-epfl/orekit-data/master/DE-430-ephemerides/lnxp1990.430";
     private const string De430BlobSha1 = "70ec728d3d5018ff3df2eaa4ae439e668de7ef6b";
     private const long De430FileSize = 7_459_904;
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(90) };
 
-    internal static async Task EnsureAsync(OrbitSourceSettings settings, CancellationToken cancellationToken = default)
+    internal static async Task EnsureAsync(OrbitSourceSettings settings, bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
-        if (!settings.AutoDownloadOrekitData)
+        if (!settings.AutoDownloadOrekitData && !forceRefresh)
             return;
 
         string directory = OrbitBackendRegistry.ResolveDataDirectory(settings.OrekitDataDirectory);
         Directory.CreateDirectory(directory);
 
         string eop = Path.Combine(directory, "finals2000A.all");
-        if (!File.Exists(eop) ||
+        if (forceRefresh || !File.Exists(eop) ||
             DateTime.UtcNow - File.GetLastWriteTimeUtc(eop) > TimeSpan.FromDays(7))
         {
             try
@@ -51,7 +49,7 @@ internal static class OrekitDataBootstrapper
         try
         {
             using var response = await Client.GetAsync(
-                De430Source, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                settings.OrekitDe430Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
             await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
             await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -85,7 +83,7 @@ internal static class OrekitDataBootstrapper
             File.Move(staging, target, overwrite: true);
             await File.WriteAllTextAsync(
                 Path.Combine(directory, "lnxp1990.430.manifest.json"),
-                JsonSerializer.Serialize(new { sourceUrl = De430Source, gitBlobSha1 = blobSha1,
+                JsonSerializer.Serialize(new { sourceUrl = settings.OrekitDe430Url, gitBlobSha1 = blobSha1,
                     sha256, bytes = info.Length, downloadedUtc = DateTimeOffset.UtcNow },
                     new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
             Log.Information("Orekit DE430 planetary data installed: {File} SHA256={Hash}", target, sha256);

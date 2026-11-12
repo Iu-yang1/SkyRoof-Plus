@@ -15,12 +15,6 @@ internal static class OrbitEopDataUpdater
         Timeout = TimeSpan.FromSeconds(90)
     };
 
-    private static readonly string[] OfficialUrls =
-    [
-        "https://maia.usno.navy.mil/ser7/finals2000A.all",
-        "https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all"
-    ];
-
     internal static async Task<OrbitEopUpdateResult> DownloadAsync(
         OrbitSourceSettings settings, CancellationToken cancellationToken = default)
     {
@@ -30,7 +24,7 @@ internal static class OrbitEopDataUpdater
         string staging = target + ".download";
         Exception? lastFailure = null;
 
-        foreach (string url in OfficialUrls)
+        foreach (string url in SatnogsDb.SplitSourceList(settings.OrekitEopSources))
         {
             try
             {
