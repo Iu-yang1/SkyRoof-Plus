@@ -4,6 +4,7 @@
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        runs build/Set-Version.ps1 to propagate it to the installer script and the docs. -->
   <!-- SkyRoof Plus v1.69 bilingual LAN audio settings and CI-V MOD release: 2026-11-12. -->
+  <!-- v1.69-replacement-20261112: update source from PR #192; preserve version number. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
     <Version>1.69</Version>
