@@ -102,7 +102,7 @@ namespace SkyRoof
           int rate = (int)options.Transmit.SampleRate;
           var input = new InputSoundcard<float>(
             endpoint, rate,
-            captureBufferMilliseconds: Math.Clamp(options.Transmit.PrebufferMs, 20, 500),
+            captureBufferMilliseconds: Math.Clamp(options.Transmit.CaptureBufferMs, 20, 500),
             readerBlockSizeSamples: Math.Max(128, rate / 50),
             idleSleepMilliseconds: 2);
           input.SamplesAvailable += OnMicrophoneSamples;
