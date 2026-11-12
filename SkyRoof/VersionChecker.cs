@@ -1,11 +1,17 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Serilog;
 
 namespace SkyRoof
 {
   internal class VersionChecker
   {
-    private LatestVersionInfo LatestVersion;
+    // Include prereleases: GitHub's /releases/latest endpoint excludes them.
+    internal const string ReleasesApiUrl =
+      "https://api.github.com/repos/Iu-yang1/SkyRoof-Plus/releases?per_page=100";
+    private static readonly HttpClient Http = CreateHttpClient();
+
+    private readonly LatestVersionInfo LatestVersion;
     public event EventHandler? UpdateAvailable;
 
     public VersionChecker(LatestVersionInfo latestVersion)
@@ -13,73 +19,108 @@ namespace SkyRoof
       LatestVersion = latestVersion;
     }
 
-
     public async Task CheckVersionAsync()
     {
       var currentVersion = typeof(VersionChecker).Assembly.GetName().Version!;
+      LatestVersion.Known = false;
       await GetAvailableVersion();
 
       if (!LatestVersion.Known)
       {
-        Log.Warning("VersionChecker could not determine the latest version.");
+        Log.Warning("VersionChecker could not determine the latest fork release.");
         return;
       }
 
       if (LatestVersion.Major > currentVersion.Major ||
-          (LatestVersion.Major == currentVersion.Major && LatestVersion.Minor > currentVersion.Minor))
+          (LatestVersion.Major == currentVersion.Major &&
+           LatestVersion.Minor > currentVersion.Minor))
       {
-        Log.Information($"VersionChecker: update available: {LatestVersion.Name})");
-         UpdateAvailable?.Invoke(this, EventArgs.Empty);
+        Log.Information("VersionChecker: fork update available: {Name}", LatestVersion.Name);
+        UpdateAvailable?.Invoke(this, EventArgs.Empty);
       }
       else
-        Log.Information("VersionChecker: software is up to date: {Name}", LatestVersion.Name);
+        Log.Information("VersionChecker: fork is up to date: {Name}", LatestVersion.Name);
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+      var client = new HttpClient();
+      client.DefaultRequestHeaders.UserAgent.ParseAdd("SkyRoof-Plus-Updater/1.0");
+      client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+      return client;
     }
 
     private async Task GetAvailableVersion()
     {
-      string url = "https://ve3nea.github.io/SkyRoof/download.html?update_check=true";
-
       try
       {
-        string html = await new HttpClient().GetStringAsync(url);
+        string json = await Http.GetStringAsync(ReleasesApiUrl);
+        LatestVersionInfo? found = ParseLatestReleaseJson(json);
+        if (found == null)
+        {
+          Log.Warning("VersionChecker found no published fork release with an installer.");
+          return;
+        }
 
-        if (!ParseHtml(html))
-          Log.Warning("VersionChecker could not parse downloaded html.");
+        LatestVersion.Name = found.Name;
+        LatestVersion.Url = found.Url;
+        LatestVersion.Major = found.Major;
+        LatestVersion.Minor = found.Minor;
+        LatestVersion.Known = true;
       }
       catch (Exception ex)
       {
-        Log.Warning(ex, "VersionChecker could not download page.");
-        return;
+        Log.Warning(ex, "VersionChecker could not retrieve GitHub fork releases.");
       }
     }
 
-    private bool ParseHtml(string html)
+    // Public GitHub release metadata, not the upstream site's HTML.
+    // A draft or a release without its matching Windows installer is not an update.
+    internal static LatestVersionInfo? ParseLatestReleaseJson(string json)
     {
-      // extract download URL and version name
-      string regex = @"Current Version<\/h3>[^a]+a href=""([^""]+)"">([^<]+)<\/a>";
-      var match = Regex.Match(html, regex, RegexOptions.Singleline);
-      if (!match.Success) return false;
-      string url = match.Groups[1].Value;
-      string name = match.Groups[2].Value.Trim();
-      if (string.IsNullOrEmpty(url) | string.IsNullOrEmpty(name))
-        return false;
+      using JsonDocument document = JsonDocument.Parse(json);
+      if (document.RootElement.ValueKind != JsonValueKind.Array)
+        return null;
 
-      // extract major and minor version numbers
-      string[] versionParts = name.Split(' ');
-      if (versionParts.Length < 2) return false;
-      versionParts = versionParts[1].Split('.');
-      if (versionParts.Length < 3) return false;
-      if (versionParts[0].ToLower() != "v") return false;
-      if (!int.TryParse(versionParts[1], out int major)) return false;
-      if (!int.TryParse(versionParts[2], out int minor)) return false;
+      LatestVersionInfo? latest = null;
+      foreach (JsonElement release in document.RootElement.EnumerateArray())
+      {
+        if (release.GetProperty("draft").GetBoolean())
+          continue;
 
-      LatestVersion.Name = name;
-      LatestVersion.Url = url;
-      LatestVersion.Major = major;
-      LatestVersion.Minor = minor;
-      LatestVersion.Known = true;
+        string tag = release.GetProperty("tag_name").GetString() ?? "";
+        Match match = Regex.Match(tag, @"^v\.(\d+)\.(\d+)$",
+          RegexOptions.CultureInvariant);
+        if (!match.Success ||
+            !int.TryParse(match.Groups[1].Value, out int major) ||
+            !int.TryParse(match.Groups[2].Value, out int minor))
+          continue;
 
-      return true;
+        string installerName = $"SkyRoofSetup-{tag}.exe";
+        JsonElement assets = release.GetProperty("assets");
+        if (assets.ValueKind != JsonValueKind.Array ||
+            !assets.EnumerateArray().Any(asset =>
+              asset.GetProperty("name").GetString() == installerName))
+          continue;
+
+        string? url = release.GetProperty("html_url").GetString();
+        if (string.IsNullOrWhiteSpace(url))
+          continue;
+
+        if (latest == null || major > latest.Major ||
+            (major == latest.Major && minor > latest.Minor))
+        {
+          latest = new LatestVersionInfo
+          {
+            Known = true,
+            Name = $"SkyRoof-Plus {tag}",
+            Url = url,
+            Major = major,
+            Minor = minor
+          };
+        }
+      }
+      return latest;
     }
   }
 }

@@ -5,6 +5,7 @@
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Alex VE3NEA"
 #define MyAppURL "https://ve3nea.github.io/SkyRoof"
+#define MyForkReleasesURL "https://github.com/Iu-yang1/SkyRoof-Plus/releases"
 #define MyAppExeName "SkyRoof.exe"
 
 #include "..\Vendor\InnoDependencyInstaller\CodeDependencies.iss"
@@ -15,8 +16,8 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppSupportURL=https://github.com/Iu-yang1/SkyRoof-Plus/issues
+AppUpdatesURL={#MyForkReleasesURL}
 DefaultDirName={commonpf}\Afreet\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputBaseFilename=SkyRoofSetup

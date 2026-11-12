@@ -3,7 +3,7 @@ name: Build and Release
 on:
   workflow_dispatch:
   # Updating Directory.Build.props on master triggers a release build.
-  # Bump the version to publish a new release; never overwrite an older tag.
+  # Bump the version normally. The explicitly guarded v.1.69 replacement is one-time.
   push:
     branches: [master]
     paths:
@@ -75,17 +75,27 @@ jobs:
           Write-Host "version: $version"
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Refuse an existing release tag
+      - name: Guard release tag or one-time v.1.69 replacement
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = "v.${{ steps.get_version.outputs.version }}"
+          $version = "${{ steps.get_version.outputs.version }}"
+          $tag = "v.$version"
           $existing = git ls-remote --tags origin "refs/tags/$tag"
           if ($LASTEXITCODE -ne 0) {
             throw "Could not verify whether release tag $tag already exists"
           }
           if (-not [string]::IsNullOrWhiteSpace(($existing | Out-String).Trim())) {
-            throw "Release tag $tag already exists; increment Directory.Build.props instead of overwriting it"
+            $marker = (Get-Content Directory.Build.props -Raw).Contains('v1.69-replacement-20261112')
+            $explicitReplacement = $version -eq '1.69' -and
+              "${{ github.event_name }}" -eq 'push' -and $marker
+            $existingSha = (@($existing)[0] -split '\s+')[0]
+            if (-not $explicitReplacement -or
+                $existingSha -ne '25aaed459168e6f1af25b26d651c7690ae007714') {
+              throw "Release tag $tag already exists or is no longer at the original v.1.69 SHA"
+            }
+            "REPLACE_V169=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+            Write-Host "Authorized one-time v.1.69 installer replacement"
           }
 
       - name: Setup MSBuild
@@ -297,11 +307,16 @@ jobs:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
           prerelease: ${{ env.SIGNPATH_AVAILABLE != 'true' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
-          overwrite_files: false
+          overwrite_files: ${{ env.REPLACE_V169 == 'true' }}
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body: |
             SkyRoof-Plus v.1.69 — 2026-11-12: IC-9700 Direct LAN / SkyCAT scope reliability and bilingual settings update (based on v.1.68).
+
+            ### v.1.69 installer replacement / 安装包替换说明
+            - **自动更新修正：** 改用 Iu-yang1/SkyRoof-Plus GitHub Releases API 检查包含预发布版在内的最新可安装版本；更新提示链接指向本 Fork 发布页。
+            - **关于页面署名：** 保留 Alex Shovkoplyas (VE3NEA) 原始版权和官网链接，同时添加 © 2026 Iu-yang1 BG5JSU Fork modifications 和 Fork 仓库链接。
+            - **Updater/About:** update checks now use fork Releases (including packaged prereleases), and Help → About credits the fork maintainer without removing the original author's copyright or site.
 
             ### 中文更新
             - **设置菜单汉化：** 新增 RX 播放缓冲、TX 网络/采集/抖动缓冲、麦克风增益、语音 AGC 及其 RMS/门限/时间常数/限峰参数、自动选择 LAN MOD 输入、SkyCAT 独立频谱控制 CAT TCP 端口的中文名称、帮助文字和折叠摘要。沿用已有简体中文 / English 切换，不改旧版配置 JSON 键。
@@ -327,6 +342,40 @@ jobs:
           files:  install/SkyRoofSetup-v.${{ steps.get_version.outputs.version }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Do not retarget v.1.69 until the freshly built EXE is uploaded and its
+      # GitHub digest matches the local installer. Other versions are unaffected.
+      - name: Finalize one-time v.1.69 installer replacement
+        if: env.REPLACE_V169 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.69'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = '25aaed459168e6f1af25b26d651c7690ae007714'
+          $name = "SkyRoofSetup-$tag.exe"
+          $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release) {
+            throw "Existing $tag release not found after replacement upload"
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].digest -ne "sha256:$localHash") {
+            throw "Replacement asset digest is absent or does not match newly built installer"
+          }
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or
+              (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw "The v.1.69 tag moved during the replacement; refusing to overwrite"
+          }
+          git tag -f $tag $newCommit
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to move $tag to replacement source" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Failed to update release target commit" }
+          Write-Host "v.1.69 now points to $newCommit with verified asset sha256:$localHash"
 
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh
