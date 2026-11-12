@@ -235,6 +235,10 @@ namespace SkyRoof
         ctx.QsoSchedulerPanel?.UpdatePredictions();
       }
 
+      // Keep weekly refresh at startup, not after a potentially long EOP
+      // timeout when the operator might already be on-air.
+      CheckDownloadSatelliteList();
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested) return;
       CheckDownloadTle();
       var sources = ctx.Settings.OrbitSources;
       string directory = OrbitBackendRegistry.ResolveDataDirectory(sources.OrekitDataDirectory);
@@ -281,10 +285,6 @@ namespace SkyRoof
         Log.Information(restartHint);
       }
 
-      // Preserve the weekly full-database update, but run its existing progress
-      // dialog only after the main UI and its saved docking windows are visible.
-      if (DateTime.UtcNow > ctx.Settings.Satellites.LastDownloadTime.AddDays(LIST_DOWNLOAD_DAYS))
-        CheckDownloadSatelliteList();
     }
 
     private void UpdateAvailable_handler(object? sender, EventArgs e)
