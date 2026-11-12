@@ -641,6 +641,16 @@ namespace SkyRoof
     //--------------------------------------------------------------------------------------------------------------
     //                                            apply changes
     //--------------------------------------------------------------------------------------------------------------
+    private void RebuildOrbitTrackingCaches()
+    {
+      foreach (var sat in ctx.SatnogsDb.Satellites)
+        if (!sat.IsEphemerisTarget)
+          sat.SetTle(sat.Tle);
+      ctx.GroupPasses.FullRebuild();
+      ctx.HamPasses.FullRebuild();
+      ctx.SdrPasses.FullRebuild();
+    }
+
     private void ApplyChangedSettings()
     {
       if (ChangedFields.Contains("SkyRoof.UserSettings.Square") ||
@@ -775,22 +785,18 @@ namespace SkyRoof
             s is "SkyRoof.OrbitSourceSettings.Backend" or
                  "SkyRoof.OrbitSourceSettings.OrekitDataDirectory"))
       {
-        var previousMode = OrbitBackendRegistry.Mode;
+        var previous = OrbitBackendRegistry.Capture();
         try
         {
           OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
-          foreach (var sat in ctx.SatnogsDb.Satellites)
-            if (!sat.IsEphemerisTarget)
-              sat.SetTle(sat.Tle);
-
-          ctx.GroupPasses.FullRebuild();
-          ctx.HamPasses.FullRebuild();
-          ctx.SdrPasses.FullRebuild();
+          RebuildOrbitTrackingCaches();
         }
         catch (Exception ex)
         {
           Log.Warning(ex, "Orbit engine settings cannot be applied.");
-          ctx.Settings.OrbitSources.Backend = previousMode;
+          ctx.Settings.OrbitSources.Backend = previous.Mode;
+          OrbitBackendRegistry.Restore(previous);
+          RebuildOrbitTrackingCaches();
           MessageBox.Show(
             "Orbit engine selection was not applied:\r\n\r\n" +
             ex.GetBaseException().Message,

@@ -15,6 +15,23 @@ internal static class OrbitBackendRegistry
 
     internal static OrbitEngineMode Mode { get; private set; } = OrbitEngineMode.SgpNet;
 
+    internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend);
+
+    internal static Snapshot Capture()
+    {
+        lock (Sync)
+            return new Snapshot(Mode, selectedBackend);
+    }
+
+    internal static void Restore(Snapshot snapshot)
+    {
+        lock (Sync)
+        {
+            selectedBackend = snapshot.Backend;
+            Mode = snapshot.Mode;
+        }
+    }
+
     internal static string CurrentBackendId
     {
         get
