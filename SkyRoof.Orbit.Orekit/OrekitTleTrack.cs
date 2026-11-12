@@ -1,4 +1,5 @@
 using SkyRoof.Orbit.Contracts;
+using System.Collections.Concurrent;
 using org.orekit.bodies;
 using org.orekit.frames;
 using org.orekit.propagation.analytical.tle;
@@ -15,12 +16,20 @@ public sealed class OrekitTleTrack : IOrbitTrack
 {
     private readonly TLE tle;
     private readonly TLEPropagator propagator;
+    private readonly object propagateSync = new();
+    private readonly Frame itrf;
+    private readonly OneAxisEllipsoid ellipsoid;
+    private readonly ConcurrentDictionary<GroundStationSpec, TopocentricFrame> siteFrames = new();
 
     public OrekitTleTrack(string line1, string line2)
     {
         // Do not trim/recompose fixed-column TLE data.
         tle = new TLE(line1, line2, TimeScalesFactory.getUTC());
         propagator = TLEPropagator.selectExtrapolator(tle);
+        itrf = FramesFactory.getITRF(IERSConventions.IERS_2010, true);
+        ellipsoid = new OneAxisEllipsoid(
+            Constants.WGS84_EARTH_EQUATORIAL_RADIUS,
+            Constants.WGS84_EARTH_FLATTENING, itrf);
     }
 
     public OrekitTleTrack(OrbitMeanElements elements)
@@ -56,6 +65,10 @@ public sealed class OrekitTleTrack : IOrbitTrack
             elements.MeanAnomalyDegrees * Math.PI / 180.0,
             elements.RevolutionNumberAtEpoch, elements.BStar, utc);
         propagator = TLEPropagator.selectExtrapolator(tle);
+        itrf = FramesFactory.getITRF(IERSConventions.IERS_2010, true);
+        ellipsoid = new OneAxisEllipsoid(
+            Constants.WGS84_EARTH_EQUATORIAL_RADIUS,
+            Constants.WGS84_EARTH_FLATTENING, itrf);
     }
 
     public int NoradNumber => tle.getSatelliteNumber();
@@ -72,7 +85,9 @@ public sealed class OrekitTleTrack : IOrbitTrack
     private OrbitState Propagate(DateTimeOffset utc, AbsoluteDate date)
     {
         // TLEPropagator's native frame is TEME, not GCRF or ITRF.
-        var pv = propagator.getPVCoordinates(date);
+        org.orekit.utils.PVCoordinates pv;
+        lock (propagateSync)
+            pv = propagator.getPVCoordinates(date);
         var p = pv.getPosition();
         var v = pv.getVelocity();
         return new OrbitState(
@@ -81,22 +96,34 @@ public sealed class OrekitTleTrack : IOrbitTrack
             v.getX(), v.getY(), v.getZ());
     }
 
+    public OrbitGeodetic PredictGeodetic(DateTimeOffset utc)
+    {
+        var date = ToAbsoluteDate(utc);
+        org.orekit.utils.PVCoordinates pv;
+        lock (propagateSync)
+            pv = propagator.getPVCoordinates(date, itrf);
+        var point = ellipsoid.transform(pv.getPosition(), itrf, date);
+        return new OrbitGeodetic(
+            utc.ToUniversalTime(),
+            point.getLatitude() * 180 / Math.PI,
+            point.getLongitude() * 180 / Math.PI,
+            point.getAltitude());
+    }
+
     public OrbitObservation Observe(GroundStationSpec ground, DateTimeOffset utc)
     {
         var date = ToAbsoluteDate(utc);
-        // P0 uses simpleEOP=true and a UTC-only fixture. This is *not* an
-        // EOP-verified precision observation; label the degraded input honestly.
-        var itrf = FramesFactory.getITRF(IERSConventions.IERS_2010, true);
-        var ellipsoid = new OneAxisEllipsoid(
-            Constants.WGS84_EARTH_EQUATORIAL_RADIUS,
-            Constants.WGS84_EARTH_FLATTENING,
-            itrf);
-        var site = new GeodeticPoint(
-            ground.LatitudeDegrees * Math.PI / 180.0,
-            ground.LongitudeDegrees * Math.PI / 180.0,
-            ground.EllipsoidalHeightMetres);
-        var local = new TopocentricFrame(ellipsoid, site, "SkyRoof-P0-Station");
-        var pv = propagator.getPVCoordinates(date, itrf);
+        var local = siteFrames.GetOrAdd(ground, spec =>
+            new TopocentricFrame(
+                ellipsoid,
+                new GeodeticPoint(
+                    spec.LatitudeDegrees * Math.PI / 180.0,
+                    spec.LongitudeDegrees * Math.PI / 180.0,
+                    spec.EllipsoidalHeightMetres),
+                $"SkyRoof-{spec.LatitudeDegrees:F6}-{spec.LongitudeDegrees:F6}"));
+        org.orekit.utils.PVCoordinates pv;
+        lock (propagateSync)
+            pv = propagator.getPVCoordinates(date, itrf);
         var position = pv.getPosition();
         return new OrbitObservation(
             utc.ToUniversalTime(),
@@ -105,7 +132,7 @@ public sealed class OrekitTleTrack : IOrbitTrack
             local.getRange(position, itrf, date),
             local.getRangeRate(pv, itrf, date),
             "ITRF/IERS2010",
-            "P0_UTC_ONLY_EOP_UNVERIFIED");
+            OrekitDataContext.DataQuality(utc));
     }
 
     private static DateTimeOffset ToUtcDateTimeOffset(AbsoluteDate date)

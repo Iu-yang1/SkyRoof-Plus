@@ -118,6 +118,13 @@ try
     var observation = interfaceTrack.Observe(
         new GroundStationSpec(28.5, 115.9, 40),
         instantUtc);
+    var geodetic = interfaceTrack.PredictGeodetic(instantUtc);
+    var baselineGeodetic = sgpNetTrack.PredictGeodetic(instantUtc);
+    Assert(double.IsFinite(geodetic.LatitudeDegrees) &&
+           double.IsFinite(geodetic.LongitudeDegrees) &&
+           double.IsFinite(geodetic.EllipsoidalHeightMetres),
+        "Orekit geodetic position is invalid");
+
     var baselineObservation = sgpNetTrack.Observe(
         new GroundStationSpec(28.5, 115.9, 40), instantUtc);
     Assert(double.IsFinite(baselineObservation.RangeMetres) &&
@@ -197,6 +204,7 @@ try
         ikvmMavenSdkVersion = "1.12.2",
         dataFile = leapFile,
         dataSha256,
+        eopQualityAt2026 = OrekitDataContext.DataQuality(new DateTimeOffset(2026, 11, 12, 0, 0, 0, TimeSpan.Zero)),
         initialSetupMs = initializedMs,
         thousandPredictionsMs,
         processWorkingSetBytes = Environment.WorkingSet,
@@ -207,6 +215,8 @@ try
         orbitPasses,
         observation,
         baselineObservation,
+        geodetic,
+        baselineGeodetic,
         taiMinusUtcSeconds,
         loadedAssemblies = assemblies
     };

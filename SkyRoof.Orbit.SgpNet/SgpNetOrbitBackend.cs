@@ -63,6 +63,15 @@ public sealed class SgpNetTleTrack : IOrbitTrack
             pv.Velocity.X * 1000.0, pv.Velocity.Y * 1000.0, pv.Velocity.Z * 1000.0);
     }
 
+    public OrbitGeodetic PredictGeodetic(DateTimeOffset utc)
+    {
+        var time = utc.ToUniversalTime();
+        var position = satellite.Predict(time.UtcDateTime).ToGeodetic();
+        return new OrbitGeodetic(
+            time, position.Latitude.Degrees, position.Longitude.Degrees,
+            position.Altitude * 1000.0);
+    }
+
     public OrbitObservation Observe(GroundStationSpec ground, DateTimeOffset utc)
     {
         var time = utc.ToUniversalTime();

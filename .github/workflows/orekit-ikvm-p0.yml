@@ -38,6 +38,32 @@ jobs:
         run: |
           dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore -p:RestorePackagesWithLockFile=false
 
+      - name: Fetch official IERS EOP into temporary smoke dataset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = 'SkyRoof.Orbit.Orekit.Smoke/TestData'
+          $target = Join-Path $folder 'finals2000A.all'
+          $sources = @(
+            'https://maia.usno.navy.mil/ser7/finals2000A.all',
+            'https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all'
+          )
+          foreach ($url in $sources) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $target -TimeoutSec 75
+              if ((Get-Item $target).Length -lt 100000) { throw 'EOP file too short' }
+              $sha = (Get-FileHash -Algorithm SHA256 $target).Hash.ToLowerInvariant()
+              Write-Host "EOP source: $url"
+              Write-Host "EOP SHA-256: $sha"
+              break
+            }
+            catch {
+              Write-Warning "EOP source failed: $url : $_"
+              if (Test-Path $target) { Remove-Item $target -Force }
+            }
+          }
+          if (-not (Test-Path $target)) { throw 'Official IERS EOP sources unavailable' }
+
       - name: UTC TLE TEME and ITRF smoke verification
         shell: pwsh
         run: |
