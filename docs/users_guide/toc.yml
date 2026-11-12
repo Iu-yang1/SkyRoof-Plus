@@ -33,6 +33,8 @@ items:
       href: setting_up_transverter.md
     - name: Setting Up FT4 Console
       href: setting_up_ft4_console.md
+    - name: Orekit / IKVM Orbit Engine
+      href: orekit-orbit-engine.md
   - name: User Interface
     items:
     - name: Satellites and Groups Window
