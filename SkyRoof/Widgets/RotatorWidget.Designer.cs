@@ -37,6 +37,8 @@ namespace SkyRoof
       TrackCheckbox = new CheckBox();
       AntennaElevationLabel = new Label();
       AntennaAzimuthLabel = new Label();
+      FeedbackAzimuthWarningLabel = new Label();
+      FeedbackElevationWarningLabel = new Label();
       StopBtn = new Button();
       toolTip1 = new VE3NEA.ToolTipEx(components);
       SuspendLayout();
@@ -122,6 +124,23 @@ namespace SkyRoof
       AntennaAzimuthLabel.TextAlign = ContentAlignment.MiddleCenter;
       toolTip1.SetToolTip(AntennaAzimuthLabel, "Antenna Azimuth");
       // 
+      // Feedback quality warnings below the last trusted AZ/EL readouts.
+      FeedbackAzimuthWarningLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+      FeedbackAzimuthWarningLabel.ForeColor = Color.DarkOrange;
+      FeedbackAzimuthWarningLabel.Location = new Point(8, 70);
+      FeedbackAzimuthWarningLabel.Name = "FeedbackAzimuthWarningLabel";
+      FeedbackAzimuthWarningLabel.Size = new Size(59, 15);
+      FeedbackAzimuthWarningLabel.Text = "!";
+      FeedbackAzimuthWarningLabel.TextAlign = ContentAlignment.MiddleCenter;
+      FeedbackAzimuthWarningLabel.Visible = false;
+      FeedbackElevationWarningLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+      FeedbackElevationWarningLabel.ForeColor = Color.DarkOrange;
+      FeedbackElevationWarningLabel.Location = new Point(75, 70);
+      FeedbackElevationWarningLabel.Name = "FeedbackElevationWarningLabel";
+      FeedbackElevationWarningLabel.Size = new Size(59, 15);
+      FeedbackElevationWarningLabel.Text = "!";
+      FeedbackElevationWarningLabel.TextAlign = ContentAlignment.MiddleCenter;
+      FeedbackElevationWarningLabel.Visible = false;
       // StopBtn
       // 
       StopBtn.Location = new Point(146, 44);
@@ -138,6 +157,8 @@ namespace SkyRoof
       AutoScaleMode = AutoScaleMode.Font;
       BorderStyle = BorderStyle.FixedSingle;
       Controls.Add(StopBtn);
+      Controls.Add(FeedbackAzimuthWarningLabel);
+      Controls.Add(FeedbackElevationWarningLabel);
       Controls.Add(AntennaElevationLabel);
       Controls.Add(AntennaAzimuthLabel);
       Controls.Add(TrackCheckbox);
@@ -146,7 +167,7 @@ namespace SkyRoof
       Controls.Add(label1);
       Controls.Add(SatelliteAzimuthLabel);
       Name = "RotatorControl";
-      Size = new Size(210, 73);
+      Size = new Size(210, 87);
       ResumeLayout(false);
       PerformLayout();
     }
@@ -159,6 +180,8 @@ namespace SkyRoof
     private Label SatelliteElevationLabel;
     private Label AntennaElevationLabel;
     private Label AntennaAzimuthLabel;
+    private Label FeedbackAzimuthWarningLabel;
+    private Label FeedbackElevationWarningLabel;
     private Button StopBtn;
     public CheckBox TrackCheckbox;
     private VE3NEA.ToolTipEx toolTip1;
