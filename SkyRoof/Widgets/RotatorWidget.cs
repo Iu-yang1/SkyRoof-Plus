@@ -774,9 +774,9 @@ namespace SkyRoof
       Bearing? rejected = engine?.LastRejectedBearing;
       Bearing? trusted = engine?.LastReadBearing;
       string detail = "Position reply outlier: continuing open-loop tracking from the last trusted angle." +
-        $"\\nTrusted: {trusted}\\nRejected: {rejected}";
+        $"\nTrusted: {trusted}\nRejected: {rejected}";
       if (engine?.FeedbackDegradedSinceUtc is { } since && since != DateTime.MinValue)
-        detail += $"\\nFirst detected: {since:HH:mm:ss} UTC";
+        detail += $"\nFirst detected: {since:HH:mm:ss} UTC";
       toolTip1.SetToolTip(FeedbackAzimuthWarningLabel, detail);
       toolTip1.SetToolTip(FeedbackElevationWarningLabel, detail);
     }
