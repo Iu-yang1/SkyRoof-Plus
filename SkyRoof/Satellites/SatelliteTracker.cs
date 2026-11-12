@@ -4,12 +4,14 @@ using SGPdotNET.CoordinateSystem;
 using SGPdotNET.Observation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
+using SkyRoof.Orbit.Contracts;
 
 namespace SkyRoof
 {
   public class SatelliteTracker
   {
     private Satellite? Satellite;
+    private IOrbitTrack? orbitTrack;
     private readonly JplSpkKernel? JplKernel;
     private readonly JplBody? EphemerisBody;
 
@@ -34,6 +36,18 @@ namespace SkyRoof
       if (Tle == null) return;
 
       Satellite = new(Tle);
+      if (OrbitBackendRegistry.Mode == OrbitEngineMode.Orekit)
+      {
+        try
+        {
+          orbitTrack = OrbitBackendRegistry.CreateTrack(tle);
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Orekit track creation failed for NORAD {Norad}; using SGP.NET for this element.",
+            tle.norad_cat_id);
+        }
+      }
       Enabled = true;
     }
 
@@ -70,11 +84,26 @@ namespace SkyRoof
     {
       if (!Enabled || IsJplEphemeris) return null;
 
+      if (orbitTrack != null)
+      {
+        try
+        {
+          DateTime targetUtc = (utc ?? DateTime.UtcNow).ToUniversalTime();
+          var geo = orbitTrack.PredictGeodetic(new DateTimeOffset(targetUtc));
+          return new GeodeticCoordinate(
+            Angle.FromDegrees(geo.LatitudeDegrees),
+            Angle.FromDegrees(geo.LongitudeDegrees),
+            geo.EllipsoidalHeightMetres / 1000.0);
+        }
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "Predict");
+        }
+      }
+
       try
       {
-        return Satellite!
-          .Predict(utc ?? DateTime.UtcNow)
-          .ToGeodetic();
+        return (Satellite ?? throw new InvalidOperationException("Satellite propagation data missing")).Predict(utc ?? DateTime.UtcNow).ToGeodetic();
       }
       catch (Exception ex)
       {
@@ -95,24 +124,44 @@ namespace SkyRoof
       {
         try
         {
-          return JplKernel!.Observe(
-            body,
-            groundStation,
-            utc);
+          return (JplKernel ?? throw new InvalidOperationException("JPL kernel is not initialized")).Observe(body, groundStation, utc);
         }
         catch (Exception ex)
         {
-          Log.Error(
-            ex,
-            $"JPL ephemeris observation failed for {body}.");
+          Log.Error(ex, "JPL ephemeris observation failed for {Body}.", body);
           return null;
+        }
+      }
+
+      if (orbitTrack != null)
+      {
+        try
+        {
+          var geo = groundStation.Location.ToGeodetic();
+          var station = new GroundStationSpec(
+            geo.Latitude.Degrees,
+            geo.Longitude.Degrees,
+            geo.Altitude * 1000.0);
+          var obs = orbitTrack.Observe(
+            station, new DateTimeOffset(utc.ToUniversalTime()));
+          return new TopocentricObservation(
+            Angle.FromDegrees(obs.AzimuthDegrees),
+            Angle.FromDegrees(obs.ElevationDegrees),
+            obs.RangeMetres / 1000.0,
+            obs.RangeRateMetresPerSecond / 1000.0,
+            groundStation.Location);
+        }
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "Observe");
         }
       }
 
       try
       {
-        return groundStation.Observe(
-          Satellite!,
+        return SgpNetRangeRateCorrection.Observe(
+          groundStation,
+          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"),
           utc);
       }
       catch (Exception ex)
@@ -132,19 +181,37 @@ namespace SkyRoof
       if (!Enabled) return new();
 
       if (IsJplEphemeris)
-        return ComputeEphemerisPasses(
-          groundStation,
-          startTime,
-          endTime);
+        return ComputeEphemerisPasses(groundStation, startTime, endTime);
+
+      if (orbitTrack != null)
+      {
+        try
+        {
+          var geo = groundStation.Location.ToGeodetic();
+          var station = new GroundStationSpec(
+            geo.Latitude.Degrees,
+            geo.Longitude.Degrees,
+            geo.Altitude * 1000.0);
+          var passes = orbitTrack.FindPasses(
+            station, new DateTimeOffset(startTime.ToUniversalTime()),
+            new DateTimeOffset(endTime.ToUniversalTime()));
+          return passes.Select(p =>
+            new SatelliteVisibilityPeriod(
+              Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
+              Angle.FromDegrees(p.MaximumElevationDegrees),
+              p.CulminationUtc.UtcDateTime, groundStation.Location)).ToList();
+        }
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "ComputePasses");
+        }
+      }
 
       try
       {
         return groundStation.Observe(
-          Satellite!,
-          startTime,
-          endTime,
-          TimeSpan.FromSeconds(15),
-          clipToStartTime: false);
+          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), startTime, endTime,
+          TimeSpan.FromSeconds(15), clipToStartTime: false);
       }
       catch (Exception ex)
       {
@@ -153,6 +220,14 @@ namespace SkyRoof
           $"ComputePasses failed for {Tle!.Name} ({Tle.NoradNumber}).");
         return new();
       }
+    }
+
+    private void UseSgpNetAfterOrekitError(Exception exception, string operation)
+    {
+      orbitTrack = null;
+      Log.Warning(exception,
+        "Orekit {Operation} failed for NORAD {Norad}; retaining SGP.NET tracking.",
+        operation, Tle?.NoradNumber);
     }
 
     internal static string BuildOrbitElementKey(SatnogsDbTle element) =>

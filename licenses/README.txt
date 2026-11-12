@@ -72,7 +72,7 @@ Serilog 4.2.0               Copyright (c) Serilog Contributors
 Serilog.Sinks.File 6.0.0    Apache-2.0 .............................. Apache-2.0.txt
                             https://serilog.net/
 
-SGP.NET 1.4.0               Copyright 2025, parzivail
+SGP.NET 1.6.0               Copyright 2025, parzivail
                             MIT ..................................... MIT.txt
                             https://github.com/parzivail/SGP.NET
 
@@ -89,6 +89,30 @@ WsjtxUtils.WsjtxMessages 1.0.0.69
                             Copyright (c) 2021 KC3PIB
                             MIT ..................................... MIT.txt
                             https://github.com/KC3PIB/WsjtxUtils
+
+
+Orekit 13.1.9                Copyright (c) CS GROUP and Orekit contributors
+                            Apache-2.0 .............................. Apache-2.0.txt,
+                                                                      Orekit-NOTICE.txt
+                            https://www.orekit.org/
+Hipparchus 4.0.3             Copyright (c) Hipparchus project and contributors
+ (core, geometry, ode, optim, stat, filtering, fitting)
+                            Apache-2.0 .............................. Apache-2.0.txt,
+                                                                      Hipparchus-NOTICE.txt
+                            https://www.hipparchus.org/
+IKVM 8.16.3                  Copyright (c) Jeroen Frijters, Jerome Haltom and contributors
+                            IKVM native code: zlib-style license .... IKVM-LICENSE.md
+                            IKVM.Java/OpenJDK class library: GPL-2.0 with
+                            Classpath exception ..................... IKVM-LICENSE.md
+                            See IKVM-LICENSE.md for full terms and notices.
+                            https://github.com/ikvmnet/ikvm
+IKVM.Maven.Sdk 1.12.2        Copyright (c) Jerome Haltom and contributors
+                            MIT (build-time integration) ........... IKVM-Maven-Sdk-MIT.txt
+                            https://github.com/ikvmnet/ikvm-maven
+tai-utc.dat                 UTC-TAI history fixture copied into orekit-data.
+                            Downloaded from eSpace-epfl/orekit-data public mirror.
+                            Source material: USNO historical time offsets.
+                            https://github.com/eSpace-epfl/orekit-data
 
 
 Optional runtime downloads

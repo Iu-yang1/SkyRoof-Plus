@@ -11,6 +11,10 @@ items:
       href: users_guide/
     - name: CW Console 用户指南
       href: zh-cn/users_guide/cw_console.md
+    - name: Orekit / IKVM Orbit Engine
+      href: users_guide/orekit-orbit-engine.md
+    - name: Orekit / IKVM 轨道引擎
+      href: zh-cn/users_guide/orekit-orbit-engine.md
     - name: Credits
       href: credits.md
     - name: Source Code

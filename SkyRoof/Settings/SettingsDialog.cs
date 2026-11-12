@@ -641,6 +641,16 @@ namespace SkyRoof
     //--------------------------------------------------------------------------------------------------------------
     //                                            apply changes
     //--------------------------------------------------------------------------------------------------------------
+    private void RebuildOrbitTrackingCaches()
+    {
+      foreach (var sat in ctx.SatnogsDb.Satellites)
+        if (!sat.IsEphemerisTarget)
+          sat.SetTle(sat.Tle);
+      ctx.GroupPasses.FullRebuild();
+      ctx.HamPasses.FullRebuild();
+      ctx.SdrPasses.FullRebuild();
+    }
+
     private void ApplyChangedSettings()
     {
       if (ChangedFields.Contains("SkyRoof.UserSettings.Square") ||
@@ -770,6 +780,40 @@ namespace SkyRoof
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.OrbitSourceSettings.")))
         ctx.SatnogsDb.ConfigureSources(ctx.Settings.OrbitSources);
+
+      if (ChangedFields.Exists(s =>
+            s is "SkyRoof.OrbitSourceSettings.Backend" or
+                 "SkyRoof.OrbitSourceSettings.OrekitDataDirectory"))
+      {
+        var previous = OrbitBackendRegistry.Capture();
+        try
+        {
+          OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+          RebuildOrbitTrackingCaches();
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Orbit engine settings cannot be applied.");
+          OrbitBackendRegistry.Restore(previous);
+          // The Apply button clones the PropertyGrid object, while OK uses
+          // its original reference. Restore both on failure; otherwise a
+          // later OK can re-save an invalid Orekit selection without
+          // re-running Configure because ChangedFields is already cleared.
+          ctx.Settings.OrbitSources.Backend = previous.Mode;
+          ctx.Settings.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
+          if (grid.SelectedObject is Settings edited)
+          {
+            edited.OrbitSources.Backend = previous.Mode;
+            edited.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
+            grid.Refresh();
+          }
+          RebuildOrbitTrackingCaches();
+          MessageBox.Show(
+            "Orbit engine selection was not applied:\r\n\r\n" +
+            ex.GetBaseException().Message,
+            "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+      }
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.AmsatSettings.")))
         if (ctx.Settings.Amsat.Enabled)

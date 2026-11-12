@@ -1,0 +1,89 @@
+name: Orbit refresh dependency lockfiles
+
+on:
+  push:
+    branches:
+      - feature/orekit-ikvm-orbit-engine
+    paths:
+      - '.github/workflows/orbit-refresh-lockfiles.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  locks:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout including SkyCAT submodule
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore pinned SkyCAT
+        shell: pwsh
+        run: dotnet restore Vendor/SkyCAT/skycatd/skycatd.csproj --locked-mode
+
+      - name: Re-evaluate SkyRoof solution locks
+        shell: pwsh
+        run: dotnet restore SkyRoof.sln --force-evaluate -p:RestoreLockedMode=false -p:RestorePackagesWithLockFile=true
+
+      - name: Re-evaluate isolated Orekit IKVM Maven reference locks
+        shell: pwsh
+        run: dotnet restore SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj --force-evaluate -p:RestoreLockedMode=false -p:RestorePackagesWithLockFile=true
+
+      - name: Inventory restored lockfiles
+        shell: pwsh
+        run: |
+          $paths = @(
+            'SkyRoof/packages.lock.json',
+            'VE3NEA.Dsp.Tests/packages.lock.json',
+            'SkyRoof.Orbit.Contracts/packages.lock.json',
+            'SkyRoof.Orbit.Orekit/packages.lock.json',
+            'SkyRoof.Orbit.Orekit.Smoke/packages.lock.json',
+            'SkyRoof.Orbit.SgpNet/packages.lock.json'
+          )
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              Write-Host "$path SHA256: $((Get-FileHash -Algorithm SHA256 $path).Hash)"
+            } else {
+              Write-Warning "Missing optional lockfile: $path"
+            }
+          }
+          git status --short
+
+      - name: Upload regenerated lockfiles
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: orekit-refreshed-lockfiles
+          path: |
+            SkyRoof/packages.lock.json
+            VE3NEA.Dsp.Tests/packages.lock.json
+            SkyRoof.Orbit.Contracts/packages.lock.json
+            SkyRoof.Orbit.Orekit/packages.lock.json
+            SkyRoof.Orbit.Orekit.Smoke/packages.lock.json
+            SkyRoof.Orbit.SgpNet/packages.lock.json
+          if-no-files-found: error
+
+      - name: Commit reviewed lockfile updates to the feature branch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- SkyRoof/packages.lock.json VE3NEA.Dsp.Tests/packages.lock.json SkyRoof.Orbit.Contracts/packages.lock.json SkyRoof.Orbit.Orekit/packages.lock.json SkyRoof.Orbit.Orekit.Smoke/packages.lock.json SkyRoof.Orbit.SgpNet/packages.lock.json
+          git diff --cached --check
+          if (git diff --cached --quiet) {
+            Write-Host 'Lockfiles already match the restored dependency graph.'
+            exit 0
+          }
+          git commit -m 'build(orbit): pin Windows and IKVM dependency lockfiles'
+          git fetch origin feature/orekit-ikvm-orbit-engine
+          git rebase origin/feature/orekit-ikvm-orbit-engine
+          git push origin HEAD:refs/heads/feature/orekit-ikvm-orbit-engine

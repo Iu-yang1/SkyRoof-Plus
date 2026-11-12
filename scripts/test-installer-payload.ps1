@@ -9,7 +9,9 @@ $target = Join-Path $env:RUNNER_TEMP "SkyRoof-Installer-Smoke-$env:GITHUB_RUN_ID
 
 $mandatory = @('SkyRoof.exe', 'SkyRoof.dll', 'SkyRoof.deps.json',
   'SkyRoof.runtimeconfig.json', 'System.IO.Ports.dll',
-  'SkyCat.dll', 'skycatd.dll')
+  'SkyCat.dll', 'skycatd.dll', 'SkyRoof.Orbit.Contracts.dll',
+  'SkyRoof.Orbit.Orekit.dll', 'org.orekit.dll', 'hipparchus.core.dll',
+  'IKVM.Java.dll', 'IKVM.Runtime.dll')
 foreach ($name in $mandatory) {
   if (-not (Test-Path -LiteralPath (Join-Path $build $name))) {
     throw "Build output missing required runtime file: $name"
@@ -50,6 +52,40 @@ if (-not (Test-Path -LiteralPath (Join-Path $target $rig))) {
 $rigJson = Get-Content -LiteralPath (Join-Path $target $rig) -Raw | ConvertFrom-Json
 if ($rigJson.id -ne 3081) {
   throw "Installed IC-9700 SkyCAT command file has unexpected model ID."
+}
+
+$ikvmProperties = 'ikvm.properties'
+$ikvmImage = 'ikvm\win-x64'
+foreach ($root in @($build, $target)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $root $ikvmProperties))) {
+    throw "IKVM home properties are missing from: $root"
+  }
+  $ikvmHomeDir = Join-Path $root $ikvmImage
+  if (-not (Test-Path -LiteralPath $ikvmHomeDir -PathType Container)) {
+    throw "IKVM Java home image is missing: $ikvmHomeDir"
+  }
+  $count = (Get-ChildItem -LiteralPath $ikvmHomeDir -Recurse -File | Measure-Object).Count
+  if ($count -lt 10) {
+    throw "IKVM Java home image has only $count files: $ikvmHomeDir"
+  }
+}
+
+$ikvmNative = 'runtimes\win-x64\native\ikvm.dll'
+$ikvmManaged = 'runtimes\win\lib\net8.0\IKVM.Java.dll'
+foreach ($name in @($ikvmNative, $ikvmManaged)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $build $name)) -or
+      -not (Test-Path -LiteralPath (Join-Path $target $name))) {
+    throw "Installed IKVM runtime dependency missing: $name"
+  }
+}
+
+$leapRelative = 'orekit-data\tai-utc.dat'
+if (-not (Test-Path -LiteralPath (Join-Path $target $leapRelative))) {
+  throw 'Installer omitted Orekit UTC-TAI data.'
+}
+if ((Get-FileHash (Join-Path $build $leapRelative) -Algorithm SHA256).Hash -ne
+    (Get-FileHash (Join-Path $target $leapRelative) -Algorithm SHA256).Hash) {
+  throw 'Installed Orekit UTC-TAI data differs from the reviewed build data.'
 }
 
 # Every top-level application .dll must survive packaging and installation.
@@ -111,6 +147,11 @@ $resolved = $resolver.ResolveAssemblyToPath($requested)
 if ([string]::IsNullOrWhiteSpace($resolved) -or
     -not (Test-Path -LiteralPath $resolved)) {
   throw 'Installed .NET dependency resolver cannot locate System.IO.Ports 10.0.0.0.'
+}
+# Validate class loading and orbit calculations from the installed root.
+dotnet run --project SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj -c Release -- "$target"
+if ($LASTEXITCODE -ne 0) {
+  throw "Installed Orekit runtime failed its clean-directory smoke test."
 }
 Write-Host "Actual assembly resolution: $resolved"
 Write-Host ("Installer payload OK: {0} root DLLs, {1} RID runtime assets, System.IO.Ports {2}" -f

@@ -1,0 +1,92 @@
+name: Orekit IKVM P0 experimental validation
+
+on:
+  push:
+    branches:
+      - feature/orekit-ikvm-orbit-engine
+    paths:
+      - 'SkyRoof.Orbit.Orekit/**'
+      - 'SkyRoof.Orbit.Contracts/**'
+      - 'SkyRoof.Orbit.SgpNet/**'
+      - 'SkyRoof.Orbit.Orekit.Smoke/**'
+      - '.gitattributes'
+      - '.github/workflows/orekit-ikvm-p0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  orekit-p0:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore experimental IKVM and Maven dependencies
+        shell: pwsh
+        run: |
+          dotnet restore SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj --locked-mode
+
+      - name: JAR to IL conversion and build
+        shell: pwsh
+        run: |
+          dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore
+
+      - name: Fetch official IERS EOP into temporary smoke dataset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = 'SkyRoof.Orbit.Orekit.Smoke/TestData'
+          $target = Join-Path $folder 'finals2000A.all'
+          $sources = @(
+            'https://maia.usno.navy.mil/ser7/finals2000A.all',
+            'https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all'
+          )
+          foreach ($url in $sources) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $target -TimeoutSec 75
+              if ((Get-Item $target).Length -lt 100000) { throw 'EOP file too short' }
+              $sha = (Get-FileHash -Algorithm SHA256 $target).Hash.ToLowerInvariant()
+              Write-Host "EOP source: $url"
+              Write-Host "EOP SHA-256: $sha"
+              break
+            }
+            catch {
+              Write-Warning "EOP source failed: $url : $_"
+              if (Test-Path $target) { Remove-Item $target -Force }
+            }
+          }
+          if (-not (Test-Path $target)) { throw 'Official IERS EOP sources unavailable' }
+
+      - name: UTC TLE TEME and ITRF smoke verification
+        shell: pwsh
+        run: |
+          dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-build --no-restore -- SkyRoof.Orbit.Orekit.Smoke/TestData artifacts/orekit-p0/p0-smoke.json
+
+      - name: Record managed assembly inventory and file sizes
+        if: always()
+        shell: pwsh
+        run: |
+          $out = 'artifacts/orekit-p0'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Get-ChildItem SkyRoof.Orbit.Orekit.Smoke/bin/Release -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in '.dll', '.exe' } |
+            Select-Object Name, Length, FullName |
+            ConvertTo-Json -Depth 5 |
+            Set-Content "$out/assemblies.json" -Encoding utf8
+          dotnet --info | Set-Content "$out/dotnet-info.txt" -Encoding utf8
+
+      - name: Upload P0 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: orekit-ikvm-p0-evidence
+          path: artifacts/orekit-p0/*
+          if-no-files-found: warn

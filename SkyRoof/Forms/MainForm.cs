@@ -114,6 +114,7 @@ namespace SkyRoof
       ctx.UdpStreamSender.ctx = ctx;
 
       var settingsLoadResult = ctx.Settings.LoadFromFile();
+      TryConfigureOrbitBackend();
       UpdateCwConsoleMenuText();
 
       AddRotatorControlCard();
@@ -164,6 +165,24 @@ namespace SkyRoof
       ctx.PttHotkey = new PttHotkeyController(ctx);
 
       UpdateSatellitePhotoVisibility();
+    }
+
+    private void TryConfigureOrbitBackend()
+    {
+      try
+      {
+        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Selected Orekit orbit backend could not be initialized; using SGP.NET.");
+        ctx.Settings.OrbitSources.Backend = OrbitEngineMode.SgpNet;
+        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+        MessageBox.Show(
+          "Orekit initialization failed; the existing SGP.NET orbit engine is active.\r\n\r\n" +
+          ex.GetBaseException().Message,
+          "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
     }
 
     private void MainForm_Load(object sender, EventArgs e)
@@ -951,11 +970,49 @@ namespace SkyRoof
       sourceMenu.DropDownItems.Add(de440s);
       sourceMenu.DropDownItems.Add(de421);
       sourceMenu.DropDownItems.Add(load);
+      var updateIers =
+        new ToolStripMenuItem("Update Orekit IERS EOP Data...");
+      updateIers.Click += async (_, _) =>
+      {
+        updateIers.Enabled = false;
+        try
+        {
+          await DownloadOrekitEopAsync();
+        }
+        finally
+        {
+          updateIers.Enabled = true;
+        }
+      };
+      sourceMenu.DropDownItems.Add(new ToolStripSeparator());
+      sourceMenu.DropDownItems.Add(updateIers);
 
       toolsToolStripMenuItem.DropDownItems.Add(
         new ToolStripSeparator());
       toolsToolStripMenuItem.DropDownItems.Add(
         sourceMenu);
+    }
+
+    private async Task DownloadOrekitEopAsync()
+    {
+      try
+      {
+        OrbitEopUpdateResult result = await OrbitEopDataUpdater.DownloadAsync(
+          ctx.Settings.OrbitSources);
+        MessageBox.Show(
+          $"Updated IERS Earth-orientation data from:\r\n{result.SourceUrl}" +
+          $"\r\nSHA-256: {result.Sha256}" +
+          "\r\n\r\nRestart SkyRoof to use the new EOP data with Orekit.",
+          "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Unable to update IERS Orekit EOP data.");
+        MessageBox.Show(
+          "The IERS EOP update failed. Existing data was retained.\r\n\r\n" +
+          ex.GetBaseException().Message,
+          "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
     }
 
     private Task DownloadJplEphemerisAsync(

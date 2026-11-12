@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkyRoof", "SkyRoof\SkyRoof.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VE3NEA.Dsp.Tests", "VE3NEA.Dsp.Tests\VE3NEA.Dsp.Tests.csproj", "{21CB7DC7-9A78-430C-91F5-B43CF4950480}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkyRoof.Orbit.Contracts", "SkyRoof.Orbit.Contracts\SkyRoof.Orbit.Contracts.csproj", "{748A831D-9724-42D3-AB12-F4EE01710365}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,10 @@ Global
 		{21CB7DC7-9A78-430C-91F5-B43CF4950480}.Debug|x64.Build.0 = Debug|x64
 		{21CB7DC7-9A78-430C-91F5-B43CF4950480}.Release|x64.ActiveCfg = Release|x64
 		{21CB7DC7-9A78-430C-91F5-B43CF4950480}.Release|x64.Build.0 = Release|x64
+		{748A831D-9724-42D3-AB12-F4EE01710365}.Debug|x64.ActiveCfg = Debug|x64
+		{748A831D-9724-42D3-AB12-F4EE01710365}.Debug|x64.Build.0 = Debug|x64
+		{748A831D-9724-42D3-AB12-F4EE01710365}.Release|x64.ActiveCfg = Release|x64
+		{748A831D-9724-42D3-AB12-F4EE01710365}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

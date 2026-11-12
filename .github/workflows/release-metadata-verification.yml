@@ -1,0 +1,53 @@
+name: Release Metadata Verification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'Directory.Build.props'
+      - 'RELEASE_NOTES.md'
+      - 'FORK-CHANGELOG.md'
+      - '.github/workflows/build-and-release.yml'
+      - '.github/workflows/release-metadata-verification.yml'
+  push:
+    branches: [feature/orekit-ikvm-orbit-engine]
+    paths:
+      - 'Directory.Build.props'
+      - 'RELEASE_NOTES.md'
+      - 'FORK-CHANGELOG.md'
+      - '.github/workflows/build-and-release.yml'
+      - '.github/workflows/release-metadata-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  versioned-notes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate release source of truth and Markdown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $props = [xml](Get-Content -LiteralPath 'Directory.Build.props' -Raw)
+          $version = [string]$props.Project.PropertyGroup.Version
+          if ($version -notmatch '^\d+\.\d+$') { throw "Unexpected version: $version" }
+          $firstLine = Get-Content -LiteralPath 'RELEASE_NOTES.md' -TotalCount 1
+          if ($firstLine -ne "# SkyRoof-Plus v.$version") {
+            throw "RELEASE_NOTES.md headline mismatch: $firstLine, expected v.$version"
+          }
+          $history = Get-Content -LiteralPath 'FORK-CHANGELOG.md' -TotalCount 1
+          if ($history -notmatch "^# SkyRoof Fork v\.$([regex]::Escape($version)) ") {
+            throw "FORK-CHANGELOG.md version mismatch: $history"
+          }
+          $releaseWorkflow = Get-Content -LiteralPath '.github/workflows/build-and-release.yml' -Raw
+          if (-not $releaseWorkflow.Contains('body_path: RELEASE_NOTES.md')) {
+            throw 'Release workflow does not load versioned release notes'
+          }
+          if (-not $releaseWorkflow.Contains('Verify versioned release notes before publication')) {
+            throw 'Release workflow does not validate the published release notes'
+          }
+          Write-Host "Release metadata verified for v.$version"

@@ -1,3 +1,18 @@
+# SkyRoof Fork v.1.70 / SkyRoof Fork 1.70 版本说明
+
+Release target / 计划发布：2026-11-13. Orekit 13.1.9 / IKVM 8.16.3 集成；此前 v.1.69 不覆盖。
+
+- **中文：** 新增 SGP.NET/Orekit 后端选择、原始 CCSDS OMM 六位 NORAD、TEME/ITRF/WGS-84 观测、实际 AOS/LOS 恢复、官方 IERS EOP 资料更新和只读状态显示。IC-9700/CAT/云台控制协议和 JPL BSP 后端保持。
+- **多普勒修复：** 原 SGP.NET 1.6.0 未扣除地面站自转速度的径向速度计算已修正；改变先前的数值结果但不修改轨道传播模型。
+- **验收：** 1400 项 xUnit、aislop、Vallado 33 个案例、完整 Windows 安装目录 IKVM 启动及 TLE/OMM 计算路径通过。28 个标准参考案例与 Vallado 解的误差符合 0.1 m / 0.001 m/s 门槛。
+- **已知限制：** IKVM0117 静态转换警告仍在；特殊深空/病态 TLE/极端长期传播案例分别保留差异，真实 IC-9700/CAT/Rotator 未实机验证；P4/P5 精密天体和姿态/极化不是本版已实现功能。签名不可用时将按既有 CI 自动标识为未签名预发布。
+- **English:** Optional Orekit/IKVM orbital backend, native CCSDS OMM with six-digit catalog numbers, correct range-rate and pass geometry, IERS EOP data updates and a clean-install verified Windows bundle. SGP.NET stays default and is available as fallback. Fixed the legacy SGP.NET observer-rotation omission affecting Doppler. Verified 1400 xUnit cases, all Vallado diagnostics, 28 standard accuracy cases, and IKVM installed-runtime startup. Stress-case accuracy, IKVM0117 and untested real radio/rotator hardware remain explicitly documented.
+
+Read full bilingual notes / 详细双语说明：[`RELEASE_NOTES.md`](RELEASE_NOTES.md).
+Architecture & test evidence / 架构与验证记录：[`docs/architecture/orekit-ikvm-p0-status.zh-CN.md`](docs/architecture/orekit-ikvm-p0-status.zh-CN.md).
+
+---
+
 # SkyRoof Fork v.1.69 / SkyRoof Fork 1.69 版本说明
 
 ### v.1.69 同版本安装包补充修正 / Installer replacement

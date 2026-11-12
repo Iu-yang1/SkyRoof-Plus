@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!-- The isolated P0 probe does not participate in the production locked restore.
+         Generate and commit a stable lockfile before moving it into SkyRoof.sln. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Explicitly align the IKVM Java class library with the tested runtime candidate. -->
+    <PackageReference Include="IKVM" Version="8.16.3" />
+    <PackageReference Include="IKVM.Maven.Sdk" Version="1.12.2" />
+    <MavenReference Include="org.orekit:orekit" Version="13.1.9" />
+  </ItemGroup>
+</Project>
