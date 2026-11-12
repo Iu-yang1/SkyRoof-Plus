@@ -56,7 +56,6 @@ namespace SkyRoof
       label3.TextAlign = ContentAlignment.MiddleCenter;
       // WebsiteLabel
       WebsiteLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-      WebsiteLabel.LinkColor = Color.Blue;
       WebsiteLabel.Location = new Point(12, 111);
       WebsiteLabel.Name = "WebsiteLabel";
       WebsiteLabel.Size = new Size(516, 20);
@@ -67,7 +66,6 @@ namespace SkyRoof
       WebsiteLabel.LinkClicked += WebsiteLabel_LinkClicked;
       // ForkWebsiteLabel
       ForkWebsiteLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-      ForkWebsiteLabel.LinkColor = Color.Blue;
       ForkWebsiteLabel.Location = new Point(12, 137);
       ForkWebsiteLabel.Name = "ForkWebsiteLabel";
       ForkWebsiteLabel.Size = new Size(516, 20);
