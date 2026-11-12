@@ -28,6 +28,20 @@ namespace SkyRoof
     [Description("Optional directory containing tai-utc.dat and finals2000A.all. Blank uses the SkyRoof user-data/orekit-data directory.")]
     public string OrekitDataDirectory { get; set; } = string.Empty;
 
+    [Category("Orbit engine")]
+    [DisplayName("Active Orbit Backend")]
+    [ReadOnly(true)]
+    [Newtonsoft.Json.JsonIgnore]
+    [Description("The currently initialized orbit engine, not merely the saved preference.")]
+    public string ActiveBackend => OrbitBackendRegistry.CurrentBackendId;
+
+    [Category("Orbit engine")]
+    [DisplayName("Orbit Data Quality")]
+    [ReadOnly(true)]
+    [Newtonsoft.Json.JsonIgnore]
+    [Description("SGP.NET baseline, Orekit EOP coverage, or missing/out-of-range data status.")]
+    public string ActiveDataQuality => OrbitBackendRegistry.CurrentDataQuality;
+
     public const string DefaultSatellitesUrl =
       "https://db.satnogs.org/api/satellites/?format=json";
     public const string DefaultTransmittersUrl =

@@ -13,15 +13,16 @@ internal static class OrbitBackendRegistry
 {
     private static readonly object Sync = new();
     private static IOrbitBackend? selectedBackend;
+    private static string dataQuality = "SGPNET_BASELINE";
 
     internal static OrbitEngineMode Mode { get; private set; } = OrbitEngineMode.SgpNet;
 
-    internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend);
+    internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend, string Quality);
 
     internal static Snapshot Capture()
     {
         lock (Sync)
-            return new Snapshot(Mode, selectedBackend);
+            return new Snapshot(Mode, selectedBackend, dataQuality);
     }
 
     internal static void Restore(Snapshot snapshot)
@@ -30,6 +31,7 @@ internal static class OrbitBackendRegistry
         {
             selectedBackend = snapshot.Backend;
             Mode = snapshot.Mode;
+            dataQuality = snapshot.Quality;
         }
     }
 
@@ -42,6 +44,15 @@ internal static class OrbitBackendRegistry
         }
     }
 
+    internal static string CurrentDataQuality
+    {
+        get
+        {
+            lock (Sync)
+                return dataQuality;
+        }
+    }
+
     internal static void Configure(OrbitSourceSettings settings)
     {
         if (settings.Backend == OrbitEngineMode.SgpNet)
@@ -50,6 +61,7 @@ internal static class OrbitBackendRegistry
             {
                 selectedBackend = null;
                 Mode = OrbitEngineMode.SgpNet;
+                dataQuality = "SGPNET_BASELINE";
             }
             return;
         }
@@ -67,6 +79,10 @@ internal static class OrbitBackendRegistry
         MethodInfo initialize = dataType.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static)
             ?? throw new MissingMethodException(dataType.FullName, "Initialize");
         initialize.Invoke(null, [dataDir]);
+        MethodInfo qualityMethod = dataType.GetMethod("DataQuality", BindingFlags.Public | BindingFlags.Static)
+            ?? throw new MissingMethodException(dataType.FullName, "DataQuality");
+        string quality = qualityMethod.Invoke(null, [DateTimeOffset.UtcNow]) as string
+            ?? throw new InvalidOperationException("Orekit data quality status unavailable");
         Type backendType = assembly.GetType("SkyRoof.Orbit.Orekit.OrekitOrbitBackend", throwOnError: true)
             ?? throw new TypeLoadException("OrekitOrbitBackend was not found in the selected backend.");
         if (Activator.CreateInstance(backendType) is not IOrbitBackend backend)
@@ -76,6 +92,7 @@ internal static class OrbitBackendRegistry
         {
             selectedBackend = backend;
             Mode = OrbitEngineMode.Orekit;
+            dataQuality = quality;
         }
         Log.Information("Orbit backend selected: {Backend} (data: {Directory})",
             backend.BackendId, dataDir);
