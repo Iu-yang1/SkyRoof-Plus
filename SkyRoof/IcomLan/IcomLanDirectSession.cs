@@ -13,7 +13,10 @@ namespace SkyRoof
     bool TxEnabled,
     long UdpSent,
     double LastSentDbfs,
-    long LastSentUtcTicks);
+    long LastSentUtcTicks,
+    string ModSource = "",
+    bool WrongModSource = false,
+    bool MutedLanLevel = false);
 
   internal static class IcomDirectLanTxAudioDisplay
   {
@@ -26,7 +29,14 @@ namespace SkyRoof
           utcNow.Ticks >= status.LastSentUtcTicks &&
           utcNow.Ticks - status.LastSentUtcTicks <
             TimeSpan.FromMilliseconds(1500).Ticks)
-        return $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS";
+      {
+        string warning = status.WrongModSource
+          ? " · MOD≠LAN"
+          : status.MutedLanLevel
+            ? " · LAN MOD 0%"
+            : "";
+        return $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS{warning}";
+      }
       return catPtt ? "LAN TX PTT ON · no PCM" :
         $"LAN TX idle · {status.UdpSent} pkts";
     }
@@ -133,12 +143,18 @@ namespace SkyRoof
     private double LastAgcGainDb;
     private long AgcProcessedFrames;
     private long LastSentAudioTicks;
+    private readonly IcomLanModInputState ModInputState = new();
+    private DateTime LastModInputPollUtc;
+    private int NextModInputPollIndex;
     internal Func<bool>? ExternalMeterReadbackAvailable { get; init; }
     internal IcomDirectLanTxAudioStatus TxAudioStatus => new(
       AudioLinkConnected, AudioOptions.Transmit.Enabled,
       Interlocked.Read(ref AudioTxDatagrams),
       Volatile.Read(ref LastSentAudioDbfs),
-      Interlocked.Read(ref LastSentAudioTicks));
+      Interlocked.Read(ref LastSentAudioTicks),
+      ModInputState.Description,
+      ModInputState.ConfirmedWrongSource,
+      ModInputState.ConfirmedZeroLanLevel);
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
@@ -742,6 +758,7 @@ namespace SkyRoof
       }
 
       await PollMetersAsync(civ, now, token);
+      await PollModInputAsync(civ, now, token);
       ReportAudioDiagnostics(now);
 
       DateTime lastSweepUtc = new DateTime(
@@ -878,11 +895,31 @@ namespace SkyRoof
           AudioOptions.Transmit.CaptureBufferMs,
           AudioOptions.Transmit.JitterPrefillMs,
           AudioOptions.Transmit.JitterMaximumMs);
+        Log.Information(
+          "Direct LAN TX modulation source: {Status}", ModInputState.Description);
         Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
           Interlocked.Read(ref ScopeControlWritesSent),
           ScopeControlWrites.Reader.Count);
       }
 
+    }
+
+    private async Task PollModInputAsync(
+      UdpClient civ, DateTime now, CancellationToken token)
+    {
+      if (!AudioOptions.Transmit.Enabled ||
+          !AudioLinkConnected ||
+          (now - LastModInputPollUtc).TotalMilliseconds < 650)
+        return;
+
+      // The IC-9700 1A 05 input selection is independent of the microphone
+      // PCM/UDP transport. Query both DATA and DATA OFF as well as LAN
+      // modulation level so a live PCM meter cannot mask a muted radio input.
+      IcomLanModRegister register =
+        ModInputState.NextPoll(NextModInputPollIndex++);
+      await SendCivDataAsync(civ,
+        IcomLanModCivCodec.BuildRead(RadioCivAddress, register), token);
+      LastModInputPollUtc = now;
     }
 
     private async Task PollMetersAsync(
@@ -1016,7 +1053,47 @@ namespace SkyRoof
           }
         }
       }
+      await ApplyRadioModReadbackAsync(civ, payload, token);
       CivDataReceived?.Invoke(payload);
+    }
+
+    private async Task ApplyRadioModReadbackAsync(
+      UdpClient civ, byte[] payload, CancellationToken token)
+    {
+      if (!AudioOptions.Transmit.Enabled || payload.Length < 11)
+        return;
+
+      for (int offset = 0; offset + 11 <= payload.Length; offset++)
+      {
+        if (payload[offset] != 0xFE ||
+            payload[offset + 1] != 0xFE ||
+            payload[offset + 4] != 0x1A)
+          continue;
+
+        int size = offset + 12 <= payload.Length &&
+          payload[offset + 7] == (byte)IcomLanModRegister.LanLevel
+          ? 12 : 11;
+        if (offset + size > payload.Length ||
+            !IcomLanModCivCodec.TryParse(
+              payload.AsSpan(offset, size), RadioCivAddress,
+              out IcomLanModReading reading))
+          continue;
+
+        bool autoSelect = AudioOptions.Transmit.AutoSelectLanModInput;
+        ModInputState.Apply(reading, autoSelect);
+        if (ModInputState.TryGetCorrection(reading, autoSelect,
+              out IcomLanModRegister register))
+        {
+          await SendCivDataAsync(civ,
+            IcomLanModCivCodec.BuildSourceWrite(
+              RadioCivAddress, register, IcomLanModCivCodec.LanSource),
+            token);
+          Log.Information(
+            "Direct LAN TX auto-selected LAN for IC-9700 {Register}; " +
+            "awaiting independent CI-V readback (not proof of RF output)",
+            register);
+        }
+      }
     }
 
     private static IcomMeterKind[] EnabledMeters(IcomDirectLanMeterSettings options)
