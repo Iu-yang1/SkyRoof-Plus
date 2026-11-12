@@ -6,17 +6,17 @@ using SkyRoof.Orbit.Contracts;
 namespace SkyRoof;
 
 /// <summary>
-/// Application-level backend selection. Orekit's Java assemblies are loaded
-/// only when explicitly selected; legacy SGP.NET remains built into SkyRoof.
+/// The production orbit backend is Orekit/IKVM. No automatic downgrade to a different
+/// propagation implementation is permitted when a track or data dependency fails.
 /// </summary>
 internal static class OrbitBackendRegistry
 {
     private static readonly object Sync = new();
     private static IOrbitBackend? selectedBackend;
-    private static string dataQuality = "SGPNET_BASELINE";
+    private static string dataQuality = "OREKIT_NOT_INITIALIZED";
     private static string selectedDataDirectory = string.Empty;
 
-    internal static OrbitEngineMode Mode { get; private set; } = OrbitEngineMode.SgpNet;
+    internal static OrbitEngineMode Mode { get; private set; } = OrbitEngineMode.Orekit;
 
     internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend, string Quality, string DataDirectory);
 
@@ -42,7 +42,7 @@ internal static class OrbitBackendRegistry
         get
         {
             lock (Sync)
-                return selectedBackend?.BackendId ?? "sgpnet";
+                return selectedBackend?.BackendId ?? "orekit-not-initialized";
         }
     }
 
@@ -57,17 +57,8 @@ internal static class OrbitBackendRegistry
 
     internal static void Configure(OrbitSourceSettings settings)
     {
-        if (settings.Backend == OrbitEngineMode.SgpNet)
-        {
-            lock (Sync)
-            {
-                selectedBackend = null;
-                Mode = OrbitEngineMode.SgpNet;
-                dataQuality = "SGPNET_BASELINE";
-                selectedDataDirectory = settings.OrekitDataDirectory;
-            }
-            return;
-        }
+        // Preserve old JSON compatibility without leaving a selectable legacy engine.
+        settings.Backend = OrbitEngineMode.Orekit;
 
         string dataDir = ResolveDataDirectory(settings.OrekitDataDirectory);
         EnsureLeapSecondHistory(dataDir);
@@ -100,6 +91,16 @@ internal static class OrbitBackendRegistry
         }
         Log.Information("Orbit backend selected: {Backend} (data: {Directory})",
             backend.BackendId, dataDir);
+    }
+
+    internal static IOrbitTrack CreateCelestialTrack(string bodyName)
+    {
+        IOrbitBackend? backend;
+        lock (Sync)
+            backend = selectedBackend;
+        if (backend is not ICelestialOrbitBackend celestial)
+            throw new InvalidOperationException("The Orekit planetary backend is not initialized.");
+        return celestial.CreateCelestialTrack(bodyName);
     }
 
     internal static IOrbitTrack? CreateTrack(SatnogsDbTle elements)

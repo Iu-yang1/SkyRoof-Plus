@@ -2,13 +2,6 @@ using System.ComponentModel;
 
 namespace SkyRoof
 {
-  public enum JplEphemerisKernel
-  {
-    DE440s = 0,
-    DE421 = 1,
-    CustomFile = 2
-  }
-
   public enum OrbitEngineMode
   {
     SgpNet = 0,
@@ -17,29 +10,75 @@ namespace SkyRoof
 
   public class OrbitSourceSettings
   {
-    [Category("Orbit engine")]
-    [DisplayName("Orbit Propagation Backend")]
-    [Description("Choose the existing SGP.NET backend or the installed Orekit/IKVM backend. Changes rebuild orbit tracks and pass predictions.")]
-    [DefaultValue(OrbitEngineMode.SgpNet)]
-    public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.SgpNet;
+    // Deserialize older SGP.NET preferences, but new installations and upgrades use Orekit exclusively.
+    [Browsable(false)]
+    [DefaultValue(OrbitEngineMode.Orekit)]
+    public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.Orekit;
 
-    [Category("Orbit engine")]
+    public const string DefaultOrekitEopSources =
+      "https://maia.usno.navy.mil/ser7/finals2000A.all;" +
+      "https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all";
+
+    public const string DefaultOrekitDe430Url =
+      "https://raw.githubusercontent.com/eSpace-epfl/orekit-data/master/DE-430-ephemerides/lnxp1990.430";
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("Auto-download Orekit Data")]
+    [Description("Download missing Orekit data before engine initialization and refresh IERS EOP data every seven days. Valid cached data remain available offline.")]
+    [DefaultValue(true)]
+    public bool AutoDownloadOrekitData { get; set; } = true;
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("Show Solar-System Targets")]
+    [Description("Show Moon, Sun and Venus using the Orekit JPL DE430 ephemeris. Restart SkyRoof after changing this option.")]
+    [DefaultValue(true)]
+    public bool ShowSolarSystemTargets { get; set; } = true;
+
+    [Category("Orekit ephemeris")]
     [DisplayName("Orekit Data Directory")]
-    [Description("Optional directory containing tai-utc.dat and finals2000A.all. Blank uses the SkyRoof user-data/orekit-data directory.")]
+    [Description("Directory for tai-utc.dat, IERS finals2000A.all, and Orekit DE430 lnxp1990.430. Leave blank for SkyRoof user-data/orekit-data; changing requires a restart.")]
     public string OrekitDataDirectory { get; set; } = string.Empty;
 
-    [Category("Orbit engine")]
+    [Category("Orekit ephemeris")]
+    [DisplayName("IERS EOP Download Sources")]
+    [Description("Ordered HTTPS URLs for finals2000A.all, separated by semicolons or new lines. Used for initial download and seven-day EOP refresh.")]
+    [DefaultValue(DefaultOrekitEopSources)]
+    public string OrekitEopSources { get; set; } = DefaultOrekitEopSources;
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("JPL DE430 Download URL")]
+    [Description("Orekit-native DE430 data URL. Downloaded data must match the pinned upstream Git blob hash; NAIF BSP/SPK files are not interchangeable.")]
+    [DefaultValue(DefaultOrekitDe430Url)]
+    public string OrekitDe430Url { get; set; } = DefaultOrekitDe430Url;
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("Orekit Data Status")]
+    [ReadOnly(true)]
+    [Newtonsoft.Json.JsonIgnore]
+    [Description("Resolved local directory and file-presence diagnostics. The running data context changes only after restart.")]
+    public string DataStatus
+    {
+      get
+      {
+        string directory = OrbitBackendRegistry.ResolveDataDirectory(OrekitDataDirectory);
+        return $"UTC: {(File.Exists(Path.Combine(directory, "tai-utc.dat")) || File.Exists(Path.Combine(directory, "UTC-TAI.history")) ? "present" : "missing")}; " +
+          $"EOP: {(File.Exists(Path.Combine(directory, "finals2000A.all")) ? "present" : "missing")}; " +
+          $"DE430: {(File.Exists(Path.Combine(directory, "lnxp1990.430")) ? "present" : "missing")}";
+      }
+    }
+
+    [Category("Orekit ephemeris")]
     [DisplayName("Active Orbit Backend")]
     [ReadOnly(true)]
     [Newtonsoft.Json.JsonIgnore]
     [Description("The currently initialized orbit engine, not merely the saved preference.")]
     public string ActiveBackend => OrbitBackendRegistry.CurrentBackendId;
 
-    [Category("Orbit engine")]
+    [Category("Orekit ephemeris")]
     [DisplayName("Orbit Data Quality")]
     [ReadOnly(true)]
     [Newtonsoft.Json.JsonIgnore]
-    [Description("SGP.NET baseline, Orekit EOP coverage, or missing/out-of-range data status.")]
+    [Description("Orekit time and IERS Earth orientation data coverage status.")]
     public string ActiveDataQuality => OrbitBackendRegistry.CurrentDataQuality;
 
     public const string DefaultSatellitesUrl =
@@ -65,14 +104,6 @@ namespace SkyRoof
         ? DefaultAutoTleUrl
         : url;
     }
-
-    public const string DefaultDe440sSources =
-      "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp;" +
-      "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp";
-
-    public const string DefaultDe421Sources =
-      "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp;" +
-      "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp";
 
     [Category("Satellite database")]
     [DisplayName("Satellite List URL")]
@@ -108,41 +139,6 @@ namespace SkyRoof
     [Description("Lowest-priority automatic orbit source. The default is the original SatNOGS TLE endpoint. Leave blank to disable updates from this source.")]
     [DefaultValue(DefaultTleUrl)]
     public string TleUrl { get; set; } = DefaultTleUrl;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("DE440s Download Sources")]
-    [Description("Ordered DE440s download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
-    [DefaultValue(DefaultDe440sSources)]
-    public string De440sSources { get; set; } = DefaultDe440sSources;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("DE421 Download Sources")]
-    [Description("Ordered DE421 download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
-    [DefaultValue(DefaultDe421Sources)]
-    public string De421Sources { get; set; } = DefaultDe421Sources;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("JPL Ephemeris Kernel")]
-    [Description("Planetary/lunar SPK kernel used for Moon, Sun and Venus tracking. DE440s is recommended for modern dates; DE421 is retained for compatibility.")]
-    [DefaultValue(JplEphemerisKernel.DE440s)]
-    public JplEphemerisKernel JplKernel { get; set; } = JplEphemerisKernel.DE440s;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("Custom JPL BSP File")]
-    [Description("Path to a local JPL/NAIF DAF-SPK .bsp file when JPL Ephemeris Kernel is CustomFile.")]
-    public string JplKernelFile { get; set; } = string.Empty;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("Show Solar-System Targets")]
-    [Description("Add Moon, Sun and Venus to the normal satellite/target database when a compatible JPL kernel is available.")]
-    [DefaultValue(true)]
-    public bool ShowSolarSystemTargets { get; set; } = true;
-
-    [Category("JPL ephemeris")]
-    [DisplayName("Auto-download JPL Kernel")]
-    [Description("When DE440s or DE421 is selected and not cached yet, download it once from the configured source list. Custom BSP files are never downloaded automatically.")]
-    [DefaultValue(true)]
-    public bool AutoDownloadJplKernel { get; set; } = true;
 
     public override string ToString() => string.Empty;
   }

@@ -19,6 +19,8 @@ namespace SkyRoof
     private Label? languageLabel;
     private Button? readIcomLanButton;
     private Label? readIcomLanHint;
+    private Button? updateOrekitDataButton;
+    private Label? orekitDataHint;
     private Button? cableOfficialDownload;
     private Button? cableRefresh;
     private Button? cableUninstall;
@@ -40,12 +42,14 @@ namespace SkyRoof
       InstallLanguageSelector();
       InstallSignedCableToolbar();
       InstallIcomLanToolbar();
+      grid.SelectedGridItemChanged += (_, _) => UpdateOrekitToolbarState();
       ctx.CatControl.IcomNetworkReadbackReceived += OnIcomNetworkReadback;
 
       if (section == null)
         grid.CollapseAllGridItems();
       else
-        grid.ExpandTopLevelProperties(grid.GetItemByFullName(section));
+        grid.ExpandAndSelect(grid.GetItemByFullName(section));
+      UpdateOrekitToolbarState();
     }
 
     private void InstallLanguageSelector()
@@ -169,12 +173,27 @@ namespace SkyRoof
         AutoEllipsis = true,
         Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
       };
+      updateOrekitDataButton = new Button
+      {
+        Left = 8, Top = 3, Width = 171, Height = 29
+      };
+      orekitDataHint = new Label
+      {
+        Left = 188, Top = 4, Height = 27,
+        TextAlign = ContentAlignment.MiddleLeft,
+        AutoEllipsis = true,
+        Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+      };
+      updateOrekitDataButton.Click += async (_, _) => await UpdateOrekitDataAsync();
       bar.Controls.Add(readIcomLanButton);
       bar.Controls.Add(readIcomLanHint);
+      bar.Controls.Add(updateOrekitDataButton);
+      bar.Controls.Add(orekitDataHint);
       bar.Resize += (_, _) =>
       {
-        if (readIcomLanHint != null)
-          readIcomLanHint.Width = Math.Max(80, bar.ClientSize.Width - 197);
+        int hintWidth = Math.Max(80, bar.ClientSize.Width - 197);
+        if (readIcomLanHint != null) readIcomLanHint.Width = hintWidth;
+        if (orekitDataHint != null) orekitDataHint.Width = hintWidth;
       };
       readIcomLanButton.Click += (_, _) =>
       {
@@ -194,6 +213,63 @@ namespace SkyRoof
       };
       settingsLayout?.Controls.Add(bar, 0, 2);
       RefreshLanguageCaptions();
+    }
+
+    private void UpdateOrekitToolbarState()
+    {
+      bool isOrekit = false;
+      for (GridItem? item = grid.SelectedGridItem; item != null; item = item.Parent)
+      {
+        if (item.PropertyDescriptor?.Name == nameof(Settings.OrbitSources))
+        {
+          isOrekit = true;
+          break;
+        }
+      }
+
+      if (readIcomLanButton != null) readIcomLanButton.Visible = !isOrekit;
+      if (readIcomLanHint != null) readIcomLanHint.Visible = !isOrekit;
+      if (updateOrekitDataButton != null) updateOrekitDataButton.Visible = isOrekit;
+      if (orekitDataHint != null) orekitDataHint.Visible = isOrekit;
+    }
+
+    private async Task UpdateOrekitDataAsync()
+    {
+      if (grid.SelectedObject is not Settings edited || updateOrekitDataButton == null)
+        return;
+      updateOrekitDataButton.Enabled = false;
+      if (orekitDataHint != null)
+        orekitDataHint.Text = SettingsLanguage.Text("正在更新 IERS / DE430...", "Updating IERS / DE430...");
+      try
+      {
+        await OrekitDataBootstrapper.EnsureAsync(edited.OrbitSources, forceRefresh: true);
+        string directory = OrbitBackendRegistry.ResolveDataDirectory(
+          edited.OrbitSources.OrekitDataDirectory);
+        bool hasEop = File.Exists(Path.Combine(directory, "finals2000A.all"));
+        bool hasDe430 = File.Exists(Path.Combine(directory, "lnxp1990.430"));
+        grid.Refresh();
+        string message = SettingsLanguage.Text(
+          $"Orekit 数据目录：{directory}\r\nIERS EOP：{(hasEop ? "已缓存" : "缺失")}\r\nDE430：{(hasDe430 ? "已缓存" : "缺失")}\r\n\r\n重启 SkyRoof 后加载更新的 EOP / 星历。如已修改数据目录，请点击应用保存配置。",
+          $"Orekit data directory: {directory}\r\nIERS EOP: {(hasEop ? "cached" : "missing")}\r\nDE430: {(hasDe430 ? "cached" : "missing")}\r\n\r\nRestart SkyRoof to load updated EOP / ephemeris. Apply the settings to save a changed directory.");
+        if (orekitDataHint != null)
+          orekitDataHint.Text = SettingsLanguage.Text(
+            hasEop && hasDe430 ? "数据已缓存；重启后生效" : "数据不完整；查看提示",
+            hasEop && hasDe430 ? "Data cached; restart to load" : "Incomplete data; see details");
+        MessageBox.Show(message, "Orekit / Ephemeris", MessageBoxButtons.OK,
+          hasEop && hasDe430 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Manual Orekit data refresh failed.");
+        if (orekitDataHint != null)
+          orekitDataHint.Text = SettingsLanguage.Text("更新失败", "Update failed");
+        MessageBox.Show(ex.GetBaseException().Message, "Orekit / Ephemeris",
+          MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
+      finally
+      {
+        updateOrekitDataButton.Enabled = true;
+      }
     }
 
     private void OnIcomNetworkReadback(IcomNetworkReadbackState snapshot)
@@ -354,6 +430,10 @@ namespace SkyRoof
         cableUninstall.Text = SettingsLanguage.Text("卸载 VB-CABLE", "Remove VB-CABLE");
       if (cableRefresh != null)
         cableRefresh.Text = SettingsLanguage.Text("重新检测音频端点", "Rescan audio endpoints");
+      if (updateOrekitDataButton != null)
+        updateOrekitDataButton.Text = SettingsLanguage.Text("更新 Orekit 星历", "Update Orekit Data");
+      if (orekitDataHint != null && string.IsNullOrEmpty(orekitDataHint.Text))
+        orekitDataHint.Text = SettingsLanguage.Text("IERS EOP / JPL DE430 数据", "IERS EOP / JPL DE430 data");
       if (readIcomLanHint != null && string.IsNullOrEmpty(readIcomLanHint.Text))
         readIcomLanHint.Text = SettingsLanguage.Text(
           "IC-9700 Direct LAN 参数", "IC-9700 Direct LAN settings");
@@ -781,39 +861,16 @@ namespace SkyRoof
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.OrbitSourceSettings.")))
         ctx.SatnogsDb.ConfigureSources(ctx.Settings.OrbitSources);
 
+      // Orekit caches its global UTC/ITRF data context. Never attempt to
+      // re-initialize a different data directory within the current process.
+      // These persisted changes are picked up by the startup bootstrap.
       if (ChangedFields.Exists(s =>
-            s is "SkyRoof.OrbitSourceSettings.Backend" or
-                 "SkyRoof.OrbitSourceSettings.OrekitDataDirectory"))
-      {
-        var previous = OrbitBackendRegistry.Capture();
-        try
-        {
-          OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
-          RebuildOrbitTrackingCaches();
-        }
-        catch (Exception ex)
-        {
-          Log.Warning(ex, "Orbit engine settings cannot be applied.");
-          OrbitBackendRegistry.Restore(previous);
-          // The Apply button clones the PropertyGrid object, while OK uses
-          // its original reference. Restore both on failure; otherwise a
-          // later OK can re-save an invalid Orekit selection without
-          // re-running Configure because ChangedFields is already cleared.
-          ctx.Settings.OrbitSources.Backend = previous.Mode;
-          ctx.Settings.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
-          if (grid.SelectedObject is Settings edited)
-          {
-            edited.OrbitSources.Backend = previous.Mode;
-            edited.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
-            grid.Refresh();
-          }
-          RebuildOrbitTrackingCaches();
-          MessageBox.Show(
-            "Orbit engine selection was not applied:\r\n\r\n" +
-            ex.GetBaseException().Message,
-            "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-      }
+            s is "SkyRoof.OrbitSourceSettings.OrekitDataDirectory" or
+                 "SkyRoof.OrbitSourceSettings.ShowSolarSystemTargets"))
+        MessageBox.Show(SettingsLanguage.Text(
+          "Orekit 数据目录或太阳系目标设置已保存。请重启 SkyRoof，使轨道与星历计算统一使用新设置。",
+          "The Orekit data directory or solar-system target settings were saved. Restart SkyRoof to apply the changes to the orbit and ephemeris engine."),
+          "Orekit / Ephemeris", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.AmsatSettings.")))
         if (ctx.Settings.Amsat.Enabled)

@@ -35,10 +35,10 @@ public sealed class OrbitElementTests
         Assert.Empty(record.tle1);
         Assert.Empty(record.tle2);
 
-        var tracker = new SatelliteTracker(record);
-        Assert.True(tracker.Enabled);
-        Assert.Equal((uint)100001, tracker.Tle!.NoradNumber);
-        Assert.NotNull(tracker.Predict(new DateTime(2026, 10, 8, 0, 10, 0, DateTimeKind.Utc)));
+        // Full Orekit propagation and six-digit NORAD tests run in the isolated
+        // Orekit/IKVM smoke suite with a deterministic UTC data context.
+        Assert.Equal((uint)100001, record.omm!.NoradCatID);
+        Assert.Equal(15.5, record.omm.MeanMotion, 6);
     }
 
     [Fact]

@@ -237,6 +237,8 @@ namespace SkyRoof
 
     private void SetDefaults()
     {
+      // Preserve legacy JSON schema but never retain the removed SGP.NET engine.
+      OrbitSources.Backend = OrbitEngineMode.Orekit;
       // Replace legacy Auto values with an explicit driver before PropertyGrid
       // or hardware initialization; never reset a user's explicit selection.
       Rotator.MigrateDriverMode();

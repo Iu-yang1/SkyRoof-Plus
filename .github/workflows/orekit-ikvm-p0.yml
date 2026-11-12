@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - feature/orekit-ikvm-orbit-engine
+      - feature/orekit-unified-engine-autodata
     paths:
       - 'SkyRoof.Orbit.Orekit/**'
       - 'SkyRoof.Orbit.Contracts/**'
       - 'SkyRoof.Orbit.SgpNet/**'
       - 'SkyRoof.Orbit.Orekit.Smoke/**'
+      - 'SkyRoof/Orbit/**'
+      - 'SkyRoof/Satellites/**'
       - '.gitattributes'
       - '.github/workflows/orekit-ikvm-p0.yml'
   workflow_dispatch:
@@ -64,6 +67,10 @@ jobs:
             }
           }
           if (-not (Test-Path $target)) { throw 'Official IERS EOP sources unavailable' }
+
+      - name: Download and verify Orekit DE430 test ephemeris
+        shell: pwsh
+        run: ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
 
       - name: UTC TLE TEME and ITRF smoke verification
         shell: pwsh

@@ -12,6 +12,68 @@ namespace VE3NEA.Dsp.Tests;
 public sealed class SettingsLanguageTests
 {
   [Fact]
+  public void OrekitEphemerisSettingsAreUnifiedLocalizedAndSerializable()
+  {
+    var previous = SettingsLanguage.Current;
+    try
+    {
+      var settings = new Settings();
+      var orbit = settings.OrbitSources;
+      Assert.Equal(OrbitEngineMode.Orekit, orbit.Backend);
+      Assert.True(orbit.AutoDownloadOrekitData);
+      Assert.True(orbit.ShowSolarSystemTargets);
+
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+      var properties = TypeDescriptor.GetProperties(orbit,
+        new Attribute[] { BrowsableAttribute.Yes });
+      Assert.Null(properties.Find("Backend", false));
+      string[] names = {
+        nameof(orbit.AutoDownloadOrekitData),
+        nameof(orbit.ShowSolarSystemTargets),
+        nameof(orbit.OrekitDataDirectory),
+        nameof(orbit.OrekitEopSources),
+        nameof(orbit.OrekitDe430Url),
+        nameof(orbit.DataStatus),
+        nameof(orbit.ActiveBackend),
+        nameof(orbit.ActiveDataQuality)
+      };
+      foreach (var name in names)
+      {
+        var item = properties.Find(name, false);
+        Assert.NotNull(item);
+        Assert.Equal("Orekit 星历与数据", item!.Category);
+      }
+      Assert.Equal("IERS 地球定向参数下载来源",
+        properties.Find(nameof(orbit.OrekitEopSources), false)!.DisplayName);
+      Assert.Equal("JPL DE430 星历下载网址",
+        properties.Find(nameof(orbit.OrekitDe430Url), false)!.DisplayName);
+
+      orbit.OrekitDataDirectory = "C:\\skyroof-test-data";
+      orbit.OrekitEopSources = "https://example.org/finals2000A.all";
+      orbit.OrekitDe430Url = "https://example.org/lnxp1990.430";
+      string json = JsonConvert.SerializeObject(orbit);
+      Assert.DoesNotContain("DataStatus", json);
+      Assert.DoesNotContain("ActiveBackend", json);
+      Assert.Contains(nameof(orbit.OrekitEopSources), json);
+      var roundTrip = JsonConvert.DeserializeObject<OrbitSourceSettings>(json)!;
+      Assert.Equal(orbit.OrekitDataDirectory, roundTrip.OrekitDataDirectory);
+      Assert.Equal(orbit.OrekitEopSources, roundTrip.OrekitEopSources);
+      Assert.Equal(orbit.OrekitDe430Url, roundTrip.OrekitDe430Url);
+
+      SettingsLanguage.Set(UiLanguage.English);
+      properties = TypeDescriptor.GetProperties(orbit,
+        new Attribute[] { BrowsableAttribute.Yes });
+      Assert.Equal("Orekit ephemeris",
+        properties.Find(nameof(orbit.OrekitEopSources), false)!.Category);
+      Assert.Equal("IERS EOP Download Sources",
+        properties.Find(nameof(orbit.OrekitEopSources), false)!.DisplayName);
+      Assert.Equal("JPL DE430 Download URL",
+        properties.Find(nameof(orbit.OrekitDe430Url), false)!.DisplayName);
+    }
+    finally { SettingsLanguage.Set(previous); }
+  }
+
+  [Fact]
   public void SwitchingLanguagePreservesPropertyIdentityAndSettingsSerialization()
   {
     var previous = SettingsLanguage.Current;

@@ -1,32 +1,29 @@
-# Orekit / IKVM 轨道引擎使用说明（实验性）
+# Orekit / IKVM 统一轨道与天体计算引擎
 
-SkyRoof Plus 的轨道计算可使用 **SGP.NET（默认）**，也可主动切换至通过 **IKVM 8.16.3** 转换的 **Orekit 13.1.9**。两者都可通过 SGP4/SDP4 传播 TLE 和 CCSDS OMM。**切换计算库并不会使 TLE 自动具有精密轨道积分的精度。**
+SkyRoof Plus 的生产轨道传播器统一采用 **Orekit 13.1.9 + IKVM**。TLE 和 CCSDS OMM 仍使用 Orekit 自带的 SGP4/SDP4，并不将 TLE 强行转换为精密数值积分轨道。月球、太阳与金星统一由 Orekit `CelestialBodyFactory`、`TopocentricFrame` 和 WGS-84 站心观测计算，不再使用旧的独立 JPL BSP 解码路径。
 
-## 后端选择
+## 数据目录和自动下载
 
-1. 打开 **Tools → Orbit / TLE Sources → Edit Source URLs...**，进入轨道数据源设置。
-2. 在 **Orbit engine** 分类选择 **Orbit Propagation Backend**：`SgpNet` 或 `Orekit`。
-3. 应用后程序会重建卫星轨迹和过境缓存。通过只读的 **Active Orbit Backend** 与 **Orbit Data Quality** 确认实际启用的后端及数据状态。
-4. 如果 Orekit 初始化失败，程序显示具体错误并保留可工作的 SGP.NET；某一轨道元素计算失败也会记录回退。
+在**设置 → 轨道与星历来源 → Orekit ephemeris** 中统一配置：自动下载开关、太阳系目标显示、数据目录、IERS EOP 下载源及 JPL DE430 星历下载地址。选中该设置项后，工具栏显示 **更新 Orekit 星历**，可手动刷新 EOP 并检查/下载 DE430，替代之前工具菜单中独立的 EOP 下载项。
 
-集成版不需要用户单独安装 Java JVM，但必须完整携带 IKVM 的 .NET 运行库、Windows 本地 DLL、`ikvm/win-x64` 类库镜像及 `ikvm.properties`。仅编译通过不代表独立安装包可运行。
+**Orekit Data Directory** 留空时采用 SkyRoof 用户数据目录下的 `orekit-data`。默认开启 **Auto-download Orekit Data**。
 
-## UTC、EOP 与坐标精度
+程序启动时先准备数据，再初始化 Orekit 的时间与坐标框架：
 
-Orekit 需要 UTC–TAI 历史，例如 `tai-utc.dat`。安装器包含 UTC 历史数据，首次启用时复制到用户数据目录。为提高 ITRF 地固系转换的可信度，还应导入覆盖计算历元的 IERS `finals2000A.all` 数据。
+- `tai-utc.dat`：内置的 UTC/TAI 闰秒历史，首次运行复制到数据目录。
+- `finals2000A.all`：从 USNO / IERS 下载地球定向参数（EOP），本地文件超过七天时尝试更新。下载后校验文件结构、保存 SHA-256 来源记录。
+- `lnxp1990.430`：下载 Orekit 原生格式的 JPL DE430 行星星历，供月球、太阳和金星使用；采用固定 Git Blob SHA-1 校验并保存 SHA-256 记录。
 
-通过 **Tools → Orbit / TLE Sources → Update Orekit IERS EOP Data...** 从官方源更新 EOP，程序会在校验格式后保存 SHA-256、下载 URL 和时间。**更新后重启 SkyRoof** 以使新数据生效。也可填写 **Orekit Data Directory** 指向自行管理的数据目录；不要假定运行中的全局 Orekit 时间上下文可以热替换。
+下载失败时保留已有可用数据；**不会悄悄切换回 SGP.NET 传播**。注意传统 NAIF `.bsp` 文件与 Orekit 所需的 `lnxp1990.430` 不是相同数据格式。
 
-**Orbit Data Quality** 标明是否缺少 EOP、数据是否覆盖指定时段及来源，但不表示已经通过绝对跟踪精度实测。
+Orekit 对全局数据目录和时间尺度有缓存，因此更新 EOP 或切换目录后应重启程序。**Orbit Data Quality** 是数据覆盖情况说明，不等同于测量过的指向误差。
 
-## 与电台、旋转器和多普勒的兼容
+## 跟踪与多普勒
 
-现有 SkyRoof UI、CAT 和旋转器调用接口保留。新后端使用方位角从真北顺时针、几何仰角、距离以米计、**远离地面站时范围速率为正**；兼容层会将其转换为原先 SGP.NET 的 km / km·s⁻¹ 数据对象。单程下行一阶多普勒近似为 `Δf = -f₀ × rangeRate/c`。
+上层沿用现有 CAT/旋转器接口和轨迹缓存管理。Orekit 提供站心 AZ（真北顺时针）、EL（几何仰角）、距离（米）、距离变化率（米/秒，远离站点为正）；单程下行一阶频移 `Δf = -f0 × ṙ/c`。当前仍存在用于兼容旧 UI、过境 DTO 的 SGP.NET 类型定义，但**不再调用其传播器作为运行回退**。
 
-可随时选择 SGP.NET 作为回退。月球、太阳、金星目前仍保留原有 JPL/NAIF BSP 天体计算后端；Orekit 不会自动提供真实卫星姿态、极化或 EME 的全套数据。
+## 验证边界
 
-## 验收范围
+代码接线不能代替运行验收。发布前仍需通过 Windows x64 构建与单测、Orekit 天体星历冒烟测试、安装器验证，以及多普勒和旋转器端到端回归。旧版 JPL SPK 解码器已经删除；SGP.NET 数据类型仍暂时用于旧 UI、过境列表和观测 DTO 的兼容适配，未作为数值传播后端。完全清理这一依赖仍需独立的接口迁移与回归测试。
 
-软件验证包含 Vallado SGP4/SDP4 参考向量、六位 NORAD 的 OMM、AOS/LOS 边界、安装目录的 IKVM 运行时加载；**没有实机 CAT/旋转器或真实 EME 的自动化验证，不应称为已完成该类验收**。IKVM 静态转换的 `CharBuffer.rewind` 警告仍在单独跟踪。
-
-完整技术方案见 [Orekit + IKVM 架构 V1](../../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md)。发布验收完成前，请将开发版与已知稳定安装分开保存。
+相关变更见 [Orekit/IKVM 架构](../../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md) 和 [PR #195](https://github.com/Iu-yang1/SkyRoof-Plus/pull/195)。

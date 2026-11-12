@@ -10,10 +10,8 @@ namespace SkyRoof
 {
   public class SatelliteTracker
   {
-    private Satellite? Satellite;
     private IOrbitTrack? orbitTrack;
-    private readonly JplSpkKernel? JplKernel;
-    private readonly JplBody? EphemerisBody;
+    private readonly CelestialBodyId? EphemerisBody;
 
     public Tle? Tle;
     // The same expired or malformed orbit may be rehydrated into a new
@@ -23,41 +21,33 @@ namespace SkyRoof
     private const int MaxInvalidElements = 4096;
     private readonly string? orbitElementKey;
     public bool Enabled { get; private set; }
-    internal bool IsJplEphemeris => EphemerisBody.HasValue;
+    internal bool IsCelestialEphemeris => EphemerisBody.HasValue;
 
     public SatelliteTracker(SatnogsDbTle? tle)
     {
       if (tle == null) return;
-
       orbitElementKey = BuildOrbitElementKey(tle);
-      if (InvalidElements.ContainsKey(orbitElementKey))
-        return;
+      if (InvalidElements.ContainsKey(orbitElementKey)) return;
+      // This Tle object supplies legacy orbit-number metadata only, not propagation.
       Tle = CreateTle(tle);
       if (Tle == null) return;
-
-      Satellite = new(Tle);
-      if (OrbitBackendRegistry.Mode == OrbitEngineMode.Orekit)
+      try
       {
-        try
-        {
-          orbitTrack = OrbitBackendRegistry.CreateTrack(tle);
-        }
-        catch (Exception ex)
-        {
-          Log.Warning(ex, "Orekit track creation failed for NORAD {Norad}; using SGP.NET for this element.",
-            tle.norad_cat_id);
-        }
+        orbitTrack = OrbitBackendRegistry.CreateTrack(tle)
+          ?? throw new InvalidOperationException("Orekit engine not initialized.");
+        Enabled = true;
       }
-      Enabled = true;
+      catch (Exception ex)
+      {
+        LogOrbitFailure(ex, $"Orekit track creation failed for NORAD {tle.norad_cat_id}.");
+      }
     }
 
-    internal SatelliteTracker(
-      JplSpkKernel kernel,
-      JplBody body)
+    internal SatelliteTracker(IOrbitTrack celestialTrack, CelestialBodyId body)
     {
-      JplKernel = kernel;
+      orbitTrack = celestialTrack;
       EphemerisBody = body;
-      Enabled = kernel.Supports(body, DateTime.UtcNow);
+      Enabled = true;
     }
 
     public Tle? CreateTle(SatnogsDbTle tle)
@@ -82,152 +72,75 @@ namespace SkyRoof
 
     public GeodeticCoordinate? Predict(DateTime? utc = null)
     {
-      if (!Enabled || IsJplEphemeris) return null;
-
-      if (orbitTrack != null)
-      {
-        try
-        {
-          DateTime targetUtc = (utc ?? DateTime.UtcNow).ToUniversalTime();
-          var geo = orbitTrack.PredictGeodetic(new DateTimeOffset(targetUtc));
-          return new GeodeticCoordinate(
-            Angle.FromDegrees(geo.LatitudeDegrees),
-            Angle.FromDegrees(geo.LongitudeDegrees),
-            geo.EllipsoidalHeightMetres / 1000.0);
-        }
-        catch (Exception ex)
-        {
-          UseSgpNetAfterOrekitError(ex, "Predict");
-        }
-      }
-
+      if (!Enabled || IsCelestialEphemeris) return null;
       try
       {
-        return (Satellite ?? throw new InvalidOperationException("Satellite propagation data missing")).Predict(utc ?? DateTime.UtcNow).ToGeodetic();
+        var geo = (orbitTrack ?? throw new InvalidOperationException("Orekit track missing"))
+          .PredictGeodetic(new DateTimeOffset((utc ?? DateTime.UtcNow).ToUniversalTime()));
+        return new GeodeticCoordinate(
+          Angle.FromDegrees(geo.LatitudeDegrees),
+          Angle.FromDegrees(geo.LongitudeDegrees),
+          geo.EllipsoidalHeightMetres / 1000.0);
       }
       catch (Exception ex)
       {
         Enabled = false;
-        LogOrbitFailure(ex,
-          $"Predict failed for {Tle!.Name} ({Tle.NoradNumber}).");
+        LogOrbitFailure(ex, $"Orekit Predict failed for NORAD {Tle?.NoradNumber}.");
         return null;
       }
     }
 
-    internal TopocentricObservation? Observe(
-      GroundStation groundStation,
-      DateTime utc)
+    internal TopocentricObservation? Observe(GroundStation groundStation, DateTime utc)
     {
       if (!Enabled) return null;
-
-      if (EphemerisBody is JplBody body)
-      {
-        try
-        {
-          return (JplKernel ?? throw new InvalidOperationException("JPL kernel is not initialized")).Observe(body, groundStation, utc);
-        }
-        catch (Exception ex)
-        {
-          Log.Error(ex, "JPL ephemeris observation failed for {Body}.", body);
-          return null;
-        }
-      }
-
-      if (orbitTrack != null)
-      {
-        try
-        {
-          var geo = groundStation.Location.ToGeodetic();
-          var station = new GroundStationSpec(
-            geo.Latitude.Degrees,
-            geo.Longitude.Degrees,
-            geo.Altitude * 1000.0);
-          var obs = orbitTrack.Observe(
-            station, new DateTimeOffset(utc.ToUniversalTime()));
-          return new TopocentricObservation(
-            Angle.FromDegrees(obs.AzimuthDegrees),
-            Angle.FromDegrees(obs.ElevationDegrees),
-            obs.RangeMetres / 1000.0,
-            obs.RangeRateMetresPerSecond / 1000.0,
-            groundStation.Location);
-        }
-        catch (Exception ex)
-        {
-          UseSgpNetAfterOrekitError(ex, "Observe");
-        }
-      }
-
       try
       {
-        return SgpNetRangeRateCorrection.Observe(
-          groundStation,
-          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"),
-          utc);
+        var geo = groundStation.Location.ToGeodetic();
+        var site = new GroundStationSpec(
+          geo.Latitude.Degrees, geo.Longitude.Degrees, geo.Altitude * 1000.0);
+        var obs = (orbitTrack ?? throw new InvalidOperationException("Orekit track missing"))
+          .Observe(site, new DateTimeOffset(utc.ToUniversalTime()));
+        return new TopocentricObservation(
+          Angle.FromDegrees(obs.AzimuthDegrees),
+          Angle.FromDegrees(obs.ElevationDegrees),
+          obs.RangeMetres / 1000.0,
+          obs.RangeRateMetresPerSecond / 1000.0,
+          groundStation.Location);
       }
       catch (Exception ex)
       {
-        Enabled = false;
-        LogOrbitFailure(ex,
-          $"Observe failed for {Tle!.Name} ({Tle.NoradNumber}).");
+        LogOrbitFailure(ex, $"Orekit Observe failed for {EphemerisBody?.ToString() ?? Tle?.NoradNumber.ToString()}.");
         return null;
       }
     }
 
     internal List<SatelliteVisibilityPeriod> ComputePasses(
-      GroundStation groundStation,
-      DateTime startTime,
-      DateTime endTime)
+      GroundStation groundStation, DateTime startTime, DateTime endTime)
     {
       if (!Enabled) return new();
-
-      if (IsJplEphemeris)
+      if (IsCelestialEphemeris)
         return ComputeEphemerisPasses(groundStation, startTime, endTime);
-
-      if (orbitTrack != null)
-      {
-        try
-        {
-          var geo = groundStation.Location.ToGeodetic();
-          var station = new GroundStationSpec(
-            geo.Latitude.Degrees,
-            geo.Longitude.Degrees,
-            geo.Altitude * 1000.0);
-          var passes = orbitTrack.FindPasses(
-            station, new DateTimeOffset(startTime.ToUniversalTime()),
-            new DateTimeOffset(endTime.ToUniversalTime()));
-          return passes.Select(p =>
-            new SatelliteVisibilityPeriod(
-              Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
-              Angle.FromDegrees(p.MaximumElevationDegrees),
-              p.CulminationUtc.UtcDateTime, groundStation.Location)).ToList();
-        }
-        catch (Exception ex)
-        {
-          UseSgpNetAfterOrekitError(ex, "ComputePasses");
-        }
-      }
 
       try
       {
-        return groundStation.Observe(
-          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), startTime, endTime,
-          TimeSpan.FromSeconds(15), clipToStartTime: false);
+        var geo = groundStation.Location.ToGeodetic();
+        var site = new GroundStationSpec(
+          geo.Latitude.Degrees, geo.Longitude.Degrees, geo.Altitude * 1000.0);
+        return (orbitTrack ?? throw new InvalidOperationException("Orekit track missing"))
+          .FindPasses(site,
+            new DateTimeOffset(startTime.ToUniversalTime()),
+            new DateTimeOffset(endTime.ToUniversalTime()))
+          .Select(p => new SatelliteVisibilityPeriod(
+            null, p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
+            Angle.FromDegrees(p.MaximumElevationDegrees),
+            p.CulminationUtc.UtcDateTime, groundStation.Location))
+          .ToList();
       }
       catch (Exception ex)
       {
-        Enabled = false;
-        LogOrbitFailure(ex,
-          $"ComputePasses failed for {Tle!.Name} ({Tle.NoradNumber}).");
+        LogOrbitFailure(ex, $"Orekit ComputePasses failed for NORAD {Tle?.NoradNumber}.");
         return new();
       }
-    }
-
-    private void UseSgpNetAfterOrekitError(Exception exception, string operation)
-    {
-      orbitTrack = null;
-      Log.Warning(exception,
-        "Orekit {Operation} failed for NORAD {Norad}; retaining SGP.NET tracking.",
-        operation, Tle?.NoradNumber);
     }
 
     internal static string BuildOrbitElementKey(SatnogsDbTle element) =>
@@ -522,7 +435,7 @@ namespace SkyRoof
 
     internal bool IsGeoStationary()
     {
-      if (!Enabled || IsJplEphemeris)
+      if (!Enabled || IsCelestialEphemeris)
         return false;
 
       return
