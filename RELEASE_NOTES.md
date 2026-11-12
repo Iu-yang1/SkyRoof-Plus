@@ -1,40 +1,41 @@
-# SkyRoof-Plus v.1.71
+# SkyRoof-Plus v.1.72
 
-SkyRoof Plus 1.71 — **Unified Orekit/IKVM satellite and celestial ephemeris engine**.  
-正式迭代版：**Orekit/IKVM 统一轨道、月地计算与数据管理**。
+SkyRoof Plus 1.72 — responsive cache-first startup and deferred Orekit/IKVM data maintenance.  
+SkyRoof Plus 1.72 — **主界面启动白屏与耗时加载修复版**。
 
 ## 中文
 
-### 主要更新
+### 本版修复
 
-- **统一数值引擎：** 卫星 TLE/CCSDS OMM 统一走 Orekit 13.1.9 + IKVM，按 TLE 适用的 SGP4/SDP4 算法计算。不再在运行异常时悄悄回退至 SGP.NET 传播引擎；旧版配置中的后端选择迁移至 Orekit。
-- **太阳系星历：** 月球、太阳、金星统一通过 Orekit `CelestialBodyFactory` 和 ITRF/WGS-84 `TopocentricFrame` 计算方位角、仰角、距离、径向距离变化率，删除原独立 JPL BSP 解析引擎。旧卫星 DTO/过境列表仍保留部分 SGP.NET 兼容类型，**但不再作为计算后备引擎**。
-- **统一设置页：** 在「轨道与星历来源 → Orekit 星历与数据」配置自动下载、数据目录、IERS EOP 下载源、DE430 原生星历来源及太阳系目标显示。选中对应分组显示「更新 Orekit 星历」按钮；移除工具菜单中重复的 EOP 更新入口。中英双语及 JSON 设置兼容性已测试。
-- **自动更新与校验：** 首次运行自动准备 UTC/TAI、IERS `finals2000A.all` 与 Orekit 原生 JPL DE430 `lnxp1990.430`，EOP 超过七天尝试更新；DE430 对照固定上游 Git Blob SHA-1 校验并记录 SHA-256，下载异常时保留缓存。**NAIF `.bsp` 不能直接代替 Orekit 原生文件**。
-- **数据重载：** 因 Orekit 全局时间尺度与框架缓存，切换数据目录、更新 EOP/星历或调整太阳系目标选项后须重启 SkyRoof 生效。系统不会在运行中切换到另一数值引擎。
+- **优先显示主界面：** 修复 v1.71 在 `MainForm_Load` 中先等待 IERS `finals2000A.all` 和 JPL DE430 网络下载/校验，最后才恢复 DockPanel 工作区，导致顶部工具栏显示后中央长时间空白的问题。现在优先使用本地缓存初始化 Orekit，并恢复已保存的停靠窗口。
+- **全量过境预测延后：** 首次卫星群组/业余卫星过境重建在主窗口 `Shown` 后触发，允许界面完成首次绘制，随后仍完整生成预计 AOS/LOS、最高仰角和过境列表。
+- **后台更新星历：** 首屏显示之后再在后台线程运行 IERS EOP/DE430 下载、文件校验与缓存管理；自动更新设置、原生 Orekit 引擎、月球/太阳/金星星历、多普勒及旋转器协议均不取消、不降级。
+- **手动/自动下载事务串行化：** 统一 Orekit 缓存的自动刷新与设置页「更新 Orekit 星历」按钮使用下载互斥机制，防止同时改写同一临时文件。
+- **卫星数据库周更新：** 对已有本地数据库，保留每周 SatNOGS 列表更新的提示，但在主界面完成第一帧后检查，避免布局尚未恢复时出现网络等待；也避免等待 EOP 网络超时数分钟后才弹出数据库刷新对话框。
+- **首次安装：** 完全没有卫星数据库缓存时，仍需要完成首次 SatNOGS 列表下载/导入才能生成可用卫星列表。这属于数据依赖，而非人为功能锁定。
+- **状态、诊断与精度：** 记录初始 DockPanel 布局恢复耗时。Orekit 使用已安装的 EOP 进行当前会话计算，新下载或刷新的 EOP 因进程全局时间尺度/坐标框架缓存需要重启后生效；在状态提示和日志中给出说明。第一次下载 DE430 后尝试立即添加 Moon/Sun/Venus，如果运行时还未发现新文件则重启。
+  
+### 验证
 
-### 已通过的软件验收
+- [PR #198](https://github.com/Iu-yang1/SkyRoof-Plus/pull/198) 已通过 Windows .NET 10 x64 编译与测试、安装包内 Orekit/IKVM 运行验证、固定版本 `aislop` 质量检查、DocFX 中英文文档验证，已合并至 master。
+- 保持 v1.71 的 Orbital backend、TLE/OMM、AZ/EL、距离变化率、单程多普勒和 CAT/Rotator 计算接口不变。本次修复仅修改启动时序与下载并发机制。
+- **启动速度尚未在用户 Windows 设备上实测**，不能把源码调度优化或 CI 构建成功称为已实测的具体启动时间。可在 Serilog 日志中查看 `Initial SkyRoof docking layout restored in ... ms` 并比较修复前后。
 
-- Windows .NET 10 x64 构建、xUnit 测试、Orekit/IKVM 安装后运行验证、固定版本 aislop 质量门禁。
-- TLE/OMM、TEME/ITRF 变换、AOS/LOS 过境、站心 AZ/EL、距离和距离变化率、单程多普勒方向与 Vallado 参考数据回归。
-- Orekit DE430 月球/太阳/金星冒烟测试通过。示例：2026-11-12 12:00 UTC、测试站点 28.5°N/115.9°E，月球距离 405,644,782 m、径向速度 +358.441 m/s，432.080 MHz **单程下行**一阶频移 −516.608 Hz，月球距离变化率与数值差分一致。
-- GitHub Actions Windows 共享运行器的**预热中位数**参考：Orekit TEME 1000 次约 3.90 ms（SGP.NET 基线 0.62 ms）、Orekit 站心观测 1000 次约 118.25 ms、月球观测 200 次约 7.68 ms。此数据不能直接视为实时控制时延或实机运动误差。
-- 本版本的正式发布工作流额外检查固定哈希 DE430 原生星历、安装器内部 Orekit/IKVM 依赖、已发布文件 SHA-256 和签名状态；详见对应 Release CI。
+### 发布说明
 
-### 限制与签名
-
-- Vallado 参考数值的一致性不代表真实轨道绝对定位精度；极端长期 TLE 外推和病态案例不保证常规精度。已有 IKVM 静态转换兼容性警告仍需要按具体 API 路径评估。
-- **未做 IC-9700 / CAT / GS232B 旋转器实机射频与运动验收。** 不以软件模拟结果冒充硬件验证，正常功能不因此锁定。
-- 按用户本次明确授权，此版本发布为**正式 Release（非 prerelease）**。如构建环境未配置 SignPath，安装包可能**未进行 Authenticode 数字签名**；此时以 GitHub Release 的来源、SHA-256 和发布工作流作为完整性检查依据，不声称已签名。后续其他版本仍遵循原签名/预发布策略。
+- 由用户授权的正式 GitHub Release；保留 `v.1.71` 原有标签和安装包，另建 `v.1.72`。
+- 如果当前 CI 缺少 SignPath，则安装包 **Authenticode 未签名**。最终以发布后的工作流记录、Release 目标提交、SHA-256 核验结果及签名状态为准；不虚构签名或真实硬件测试结果。
+- **尚无 IC-9700/CAT/GS232B 实机和真实启动耗时验收**，首次运行应检查实际 EOP 数据质量和卫星列表状态。
 
 ## English
 
-- **Single Orekit engine:** Orekit 13.1.9 via IKVM performs TLE/CCSDS OMM SGP4/SDP4 propagation and Moon/Sun/Venus ephemerides through CelestialBodyFactory, ITRF and WGS-84 topocentric observations; legacy runtime fallback to SGP.NET propagation and the standalone JPL BSP parser have been removed.
-- **Unified settings and data:** Automatic UTC/TAI, IERS finals2000A.all and validated Orekit-native DE430 acquisition, configurable source URLs, seven-day EOP refresh, offline caching, data-health display, and a bilingual in-settings update action. Restart after changing ephemeris data or target visibility.
-- **Verification:** Windows x64 builds, tests and installed IKVM runtime; Vallado TLE/OMM, pass prediction, azimuth/elevation and range-rate/Doppler consistency; DE430 lunar/solar/Venus observation; warmed throughput benchmarks and pinned aislop. See [PR #195](https://github.com/Iu-yang1/SkyRoof-Plus/pull/195) and [CI evidence](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43301778724).
-- **Boundaries:** SGP.NET data-transfer type adapters remain for UI compatibility but do not provide an alternate numerical propagator. Vallado numerical agreement is not satellite ephemeris absolute accuracy; no real-radio or real-rotator field acceptance has been performed.
-- **Signature status:** This version is explicitly authorized as a **stable GitHub Release**. If SignPath signing is unavailable, the installer is **unsigned**, not falsely described as Authenticode-signed; release provenance and SHA-256 remain checked. Future releases retain the existing signing/prerelease policy.
+- **Cache-first UI:** Restore locally cached satellite data and docking layout before fetching IERS EOP and Orekit-native DE430, removing network latency from the v1.71 blank central-workspace startup path.
+- **Deferred pass rebuild:** Build initial satellite passes after the first visible docking frame; pass calculations, tracking, Doppler and rotator protocols remain enabled and numerically unchanged.
+- **Non-blocking ephemeris update:** Refresh/cache/download Orekit files on a background worker; serialize automatic and manual updates to the shared staging paths. Newly downloaded EOP requires a restart because Orekit caches its time scales and frames.
+- **SatNOGS data:** Preserve the initial import on a clean installation; with existing cached data, the weekly refresh occurs only after initial UI presentation.
+- **Verification:** PR #198 Windows x64 compile/unit/integrity tests, Orekit/IKVM packaged runtime smoke, `aislop`, bilingual DocFX passed. No actual user-device first-frame benchmark or connected CAT/rotator hardware acceptance is claimed.
+- **Authenticode:** User-authorized stable patch release; may be unsigned if SignPath credentials are absent, disclosed transparently with downloaded asset SHA-256 verification.
 
-**Release validation evidence / 发布验收记录:** [PR #195](https://github.com/Iu-yang1/SkyRoof-Plus/pull/195) · [PR #196](https://github.com/Iu-yang1/SkyRoof-Plus/pull/196) · [Orekit build & tests](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43301778724) · [installed runtime](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43301768477) · [aislop](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43301778457).
+**Technical trace:** [PR #198](https://github.com/Iu-yang1/SkyRoof-Plus/pull/198) · [CI checks](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43318521845).
 
-Previous tag / 上一版本：[v.1.70](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.70) (retained unchanged).
+**Previous release:** [v.1.71](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.71), retained without replacement.

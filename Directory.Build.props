@@ -3,10 +3,10 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.71: unified Orekit orbit and celestial ephemeris engine. -->
+  <!-- SkyRoof Plus v1.72: cache-first UI startup and deferred Orekit data maintenance. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <Version>1.71</Version>
+    <Version>1.72</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.72 / SkyRoof Fork 1.72 版本说明
+
+Release date / 发布日期：2026-11-13。首次加载缓存优先及 Orekit 网络更新异步化；正式修复迭代，不覆盖 v.1.71。
+
+- **启动优化：** DockPanel 优先恢复缓存窗口；IERS EOP/DE430 自动下载与校验移至界面显示后的后台线程。卫星全量过境预测延后到首次绘制之后，避免原先的空白工作区等待。
+- **一致性：** 保持自动更新、TLE/OMM、Moon/Sun/Venus、Doppler、CAT/Rotator 功能；手动和自动更新共享串行缓存写入，取消后台刷新时不会写入损坏文件。
+- **用户体验：** 有缓存时数据库按周提示更新会在主界面显示后触发；无数据库的新安装仍需首次导入。EOP 更新后提示重启以应用新的 Orekit 全局数据上下文。
+- **验证限制：** Windows x64 构建/单测/安装器烟测、aislop/DocFX 检查均通过；没有用户实机启动耗时或旋转器/CAT 联动实测。没有 SignPath 时可按本次明确授权发布未签名正式版，完整性以 SHA-256 校验。
+- **English:** Cache-first docking UI, delayed initial pass prediction, deferred IERS/DE430 background refresh, safe serialized manual/automatic downloads. Same satellite, Moon and Doppler algorithms. Verified Windows CI; no hardware or user-device startup-time measurement. This authorized stable hotfix may be unsigned.
+
+完整双语说明 / Full bilingual details：[`RELEASE_NOTES.md`](RELEASE_NOTES.md)。
+
+---
+
 # SkyRoof Fork v.1.71 / SkyRoof Fork 1.71 版本说明
 
 Release date / 发布日期：2026-11-13。正式发布统一 Orekit/IKVM 卫星与月地星历引擎；保留旧 v.1.70 标签与安装包。
