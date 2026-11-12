@@ -103,7 +103,7 @@ namespace SkyRoof
 
       try
       {
-        return Satellite!.Predict(utc ?? DateTime.UtcNow).ToGeodetic();
+        return (Satellite ?? throw new InvalidOperationException("Satellite propagation data missing")).Predict(utc ?? DateTime.UtcNow).ToGeodetic();
       }
       catch (Exception ex)
       {
@@ -124,7 +124,7 @@ namespace SkyRoof
       {
         try
         {
-          return JplKernel!.Observe(body, groundStation, utc);
+          return (JplKernel ?? throw new InvalidOperationException("JPL kernel is not initialized")).Observe(body, groundStation, utc);
         }
         catch (Exception ex)
         {
@@ -159,7 +159,7 @@ namespace SkyRoof
 
       try
       {
-        return groundStation.Observe(Satellite!, utc);
+        return groundStation.Observe(Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), utc);
       }
       catch (Exception ex)
       {
@@ -194,7 +194,7 @@ namespace SkyRoof
             new DateTimeOffset(endTime.ToUniversalTime()));
           return passes.Select(p =>
             new SatelliteVisibilityPeriod(
-              null!, p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
+              Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
               Angle.FromDegrees(p.MaximumElevationDegrees),
               p.CulminationUtc.UtcDateTime, groundStation.Location)).ToList();
         }
@@ -207,7 +207,7 @@ namespace SkyRoof
       try
       {
         return groundStation.Observe(
-          Satellite!, startTime, endTime,
+          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), startTime, endTime,
           TimeSpan.FromSeconds(15), clipToStartTime: false);
       }
       catch (Exception ex)

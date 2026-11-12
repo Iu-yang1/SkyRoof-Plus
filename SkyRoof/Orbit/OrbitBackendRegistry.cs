@@ -44,10 +44,13 @@ internal static class OrbitBackendRegistry
             throw new FileNotFoundException("Orekit backend assembly is not installed.", path);
 
         Assembly assembly = Assembly.LoadFrom(path);
-        Type dataType = assembly.GetType("SkyRoof.Orbit.Orekit.OrekitDataContext", throwOnError: true)!;
-        MethodInfo initialize = dataType.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static)!;
+        Type dataType = assembly.GetType("SkyRoof.Orbit.Orekit.OrekitDataContext", throwOnError: true)
+            ?? throw new TypeLoadException("OrekitDataContext was not found in the selected backend.");
+        MethodInfo initialize = dataType.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static)
+            ?? throw new MissingMethodException(dataType.FullName, "Initialize");
         initialize.Invoke(null, [dataDir]);
-        Type backendType = assembly.GetType("SkyRoof.Orbit.Orekit.OrekitOrbitBackend", throwOnError: true)!;
+        Type backendType = assembly.GetType("SkyRoof.Orbit.Orekit.OrekitOrbitBackend", throwOnError: true)
+            ?? throw new TypeLoadException("OrekitOrbitBackend was not found in the selected backend.");
         if (Activator.CreateInstance(backendType) is not IOrbitBackend backend)
             throw new InvalidOperationException("Orekit backend does not implement the current orbit contracts.");
 
