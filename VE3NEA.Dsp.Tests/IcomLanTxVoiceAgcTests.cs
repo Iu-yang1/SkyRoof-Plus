@@ -116,6 +116,23 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void MicPreGainDoesNotIrreversiblyClipBeforeEnabledAgc()
+    {
+      float[] bypass = [0.8f, -0.8f];
+      IcomLanDirectSession.ScaleTxPcm(bypass, 2f);
+      bypass.Should().Equal([1f, -1f]);
+
+      float[] withAgc = Enumerable.Repeat(0.8f, 960).ToArray();
+      IcomLanDirectSession.ScaleTxPcm(withAgc, 2f, clip: false);
+      withAgc[0].Should().BeApproximately(1.6f, 0.00001f);
+
+      var agc = new IcomLanTxVoiceAgc();
+      agc.Process(withAgc, Enabled());
+      float peak = (float)Math.Pow(10, -3 / 20.0);
+      withAgc.Should().OnlyContain(x => x <= peak && x >= -peak);
+    }
+
+    [Fact]
     public void BufferDefaultsRetainIndependentNetworkAndMicControls()
     {
       var tx = new IcomDirectLanTransmitSettings();
