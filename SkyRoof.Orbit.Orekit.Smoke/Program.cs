@@ -138,6 +138,20 @@ try
            observation.AzimuthDegrees >= 0 && observation.AzimuthDegrees < 360,
         "ITRF station observation has invalid values");
 
+    // Check radial velocity against a centred numerical range derivative.
+    // This independently catches mixed frames, metres/kilometres and Doppler sign.
+    var station = new GroundStationSpec(28.5, 115.9, 40);
+    double orekitFiniteRangeRate =
+        (interfaceTrack.Observe(station, instantUtc.AddSeconds(1)).RangeMetres -
+         interfaceTrack.Observe(station, instantUtc.AddSeconds(-1)).RangeMetres) / 2.0;
+    double sgpNetFiniteRangeRate =
+        (sgpNetTrack.Observe(station, instantUtc.AddSeconds(1)).RangeMetres -
+         sgpNetTrack.Observe(station, instantUtc.AddSeconds(-1)).RangeMetres) / 2.0;
+    Assert(Math.Abs(observation.RangeRateMetresPerSecond - orekitFiniteRangeRate) <= 3.0,
+        "Orekit range-rate sign or frame convention differs from range derivative");
+    Assert(Math.Abs(baselineObservation.RangeRateMetresPerSecond - sgpNetFiniteRangeRate) <= 3.0,
+        "SGP.NET range-rate sign or frame convention differs from range derivative");
+
     // Analytic 90-minute orbit: search begins while already visible and crosses
     // the next orbit's AOS/LOS. Both physical crossings must be recovered.
     var syntheticEpoch = new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero);
@@ -197,6 +211,11 @@ try
     Assert(dataSha256 == expectedDataSha256,
         $"Unexpected UTC fixture SHA-256: {dataSha256}");
 
+    string? eopSha256 = File.Exists(Path.Combine(dataDirectory, "finals2000A.all"))
+        ? Convert.ToHexString(SHA256.HashData(
+            File.ReadAllBytes(Path.Combine(dataDirectory, "finals2000A.all")))).ToLowerInvariant()
+        : null;
+
     var report = new
     {
         status = "P0_SMOKE_COMPLETED_NOT_ACCURACY_ACCEPTED",
@@ -204,6 +223,9 @@ try
         ikvmMavenSdkVersion = "1.12.2",
         dataFile = leapFile,
         dataSha256,
+        eopSha256,
+        orekitFiniteRangeRate,
+        sgpNetFiniteRangeRate,
         eopQualityAt2026 = OrekitDataContext.DataQuality(new DateTimeOffset(2026, 11, 12, 0, 0, 0, TimeSpan.Zero)),
         initialSetupMs = initializedMs,
         thousandPredictionsMs,
