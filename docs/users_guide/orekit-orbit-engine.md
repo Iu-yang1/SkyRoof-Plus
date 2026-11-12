@@ -6,13 +6,15 @@ SkyRoof Plus now uses **Orekit 13.1.9, converted to .NET using IKVM**, as its on
 
 Open **Settings → Orbit / Ephemeris Sources → Orekit ephemeris** to configure one unified place for the automatic download switch, solar-system target visibility, local data directory, IERS EOP download sources and the pinned DE430 download URL. Select this section to expose **Update Orekit Data**, which refreshes EOP and checks/downloads DE430 on demand. This control replaces the former Tools-menu EOP-only operation.
 
-On startup SkyRoof attempts to populate the directory indicated by **Orekit Data Directory**, or the default user-data `orekit-data` folder if blank, **before** initializing Orekit's global data context. The first installation includes the UTC/TAI leap-second file. With **Auto-download Orekit Data** enabled (default):
+On startup SkyRoof uses the locally installed UTC/TAI leap-second file and any cached Orekit data immediately, then restores the saved docking windows **without waiting for a network download**. The Orekit data directory is either **Orekit Data Directory** or SkyRoof's default user-data `orekit-data` folder. Once the main window is visible, the application checks for missing or stale external files in the background. With **Auto-download Orekit Data** enabled (default):
 
 - IERS `finals2000A.all` is retrieved from USNO/IERS and refreshed when the cached copy is more than seven days old. A validated file is moved into place atomically and a SHA-256 source manifest is written.
 - The Orekit-native JPL DE430 binary `lnxp1990.430` is downloaded once from the eSpace-EPFL orekit-data mirror and checked against the pinned upstream Git blob hash before it replaces any file. This covers the contemporary Moon/Sun/Venus data, unlike the old NAIF `.bsp` path.
 - Existing files remain usable offline if a refresh cannot connect. An initialization error is shown rather than silently switching to an alternative orbit algorithm.
 
 The ephemeris cache is not the same as a NAIF SPK/BSP kernel. Existing custom `.bsp` files must be replaced with an Orekit-compatible DE binary data file if the custom path is to be used for solar-system tracking.
+
+**Startup behavior:** When a local satellite database exists, its UI and docking panels load first, and the initial all-satellite pass recalculation runs after the first visible frame. A truly clean install still needs its first SatNOGS satellite-database download before populated panels can be restored. Weekly satellite-list refresh remains available but starts after the window is visible. If DE430 was previously absent and is downloaded in the background, Moon/Sun/Venus can be added on the current launch if the Orekit provider recognizes the file; otherwise restart SkyRoof. Logs record the time needed to restore the initial docking layout.
 
 **Important:** Orekit caches global data/time-scale state. Restart SkyRoof after changing the data directory, solar-system target visibility or refreshing EOP to adopt the new data. **Orbit Data Quality** reports coverage status rather than a formal pointing-accuracy guarantee.
 
