@@ -52,7 +52,9 @@ try
     }
 
     // The same physical instant represented with two timezone offsets must agree.
-    var instantUtc = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    // Keep state/observation tests near the 2000 TLE epoch; the separate 2020 time-scale test
+    // is independent of orbit propagation and tests the post-2017 leap-second offset.
+    var instantUtc = new DateTimeOffset(2000, 6, 27, 18, 50, 19, TimeSpan.Zero);
     var instantOffset = instantUtc.ToOffset(TimeSpan.FromHours(8));
     var stateUtc = track.PredictTeme(instantUtc);
     var stateOffset = track.PredictTeme(instantOffset);

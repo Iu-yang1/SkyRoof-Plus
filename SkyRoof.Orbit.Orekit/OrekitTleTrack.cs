@@ -77,7 +77,7 @@ public sealed class OrekitTleTrack
             "P0_UTC_ONLY_EOP_UNVERIFIED");
     }
 
-    public static AbsoluteDate ToAbsoluteDate(DateTimeOffset time)
+    private static AbsoluteDate ToAbsoluteDate(DateTimeOffset time)
     {
         var utc = time.UtcDateTime;
         double seconds = utc.Second +
