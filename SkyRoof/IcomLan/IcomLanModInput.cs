@@ -108,7 +108,7 @@ namespace SkyRoof
     internal int? LanLevel => lanLevel;
 
     internal IcomLanModRegister NextPoll(int index) =>
-      index % 3 switch
+      (index % 3) switch
       {
         0 => IcomLanModRegister.DataOffSource,
         1 => IcomLanModRegister.DataSource,
