@@ -77,7 +77,7 @@ public sealed class ForkReleaseAndAboutTests
         using var about = new AboutBox();
         var labels = about.Controls.OfType<Label>().Select(label => label.Text).ToArray();
         Assert.Contains(labels, label => label.Contains("Alex Shovkoplyas VE3NEA"));
-        Assert.Contains(labels, label => label.Contains("Fork modifications © 2026 Iu-yang1"));
+        Assert.Contains(labels, label => label.Contains("Fork modifications © 2026 Iu-yang1 BG5JSU"));
         Assert.Contains(labels, label => label.Contains("Original project"));
         Assert.Contains(labels, label => label.Contains("SkyRoof-Plus / Fork"));
         Assert.Contains("Alex Shovkoplyas", Utils.GetCopyrightString());
