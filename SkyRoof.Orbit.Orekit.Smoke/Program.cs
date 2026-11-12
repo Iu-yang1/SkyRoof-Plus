@@ -261,6 +261,42 @@ try
         $"range rate={moonObservation.RangeRateMetresPerSecond:F3} m/s, " +
         $"Doppler at 432.080 MHz={lunarDopplerHzAt432080:F3} Hz");
 
+    // Measure representative warmed orbit + station observation loops, keeping
+    // IKVM JIT startup separate from steady-state timing. Medians reduce CI noise.
+    var perfTimes = Enumerable.Range(0, 1000)
+        .Select(i => instantUtc.AddSeconds(i)).ToArray();
+    var moonPerfTimes = Enumerable.Range(0, 200)
+        .Select(i => celestialEpoch.AddSeconds(i * 10)).ToArray();
+    double orekitTeme1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = interfaceTrack.PredictTeme(t);
+    });
+    double sgpNetTeme1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = sgpNetTrack.PredictTeme(t);
+    });
+    double orekitObserve1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = interfaceTrack.Observe(station, t);
+    });
+    double moonObserve200MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in moonPerfTimes) _ = moon.Observe(celestialGround, t);
+    });
+
+    // These are broad throughput sanity checks, not a claim that GitHub's
+    // shared Windows runners measure production hardware latency.
+    Assert(orekitTeme1000MedianMs > 0 && orekitTeme1000MedianMs < 15_000,
+        $"Orekit TEME propagation performance regression: {orekitTeme1000MedianMs:F1} ms / 1000");
+    Assert(orekitObserve1000MedianMs > 0 && orekitObserve1000MedianMs < 30_000,
+        $"Orekit topocentric observation performance regression: {orekitObserve1000MedianMs:F1} ms / 1000");
+    Assert(moonObserve200MedianMs > 0 && moonObserve200MedianMs < 30_000,
+        $"Orekit lunar ephemeris observation performance regression: {moonObserve200MedianMs:F1} ms / 200");
+    Console.WriteLine($"Orekit/IKVM warmed median: TEME 1000={orekitTeme1000MedianMs:F2} ms, " +
+        $"station Observe 1000={orekitObserve1000MedianMs:F2} ms, " +
+        $"Moon Observe 200={moonObserve200MedianMs:F2} ms; " +
+        $"SGP.NET reference TEME 1000={sgpNetTeme1000MedianMs:F2} ms");
+
     var report = new
     {
         status = "P0_SMOKE_COMPLETED_NOT_ACCURACY_ACCEPTED",
@@ -280,6 +316,10 @@ try
         lunarDopplerHzAt432080,
         initialSetupMs = initializedMs,
         thousandPredictionsMs,
+        orekitTeme1000MedianMs,
+        sgpNetTeme1000MedianMs,
+        orekitObserve1000MedianMs,
+        moonObserve200MedianMs,
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
         allVallado,
@@ -310,6 +350,19 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(ex);
     return 1;
+}
+
+static double MedianMilliseconds(Action action)
+{
+    var samples = new double[3];
+    for (int i = 0; i < samples.Length; i++)
+    {
+        var sw = Stopwatch.StartNew();
+        action();
+        samples[i] = sw.Elapsed.TotalMilliseconds;
+    }
+    Array.Sort(samples);
+    return samples[1];
 }
 
 static double Distance(double[] a, double[] b) =>
