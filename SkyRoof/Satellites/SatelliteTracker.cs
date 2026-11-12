@@ -11,7 +11,7 @@ namespace SkyRoof
   public class SatelliteTracker
   {
     private Satellite? Satellite;
-    private readonly IOrbitTrack? orbitTrack;
+    private IOrbitTrack? orbitTrack;
     private readonly JplSpkKernel? JplKernel;
     private readonly JplBody? EphemerisBody;
 
@@ -84,9 +84,9 @@ namespace SkyRoof
     {
       if (!Enabled || IsJplEphemeris) return null;
 
-      try
+      if (orbitTrack != null)
       {
-        if (orbitTrack != null)
+        try
         {
           DateTime targetUtc = (utc ?? DateTime.UtcNow).ToUniversalTime();
           var geo = orbitTrack.PredictGeodetic(new DateTimeOffset(targetUtc));
@@ -95,9 +95,15 @@ namespace SkyRoof
             Angle.FromDegrees(geo.LongitudeDegrees),
             geo.EllipsoidalHeightMetres / 1000.0);
         }
-        return Satellite!
-          .Predict(utc ?? DateTime.UtcNow)
-          .ToGeodetic();
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "Predict");
+        }
+      }
+
+      try
+      {
+        return Satellite!.Predict(utc ?? DateTime.UtcNow).ToGeodetic();
       }
       catch (Exception ex)
       {
@@ -118,23 +124,18 @@ namespace SkyRoof
       {
         try
         {
-          return JplKernel!.Observe(
-            body,
-            groundStation,
-            utc);
+          return JplKernel!.Observe(body, groundStation, utc);
         }
         catch (Exception ex)
         {
-          Log.Error(
-            ex,
-            $"JPL ephemeris observation failed for {body}.");
+          Log.Error(ex, "JPL ephemeris observation failed for {Body}.", body);
           return null;
         }
       }
 
-      try
+      if (orbitTrack != null)
       {
-        if (orbitTrack != null)
+        try
         {
           var geo = groundStation.Location.ToGeodetic();
           var station = new GroundStationSpec(
@@ -150,10 +151,15 @@ namespace SkyRoof
             obs.RangeRateMetresPerSecond / 1000.0,
             groundStation.Location);
         }
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "Observe");
+        }
+      }
 
-        return groundStation.Observe(
-          Satellite!,
-          utc);
+      try
+      {
+        return groundStation.Observe(Satellite!, utc);
       }
       catch (Exception ex)
       {
@@ -172,14 +178,11 @@ namespace SkyRoof
       if (!Enabled) return new();
 
       if (IsJplEphemeris)
-        return ComputeEphemerisPasses(
-          groundStation,
-          startTime,
-          endTime);
+        return ComputeEphemerisPasses(groundStation, startTime, endTime);
 
-      try
+      if (orbitTrack != null)
       {
-        if (orbitTrack != null)
+        try
         {
           var geo = groundStation.Location.ToGeodetic();
           var station = new GroundStationSpec(
@@ -191,20 +194,21 @@ namespace SkyRoof
             new DateTimeOffset(endTime.ToUniversalTime()));
           return passes.Select(p =>
             new SatelliteVisibilityPeriod(
-              null!,
-              p.StartUtc.UtcDateTime,
-              p.EndUtc.UtcDateTime,
+              null!, p.StartUtc.UtcDateTime, p.EndUtc.UtcDateTime,
               Angle.FromDegrees(p.MaximumElevationDegrees),
-              p.CulminationUtc.UtcDateTime,
-              groundStation.Location)).ToList();
+              p.CulminationUtc.UtcDateTime, groundStation.Location)).ToList();
         }
+        catch (Exception ex)
+        {
+          UseSgpNetAfterOrekitError(ex, "ComputePasses");
+        }
+      }
 
+      try
+      {
         return groundStation.Observe(
-          Satellite!,
-          startTime,
-          endTime,
-          TimeSpan.FromSeconds(15),
-          clipToStartTime: false);
+          Satellite!, startTime, endTime,
+          TimeSpan.FromSeconds(15), clipToStartTime: false);
       }
       catch (Exception ex)
       {
@@ -213,6 +217,14 @@ namespace SkyRoof
           $"ComputePasses failed for {Tle!.Name} ({Tle.NoradNumber}).");
         return new();
       }
+    }
+
+    private void UseSgpNetAfterOrekitError(Exception exception, string operation)
+    {
+      orbitTrack = null;
+      Log.Warning(exception,
+        "Orekit {Operation} failed for NORAD {Norad}; retaining SGP.NET tracking.",
+        operation, Tle?.NoradNumber);
     }
 
     internal static string BuildOrbitElementKey(SatnogsDbTle element) =>
