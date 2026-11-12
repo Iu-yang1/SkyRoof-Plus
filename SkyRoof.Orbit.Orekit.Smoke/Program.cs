@@ -131,6 +131,42 @@ try
            observation.AzimuthDegrees >= 0 && observation.AzimuthDegrees < 360,
         "ITRF station observation has invalid values");
 
+    // Analytic 90-minute orbit: search begins while already visible and crosses
+    // the next orbit's AOS/LOS. Both physical crossings must be recovered.
+    var syntheticEpoch = new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero);
+    double AnalyticElevation(DateTimeOffset t) =>
+        60 * Math.Sin(2 * Math.PI * (t - syntheticEpoch).TotalSeconds / 5400.0);
+    var analyticPasses = OrbitPassPredictor.FindPasses(
+        AnalyticElevation,
+        syntheticEpoch.AddMinutes(10),
+        syntheticEpoch.AddMinutes(120),
+        sampleStep: TimeSpan.FromSeconds(30));
+    Assert(analyticPasses.Count == 2 &&
+           analyticPasses.All(pass => pass.ActualAos && pass.ActualLos),
+        "AOS/LOS edge recovery or adjacent-pass detection failed");
+    Assert(Math.Abs((analyticPasses[0].StartUtc - syntheticEpoch).TotalSeconds) <= 1.0 &&
+           Math.Abs((analyticPasses[0].EndUtc - syntheticEpoch.AddMinutes(45)).TotalSeconds) <= 1.0 &&
+           Math.Abs((analyticPasses[1].StartUtc - syntheticEpoch.AddMinutes(90)).TotalSeconds) <= 1.0 &&
+           Math.Abs((analyticPasses[1].EndUtc - syntheticEpoch.AddMinutes(135)).TotalSeconds) <= 1.0,
+        "Analytic pass crossing times differ by more than one second");
+    Assert(Math.Abs(analyticPasses[0].MaximumElevationDegrees - 60) < 0.01,
+        "Analytic culmination error");
+
+    // A permanently visible object has no physical AOS/LOS in the bounded
+    // interval. Mark clipped ends instead of fabricating horizon crossing times.
+    var unboundedPass = OrbitPassPredictor.FindPasses(
+        _ => 20.0, syntheticEpoch, syntheticEpoch.AddHours(2),
+        sampleStep: TimeSpan.FromMinutes(10));
+    Assert(unboundedPass.Count == 1 &&
+           !unboundedPass[0].ActualAos && !unboundedPass[0].ActualLos,
+        "Continuously visible target incorrectly acquired fake AOS/LOS");
+
+    var orbitPasses = interfaceTrack.FindPasses(
+        new GroundStationSpec(28.5, 115.9, 40),
+        instantUtc, instantUtc.AddHours(4));
+    Assert(orbitPasses.All(p => p.EndUtc > p.StartUtc),
+        "Orekit observation-driven pass scan returned invalid intervals");
+
     var sw = Stopwatch.StartNew();
     for (int i = 0; i < 1000; i++)
         _ = track.PredictTeme(instantUtc.AddSeconds(i));
@@ -166,6 +202,9 @@ try
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
         sixDigitErrorMetres,
+        analyticPasses,
+        unboundedPass,
+        orbitPasses,
         observation,
         baselineObservation,
         taiMinusUtcSeconds,
