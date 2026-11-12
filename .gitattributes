@@ -61,3 +61,7 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# Preserve Vallado's byte-for-byte LF C++ reference output on Windows runners.
+# Its published SHA-256 is checked before every orbit verification run.
+SkyRoof.Orbit.Orekit.Smoke/TestData/Vallado/tcppver.out -text
