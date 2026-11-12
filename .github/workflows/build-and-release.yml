@@ -92,7 +92,7 @@ jobs:
             $existingSha = (@($existing)[0] -split '\s+')[0]
             if (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
-              throw "Release tag $tag already exists or is no longer at the original v.1.69 SHA"
+              throw "Release tag $tag already exists or has moved since the reviewed v.1.69 baseline"
             }
             # The remote installer must still be the exact previously published
             # asset. This prevents overwriting an unrelated parallel release.
@@ -351,7 +351,7 @@ jobs:
             - **缓冲拆分与可选语音 AGC（PR #189）：** RX 本地播放默认 120 ms；TX 网络 150 ms、麦克风采集 150 ms、抖动预填充 60 ms、最大 250 ms 分开设置。AGC 默认 OFF，语音目标 −18 dBFS，最大增益 +12 dB，包含噪声门限、40/450 ms 启动/恢复与 −3 dBFS 峰值限制。FT4/FT8/Q65 数字模式建议保持 OFF。
             - **调制源自动核验（PR #190）：** CI-V 读回 DATA OFF MOD / DATA MOD / LAN MOD Level；仅在实际 CAT PTT + 近期 PC TX PCM 时才纠正非 LAN 的调制输入，并通过独立读回核对；不会在纯接收/频谱浏览时切换电台话筒。电台选择可能在断线后持续保留，使用本机 MIC 前请手动检查。
             - **仪表优先级（PR #184）：** RX S 表与发射 PO/ALC 差异化轮询、SSB 发射功率峰值保持，优先处理 PTT 和多普勒写频。
-            - **实机边界：** MIC dBFS/UDP TX 计数不是电台调制和 RF 功率证据。IC-9700 前面板 ALC/PO、LAN MOD、实际语音连续性及高帧率性能仍需实机验收。未配置 SignPath 时，安装包明确按未签名预发布版发布。
+            - **实机边界：** MIC dBFS/UDP TX 计数不是电台调制和 RF 功率证据。IC-9700 前面板 ALC/PO、LAN MOD、实际语音连续性及高帧率性能仍需实机验收。未配置 SignPath 时安装包未签名；本次原位替换保持既有 v.1.69 Release 分类不变。
 
             ### English
             - Chinese labels, help and collapsed summaries for all recently added Icom Direct LAN RX/TX buffer, LAN MOD input, voice AGC and SkyCAT scope-only CAT settings; English names and persisted property keys unchanged.
@@ -359,7 +359,7 @@ jobs:
             - Stable 20-ms TX PCM pacing, bounded microphone jitter buffering and underrun/overrun/PTT diagnostics (#188).
             - Independent RX playback, TX network, mic capture and jitter buffers, plus optional voice RMS AGC and peak ceiling (#189). Default AGC OFF for FT4/FT8/Q65.
             - Authenticated radio CI-V DATA OFF/DATA MOD and LAN level readback; optional LAN MOD auto-selection only during real PC audio transmission and CAT PTT, not passive RX/scope (#190).
-            - CI quality gates include Windows x64 build, xUnit, pinned aislop, installer/runtime checks and published artifact integrity. Real IC-9700 RF modulation, ALC/PO, RX audio and Doppler timing need operator hardware verification. Unsigned packages remain prereleases.
+            - CI quality gates include Windows x64 build, xUnit, pinned aislop, installer/runtime checks and published artifact integrity. Real IC-9700 RF modulation, ALC/PO, RX audio and Doppler timing need operator hardware verification. The existing v.1.69 release classification is retained for this in-place replacement; absent SignPath, the installer is unsigned.
 
             中文使用说明: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/zh-cn/fork-guide/spectrum.md
             English guide: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/fork-guide/spectrum.md
