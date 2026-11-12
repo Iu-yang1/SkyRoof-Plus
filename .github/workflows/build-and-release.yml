@@ -3,7 +3,7 @@ name: Build and Release
 on:
   workflow_dispatch:
   # Updating Directory.Build.props on master triggers a release build.
-  # Bump the version normally. The explicitly guarded v.1.69 replacement is one-time.
+  # Bump the version normally. The explicit 2026-11-12 open-loop v.1.69 replacement is one-time.
   push:
     branches: [master]
     paths:
@@ -75,7 +75,7 @@ jobs:
           Write-Host "version: $version"
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Guard release tag or one-time v.1.69 replacement
+      - name: Guard release tag or one-time v.1.69 open-loop replacement
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -86,17 +86,32 @@ jobs:
             throw "Could not verify whether release tag $tag already exists"
           }
           if (-not [string]::IsNullOrWhiteSpace(($existing | Out-String).Trim())) {
-            $marker = (Get-Content Directory.Build.props -Raw).Contains('v1.69-replacement-20261112')
+            $marker = (Get-Content Directory.Build.props -Raw).Contains('v1.69-openloop-replacement-20261112')
             $explicitReplacement = $version -eq '1.69' -and
               "${{ github.event_name }}" -eq 'push' -and $marker
             $existingSha = (@($existing)[0] -split '\s+')[0]
             if (-not $explicitReplacement -or
-                $existingSha -ne '25aaed459168e6f1af25b26d651c7690ae007714') {
+                $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
               throw "Release tag $tag already exists or is no longer at the original v.1.69 SHA"
             }
+            # The remote installer must still be the exact previously published
+            # asset. This prevents overwriting an unrelated parallel release.
+            $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $null -eq $release -or
+                $release.id -ne 442480989 -or $release.prerelease -ne $false) {
+              throw "Existing v.1.69 release identity or stability differs from inspected baseline"
+            }
+            $asset = @($release.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.69.exe' })
+            if ($asset.Count -ne 1 -or
+                $asset[0].digest -ne 'sha256:c5c56703b36c3714cb32d0ea745bafadf425a68e4fc2b804cdd5f1d1929c2343') {
+              throw "Published installer changed since inspection; abort replacement"
+            }
             "REPLACE_V169=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-            Write-Host "Authorized one-time v.1.69 installer replacement"
+            Write-Host "Authorized one-time v.1.69 open-loop installer replacement"
           }
+
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
@@ -305,7 +320,9 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
-          prerelease: ${{ env.SIGNPATH_AVAILABLE != 'true' }}
+          # Preserve the already published stable v.1.69 Release classification.
+          # For new versions, retain the normal unsigned-prerelease rule.
+          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
           overwrite_files: ${{ env.REPLACE_V169 == 'true' }}
           fail_on_unmatched_files: true
@@ -317,6 +334,15 @@ jobs:
             - **自动更新修正：** 改用 Iu-yang1/SkyRoof-Plus GitHub Releases API 检查包含预发布版在内的最新可安装版本；更新提示链接指向本 Fork 发布页。
             - **关于页面署名：** 保留 Alex Shovkoplyas (VE3NEA) 原始版权和官网链接，同时添加 © 2026 Iu-yang1 BG5JSU Fork modifications 和 Fork 仓库链接。
             - **Updater/About:** update checks now use fork Releases (including packaged prereleases), and Help → About credits the fork maintainer without removing the original author's copyright or site.
+
+            ### 2026-11-12 云台异常反馈开环追踪 / Rotator open-loop tracking (PR #193)
+            - **异常角度隔离：** AZ/EL 回报出现异常跳变后，不再因此自动 STOP、锁定云台或取消 TRACK；保持最后可信角度，继续向云台发送卫星跟踪目标。
+            - **状态提示：** 在对应反馈角度下方显示非阻塞式 `!` 警告，鼠标悬停可查看被拒绝的回报和最后可信值。
+            - **恢复：** 对连续一致且与可信角度或当前命令目标相符的回报重新进行验证，满足条件后自动恢复实时反馈。
+            - **原生驱动与 RC-3040S：** 隔离原始反馈时间戳和可信回报，IPC 传递异常状态；运动规划保留选定的速度、加速度与路径点约束，不把缓存的 C2 数据伪装为新反馈。
+            - **范围边界：** 本次仅取消异常角度跳变引发的锁定。通信中断、显式 STOP、机械限位、控制进程失联等独立保护仍保留。
+            - **验证：** Windows x64、1393 个 xUnit 测试、aislop 审查通过。暂未完成实机云台验证。
+            - **EN:** Reject implausible position reports and continue satellite tracking using the last trusted bearing as the open-loop reference; show per-axis warning glyphs, auto-recover trusted telemetry, and preserve existing independent motor-fault safeguards.
 
             ### 中文更新
             - **设置菜单汉化：** 新增 RX 播放缓冲、TX 网络/采集/抖动缓冲、麦克风增益、语音 AGC 及其 RMS/门限/时间常数/限峰参数、自动选择 LAN MOD 输入、SkyCAT 独立频谱控制 CAT TCP 端口的中文名称、帮助文字和折叠摘要。沿用已有简体中文 / English 切换，不改旧版配置 JSON 键。
@@ -345,7 +371,7 @@ jobs:
 
       # Do not retarget v.1.69 until the freshly built EXE is uploaded and its
       # GitHub digest matches the local installer. Other versions are unaffected.
-      - name: Finalize one-time v.1.69 installer replacement
+      - name: Finalize one-time v.1.69 open-loop installer replacement
         if: env.REPLACE_V169 == 'true'
         shell: pwsh
         env:
@@ -354,7 +380,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = 'v.1.69'
           $newCommit = "${{ github.sha }}"
-          $oldCommit = '25aaed459168e6f1af25b26d651c7690ae007714'
+          $oldCommit = 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758'
           $name = "SkyRoofSetup-$tag.exe"
           $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
@@ -402,7 +428,7 @@ jobs:
           }
           $asset = @($release.assets | Where-Object { $_.name -eq $name })
           if ($asset.Count -ne 1) { throw "Release asset $name missing or duplicated" }
-          $expectedPrerelease = $env:SIGNPATH_AVAILABLE -ne 'true'
+          $expectedPrerelease = $env:REPLACE_V169 -ne 'true' -and $env:SIGNPATH_AVAILABLE -ne 'true'
           if ($release.isPrerelease -ne $expectedPrerelease) {
             throw "Release prerelease setting does not match signing capability"
           }
