@@ -31,3 +31,9 @@
 2. 固定锁文件与数据 hash，记录程序集清单和许可证。
 3. 增加原有 SGP.NET 第三路参考比对、更多 Vallado 深空样本和严格阈值。
 4. 进入 P1 的独立 Contracts、SGP.NET/Orekit Adapter，再由 SatelliteTracker 兼容门面接管；不直接导出 Java 类型到 UI。
+
+## P1 非生产接口（第一批）
+
+- 新增 `SkyRoof.Orbit.Contracts` 无第三方依赖的 .NET 10 类库，将 `OrbitState`、`GroundStationSpec`、`OrbitObservation` 从 Orekit 工程中独立出来。
+- 新增 `IOrbitBackend` / `IOrbitTrack`，首批提供 `CreateTleTrack`、`PredictTeme` 与 `Observe`；接口只接收/返回 .NET 值对象，不泄漏 Java、IKVM 或 SGPdotNET 类型。
+- `OrekitOrbitBackend` 实现首个后端；烟测通过接口创建轨迹，并执行传播与观测。SGP.NET 适配、OMM、过境预测和与 `SatelliteTracker` 的连接尚未完成，不能把这批接口当作整个 P1 验收。

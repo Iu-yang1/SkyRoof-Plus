@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using SkyRoof.Orbit.Orekit;
+using SkyRoof.Orbit.Contracts;
 using org.orekit.time;
 
 if (args.Length is < 1 or > 2)
@@ -26,6 +27,10 @@ try
     // Reference vectors are TEME: kilometres and kilometres/second -> SI.
     const string line1 = "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753";
     const string line2 = "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667";
+    IOrbitBackend backend = new OrekitOrbitBackend();
+    IOrbitTrack interfaceTrack = backend.CreateTleTrack(line1, line2);
+    Assert(backend.BackendId == "orekit-ikvm" && interfaceTrack.NoradNumber == 5,
+        "P1 contract/backend connection failed");
     var track = new OrekitTleTrack(line1, line2);
     Assert(track.NoradNumber == 5, "NORAD parsing failed");
 
@@ -58,12 +63,12 @@ try
     // is independent of orbit propagation and tests the post-2017 leap-second offset.
     var instantUtc = new DateTimeOffset(2000, 6, 27, 18, 50, 19, TimeSpan.Zero);
     var instantOffset = instantUtc.ToOffset(TimeSpan.FromHours(8));
-    var stateUtc = track.PredictTeme(instantUtc);
+    var stateUtc = interfaceTrack.PredictTeme(instantUtc);
     var stateOffset = track.PredictTeme(instantOffset);
     Assert(Math.Abs(stateUtc.XMetres - stateOffset.XMetres) < 1e-6,
         "DateTimeOffset UTC normalization failed");
 
-    var observation = track.Observe(
+    var observation = interfaceTrack.Observe(
         new GroundStationSpec(28.5, 115.9, 40),
         instantUtc);
     Assert(double.IsFinite(observation.AzimuthDegrees) &&

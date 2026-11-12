@@ -1,3 +1,4 @@
+using SkyRoof.Orbit.Contracts;
 using org.orekit.bodies;
 using org.orekit.frames;
 using org.orekit.propagation.analytical.tle;
@@ -10,7 +11,7 @@ namespace SkyRoof.Orbit.Orekit;
 /// An isolated, reusable Orekit TLE/SGP4 track. P0 is not connected to CAT/rotator/UI.
 /// Position/velocity in TEME use metres and metres per second.
 /// </summary>
-public sealed class OrekitTleTrack
+public sealed class OrekitTleTrack : IOrbitTrack
 {
     private readonly TLE tle;
     private readonly TLEPropagator propagator;

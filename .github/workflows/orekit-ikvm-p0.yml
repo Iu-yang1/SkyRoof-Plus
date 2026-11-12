@@ -6,6 +6,7 @@ on:
       - feature/orekit-ikvm-orbit-engine
     paths:
       - 'SkyRoof.Orbit.Orekit/**'
+      - 'SkyRoof.Orbit.Contracts/**'
       - 'SkyRoof.Orbit.Orekit.Smoke/**'
       - '.github/workflows/orekit-ikvm-p0.yml'
   workflow_dispatch:

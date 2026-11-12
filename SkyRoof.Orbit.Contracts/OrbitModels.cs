@@ -1,4 +1,4 @@
-namespace SkyRoof.Orbit.Orekit;
+namespace SkyRoof.Orbit.Contracts;
 
 // P0 local value objects. P1 moves the stable contract into SkyRoof.Orbit.Contracts.
 // Units are SI throughout; no Orekit/IKVM types cross this public boundary.
