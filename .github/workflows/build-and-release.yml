@@ -371,7 +371,7 @@ jobs:
             throw "The v.1.69 tag moved during the replacement; refusing to overwrite"
           }
           git tag -f $tag $newCommit
-          git push origin "+refs/tags/$tag:refs/tags/$tag"
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
           if ($LASTEXITCODE -ne 0) { throw "Failed to move $tag to replacement source" }
           gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "Failed to update release target commit" }
