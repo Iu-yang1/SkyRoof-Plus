@@ -47,6 +47,8 @@ try
         double velocityErrorMps = Distance(predictedVelocity, test.V.Select(x => x * 1000.0).ToArray());
         Assert(double.IsFinite(positionErrorM) && double.IsFinite(velocityErrorMps),
             $"Invalid TEME vector at t+{test.Minutes}min");
+        Assert(positionErrorM <= 0.1 && velocityErrorMps <= 0.001,
+            $"Vallado TEME mismatch at t+{test.Minutes}min: {positionErrorM}m, {velocityErrorMps}m/s");
         comparisons.Add(new { test.Minutes, positionErrorM, velocityErrorMps, state });
         Console.WriteLine($"Vallado 00005 t+{test.Minutes:F0}m: Δr={positionErrorM:F6} m; Δv={velocityErrorMps:F9} m/s");
     }
@@ -88,14 +90,20 @@ try
 
     string leapFile = File.Exists(Path.Combine(dataDirectory, "tai-utc.dat"))
         ? "tai-utc.dat" : "UTC-TAI.history";
+    string dataSha256 = Convert.ToHexString(SHA256.HashData(
+        File.ReadAllBytes(Path.Combine(dataDirectory, leapFile)))).ToLowerInvariant();
+    const string expectedDataSha256 =
+        "96017d361fda96801547dc7846c25d4a529ad48128a2aa849962966ad5b95eeb";
+    Assert(dataSha256 == expectedDataSha256,
+        $"Unexpected UTC fixture SHA-256: {dataSha256}");
+
     var report = new
     {
         status = "P0_SMOKE_COMPLETED_NOT_ACCURACY_ACCEPTED",
         orekitVersion = "13.1.9",
         ikvmMavenSdkVersion = "1.12.2",
         dataFile = leapFile,
-        dataSha256 = Convert.ToHexString(SHA256.HashData(
-            File.ReadAllBytes(Path.Combine(dataDirectory, leapFile)))).ToLowerInvariant(),
+        dataSha256,
         initialSetupMs = initializedMs,
         thousandPredictionsMs,
         processWorkingSetBytes = Environment.WorkingSet,
