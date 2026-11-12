@@ -4,7 +4,9 @@ SkyRoof Plus 的生产轨道传播器统一采用 **Orekit 13.1.9 + IKVM**。TLE
 
 ## 数据目录和自动下载
 
-在设置 → 轨道与星历来源中，**Orekit Data Directory** 留空时采用 SkyRoof 用户数据目录下的 `orekit-data`。默认开启 **Auto-download Orekit Data**。
+在**设置 → 轨道与星历来源 → Orekit ephemeris** 中统一配置：自动下载开关、太阳系目标显示、数据目录、IERS EOP 下载源及 JPL DE430 星历下载地址。选中该设置项后，工具栏显示 **更新 Orekit 星历**，可手动刷新 EOP 并检查/下载 DE430，替代之前工具菜单中独立的 EOP 下载项。
+
+**Orekit Data Directory** 留空时采用 SkyRoof 用户数据目录下的 `orekit-data`。默认开启 **Auto-download Orekit Data**。
 
 程序启动时先准备数据，再初始化 Orekit 的时间与坐标框架：
 

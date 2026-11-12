@@ -4,6 +4,8 @@ SkyRoof Plus now uses **Orekit 13.1.9, converted to .NET using IKVM**, as its on
 
 ## Automatic Orekit data
 
+Open **Settings → Orbit / Ephemeris Sources → Orekit ephemeris** to configure one unified place for the automatic download switch, solar-system target visibility, local data directory, IERS EOP download sources and the pinned DE430 download URL. Select this section to expose **Update Orekit Data**, which refreshes EOP and checks/downloads DE430 on demand. This control replaces the former Tools-menu EOP-only operation.
+
 On startup SkyRoof attempts to populate the directory indicated by **Orekit Data Directory**, or the default user-data `orekit-data` folder if blank, **before** initializing Orekit's global data context. The first installation includes the UTC/TAI leap-second file. With **Auto-download Orekit Data** enabled (default):
 
 - IERS `finals2000A.all` is retrieved from USNO/IERS and refreshed when the cached copy is more than seven days old. A validated file is moved into place atomically and a SHA-256 source manifest is written.
@@ -12,7 +14,7 @@ On startup SkyRoof attempts to populate the directory indicated by **Orekit Data
 
 The ephemeris cache is not the same as a NAIF SPK/BSP kernel. Existing custom `.bsp` files must be replaced with an Orekit-compatible DE binary data file if the custom path is to be used for solar-system tracking.
 
-**Important:** Orekit caches global data/time-scale state. Restart SkyRoof after changing the data directory or refreshing EOP to adopt the new data. **Orbit Data Quality** reports coverage status rather than a formal pointing-accuracy guarantee.
+**Important:** Orekit caches global data/time-scale state. Restart SkyRoof after changing the data directory, solar-system target visibility or refreshing EOP to adopt the new data. **Orbit Data Quality** reports coverage status rather than a formal pointing-accuracy guarantee.
 
 ## CAT/rotator and Doppler
 

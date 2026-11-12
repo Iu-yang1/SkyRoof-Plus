@@ -190,12 +190,14 @@ namespace SkyRoof
       ["Manual Orbit Source URLs"] = "手动轨道来源网址",
       ["AutoTLE URL"] = "AutoTLE 网址",
       ["SatNOGS Orbit URL"] = "SatNOGS 轨道网址",
-      ["DE440s Download Sources"] = "DE440s 下载来源",
-      ["DE421 Download Sources"] = "DE421 下载来源",
-      ["JPL Ephemeris Kernel"] = "JPL 星历内核",
-      ["Custom JPL BSP File"] = "自定义 JPL BSP 文件",
+      ["Auto-download Orekit Data"] = "自动下载 Orekit 数据",
       ["Show Solar-System Targets"] = "显示太阳系目标",
-      ["Auto-download JPL Kernel"] = "自动下载 JPL 内核",
+      ["Orekit Data Directory"] = "Orekit 数据目录",
+      ["IERS EOP Download Sources"] = "IERS 地球定向参数下载来源",
+      ["JPL DE430 Download URL"] = "JPL DE430 星历下载网址",
+      ["Orekit Data Status"] = "Orekit 数据状态",
+      ["Active Orbit Backend"] = "当前轨道计算引擎",
+      ["Orbit Data Quality"] = "轨道数据质量",
       ["Gain, dB"] = "增益 (dB)",
       ["VAC Device"] = "虚拟音频线设备",
       ["Enable Embedded SkyCAT"] = "启用内嵌 SkyCAT",
@@ -236,6 +238,18 @@ namespace SkyRoof
     // similarly named controls elsewhere never pick up LAN-specific help.
     private static readonly Dictionary<string, string> ChineseDescriptions = new(StringComparer.Ordinal)
     {
+      ["OrbitSourceSettings.AutoDownloadOrekitData"] =
+        "首次启动自动下载缺失的 IERS EOP 与 JPL DE430 数据；EOP 超过七天时刷新。无网络时使用已有缓存。",
+      ["OrbitSourceSettings.ShowSolarSystemTargets"] =
+        "显示月球、太阳和金星。此选项在重启 SkyRoof 后应用。",
+      ["OrbitSourceSettings.OrekitDataDirectory"] =
+        "Orekit 时间、地球定向参数与 JPL DE430 星历的统一目录；留空使用用户数据目录下的 orekit-data。切换目录后需重启。",
+      ["OrbitSourceSettings.OrekitEopSources"] =
+        "IERS finals2000A.all 官方下载源，多个网址使用分号或换行分隔；按顺序尝试。",
+      ["OrbitSourceSettings.OrekitDe430Url"] =
+        "Orekit 原生格式 DE430 星历下载网址；文件必须通过固定 Git Blob 校验，不支持直接填写 NAIF BSP 文件。",
+      ["OrbitSourceSettings.DataStatus"] =
+        "当前设置目录下 UTC、EOP、DE430 文件的存在状态；星历质量和实际加载状态需另查轨道数据质量，更新后重启。",
       ["IcomDirectLanSettings.RetransmitAudio"] =
         "响应已经关联到本次会话的 UDP 发射音频重传请求；重传绝不会自行触发 PTT。",
       ["IcomDirectLanReceiveSettings.Enabled"] =
