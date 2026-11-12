@@ -236,27 +236,8 @@ namespace SkyRoof
     };
     // PropertyGrid descriptions belong to the *owning type + property*, so
     // similarly named controls elsewhere never pick up LAN-specific help.
-    private static readonly Dictionary<string, string> ChineseCategories = new(StringComparer.Ordinal)
-    {
-      ["Orekit ephemeris"] = "Orekit 星历与数据",
-      ["Orbit elements"] = "轨道根数来源",
-      ["Satellite database"] = "卫星数据库"
-    };
-
     private static readonly Dictionary<string, string> ChineseDescriptions = new(StringComparer.Ordinal)
     {
-      ["OrbitSourceSettings.AutoDownloadOrekitData"] =
-        "首次启动自动下载缺失的 IERS EOP 与 JPL DE430 数据；EOP 超过七天时刷新。无网络时使用已有缓存。",
-      ["OrbitSourceSettings.ShowSolarSystemTargets"] =
-        "显示月球、太阳和金星。此选项在重启 SkyRoof 后应用。",
-      ["OrbitSourceSettings.OrekitDataDirectory"] =
-        "Orekit 时间、地球定向参数与 JPL DE430 星历的统一目录；留空使用用户数据目录下的 orekit-data。切换目录后需重启。",
-      ["OrbitSourceSettings.OrekitEopSources"] =
-        "IERS finals2000A.all 官方下载源，多个网址使用分号或换行分隔；按顺序尝试。",
-      ["OrbitSourceSettings.OrekitDe430Url"] =
-        "Orekit 原生格式 DE430 星历下载网址；文件必须通过固定 Git Blob 校验，不支持直接填写 NAIF BSP 文件。",
-      ["OrbitSourceSettings.DataStatus"] =
-        "当前设置目录下 UTC、EOP、DE430 文件的存在状态；星历质量和实际加载状态需另查轨道数据质量，更新后重启。",
       ["IcomDirectLanSettings.RetransmitAudio"] =
         "响应已经关联到本次会话的 UDP 发射音频重传请求；重传绝不会自行触发 PTT。",
       ["IcomDirectLanReceiveSettings.Enabled"] =
@@ -388,10 +369,14 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglishHelp.TryGetValue(item.Name, out string? en)) return en;
-      if (Current == UiLanguage.SimplifiedChinese &&
-          ChineseDescriptions.TryGetValue(
-            item.ComponentType.Name + "." + item.Name, out string? zh))
-        return zh;
+      if (Current == UiLanguage.SimplifiedChinese)
+      {
+        string key = item.ComponentType.Name + "." + item.Name;
+        if (OrbitSettingsLocalization.Description(key) is string orbitHelp)
+          return orbitHelp;
+        if (ChineseDescriptions.TryGetValue(key, out string? zh))
+          return zh;
+      }
       return item.Description;
     }
 
@@ -428,10 +413,7 @@ namespace SkyRoof
 
       public override string DisplayName => DisplayFor(source);
       public override string Category =>
-        Current == UiLanguage.SimplifiedChinese &&
-        ChineseCategories.TryGetValue(source.Category, out string? localized)
-          ? localized
-          : source.Category;
+        OrbitSettingsLocalization.Category(source.Category, Current);
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
