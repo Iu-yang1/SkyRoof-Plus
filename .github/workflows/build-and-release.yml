@@ -255,7 +255,7 @@ jobs:
 
       # Catch missing .NET runtime NuGet DLLs in the INSTALLED payload.
       - name: Restore installed-plugin smoke harness
-        run: dotnet restore SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj -p:RestorePackagesWithLockFile=false
+        run: dotnet restore SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj
 
       - name: Verify installed runtime dependencies
         shell: pwsh

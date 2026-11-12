@@ -161,7 +161,7 @@ jobs:
         run: choco upgrade innosetup --yes --no-progress
 
       - name: Restore installed-plugin smoke harness
-        run: dotnet restore SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj -p:RestorePackagesWithLockFile=false
+        run: dotnet restore SkyRoof.Orbit.InstallerSmoke/SkyRoof.Orbit.InstallerSmoke.csproj
 
       - name: Build unsigned test installer
         shell: cmd
