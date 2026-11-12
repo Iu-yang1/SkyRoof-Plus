@@ -2,14 +2,7 @@ using System.ComponentModel;
 
 namespace SkyRoof
 {
-  public enum JplEphemerisKernel
-  {
-    DE440s = 0,
-    DE421 = 1,
-    CustomFile = 2
-  }
-
-  public enum OrbitEngineMode
+  public enum OrbitEngineMode  public enum OrbitEngineMode
   {
     SgpNet = 0,
     Orekit = 1
@@ -71,15 +64,7 @@ namespace SkyRoof
         : url;
     }
 
-    public const string DefaultDe440sSources =
-      "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp;" +
-      "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp";
-
-    public const string DefaultDe421Sources =
-      "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp;" +
-      "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp";
-
-    [Category("Satellite database")]
+    [Category("Satellite database")]    [Category("Satellite database")]
     [DisplayName("Satellite List URL")]
     [Description("Primary satellite-list endpoint. The default is SatNOGS. You may replace it with a compatible SatNOGS JSON endpoint. Leave blank to keep the last cached file instead of updating it.")]
     [DefaultValue(DefaultSatellitesUrl)]
@@ -114,41 +99,13 @@ namespace SkyRoof
     [DefaultValue(DefaultTleUrl)]
     public string TleUrl { get; set; } = DefaultTleUrl;
 
-    [Browsable(false)]
-    [DisplayName("DE440s Download Sources")]
-    [Description("Ordered DE440s download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
-    [DefaultValue(DefaultDe440sSources)]
-    public string De440sSources { get; set; } = DefaultDe440sSources;
-
-    [Browsable(false)]
-    [DisplayName("DE421 Download Sources")]
-    [Description("Ordered DE421 download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
-    [DefaultValue(DefaultDe421Sources)]
-    public string De421Sources { get; set; } = DefaultDe421Sources;
-
-    [Browsable(false)]
-    [DisplayName("JPL Ephemeris Kernel")]
-    [Description("Planetary/lunar SPK kernel used for Moon, Sun and Venus tracking. DE440s is recommended for modern dates; DE421 is retained for compatibility.")]
-    [DefaultValue(JplEphemerisKernel.DE440s)]
-    public JplEphemerisKernel JplKernel { get; set; } = JplEphemerisKernel.DE440s;
-
-    [Browsable(false)]
-    [DisplayName("Custom JPL BSP File")]
-    [Description("Path to a local JPL/NAIF DAF-SPK .bsp file when JPL Ephemeris Kernel is CustomFile.")]
-    public string JplKernelFile { get; set; } = string.Empty;
-
     [Category("Orbit engine")]
+    [DisplayName("Show Solar-System Targets")]    [Category("Orbit engine")]
     [DisplayName("Show Solar-System Targets")]
     [Description("Automatically include Moon, Sun and Venus using Orekit's planetary ephemerides when a compatible DE data file is present.")]
     [DefaultValue(true)]
     public bool ShowSolarSystemTargets { get; set; } = true;
 
-    [Browsable(false)]
-    [DisplayName("Auto-download JPL Kernel")]
-    [Description("When DE440s or DE421 is selected and not cached yet, download it once from the configured source list. Custom BSP files are never downloaded automatically.")]
-    [DefaultValue(true)]
-    public bool AutoDownloadJplKernel { get; set; } = true;
-
-    public override string ToString() => string.Empty;
+    public override string ToString()    public override string ToString() => string.Empty;
   }
 }

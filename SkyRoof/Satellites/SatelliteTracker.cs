@@ -11,7 +11,7 @@ namespace SkyRoof
   public class SatelliteTracker
   {
     private IOrbitTrack? orbitTrack;
-    private readonly JplBody? EphemerisBody;
+    private readonly CelestialBodyId? EphemerisBody;
 
     public Tle? Tle;
     // The same expired or malformed orbit may be rehydrated into a new
@@ -21,7 +21,7 @@ namespace SkyRoof
     private const int MaxInvalidElements = 4096;
     private readonly string? orbitElementKey;
     public bool Enabled { get; private set; }
-    internal bool IsJplEphemeris => EphemerisBody.HasValue;
+    internal bool IsCelestialEphemeris => EphemerisBody.HasValue;
 
     public SatelliteTracker(SatnogsDbTle? tle)
     {
@@ -43,7 +43,7 @@ namespace SkyRoof
       }
     }
 
-    internal SatelliteTracker(IOrbitTrack celestialTrack, JplBody body)
+    internal SatelliteTracker(IOrbitTrack celestialTrack, CelestialBodyId body)
     {
       orbitTrack = celestialTrack;
       EphemerisBody = body;
@@ -72,7 +72,7 @@ namespace SkyRoof
 
     public GeodeticCoordinate? Predict(DateTime? utc = null)
     {
-      if (!Enabled || IsJplEphemeris) return null;
+      if (!Enabled || IsCelestialEphemeris) return null;
       try
       {
         var geo = (orbitTrack ?? throw new InvalidOperationException("Orekit track missing"))
@@ -118,7 +118,7 @@ namespace SkyRoof
       GroundStation groundStation, DateTime startTime, DateTime endTime)
     {
       if (!Enabled) return new();
-      if (IsJplEphemeris)
+      if (IsCelestialEphemeris)
         return ComputeEphemerisPasses(groundStation, startTime, endTime);
 
       try
@@ -435,7 +435,7 @@ namespace SkyRoof
 
     internal bool IsGeoStationary()
     {
-      if (!Enabled || IsJplEphemeris)
+      if (!Enabled || IsCelestialEphemeris)
         return false;
 
       return

@@ -15,30 +15,13 @@ using VE3NEA.SkyTlm.Core;   // SignalParams / Framing, for the save-to-overrides
 
 namespace SkyRoof
 {
-  internal readonly record struct JplDownloadProgress(
-    int SourceIndex,
-    int SourceCount,
-    string SourceUrl,
-    long BytesReceived,
-    long? TotalBytes)
-  {
-    internal int? Percent =>
-      TotalBytes is > 0
-        ? (int)Math.Clamp(
-            BytesReceived * 100L / TotalBytes.Value,
-            0,
-            100)
-        : null;
-  }
-
-  public class SatnogsDb
+  public class SatnogsDb  public class SatnogsDb
   {
     internal const string MoonSatId = "MOON";
     internal const string SunSatId = "SUN";
     internal const string VenusSatId = "VENUS";
 
     private readonly string DataFolder, DownloadsFolder;
-    private JplSpkKernel? PlanetaryKernel;
     private Dictionary<string, SatnogsDbSatellite> SatelliteList = new();
     private readonly HttpClient DownloadHttpClient = new();
     private OrbitSourceSettings OrbitSources = new();
@@ -145,207 +128,7 @@ namespace SkyRoof
           Satellites.Where(s => !s.IsEphemerisTarget)));
     }
 
-    internal string GetJplKernelPath(
-      OrbitSourceSettings settings)
-    {
-      if (settings.JplKernel == JplEphemerisKernel.CustomFile)
-        return Environment.ExpandEnvironmentVariables(
-          settings.JplKernelFile ?? string.Empty);
-
-      string fileName =
-        settings.JplKernel == JplEphemerisKernel.DE421
-          ? "de421.bsp"
-          : "de440s.bsp";
-
-      string folder =
-        Path.Combine(
-          DataFolder,
-          "Ephemeris");
-      Directory.CreateDirectory(folder);
-
-      return Path.Combine(
-        folder,
-        fileName);
-    }
-
-    internal Task<string> DownloadJplKernelAsync(
-      JplEphemerisKernel kernel,
-      CancellationToken cancellationToken = default) =>
-      DownloadJplKernelAsync(
-        kernel,
-        progress: null,
-        cancellationToken);
-
-    internal async Task<string> DownloadJplKernelAsync(
-      JplEphemerisKernel kernel,
-      IProgress<JplDownloadProgress>? progress,
-      CancellationToken cancellationToken = default)
-    {
-      if (kernel == JplEphemerisKernel.CustomFile)
-        throw new ArgumentException(
-          "CustomFile kernels must be selected from disk.",
-          nameof(kernel));
-
-      string[] urls =
-        SplitSourceList(
-          kernel == JplEphemerisKernel.DE421
-            ? OrbitSources.De421Sources
-            : OrbitSources.De440sSources);
-
-      if (urls.Length == 0)
-        throw new InvalidOperationException(
-          $"No download source is configured for {kernel}.");
-
-      string fileName =
-        kernel == JplEphemerisKernel.DE421
-          ? "de421.bsp"
-          : "de440s.bsp";
-
-      string folder =
-        Path.Combine(
-          DataFolder,
-          "Ephemeris");
-      Directory.CreateDirectory(folder);
-
-      string destination =
-        Path.Combine(
-          folder,
-          fileName);
-      string temporary =
-        destination + ".download";
-
-      var failures = new List<string>();
-
-      foreach (string url in urls)
-      {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        try
-        {
-          Log.Information(
-            $"Downloading {kernel} ephemeris from {url}");
-
-          using HttpResponseMessage response =
-            await DownloadHttpClient.GetAsync(
-              url,
-              HttpCompletionOption.ResponseHeadersRead,
-              cancellationToken);
-          response.EnsureSuccessStatusCode();
-
-          long? totalBytes =
-            response.Content.Headers.ContentLength;
-          long bytesReceived = 0;
-
-          progress?.Report(
-            new JplDownloadProgress(
-              Array.IndexOf(urls, url) + 1,
-              urls.Length,
-              url,
-              bytesReceived,
-              totalBytes));
-
-          await using (
-            Stream source =
-              await response.Content.ReadAsStreamAsync(cancellationToken))
-          await using (
-            FileStream output =
-              new(
-                temporary,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                1024 * 1024,
-                useAsync: true))
-          {
-            byte[] buffer =
-              new byte[1024 * 1024];
-
-            while (true)
-            {
-              int read =
-                await source.ReadAsync(
-                  buffer.AsMemory(0, buffer.Length),
-                  cancellationToken);
-              if (read == 0)
-                break;
-
-              await output.WriteAsync(
-                buffer.AsMemory(0, read),
-                cancellationToken);
-              bytesReceived += read;
-
-              progress?.Report(
-                new JplDownloadProgress(
-                  Array.IndexOf(urls, url) + 1,
-                  urls.Length,
-                  url,
-                  bytesReceived,
-                  totalBytes));
-            }
-
-            await output.FlushAsync(cancellationToken);
-          }
-
-          // Validate only after closing the download handle; FileShare.None is
-          // intentional so incomplete kernels cannot be opened concurrently.
-          _ = new JplSpkKernel(temporary);
-
-          File.Move(
-            temporary,
-            destination,
-            overwrite: true);
-
-          progress?.Report(
-            new JplDownloadProgress(
-              Array.IndexOf(urls, url) + 1,
-              urls.Length,
-              url,
-              new FileInfo(destination).Length,
-              new FileInfo(destination).Length));
-
-          return destination;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-          try
-          {
-            if (File.Exists(temporary))
-              File.Delete(temporary);
-          }
-          catch (Exception cleanupEx)
-          {
-            Log.Warning("JPL {Kernel} cancelled download temporary cleanup failed ({Type})",
-              kernel, cleanupEx.GetType().Name);
-          }
-
-          throw;
-        }
-        catch (Exception ex)
-        {
-          failures.Add($"{url}: {ex.Message}");
-          Log.Warning(
-            ex,
-            $"JPL {kernel} source failed: {url}");
-
-          try
-          {
-            if (File.Exists(temporary))
-              File.Delete(temporary);
-          }
-          catch (Exception cleanupEx)
-          {
-            Log.Warning("JPL {Kernel} failed download temporary cleanup failed ({Type})",
-              kernel, cleanupEx.GetType().Name);
-          }
-        }
-      }
-
-      throw new IOException(
-        $"All configured {kernel} download sources failed.\r\n" +
-        string.Join("\r\n", failures));
-    }
-
-    internal int ConfigureSolarSystem(OrbitSourceSettings settings)
+    internal int ConfigureSolarSystem(    internal int ConfigureSolarSystem(OrbitSourceSettings settings)
     {
       SatelliteList.Remove(MoonSatId);
       SatelliteList.Remove(SunSatId);
@@ -353,14 +136,14 @@ namespace SkyRoof
       if (!settings.ShowSolarSystemTargets) return 0;
 
       int count = 0;
-      count += AddOrekitTarget(MoonSatId, "Moon", "Luna", "Natural satellite / EME", JplBody.Moon);
-      count += AddOrekitTarget(SunSatId, "Sun", "Sol", "Solar system", JplBody.Sun);
-      count += AddOrekitTarget(VenusSatId, "Venus", "", "Planet", JplBody.Venus);
+      count += AddOrekitTarget(MoonSatId, "Moon", "Luna", "Natural satellite / EME", CelestialBodyId.Moon);
+      count += AddOrekitTarget(SunSatId, "Sun", "Sol", "Solar system", CelestialBodyId.Sun);
+      count += AddOrekitTarget(VenusSatId, "Venus", "", "Planet", CelestialBodyId.Venus);
       Log.Information("Orekit planetary ephemeris activated: {Count} targets", count);
       return count;
     }
 
-    private int AddOrekitTarget(string id, string name, string aliases, string objectType, JplBody body)
+    private int AddOrekitTarget(string id, string name, string aliases, string objectType, CelestialBodyId body)
     {
       try
       {

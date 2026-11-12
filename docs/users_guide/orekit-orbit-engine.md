@@ -22,6 +22,6 @@ For the Moon, Sun and Venus, Orekit's `CelestialBodyFactory` supplies the epheme
 
 ## Validation status
 
-Source-level integration and automated smoke checks are distinct from a certified hardware installation. A clean Windows x64 compile/test, installed-runtime verification, independent Moon ephemeris comparison, and live CAT/rotator verification must be recorded before a production release. The older legacy JPL code and SGP.NET metadata adapters may remain in source during migration; these are not the selected numerical trajectory engines.
+Source-level integration and automated smoke checks are distinct from a certified hardware installation. A clean Windows x64 compile/test, installed-runtime verification, independent Moon ephemeris comparison, and live CAT/rotator verification must be recorded before a production release. The old JPL SPK decoder has been removed. SGP.NET type adapters remain temporarily for pass and legacy observation DTOs but are not used for numerical propagation; they require a subsequent compatibility refactor.
 
 See [implementation architecture](../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md) and GitHub pull request #195 for evidence and remaining work.

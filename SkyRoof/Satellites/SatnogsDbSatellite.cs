@@ -206,7 +206,7 @@ namespace SkyRoof
 
     [JsonIgnore]
     [Browsable(false)]
-    internal JplBody? EphemerisBody { get; set; }
+    internal CelestialBodyId? EphemerisBody { get; set; }
 
     [JsonIgnore]
     [Browsable(false)]
