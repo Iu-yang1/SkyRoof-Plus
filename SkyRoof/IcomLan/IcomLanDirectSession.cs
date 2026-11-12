@@ -2075,8 +2075,12 @@ namespace SkyRoof
     {
       float gain = Math.Clamp(
         AudioOptions.Transmit.MicrophoneGain, 0, 200) / 100f;
-      double energy = ScaleTxPcm(frame, gain);
-      if (AudioOptions.Transmit.Agc.Enabled)
+      bool useAgc = AudioOptions.Transmit.Agc.Enabled;
+      // When the AGC is active, preserve pre-AGC peaks above full scale
+      // until the AGC limiter has a chance to attenuate them. Clamping
+      // before the AGC would irreversibly distort a 200% mic-gain peak.
+      double energy = ScaleTxPcm(frame, gain, clip: !useAgc);
+      if (useAgc)
       {
         agc.Process(frame, AudioOptions.Transmit.Agc);
         energy = PcmEnergy(frame);
@@ -2118,12 +2122,14 @@ namespace SkyRoof
       Interlocked.Exchange(ref LastSentAudioTicks, DateTime.UtcNow.Ticks);
     }
 
-    private static double ScaleTxPcm(Span<float> frame, float gain)
+    internal static double ScaleTxPcm(
+      Span<float> frame, float gain, bool clip = true)
     {
       double energy = 0;
       foreach (ref float sample in frame)
       {
-        sample = Math.Clamp(sample * gain, -1f, 1f);
+        float amplified = sample * gain;
+        sample = clip ? Math.Clamp(amplified, -1f, 1f) : amplified;
         energy += (double)sample * sample;
       }
       return energy;
