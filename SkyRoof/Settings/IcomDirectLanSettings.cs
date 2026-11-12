@@ -58,7 +58,9 @@ namespace SkyRoof
     [DefaultValue(100)]
     public int SpeakerVolume { get; set; } = 100;
 
-    public override string ToString() => Enabled ? "RX enabled" : "RX disabled";
+    public override string ToString() => Enabled
+      ? SettingsLanguage.Text("接收音频已启用", "RX enabled")
+      : SettingsLanguage.Text("接收音频已禁用", "RX disabled");
   }
 
   /// <summary>Software voice leveling applied after fixed microphone gain,
@@ -102,7 +104,9 @@ namespace SkyRoof
     [DefaultValue(-3.0)]
     public double PeakCeilingDbfs { get; set; } = -3.0;
 
-    public override string ToString() => Enabled ? "Voice AGC enabled" : "Voice AGC off";
+    public override string ToString() => Enabled
+      ? SettingsLanguage.Text("语音 AGC 已启用", "Voice AGC enabled")
+      : SettingsLanguage.Text("语音 AGC 已关闭", "Voice AGC off");
   }
 
   [JsonObject]
@@ -115,7 +119,7 @@ namespace SkyRoof
     public bool Enabled { get; set; } = true;
 
     [DisplayName("Auto select LAN MOD input")]
-    [Description("When Direct LAN TX is connected, read IC-9700 DATA OFF MOD and DATA MOD using CI-V and set either non-LAN source to LAN. Independent radio readback verifies the change. Disable to retain manual radio input selection. This may leave the radio in LAN input after disconnect.")]
+    [Description("Read IC-9700 DATA OFF MOD/DATA MOD via CI-V. Only during actual CAT PTT transmit with recent PC TX PCM, change a confirmed non-LAN source to LAN and verify by independent readback. This radio setting may persist after disconnection; disable for manual selection.")]
     [DefaultValue(true)]
     public bool AutoSelectLanModInput { get; set; } = true;
 
@@ -162,7 +166,9 @@ namespace SkyRoof
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public IcomLanTxAgcSettings Agc { get; set; } = new();
 
-    public override string ToString() => Enabled ? "TX enabled" : "TX disabled";
+    public override string ToString() => Enabled
+      ? SettingsLanguage.Text("发射音频已启用", "TX enabled")
+      : SettingsLanguage.Text("发射音频已禁用", "TX disabled");
   }
 
   [JsonObject]
@@ -194,7 +200,9 @@ namespace SkyRoof
     [DefaultValue(250)]
     public int PollIntervalMs { get; set; } = 250;
 
-    public override string ToString() => Enabled ? "CI-V meters enabled" : "CI-V meters disabled";
+    public override string ToString() => Enabled
+      ? SettingsLanguage.Text("CI-V 仪表已启用", "CI-V meters enabled")
+      : SettingsLanguage.Text("CI-V 仪表已禁用", "CI-V meters disabled");
   }
 
   [JsonObject]
@@ -217,6 +225,7 @@ namespace SkyRoof
     [DefaultValue(true)]
     public bool RetransmitAudio { get; set; } = true;
 
-    public override string ToString() => "RX / TX audio and CI-V meters";
+    public override string ToString() =>
+      SettingsLanguage.Text("接收 / 发射音频及 CI-V 仪表", "RX / TX audio and CI-V meters");
   }
 }

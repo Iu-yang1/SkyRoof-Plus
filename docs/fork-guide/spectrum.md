@@ -6,6 +6,24 @@ The fork introduces a dockable **Icom LAN Spectrum** panel separate from SkyRoof
 
 Open **Icom LAN Spectrum** from the application's panel/window menu. Configure **Tools → Settings → Icom LAN Spectrum** first.
 
+## v.1.69 localized Direct LAN / TX settings
+
+Use the language selector in **Tools → Settings** to switch between **简体中文** and **English**. In the **Icom Direct LAN** section, the new 2026-11 audio features now have Chinese PropertyGrid labels, help descriptions, and expanded-object summaries, while JSON property names remain unchanged.
+
+| English setting | Chinese menu label | Default |
+|---|---|---|
+| RX speaker playback buffer (ms) | 接收扬声器播放缓冲 (ms) | 120 |
+| TX network prebuffer (ms) | 发射网络预缓冲 (ms) | 150 |
+| TX microphone capture buffer (ms) | 发射麦克风采集缓冲 (ms) | 150 |
+| TX software jitter prefill / maximum (ms) | 发射软件抖动预填充 / 缓冲上限 | 60 / 250 |
+| Microphone gain (%) | 麦克风增益 (%) | 100 |
+| Auto select LAN MOD input | 自动选择电台 LAN 调制输入 | Enabled |
+| Voice AGC → Enable voice AGC | 发射语音 AGC → 启用语音 AGC | Disabled |
+| Target RMS / Maximum gain | 目标均方根电平 / 最大补偿增益 | −18 dBFS / +12 dB |
+| Noise floor / Attack / Release / Peak ceiling | 噪声门限 / 启动 / 恢复 / 峰值上限 | −48 dBFS / 40 / 450 ms / −3 dBFS |
+
+The **SkyCAT CAT control TCP port** (4532) controls MODE/SPAN/REF, while **SkyCAT scope TCP port** (4535) receives the waveform. AGC remains disabled by default for calibrated FT4/FT8/Q65 digital waveforms. Automatic radio LAN MOD selection requires actual recent PC TX audio and CAT PTT ON; radio-side settings can persist after disconnection. A live PC MIC dBFS meter does not itself establish radio-side modulation or RF output. See [the Chinese Direct LAN audio engineering guide](../architecture/icom-direct-lan-audio-meters.zh-CN.md).
+
 ## Choose the source separately from the control path
 
 | Source in settings | Requirements | Important behavior |

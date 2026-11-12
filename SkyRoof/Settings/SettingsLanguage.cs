@@ -212,7 +212,88 @@ namespace SkyRoof
       ["CW Keyer TCP Port"] = "CW 键控 TCP 端口",
       // AFC property grid. The source class intentionally carries Chinese
       // metadata, which is translated in the English branch below.
-      ["Enabled AFC"] = "启用 AFC"
+      ["Enabled AFC"] = "启用 AFC",
+      // IC-9700 native LAN audio, meter and scope settings added in 2026-11.
+      ["RX speaker playback buffer (ms)"] = "接收扬声器播放缓冲 (ms)",
+      ["Auto select LAN MOD input"] = "自动选择电台 LAN 调制输入",
+      ["TX network prebuffer (ms)"] = "发射网络预缓冲 (ms)",
+      ["TX microphone capture buffer (ms)"] = "发射麦克风采集缓冲 (ms)",
+      ["TX software jitter prefill (ms)"] = "发射软件抖动预填充 (ms)",
+      ["TX software jitter maximum (ms)"] = "发射软件抖动缓冲上限 (ms)",
+      ["Voice AGC"] = "发射语音 AGC",
+      ["Enable voice AGC"] = "启用语音 AGC",
+      ["Target RMS (dBFS)"] = "目标均方根电平 (dBFS)",
+      ["Maximum gain (dB)"] = "最大补偿增益 (dB)",
+      ["Noise floor (dBFS)"] = "噪声门限 (dBFS)",
+      ["Attack (ms)"] = "AGC 启动时间 (ms)",
+      ["Release (ms)"] = "AGC 恢复时间 (ms)",
+      ["Peak ceiling (dBFS)"] = "峰值上限 (dBFS)",
+      ["SkyCAT CAT control TCP port"] = "SkyCAT 频谱控制 CAT TCP 端口",
+      ["Scope radio model"] = "频谱电台型号",
+      ["Native LAN FAST sweep"] = "原生 LAN 快速频谱扫描"
+    };
+    // PropertyGrid descriptions belong to the *owning type + property*, so
+    // similarly named controls elsewhere never pick up LAN-specific help.
+    private static readonly Dictionary<string, string> ChineseDescriptions = new(StringComparer.Ordinal)
+    {
+      ["IcomDirectLanSettings.RetransmitAudio"] =
+        "响应已经关联到本次会话的 UDP 发射音频重传请求；重传绝不会自行触发 PTT。",
+      ["IcomDirectLanReceiveSettings.Enabled"] =
+        "启用电台到计算机的 LAN 接收音频。监听请选择 AF；使用 12 kHz IF→AF 解调链路时请选择 IF。",
+      ["IcomDirectLanReceiveSettings.PrebufferMs"] =
+        "Windows 本地扬声器播放缓冲，20–500 ms，默认 120 ms；不改变电台或网络 UDP 的接收缓冲。",
+      ["IcomDirectLanReceiveSettings.SpeakerDeviceId"] =
+        "选择 LAN 接收音频的 Windows 播放设备；留空可只向 IF→AF 处理链路送入音频。",
+      ["IcomDirectLanReceiveSettings.SpeakerVolume"] =
+        "本地扬声器音量，0–100%；不会调整电台 AF/RF 增益或原始 LAN 音频报文。",
+      ["IcomDirectLanTransmitSettings.Enabled"] =
+        "协商 PC→IC-9700 的 LAN 调制音频；发射需 CAT PTT 为 ON，并确保电台选择 LAN 作为 MOD 输入。",
+      ["IcomDirectLanTransmitSettings.AutoSelectLanModInput"] =
+        "开启后读取电台 DATA OFF MOD、DATA MOD；仅在实际 CAT PTT 发射且最近有 PC TX PCM 时，将已确认的非 LAN 输入切换为 LAN 并回读核对。断开软件后电台可能仍保持 LAN；关闭此选项可手动选择。",
+      ["IcomDirectLanTransmitSettings.PrebufferMs"] =
+        "与 IC-9700 协商的网络 TX 音频预缓冲，20–500 ms，默认 150 ms；不控制 Windows 采集缓冲。",
+      ["IcomDirectLanTransmitSettings.CaptureBufferMs"] =
+        "Windows WASAPI 麦克风采集缓冲，20–500 ms，默认 150 ms；与电台网络预缓冲独立。",
+      ["IcomDirectLanTransmitSettings.JitterPrefillMs"] =
+        "20 ms PCM 定时发送器启动时的预填充量，0–250 ms，默认 60 ms；数值越大通常越能吸收采集抖动，但延迟也增加。",
+      ["IcomDirectLanTransmitSettings.JitterMaximumMs"] =
+        "本地待发 PCM 的最大积压量，60–500 ms，默认 250 ms；超出时丢弃旧采样，不能小于启动预填充量。",
+      ["IcomDirectLanTransmitSettings.MicrophoneDeviceId"] =
+        "Windows 麦克风录音设备；数字模式也可选择虚拟声卡。只有 CAT PTT 发射期间才向电台发送该音频。",
+      ["IcomDirectLanTransmitSettings.MicrophoneGain"] =
+        "AGC 前的固定 PCM 增益，0–200%；100% 为 0 dB，200% 约为 +6.02 dB，不等于电台发射功率。",
+      ["IcomDirectLanTransmitSettings.Agc"] =
+        "可选的本地语音自动增益与峰值限制；SSB/FM 语音可启用，FT4/FT8/Q65 等数字模式通常应保持关闭。",
+      ["IcomLanTxAgcSettings.Enabled"] =
+        "启用发射语音自动增益控制。默认关闭；对数字调制音频应保持关闭，以免改变校准电平。",
+      ["IcomLanTxAgcSettings.TargetRmsDbfs"] =
+        "语音目标均方根电平，默认 −18 dBFS；这是软件 PCM 电平，不是 IC-9700 ALC 或射频功率读数。",
+      ["IcomLanTxAgcSettings.MaximumGainDb"] =
+        "轻声语音的最大增益提升，默认 +12 dB；低于噪声门限的音频不会被提升到语音目标。",
+      ["IcomLanTxAgcSettings.NoiseFloorDbfs"] =
+        "AGC 噪声门限，默认 −48 dBFS；低于此电平时停止额外提升，减少背景噪声泵吸。",
+      ["IcomLanTxAgcSettings.AttackMs"] =
+        "声音突然增大时降低增益的时间常数，默认 40 ms；数值越小响应越快。",
+      ["IcomLanTxAgcSettings.ReleaseMs"] =
+        "声音变小时恢复增益的时间常数，默认 450 ms；较长的恢复时间可减轻音量泵吸。",
+      ["IcomLanTxAgcSettings.PeakCeilingDbfs"] =
+        "AGC 开启时的 PCM 峰值上限，默认 −3 dBFS；不取代电台的 ALC。",
+      ["IcomDirectLanMeterSettings.PollIntervalMs"] =
+        "CI-V 15 xx 仪表轮询间隔，100–2000 ms；按顺序读取，不会并行突发查询。",
+      ["IcomLanSpectrumSettings.RadioModel"] =
+        "指定解析 CI-V 27 00 频谱的电台型号；IC-705/IC-905 为单频谱接收机，不修改 CAT/PTT 设置。",
+      ["IcomLanSpectrumSettings.DirectLanFastSweep"] =
+        "Direct LAN 会话启动时发送一次 CI-V 27 1A FAST；会改变电台侧扫描速度，取消勾选可保留电台原有设置。",
+      ["IcomLanSpectrumSettings.ScopeBand"] =
+        "自动选择当前收到的频谱；MAIN 或 SUB 仅显示指定接收机的 CI-V 27 00 数据。",
+      ["IcomLanSpectrumSettings.Source"] =
+        "选择 SkyCAT 频谱流、RS-BA1 被动抓包或独立鉴权 Direct LAN；Direct LAN 需要手动启动。",
+      ["IcomLanSpectrumSettings.ControlPath"] =
+        "频谱数据和控制链路相互独立。自动模式跟随来源；RS-BA1 被动模式默认只读，可明确选择 SkyCAT 控制。",
+      ["IcomLanSpectrumSettings.SkyCatScopePort"] =
+        "SkyCAT 输出原生频谱帧的本机 TCP 端口，通常为 4535；仅用于接收波形。",
+      ["IcomLanSpectrumSettings.SkyCatControlPort"] =
+        "独立的频谱 MODE/SPAN/REF 控制专用 SkyCAT CAT TCP 端口，通常为 4532；内嵌 SkyCAT 使用已配置的主 CAT 端口，不会接管 PTT 或多普勒。"
     };
     private static readonly Dictionary<string, string> AfcEnglish = new(StringComparer.Ordinal)
     {
@@ -286,6 +367,10 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglishHelp.TryGetValue(item.Name, out string? en)) return en;
+      if (Current == UiLanguage.SimplifiedChinese &&
+          ChineseDescriptions.TryGetValue(
+            item.ComponentType.Name + "." + item.Name, out string? zh))
+        return zh;
       return item.Description;
     }
 

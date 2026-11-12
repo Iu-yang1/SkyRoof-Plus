@@ -53,6 +53,82 @@ public sealed class SettingsLanguageTests
   }
 
   [Fact]
+  public void RecentIcomLanOptionsHaveLocalizedNamesDescriptionsAndSummaries()
+  {
+    var previous = SettingsLanguage.Current;
+    try
+    {
+      var settings = new Settings();
+      var tx = settings.IcomDirectLan.Transmit;
+      var rx = settings.IcomDirectLan.Receive;
+      var agc = tx.Agc;
+      var spectrum = settings.IcomLanSpectrum;
+
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+      static void Check(object model, string property, string name, string help)
+      {
+        PropertyDescriptor item = TypeDescriptor.GetProperties(model)
+          .Find(property, false)!;
+        Assert.NotNull(item);
+        Assert.Equal(name, item.DisplayName);
+        Assert.Contains(help, item.Description);
+      }
+
+      Check(tx, nameof(tx.AutoSelectLanModInput),
+        "自动选择电台 LAN 调制输入", "CAT PTT");
+      Check(tx, nameof(tx.PrebufferMs), "发射网络预缓冲 (ms)", "IC-9700");
+      Check(tx, nameof(tx.CaptureBufferMs), "发射麦克风采集缓冲 (ms)", "WASAPI");
+      Check(tx, nameof(tx.JitterPrefillMs), "发射软件抖动预填充 (ms)", "20 ms");
+      Check(tx, nameof(tx.JitterMaximumMs), "发射软件抖动缓冲上限 (ms)", "丢弃旧采样");
+      Check(tx, nameof(tx.MicrophoneGain), "麦克风增益 (%)", "0–200%");
+      Check(tx, nameof(tx.Agc), "发射语音 AGC", "FT4/FT8/Q65");
+      Check(rx, nameof(rx.PrebufferMs), "接收扬声器播放缓冲 (ms)", "Windows");
+      Check(agc, nameof(agc.Enabled), "启用语音 AGC", "默认关闭");
+      Check(agc, nameof(agc.TargetRmsDbfs), "目标均方根电平 (dBFS)", "−18 dBFS");
+      Check(agc, nameof(agc.MaximumGainDb), "最大补偿增益 (dB)", "+12 dB");
+      Check(agc, nameof(agc.NoiseFloorDbfs), "噪声门限 (dBFS)", "−48 dBFS");
+      Check(agc, nameof(agc.AttackMs), "AGC 启动时间 (ms)", "40 ms");
+      Check(agc, nameof(agc.ReleaseMs), "AGC 恢复时间 (ms)", "450 ms");
+      Check(agc, nameof(agc.PeakCeilingDbfs), "峰值上限 (dBFS)", "−3 dBFS");
+      Check(spectrum, nameof(spectrum.SkyCatControlPort),
+        "SkyCAT 频谱控制 CAT TCP 端口", "4532");
+      Check(spectrum, nameof(spectrum.DirectLanFastSweep),
+        "原生 LAN 快速频谱扫描", "CI-V");
+      Assert.Contains("发射音频已启用", tx.ToString());
+      Assert.Contains("语音 AGC 已关闭", agc.ToString());
+      Assert.Contains("接收音频已启用", rx.ToString());
+
+      SettingsLanguage.Set(UiLanguage.English);
+      Check(tx, nameof(tx.AutoSelectLanModInput),
+        "Auto select LAN MOD input", "recent PC TX PCM");
+      Check(tx, nameof(tx.JitterPrefillMs),
+        "TX software jitter prefill (ms)", "20-ms TX clock");
+      Check(agc, nameof(agc.TargetRmsDbfs),
+        "Target RMS (dBFS)", "voice RMS");
+      Check(spectrum, nameof(spectrum.SkyCatControlPort),
+        "SkyCAT CAT control TCP port", "4532");
+      Assert.Equal("TX enabled", tx.ToString());
+      Assert.Equal("Voice AGC off", agc.ToString());
+      Assert.Equal("RX enabled", rx.ToString());
+
+      // Localized metadata must not rename JSON keys or change defaults.
+      string json = JsonConvert.SerializeObject(settings.IcomDirectLan);
+      Assert.Contains(nameof(tx.AutoSelectLanModInput), json);
+      Assert.Contains(nameof(tx.CaptureBufferMs), json);
+      Assert.Contains(nameof(tx.JitterPrefillMs), json);
+      Assert.Contains(nameof(agc.TargetRmsDbfs), json);
+      IcomDirectLanSettings restored =
+        JsonConvert.DeserializeObject<IcomDirectLanSettings>(json)!;
+      Assert.True(restored.Transmit.AutoSelectLanModInput);
+      Assert.Equal(150, restored.Transmit.CaptureBufferMs);
+      Assert.Equal(60, restored.Transmit.JitterPrefillMs);
+      Assert.Equal(-18.0, restored.Transmit.Agc.TargetRmsDbfs);
+      Assert.DoesNotContain("自动选择电台", json);
+    }
+    finally { SettingsLanguage.Set(previous); }
+  }
+
+  [Fact]
   public void WinFormsPropertyGridCanSwitchLanguageWithoutReplacingSettingsModel()
   {
     Exception? error = null;
