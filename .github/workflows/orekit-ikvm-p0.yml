@@ -1,0 +1,63 @@
+name: Orekit IKVM P0 experimental validation
+
+on:
+  push:
+    branches:
+      - feature/orekit-ikvm-orbit-engine
+    paths:
+      - 'SkyRoof.Orbit.Orekit/**'
+      - 'SkyRoof.Orbit.Orekit.Smoke/**'
+      - '.github/workflows/orekit-ikvm-p0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  orekit-p0:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore experimental IKVM and Maven dependencies
+        shell: pwsh
+        run: |
+          dotnet restore SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -p:RestorePackagesWithLockFile=false -p:RestoreLockedMode=false
+
+      - name: JAR to IL conversion and build
+        shell: pwsh
+        run: |
+          dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore -p:RestorePackagesWithLockFile=false
+
+      - name: UTC TLE TEME and ITRF smoke verification
+        shell: pwsh
+        run: |
+          dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-build --no-restore -- SkyRoof.Orbit.Orekit.Smoke/TestData artifacts/orekit-p0/p0-smoke.json
+
+      - name: Record managed assembly inventory and file sizes
+        if: always()
+        shell: pwsh
+        run: |
+          $out = 'artifacts/orekit-p0'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Get-ChildItem SkyRoof.Orbit.Orekit.Smoke/bin/Release -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in '.dll', '.exe' } |
+            Select-Object Name, Length, FullName |
+            ConvertTo-Json -Depth 5 |
+            Set-Content "$out/assemblies.json" -Encoding utf8
+          dotnet --info | Set-Content "$out/dotnet-info.txt" -Encoding utf8
+
+      - name: Upload P0 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: orekit-ikvm-p0-evidence
+          path: artifacts/orekit-p0/*
+          if-no-files-found: warn
