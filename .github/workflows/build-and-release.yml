@@ -331,6 +331,20 @@ jobs:
             Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
           }
 
+      - name: Verify versioned release notes before publication
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = "${{ steps.get_version.outputs.version }}"
+          if (-not (Test-Path -LiteralPath RELEASE_NOTES.md)) {
+            throw 'Versioned release notes are missing.'
+          }
+          $first = Get-Content RELEASE_NOTES.md -TotalCount 1
+          if ($first -ne "# SkyRoof-Plus v.$version") {
+            throw "Release notes headline '$first' does not match v.$version."
+          }
+          Write-Host "Release notes match v.$version"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -342,44 +356,7 @@ jobs:
           overwrite_files: ${{ env.REPLACE_V169 == 'true' }}
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
-          body: |
-            SkyRoof-Plus v.1.69 — 2026-11-12: IC-9700 Direct LAN / SkyCAT scope reliability and bilingual settings update (based on v.1.68).
-
-            ### v.1.69 installer replacement / 安装包替换说明
-            - **自动更新修正：** 改用 Iu-yang1/SkyRoof-Plus GitHub Releases API 检查包含预发布版在内的最新可安装版本；更新提示链接指向本 Fork 发布页。
-            - **关于页面署名：** 保留 Alex Shovkoplyas (VE3NEA) 原始版权和官网链接，同时添加 © 2026 Iu-yang1 BG5JSU Fork modifications 和 Fork 仓库链接。
-            - **Updater/About:** update checks now use fork Releases (including packaged prereleases), and Help → About credits the fork maintainer without removing the original author's copyright or site.
-
-            ### 2026-11-12 云台异常反馈开环追踪 / Rotator open-loop tracking (PR #193)
-            - **异常角度隔离：** AZ/EL 回报出现异常跳变后，不再因此自动 STOP、锁定云台或取消 TRACK；保持最后可信角度，继续向云台发送卫星跟踪目标。
-            - **状态提示：** 在对应反馈角度下方显示非阻塞式 `!` 警告，鼠标悬停可查看被拒绝的回报和最后可信值。
-            - **恢复：** 对连续一致且与可信角度或当前命令目标相符的回报重新进行验证，满足条件后自动恢复实时反馈。
-            - **原生驱动与 RC-3040S：** 隔离原始反馈时间戳和可信回报，IPC 传递异常状态；运动规划保留选定的速度、加速度与路径点约束，不把缓存的 C2 数据伪装为新反馈。
-            - **范围边界：** 本次仅取消异常角度跳变引发的锁定。通信中断、显式 STOP、机械限位、控制进程失联等独立保护仍保留。
-            - **验证：** Windows x64、1393 个 xUnit 测试、aislop 审查通过。暂未完成实机云台验证。
-            - **EN:** Reject implausible position reports and continue satellite tracking using the last trusted bearing as the open-loop reference; show per-axis warning glyphs, auto-recover trusted telemetry, and preserve existing independent motor-fault safeguards.
-
-            ### 中文更新
-            - **设置菜单汉化：** 新增 RX 播放缓冲、TX 网络/采集/抖动缓冲、麦克风增益、语音 AGC 及其 RMS/门限/时间常数/限峰参数、自动选择 LAN MOD 输入、SkyCAT 独立频谱控制 CAT TCP 端口的中文名称、帮助文字和折叠摘要。沿用已有简体中文 / English 切换，不改旧版配置 JSON 键。
-            - **SkyCAT 频谱控制（PR #187）：** 单独连接 CAT TCP/4532 操作 MODE/SPAN/REF，频谱数据仍用 TCP/4535，真实 CI-V 回读、无波形时恢复控件、低优先级查询和断线重连。
-            - **Direct LAN TX 音频节奏（PR #188）：** 固定 20 ms PCM 发包，软件预填充与缓冲上限；记录采集欠载、丢样、发送迟滞及 PTT 状态，避免不规则 Windows 音频回调造成 UDP 突发/间断。
-            - **缓冲拆分与可选语音 AGC（PR #189）：** RX 本地播放默认 120 ms；TX 网络 150 ms、麦克风采集 150 ms、抖动预填充 60 ms、最大 250 ms 分开设置。AGC 默认 OFF，语音目标 −18 dBFS，最大增益 +12 dB，包含噪声门限、40/450 ms 启动/恢复与 −3 dBFS 峰值限制。FT4/FT8/Q65 数字模式建议保持 OFF。
-            - **调制源自动核验（PR #190）：** CI-V 读回 DATA OFF MOD / DATA MOD / LAN MOD Level；仅在实际 CAT PTT + 近期 PC TX PCM 时才纠正非 LAN 的调制输入，并通过独立读回核对；不会在纯接收/频谱浏览时切换电台话筒。电台选择可能在断线后持续保留，使用本机 MIC 前请手动检查。
-            - **仪表优先级（PR #184）：** RX S 表与发射 PO/ALC 差异化轮询、SSB 发射功率峰值保持，优先处理 PTT 和多普勒写频。
-            - **实机边界：** MIC dBFS/UDP TX 计数不是电台调制和 RF 功率证据。IC-9700 前面板 ALC/PO、LAN MOD、实际语音连续性及高帧率性能仍需实机验收。未配置 SignPath 时安装包未签名；本次原位替换保持既有 v.1.69 Release 分类不变。
-
-            ### English
-            - Chinese labels, help and collapsed summaries for all recently added Icom Direct LAN RX/TX buffer, LAN MOD input, voice AGC and SkyCAT scope-only CAT settings; English names and persisted property keys unchanged.
-            - Independent SkyCAT scope CAT backend for MODE/SPAN/REF with real register readback (#187), retaining separate waveform TCP stream and priority for PTT/Doppler.
-            - Stable 20-ms TX PCM pacing, bounded microphone jitter buffering and underrun/overrun/PTT diagnostics (#188).
-            - Independent RX playback, TX network, mic capture and jitter buffers, plus optional voice RMS AGC and peak ceiling (#189). Default AGC OFF for FT4/FT8/Q65.
-            - Authenticated radio CI-V DATA OFF/DATA MOD and LAN level readback; optional LAN MOD auto-selection only during real PC audio transmission and CAT PTT, not passive RX/scope (#190).
-            - CI quality gates include Windows x64 build, xUnit, pinned aislop, installer/runtime checks and published artifact integrity. Real IC-9700 RF modulation, ALC/PO, RX audio and Doppler timing need operator hardware verification. The existing v.1.69 release classification is retained for this in-place replacement; absent SignPath, the installer is unsigned.
-
-            中文使用说明: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/zh-cn/fork-guide/spectrum.md
-            English guide: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/docs/fork-guide/spectrum.md
-            Full changelog: https://github.com/Iu-yang1/SkyRoof-Plus/blob/master/FORK-CHANGELOG.md
-
+          body_path: RELEASE_NOTES.md
           files:  install/SkyRoofSetup-v.${{ steps.get_version.outputs.version }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

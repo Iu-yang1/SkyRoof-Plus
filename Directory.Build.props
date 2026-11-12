@@ -3,11 +3,10 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        runs build/Set-Version.ps1 to propagate it to the installer script and the docs. -->
-  <!-- SkyRoof Plus v1.69 bilingual LAN audio settings and CI-V MOD release: 2026-11-12. -->
-  <!-- v1.69-openloop-replacement-20261112: rebuild the existing v.1.69 installer from master with PR #193 rotator open-loop tracking; keep the release version unchanged. -->
+  <!-- SkyRoof Plus v1.70: selectable Orekit/IKVM orbit backend and runtime installer validation. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <Version>1.69</Version>
+    <Version>1.70</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

@@ -2,17 +2,10 @@
 
 ## Which build do I need?
 
-**Fork version v.1.57**: [GitHub Releases](https://github.com/Iu-yang1/SkyRoof/releases).
-This fork includes the upstream v.1.56 changes and its own CW, CAT,
-rotator, IC-9700 LAN spectrum and bilingual documentation extensions.
-The published asset is marked as a pre-release if it cannot be signed.
+**Latest published release:** [SkyRoof-Plus GitHub Releases](https://github.com/Iu-yang1/SkyRoof-Plus/releases).
+The next candidate, **v.1.70**, adds a selectable Orekit / IKVM orbit backend, native CCSDS OMM, IERS data management and a corrected station-relative Doppler range rate. Until v.1.70 is actually published, use the existing [v.1.69 release](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.69).
 
-
-For the **Iu-yang1/SkyRoof fork extensions** described in the
-[English](fork-guide/overview.md) and
-[Chinese](zh-cn/fork-guide/overview.md) guides, use the
-[SkyRoof fork GitHub Actions](https://github.com/Iu-yang1/SkyRoof/actions)
-or [fork Releases](https://github.com/Iu-yang1/SkyRoof/releases) when available.
+Use [GitHub Actions](https://github.com/Iu-yang1/SkyRoof-Plus/actions) for the latest build and verified installation smoke results. CI-produced unsigned test installers are **not** equivalent to signed production releases. Read the [English Orekit guide](users_guide/orekit-orbit-engine.md) or [Chinese guide](zh-cn/users_guide/orekit-orbit-engine.md) for backend selection, EOP and validation limits.
 A successful Compile Check may provide an **unsigned test installer**; it is not
 the upstream v1.56 installer. See
 [docs deployment status](https://github.com/Iu-yang1/SkyRoof/deployments).
