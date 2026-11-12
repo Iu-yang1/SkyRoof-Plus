@@ -130,6 +130,8 @@ namespace SkyRoof
     private long AudioTxOverflowSamples;
     private int AudioTxBufferedSamples;
     private double LastSentAudioDbfs = -120;
+    private double LastAgcGainDb;
+    private long AgcProcessedFrames;
     private long LastSentAudioTicks;
     internal Func<bool>? ExternalMeterReadbackAvailable { get; init; }
     internal IcomDirectLanTxAudioStatus TxAudioStatus => new(
@@ -866,6 +868,16 @@ namespace SkyRoof
           Interlocked.Read(ref AudioTxPaddedSamples),
           Interlocked.Read(ref AudioTxPttInterruptions),
           Volatile.Read(ref AudioTxBufferedSamples));
+        Log.Information(
+          "Direct LAN TX levels: microphoneGain={MicGainPercent}% voiceAgc={AgcEnabled} agcGain={AgcGainDb:F1}dB agcFrames={AgcFrames} networkPrebuffer={NetworkBufferMs}ms micCaptureBuffer={CaptureBufferMs}ms jitterPrefill={JitterPrefillMs}ms jitterMaximum={JitterMaximumMs}ms",
+          AudioOptions.Transmit.MicrophoneGain,
+          AudioOptions.Transmit.Agc.Enabled,
+          Volatile.Read(ref LastAgcGainDb),
+          Interlocked.Read(ref AgcProcessedFrames),
+          AudioOptions.Transmit.PrebufferMs,
+          AudioOptions.Transmit.CaptureBufferMs,
+          AudioOptions.Transmit.JitterPrefillMs,
+          AudioOptions.Transmit.JitterMaximumMs);
         Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
           Interlocked.Read(ref ScopeControlWritesSent),
           ScopeControlWrites.Reader.Count);
@@ -2006,7 +2018,12 @@ namespace SkyRoof
       // 20-ms PCM frame per tick, splitting it at the Icom 1364-byte UDP
       // payload limit. A bounded 60-ms prefill handles Windows jitter;
       // temporary microphone starvation is sent as silence, not a UDP gap.
-      var pcm = new IcomLanTxAudioPacerBuffer((int)NegotiatedTxRate);
+      int prefill = Math.Clamp(AudioOptions.Transmit.JitterPrefillMs, 0, 250);
+      int maximum = Math.Clamp(
+        AudioOptions.Transmit.JitterMaximumMs, Math.Max(60, prefill), 500);
+      var pcm = new IcomLanTxAudioPacerBuffer(
+        (int)NegotiatedTxRate, prefill, maximum);
+      var voiceAgc = new IcomLanTxVoiceAgc();
       bool wasKeyed = false;
       long lastTick = 0;
       using var clock = new PeriodicTimer(TimeSpan.FromMilliseconds(20));
@@ -2027,6 +2044,8 @@ namespace SkyRoof
             Interlocked.Increment(ref AudioTxPttInterruptions);
           wasKeyed = false;
           pcm.Reset();
+          voiceAgc.Reset();
+          Volatile.Write(ref LastAgcGainDb, 0);
           while (TxAudio.Reader.TryRead(out _)) { }
           Volatile.Write(ref AudioTxBufferedSamples, 0);
           continue;
@@ -2046,16 +2065,24 @@ namespace SkyRoof
         Volatile.Write(ref AudioTxBufferedSamples, pcm.BufferedSamples);
         Interlocked.Increment(ref AudioTxFrames);
 
-        await SendTxPcmFrameAsync(audio, frame, token);
+        await SendTxPcmFrameAsync(audio, frame, voiceAgc, token);
       }
     }
 
     private async Task SendTxPcmFrameAsync(
-      UdpClient audio, float[] frame, CancellationToken token)
+      UdpClient audio, float[] frame,
+      IcomLanTxVoiceAgc agc, CancellationToken token)
     {
       float gain = Math.Clamp(
         AudioOptions.Transmit.MicrophoneGain, 0, 200) / 100f;
       double energy = ScaleTxPcm(frame, gain);
+      if (AudioOptions.Transmit.Agc.Enabled)
+      {
+        agc.Process(frame, AudioOptions.Transmit.Agc);
+        energy = PcmEnergy(frame);
+        Volatile.Write(ref LastAgcGainDb, agc.GainDb);
+        Interlocked.Increment(ref AgcProcessedFrames);
+      }
       int bytesPerSample = AudioOptions.Transmit.Codec ==
         IcomLanAudioCodec.Lpcm16Mono ? 2 : 1;
       int maxSamples = 1364 / bytesPerSample;
@@ -2099,6 +2126,14 @@ namespace SkyRoof
         sample = Math.Clamp(sample * gain, -1f, 1f);
         energy += (double)sample * sample;
       }
+      return energy;
+    }
+
+    private static double PcmEnergy(ReadOnlySpan<float> frame)
+    {
+      double energy = 0;
+      foreach (float sample in frame)
+        energy += sample * (double)sample;
       return energy;
     }
 
