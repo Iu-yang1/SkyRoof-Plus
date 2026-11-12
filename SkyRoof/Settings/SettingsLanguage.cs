@@ -236,6 +236,13 @@ namespace SkyRoof
     };
     // PropertyGrid descriptions belong to the *owning type + property*, so
     // similarly named controls elsewhere never pick up LAN-specific help.
+    private static readonly Dictionary<string, string> ChineseCategories = new(StringComparer.Ordinal)
+    {
+      ["Orekit ephemeris"] = "Orekit 星历与数据",
+      ["Orbit elements"] = "轨道根数来源",
+      ["Satellite database"] = "卫星数据库"
+    };
+
     private static readonly Dictionary<string, string> ChineseDescriptions = new(StringComparer.Ordinal)
     {
       ["OrbitSourceSettings.AutoDownloadOrekitData"] =
@@ -420,6 +427,11 @@ namespace SkyRoof
         this.source = source;
 
       public override string DisplayName => DisplayFor(source);
+      public override string Category =>
+        Current == UiLanguage.SimplifiedChinese &&
+        ChineseCategories.TryGetValue(source.Category, out string? localized)
+          ? localized
+          : source.Category;
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;

@@ -41,7 +41,7 @@ public sealed class SettingsLanguageTests
       {
         var item = properties.Find(name, false);
         Assert.NotNull(item);
-        Assert.Equal("Orekit ephemeris", item!.Category);
+        Assert.Equal("Orekit 星历与数据", item!.Category);
       }
       Assert.Equal("IERS 地球定向参数下载来源",
         properties.Find(nameof(orbit.OrekitEopSources), false)!.DisplayName);
@@ -63,6 +63,8 @@ public sealed class SettingsLanguageTests
       SettingsLanguage.Set(UiLanguage.English);
       properties = TypeDescriptor.GetProperties(orbit,
         new Attribute[] { BrowsableAttribute.Yes });
+      Assert.Equal("Orekit ephemeris",
+        properties.Find(nameof(orbit.OrekitEopSources), false)!.Category);
       Assert.Equal("IERS EOP Download Sources",
         properties.Find(nameof(orbit.OrekitEopSources), false)!.DisplayName);
       Assert.Equal("JPL DE430 Download URL",
