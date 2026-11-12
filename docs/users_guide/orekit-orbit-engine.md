@@ -1,32 +1,27 @@
-# Orekit / IKVM Orbit Engine (Experimental)
+# Orekit / IKVM Unified Orbit & Celestial Engine
 
-SkyRoof Plus supports **SGP.NET** (default) and a selectable **Orekit 13.1.9** backend converted to .NET with **IKVM 8.16.3**. Both backends propagate TLE/CCSDS OMM via SGP4/SDP4. Switching backend does not turn a TLE into a precision numerical orbit.
+SkyRoof Plus now uses **Orekit 13.1.9, converted to .NET using IKVM**, as its only production orbit propagator. Satellite TLE/CCSDS OMM inputs still use Orekit's proper SGP4/SDP4 implementations. The former SGP.NET propagation fallback is disabled; Moon, Sun and Venus are likewise observed through Orekit's celestial-body and WGS-84 topocentric APIs.
 
-## Choose a backend
+## Automatic Orekit data
 
-1. Open **Tools → Orbit / TLE Sources → Edit Source URLs...** to edit **Orbit Sources** settings.
-2. Under **Orbit engine**, select **Orbit Propagation Backend**: `SgpNet` or `Orekit`.
-3. Apply the settings. SkyRoof rebuilds satellite tracks and pass caches. Inspect **Active Orbit Backend** and **Orbit Data Quality** to confirm the effective backend.
-4. If Orekit cannot initialize, the existing SGP.NET engine remains available, and the application displays the underlying error.
+On startup SkyRoof attempts to populate the directory indicated by **Orekit Data Directory**, or the default user-data `orekit-data` folder if blank, **before** initializing Orekit's global data context. The first installation includes the UTC/TAI leap-second file. With **Auto-download Orekit Data** enabled (default):
 
-The included .NET plugin does **not** require a separate Java installation, but **all** IKVM runtime assemblies, native DLLs, the IKVM home image and its `ikvm.properties` must ship with SkyRoof. A developer build that lacks those assets is not equivalent to the tested installer.
+- IERS `finals2000A.all` is retrieved from USNO/IERS and refreshed when the cached copy is more than seven days old. A validated file is moved into place atomically and a SHA-256 source manifest is written.
+- The Orekit-native JPL DE430 binary `lnxp1990.430` is downloaded once from the eSpace-EPFL orekit-data mirror and checked against the pinned upstream Git blob hash before it replaces any file. This covers the contemporary Moon/Sun/Venus data, unlike the old NAIF `.bsp` path.
+- Existing files remain usable offline if a refresh cannot connect. An initialization error is shown rather than silently switching to an alternative orbit algorithm.
 
-## Time and Earth orientation data
+The ephemeris cache is not the same as a NAIF SPK/BSP kernel. Existing custom `.bsp` files must be replaced with an Orekit-compatible DE binary data file if the custom path is to be used for solar-system tracking.
 
-Orekit requires a UTC–TAI history (for example `tai-utc.dat`). The installer includes a testable UTC history file, copied to the user data directory on first use. For improved Earth-fixed frame accuracy, also provide up-to-date IERS `finals2000A.all` EOP data.
+**Important:** Orekit caches global data/time-scale state. Restart SkyRoof after changing the data directory or refreshing EOP to adopt the new data. **Orbit Data Quality** reports coverage status rather than a formal pointing-accuracy guarantee.
 
-Use **Tools → Orbit / TLE Sources → Update Orekit IERS EOP Data...** to download the latest available IERS file and save a SHA-256 manifest. Restart SkyRoof to reload the dataset. Alternatively, set **Orekit Data Directory** to a directory containing matching data. A running Orekit instance cannot safely swap global time-scale data contexts.
+## CAT/rotator and Doppler
 
-The **Orbit Data Quality** diagnostic differentiates missing EOP from available or out-of-range records. This is data-source status, **not** a claim of measured absolute pointing accuracy.
+The application-facing orbit contract reports azimuth clockwise from north, geometric elevation, range in metres and range rate in metres per second (positive when receding). A one-way downlink first-order Doppler shift is `-f0 * rangeRate / c`. The legacy WinForms observation DTOs are currently retained as interoperability adapters, not as alternate propagation engines; these types will be removed in a separate compatibility refactor.
 
-## Radio and rotator interoperability
+For the Moon, Sun and Venus, Orekit's `CelestialBodyFactory` supplies the ephemeris state and `TopocentricFrame` calculates the site-relative observation. Earth orientation data are provided by IERS, and the celestial-body ephemeris by the DE430 binary.
 
-SkyRoof keeps the existing satellite tracker API and CAT/Rotator paths. Orekit returns azimuth clockwise from true north, geometric elevation, range in metres, and **range rate positive when receding**. The compatibility layer converts these into the existing SGP.NET observation units (kilometres and kilometres/second). A one-way downlink's first-order Doppler sign is `-f0 * range_rate / c`.
+## Validation status
 
-Legacy SGP.NET remains available as a rollback choice. Solar-system targets still use SkyRoof's existing JPL/NAIF BSP engine; the Orekit option does not invent spacecraft attitude, polarization or EME data.
+Source-level integration and automated smoke checks are distinct from a certified hardware installation. A clean Windows x64 compile/test, installed-runtime verification, independent Moon ephemeris comparison, and live CAT/rotator verification must be recorded before a production release. The older legacy JPL code and SGP.NET metadata adapters may remain in source during migration; these are not the selected numerical trajectory engines.
 
-## Known validation boundaries
-
-The automated suite covers Vallado SGP4/SDP4 reference vectors, OMM six-digit NORAD IDs, pass boundaries, and installed-package smoke tests. The full real-hardware CAT/rotator/EME path is not certified by software-only tests. The IKVM static-conversion warning related to `CharBuffer.rewind` is still under investigation; avoid claiming unsupported Java code paths are verified.
-
-The development and evidence record is at [Orekit + IKVM architecture](../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md). Until the release gates pass, use a preview build rather than replacing a known-good production installation.
+See [implementation architecture](../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md) and GitHub pull request #195 for evidence and remaining work.

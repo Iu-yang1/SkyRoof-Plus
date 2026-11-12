@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/orekit-ikvm-orbit-engine
+      - feature/orekit-unified-engine-autodata
     paths:
       - 'SkyRoof/**'
       - 'SkyRoof.Orbit.*/**'

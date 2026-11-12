@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - feature/orekit-ikvm-orbit-engine
+      - feature/orekit-unified-engine-autodata
     paths:
       - 'SkyRoof.Orbit.Orekit/**'
       - 'SkyRoof.Orbit.Contracts/**'
       - 'SkyRoof.Orbit.SgpNet/**'
       - 'SkyRoof.Orbit.Orekit.Smoke/**'
+      - 'SkyRoof/Orbit/**'
+      - 'SkyRoof/Satellites/**'
       - '.gitattributes'
       - '.github/workflows/orekit-ikvm-p0.yml'
   workflow_dispatch:

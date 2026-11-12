@@ -148,51 +148,12 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
-    public void SolarSystemGroup_ContainsMoonSunAndVenusAfterKernelActivation()
+    public void OrbitSettings_DefaultToOrekitAndAutomaticData()
     {
-      string path =
-        Path.Combine(
-          Path.GetTempPath(),
-          $"skyroof-jpl-solar-{Guid.NewGuid():N}.bsp");
-
-      try
-      {
-        File.WriteAllBytes(
-          path,
-          BuildSyntheticKernel());
-
-        var settings =
-          new OrbitSourceSettings
-          {
-            JplKernel = JplEphemerisKernel.CustomFile,
-            JplKernelFile = path,
-            ShowSolarSystemTargets = true
-          };
-        var db = new SatnogsDb();
-        db.ConfigureSources(settings);
-
-        db.ConfigureSolarSystem(settings)
-          .Should().Be(3);
-
-        var satelliteSettings =
-          new SatelliteSettings();
-        satelliteSettings.EnsureSolarSystemGroup(db);
-
-        SatelliteGroup group =
-          satelliteSettings.SatelliteGroups
-            .Single(
-              g =>
-                g.Id == "solar-system-ephemeris");
-
-        group.SatelliteIds.Should().Equal(
-          SatnogsDb.MoonSatId,
-          SatnogsDb.SunSatId,
-          SatnogsDb.VenusSatId);
-      }
-      finally
-      {
-        try { File.Delete(path); } catch { }
-      }
+      var sources = new OrbitSourceSettings();
+      sources.Backend.Should().Be(OrbitEngineMode.Orekit);
+      sources.AutoDownloadOrekitData.Should().BeTrue();
+      sources.ShowSolarSystemTargets.Should().BeTrue();
     }
 
     [Fact]

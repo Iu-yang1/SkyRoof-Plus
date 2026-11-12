@@ -114,36 +114,36 @@ namespace SkyRoof
     [DefaultValue(DefaultTleUrl)]
     public string TleUrl { get; set; } = DefaultTleUrl;
 
-    [Category("JPL ephemeris")]
+    [Browsable(false)]
     [DisplayName("DE440s Download Sources")]
     [Description("Ordered DE440s download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
     [DefaultValue(DefaultDe440sSources)]
     public string De440sSources { get; set; } = DefaultDe440sSources;
 
-    [Category("JPL ephemeris")]
+    [Browsable(false)]
     [DisplayName("DE421 Download Sources")]
     [Description("Ordered DE421 download URLs, separated by semicolons or new lines. SkyRoof tries each source in order. The defaults are the official NASA/JPL NAIF and SSD hosts; edit or remove either URL if necessary.")]
     [DefaultValue(DefaultDe421Sources)]
     public string De421Sources { get; set; } = DefaultDe421Sources;
 
-    [Category("JPL ephemeris")]
+    [Browsable(false)]
     [DisplayName("JPL Ephemeris Kernel")]
     [Description("Planetary/lunar SPK kernel used for Moon, Sun and Venus tracking. DE440s is recommended for modern dates; DE421 is retained for compatibility.")]
     [DefaultValue(JplEphemerisKernel.DE440s)]
     public JplEphemerisKernel JplKernel { get; set; } = JplEphemerisKernel.DE440s;
 
-    [Category("JPL ephemeris")]
+    [Browsable(false)]
     [DisplayName("Custom JPL BSP File")]
     [Description("Path to a local JPL/NAIF DAF-SPK .bsp file when JPL Ephemeris Kernel is CustomFile.")]
     public string JplKernelFile { get; set; } = string.Empty;
 
-    [Category("JPL ephemeris")]
+    [Category("Orbit engine")]
     [DisplayName("Show Solar-System Targets")]
-    [Description("Add Moon, Sun and Venus to the normal satellite/target database when a compatible JPL kernel is available.")]
+    [Description("Automatically include Moon, Sun and Venus using Orekit's planetary ephemerides when a compatible DE data file is present.")]
     [DefaultValue(true)]
     public bool ShowSolarSystemTargets { get; set; } = true;
 
-    [Category("JPL ephemeris")]
+    [Browsable(false)]
     [DisplayName("Auto-download JPL Kernel")]
     [Description("When DE440s or DE421 is selected and not cached yet, download it once from the configured source list. Custom BSP files are never downloaded automatically.")]
     [DefaultValue(true)]
