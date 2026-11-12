@@ -84,6 +84,27 @@ try
         Console.WriteLine($"Vallado 00005 t+{test.Minutes:F0}m: Δr={positionErrorM:F6} m; Δv={velocityErrorMps:F9} m/s");
     }
 
+    // A six-digit NORAD identifier must remain an integer; do not re-encode
+    // CCSDS OMM as a lossy fixed-width 69-column TLE.
+    var omm = new OrbitMeanElements(
+        100001, "2026-001A", 'U',
+        new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero),
+        15.5, 0.00001, 0.0,
+        0.001, 51.6, 120.0, 80.0, 25.0, 0.0001, 0, 999, 12345);
+    var orekitOmm = backend.CreateOmmTrack(omm);
+    var sgpOmm = baselineBackend.CreateOmmTrack(omm);
+    Assert(orekitOmm.NoradNumber == 100001 && sgpOmm.NoradNumber == 100001,
+        "OMM six-digit NORAD ID changed");
+    var ommAt = omm.EpochUtc.AddMinutes(10);
+    var orekitOmmPv = orekitOmm.PredictTeme(ommAt);
+    var sgpOmmPv = sgpOmm.PredictTeme(ommAt);
+    var sixDigitErrorMetres = Distance(
+        new[] { orekitOmmPv.XMetres, orekitOmmPv.YMetres, orekitOmmPv.ZMetres },
+        new[] { sgpOmmPv.XMetres, sgpOmmPv.YMetres, sgpOmmPv.ZMetres });
+    Assert(double.IsFinite(sixDigitErrorMetres) && sixDigitErrorMetres < 2000.0,
+        $"OMM six-digit SGP4 disagreement: {sixDigitErrorMetres} m");
+    Console.WriteLine($"OMM NORAD 100001: Orekit / SGP.NET TEME Δr={sixDigitErrorMetres:F3} m");
+
     // The same physical instant represented with two timezone offsets must agree.
     // Keep state/observation tests near the 2000 TLE epoch; the separate 2020 time-scale test
     // is independent of orbit propagation and tests the post-2017 leap-second offset.
@@ -144,6 +165,7 @@ try
         thousandPredictionsMs,
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
+        sixDigitErrorMetres,
         observation,
         baselineObservation,
         taiMinusUtcSeconds,

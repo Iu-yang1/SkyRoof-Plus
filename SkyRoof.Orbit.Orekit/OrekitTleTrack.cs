@@ -23,6 +23,41 @@ public sealed class OrekitTleTrack : IOrbitTrack
         propagator = TLEPropagator.selectExtrapolator(tle);
     }
 
+    public OrekitTleTrack(OrbitMeanElements elements)
+    {
+        var utc = TimeScalesFactory.getUTC();
+        const double secondsPerDay = 86400.0;
+        const double twoPi = 2 * Math.PI;
+        int launchYear = 0;
+        int launchNumber = 0;
+        string launchPiece = "A";
+        string id = elements.ObjectId;
+        if (id.Length >= 8 && id[4] == '-' &&
+            int.TryParse(id.AsSpan(0, 4), out int year) &&
+            int.TryParse(id.AsSpan(5, 3), out int number))
+        {
+            launchYear = year;
+            launchNumber = number;
+            if (id.Length > 8)
+                launchPiece = id[8..];
+        }
+
+        tle = new TLE(
+            elements.NoradNumber, elements.Classification,
+            launchYear, launchNumber, launchPiece,
+            elements.EphemerisType, elements.ElementSetNumber,
+            ToAbsoluteDate(elements.EpochUtc),
+            elements.MeanMotionRevolutionsPerDay * twoPi / secondsPerDay,
+            elements.MeanMotionDerivativeRevolutionsPerDay2 * twoPi / (secondsPerDay * secondsPerDay),
+            elements.MeanMotionSecondDerivativeRevolutionsPerDay3 * twoPi / (secondsPerDay * secondsPerDay * secondsPerDay),
+            elements.Eccentricity, elements.InclinationDegrees * Math.PI / 180.0,
+            elements.ArgumentOfPerigeeDegrees * Math.PI / 180.0,
+            elements.RightAscensionDegrees * Math.PI / 180.0,
+            elements.MeanAnomalyDegrees * Math.PI / 180.0,
+            elements.RevolutionNumberAtEpoch, elements.BStar, utc);
+        propagator = TLEPropagator.selectExtrapolator(tle);
+    }
+
     public int NoradNumber => tle.getSatelliteNumber();
 
     public OrbitState PredictTeme(DateTimeOffset utc) =>

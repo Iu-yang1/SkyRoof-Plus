@@ -45,3 +45,10 @@
 - 将 SGP.NET ECI 位置/速度的 km、km/s 转换为合同规定的 m、m/s；地面站海拔高度米转 km，距离及范围速率统一 SI 单位；不泄漏 `SGPdotNET.*` 类型。
 - P0/P1 烟测现有 Vallado 00005 参考解 + Orekit + SGP.NET 三路输出，另外输出两后端站心观测。不以两后端彼此一致代替独立精度验证，也不把地球自转模型差异误认为纯传播误差。
 - **上述新增代码仍需本次提交后的独立 CI 验证**；暂不接线真实 SkyRoof 运行时，也不改变默认后端。
+
+## P2 OMM 六位 NORAD（第一批）
+
+- 双后端 `IOrbitBackend.CreateOmmTrack(OrbitMeanElements)` 使用统一 CCSDS OMM 值对象；完整保留 NORAD、国际代号、历元、BSTAR、轨道角度及平均运动导数。所有公开单位明确记录。
+- Orekit 通过已解析元素构造 TLE/SGP4，**不从六位 NORAD 反向拼装传统 TLE 文本**；SGP.NET 使用既有 OmmData 构造。
+- 增加六位编号 100001 的双后端 10 分钟传播对照（2 km 上限属于首轮一致性回归，不是独立物理精度标准）。
+- 此时仅非生产适配，不代表 OMM/全部 SDP4 精度或上层 UI 连接完成。

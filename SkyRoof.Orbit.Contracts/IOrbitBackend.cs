@@ -4,6 +4,7 @@ public interface IOrbitBackend
 {
     string BackendId { get; }
     IOrbitTrack CreateTleTrack(string line1, string line2);
+    IOrbitTrack CreateOmmTrack(OrbitMeanElements elements);
 }
 
 public interface IOrbitTrack

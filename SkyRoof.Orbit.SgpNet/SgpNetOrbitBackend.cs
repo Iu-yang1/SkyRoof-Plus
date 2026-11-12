@@ -1,4 +1,5 @@
 using SGPdotNET.CoordinateSystem;
+using SGPdotNET.Parsers;
 using SGPdotNET.Observation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
@@ -12,6 +13,9 @@ public sealed class SgpNetOrbitBackend : IOrbitBackend
 
     public IOrbitTrack CreateTleTrack(string line1, string line2) =>
         new SgpNetTleTrack(line1, line2);
+
+    public IOrbitTrack CreateOmmTrack(OrbitMeanElements elements) =>
+        new SgpNetTleTrack(elements);
 }
 
 public sealed class SgpNetTleTrack : IOrbitTrack
@@ -21,6 +25,30 @@ public sealed class SgpNetTleTrack : IOrbitTrack
     public SgpNetTleTrack(string line1, string line2)
     {
         satellite = new Satellite(new Tle(line1, line2));
+    }
+
+    public SgpNetTleTrack(OrbitMeanElements elements)
+    {
+        var omm = new OmmData
+        {
+            NoradCatID = checked((uint)elements.NoradNumber),
+            ObjectID = elements.ObjectId,
+            ClassificationType = elements.Classification.ToString(),
+            Epoch = elements.EpochUtc.UtcDateTime,
+            MeanMotion = elements.MeanMotionRevolutionsPerDay,
+            MeanMotionDot = elements.MeanMotionDerivativeRevolutionsPerDay2,
+            MeanMotionDDot = elements.MeanMotionSecondDerivativeRevolutionsPerDay3,
+            Eccentricity = elements.Eccentricity,
+            Inclination = elements.InclinationDegrees,
+            RAOfAscNode = elements.RightAscensionDegrees,
+            ArgOfPericenter = elements.ArgumentOfPerigeeDegrees,
+            MeanAnomaly = elements.MeanAnomalyDegrees,
+            BStar = elements.BStar,
+            EphemerisType = elements.EphemerisType,
+            ElementSetNo = checked((uint)elements.ElementSetNumber),
+            RevAtEpoch = checked((uint)elements.RevolutionNumberAtEpoch)
+        };
+        satellite = new Satellite(new Tle(omm));
     }
 
     public int NoradNumber => checked((int)satellite.Tle.NoradNumber);
