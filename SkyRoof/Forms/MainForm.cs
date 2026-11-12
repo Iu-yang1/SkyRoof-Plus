@@ -1187,7 +1187,8 @@ namespace SkyRoof
       directLanTxAudioLabel.ToolTipText =
         $"PC microphone → LAN UDP audio. Sent {tx.UdpSent} PCM packets in this session; " +
         $"last sent sample level {tx.LastSentDbfs:F1} dBFS. " +
-        "UDP send does not prove the IC-9700 selected LAN MOD input or radiated RF.";
+        $"IC-9700 radio CI-V MOD input: {tx.ModSource}. " +
+        "TX PCM transmission does not by itself prove the radio used this input or radiated RF.";
 
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
