@@ -79,13 +79,20 @@ public sealed class SgpNetTleTrack : IOrbitTrack
             Angle.FromDegrees(ground.LatitudeDegrees),
             Angle.FromDegrees(ground.LongitudeDegrees),
             ground.EllipsoidalHeightMetres / 1000.0);
-        var observation = new GroundStation(site).Observe(satellite, time.UtcDateTime);
+        var groundStation = new GroundStation(site);
+        var pv = satellite.Predict(time.UtcDateTime);
+        var observation = groundStation.Observe(pv, time.UtcDateTime);
+        var observer = site.ToEci(time.UtcDateTime);
+        var lineOfSight = pv.Position - observer.Position;
+        var relativeVelocity = pv.Velocity - observer.Velocity;
+        double correctedRangeRateKmPerSec =
+            lineOfSight.Dot(relativeVelocity) / lineOfSight.Length;
         return new OrbitObservation(
             time,
             observation.Azimuth.Degrees,
             observation.Elevation.Degrees,
             observation.Range * 1000.0,
-            observation.RangeRate * 1000.0,
+            correctedRangeRateKmPerSec * 1000.0,
             "SGPNET_TOPOCENTRIC_GMST",
             "SGPNET_NO_EOP");
     }

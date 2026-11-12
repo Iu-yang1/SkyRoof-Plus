@@ -159,7 +159,10 @@ namespace SkyRoof
 
       try
       {
-        return groundStation.Observe(Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"), utc);
+        return SgpNetRangeRateCorrection.Observe(
+          groundStation,
+          Satellite ?? throw new InvalidOperationException("Satellite propagation data missing"),
+          utc);
       }
       catch (Exception ex)
       {

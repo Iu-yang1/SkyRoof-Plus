@@ -117,3 +117,11 @@
 - Windows 安装后烟测在 `JVM.Properties.GetHomePath` 报 `Could not locate ikvm home path`；当时 Inno 已包含转换 DLL 与 `runtimes/win-x64/native/ikvm.dll`，但缺少 Java 类库镜像目录和根目录 `ikvm.properties`。
 - 已对照 IKVM 8.16.3 源码 `src/IKVM.Runtime/JVM.Properties.cs` 和 `src/IKVM.Image/buildTransitive/IKVM.Image.targets`：默认 `ikvm.home.root=ikvm`，运行时搜索 `ikvm/win-x64`。现在 staging 和安装器一起复制 `ikvm.properties` 与 `ikvm/win-x64` 树，而不是仅拷贝 DLL。
 - 安装器校验增加 Java HomePath 镜像目录、属性文件与文件数量检查，并保留真正的独立目录反射启动和轨道计算测试。没有绕过 IKVM 原本的启动约束。
+
+## SGP.NET 1.6.0 多普勒径向速度修正
+
+- 源码对比已确认 [SGP.NET v1.6.0 的 TopocentricCalculator](https://github.com/parzivail/SGP.NET/blob/v1.6.0/SGP.NET/Observation/TopocentricCalculator.cs) 使用卫星 ECI 速度直接计算范围速率，却未扣除站心随地球自转的 ECI 速度；该 bug 不涉及 TLE 的 SGP4 状态传播本身。
+- 独立参考样例中旧库解析范围速率为 `1722.209656 m/s`，两秒中心距离差分为 `1397.453654 m/s`，残差 `324.756002 m/s`。这是实际测出的确定故障模式，不是理论风险。
+- 新增 `SgpNetRangeRateCorrection`：从同一 SGP.NET 的 `EciCoordinate` 求站心与卫星的位置及速度，计算 `dot(r_sat-r_site, v_sat-v_site)/|r_sat-r_site|`；保留原方位角、仰角、距离及信号链接口，仅修正范围速率。SGP.NET 参考适配器也使用相同定义。
+- 新增六个历元的距离有限差分回归，并记录原始 1.6.0 的已知误差。**默认 SGP.NET 轨道传播器没有被替换，CAT/Rotator 协议无变化；但相对于旧版本，径向速度及多普勒数据会发生必要的数值修正。**
+- 注意：上述代码已提交，仍需 Windows CI/链路回归验证。现有软件自动化不替代实际设备测量。
