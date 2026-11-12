@@ -7,6 +7,15 @@ using Xunit;
 
 namespace VE3NEA.Dsp.Tests
 {
+  // These cases run a loopback CAT service and a second background protocol
+  // worker. Isolate them from parallel xUnit suites so timing pressure from
+  // unrelated DSP tests does not masquerade as a failed radio handshake.
+  [CollectionDefinition("Virtual IC-905 loopback CAT", DisableParallelization = true)]
+  public sealed class VirtualIcomCatCollection
+  {
+  }
+
+  [Collection("Virtual IC-905 loopback CAT")]
   public sealed class IcomMicrowaveVirtualPttTests
   {
     private static bool Until(Func<bool> predicate, int timeoutMs = 7000) =>
@@ -192,7 +201,7 @@ namespace VE3NEA.Dsp.Tests
         catch (OperationCanceledException) when(cancellation.IsCancellationRequested)
         {
         }
-        catch (Exception ex) when(cancellation.IsCancellationRequested)
+        catch (Exception) when(cancellation.IsCancellationRequested)
         {
         }
         catch (Exception ex)
