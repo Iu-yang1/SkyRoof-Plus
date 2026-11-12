@@ -22,6 +22,6 @@ Orekit 对全局数据目录和时间尺度有缓存，因此更新 EOP 或切�
 
 ## 验证边界
 
-代码接线不能代替运行验收。发布前仍需通过 Windows x64 构建与单测、Orekit 天体星历冒烟测试、安装器验证，以及多普勒和旋转器端到端回归。旧的 JPL 源文件和 SGP.NET 类型适配器需要在后续兼容性重构中清理；不得将仅修改默认引擎表述为已经完全删除所有旧库。
+代码接线不能代替运行验收。发布前仍需通过 Windows x64 构建与单测、Orekit 天体星历冒烟测试、安装器验证，以及多普勒和旋转器端到端回归。旧版 JPL SPK 解码器已经删除；SGP.NET 数据类型仍暂时用于旧 UI、过境列表和观测 DTO 的兼容适配，未作为数值传播后端。完全清理这一依赖仍需独立的接口迁移与回归测试。
 
 相关变更见 [Orekit/IKVM 架构](../../architecture/orekit-ikvm-orbit-engine-v1.zh-CN.md) 和 [PR #195](https://github.com/Iu-yang1/SkyRoof-Plus/pull/195)。

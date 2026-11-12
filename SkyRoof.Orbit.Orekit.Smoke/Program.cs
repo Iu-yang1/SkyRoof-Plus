@@ -225,8 +225,6 @@ try
     ValladoReferenceReport allVallado = ValladoReferenceSuite.Run(
         args[0], backend, baselineBackend);
 
-    // Test the real Orekit-native DE ephemeris and the same range-rate contract
-    // used by CAT Doppler and rotator pointing.
     Assert(backend is ICelestialOrbitBackend, "Orekit celestial backend contract unavailable");
     Assert(File.Exists(Path.Combine(dataDirectory, "lnxp1990.430")),
         "The pinned Orekit-native DE430 ephemeris fixture is missing");

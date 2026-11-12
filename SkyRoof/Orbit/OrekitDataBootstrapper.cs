@@ -44,7 +44,7 @@ internal static class OrekitDataBootstrapper
         }
 
         string target = Path.Combine(directory, "lnxp1990.430");
-        if (File.Exists(target))
+        if (await IsVerifiedDe430Async(target, cancellationToken))
             return;
 
         string staging = target + ".download";
@@ -82,7 +82,7 @@ internal static class OrekitDataBootstrapper
             if (blobSha1 != De430BlobSha1)
                 throw new InvalidDataException("Orekit DE430 ephemeris hash does not match the upstream Git blob.");
 
-            File.Move(staging, target);
+            File.Move(staging, target, overwrite: true);
             await File.WriteAllTextAsync(
                 Path.Combine(directory, "lnxp1990.430.manifest.json"),
                 JsonSerializer.Serialize(new { sourceUrl = De430Source, gitBlobSha1 = blobSha1,
@@ -99,5 +99,22 @@ internal static class OrekitDataBootstrapper
             if (File.Exists(staging))
                 File.Delete(staging);
         }
+    }
+    private static async Task<bool> IsVerifiedDe430Async(string path, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(path))
+            return false;
+        long length = new FileInfo(path).Length;
+        if (length != De430FileSize)
+            return false;
+        using var gitHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {length}\\0"));
+        await using var file = File.OpenRead(path);
+        byte[] buffer = new byte[81920];
+        int read;
+        while ((read = await file.ReadAsync(buffer, cancellationToken)) > 0)
+            gitHash.AppendData(buffer.AsSpan(0, read));
+        return Convert.ToHexString(gitHash.GetHashAndReset())
+            .Equals(De430BlobSha1, StringComparison.OrdinalIgnoreCase);
     }
 }
