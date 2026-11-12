@@ -850,6 +850,7 @@ namespace SkyRoof
       // before the saved docking layout has been restored.
       if (!ctx.SatnogsDb.Loaded)
       {
+        initialPassRebuildPending = true;
         CheckDownloadSatelliteList();
         if (!ctx.SatnogsDb.Loaded) Environment.Exit(1);
       }
