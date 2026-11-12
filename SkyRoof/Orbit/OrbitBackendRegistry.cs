@@ -14,15 +14,16 @@ internal static class OrbitBackendRegistry
     private static readonly object Sync = new();
     private static IOrbitBackend? selectedBackend;
     private static string dataQuality = "SGPNET_BASELINE";
+    private static string selectedDataDirectory = string.Empty;
 
     internal static OrbitEngineMode Mode { get; private set; } = OrbitEngineMode.SgpNet;
 
-    internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend, string Quality);
+    internal readonly record struct Snapshot(OrbitEngineMode Mode, IOrbitBackend? Backend, string Quality, string DataDirectory);
 
     internal static Snapshot Capture()
     {
         lock (Sync)
-            return new Snapshot(Mode, selectedBackend, dataQuality);
+            return new Snapshot(Mode, selectedBackend, dataQuality, selectedDataDirectory);
     }
 
     internal static void Restore(Snapshot snapshot)
@@ -32,6 +33,7 @@ internal static class OrbitBackendRegistry
             selectedBackend = snapshot.Backend;
             Mode = snapshot.Mode;
             dataQuality = snapshot.Quality;
+            selectedDataDirectory = snapshot.DataDirectory;
         }
     }
 
@@ -62,6 +64,7 @@ internal static class OrbitBackendRegistry
                 selectedBackend = null;
                 Mode = OrbitEngineMode.SgpNet;
                 dataQuality = "SGPNET_BASELINE";
+                selectedDataDirectory = settings.OrekitDataDirectory;
             }
             return;
         }
@@ -93,6 +96,7 @@ internal static class OrbitBackendRegistry
             selectedBackend = backend;
             Mode = OrbitEngineMode.Orekit;
             dataQuality = quality;
+            selectedDataDirectory = settings.OrekitDataDirectory;
         }
         Log.Information("Orbit backend selected: {Backend} (data: {Directory})",
             backend.BackendId, dataDir);

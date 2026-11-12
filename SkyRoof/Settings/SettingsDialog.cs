@@ -794,8 +794,19 @@ namespace SkyRoof
         catch (Exception ex)
         {
           Log.Warning(ex, "Orbit engine settings cannot be applied.");
-          ctx.Settings.OrbitSources.Backend = previous.Mode;
           OrbitBackendRegistry.Restore(previous);
+          // The Apply button clones the PropertyGrid object, while OK uses
+          // its original reference. Restore both on failure; otherwise a
+          // later OK can re-save an invalid Orekit selection without
+          // re-running Configure because ChangedFields is already cleared.
+          ctx.Settings.OrbitSources.Backend = previous.Mode;
+          ctx.Settings.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
+          if (grid.SelectedObject is Settings edited)
+          {
+            edited.OrbitSources.Backend = previous.Mode;
+            edited.OrbitSources.OrekitDataDirectory = previous.DataDirectory;
+            grid.Refresh();
+          }
           RebuildOrbitTrackingCaches();
           MessageBox.Show(
             "Orbit engine selection was not applied:\r\n\r\n" +
