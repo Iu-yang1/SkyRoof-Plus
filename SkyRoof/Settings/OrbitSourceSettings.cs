@@ -17,11 +17,16 @@ namespace SkyRoof
 
   public class OrbitSourceSettings
   {
+    // Deserialize older SGP.NET preferences, but new installations and upgrades use Orekit exclusively.
+    [Browsable(false)]
+    [DefaultValue(OrbitEngineMode.Orekit)]
+    public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.Orekit;
+
     [Category("Orbit engine")]
-    [DisplayName("Orbit Propagation Backend")]
-    [Description("Choose the existing SGP.NET backend or the installed Orekit/IKVM backend. Changes rebuild orbit tracks and pass predictions.")]
-    [DefaultValue(OrbitEngineMode.SgpNet)]
-    public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.SgpNet;
+    [DisplayName("Auto-download Orekit Data")]
+    [Description("Automatically cache/update IERS Earth orientation data and a verified Orekit-format DE430 planetary ephemeris when required. Existing local files continue to work offline.")]
+    [DefaultValue(true)]
+    public bool AutoDownloadOrekitData { get; set; } = true;
 
     [Category("Orbit engine")]
     [DisplayName("Orekit Data Directory")]
@@ -39,7 +44,7 @@ namespace SkyRoof
     [DisplayName("Orbit Data Quality")]
     [ReadOnly(true)]
     [Newtonsoft.Json.JsonIgnore]
-    [Description("SGP.NET baseline, Orekit EOP coverage, or missing/out-of-range data status.")]
+    [Description("Orekit time and IERS Earth orientation data coverage status.")]
     public string ActiveDataQuality => OrbitBackendRegistry.CurrentDataQuality;
 
     public const string DefaultSatellitesUrl =

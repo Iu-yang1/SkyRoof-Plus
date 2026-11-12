@@ -114,7 +114,6 @@ namespace SkyRoof
       ctx.UdpStreamSender.ctx = ctx;
 
       var settingsLoadResult = ctx.Settings.LoadFromFile();
-      TryConfigureOrbitBackend();
       UpdateCwConsoleMenuText();
 
       AddRotatorControlCard();
@@ -175,20 +174,28 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        Log.Warning(ex, "Selected Orekit orbit backend could not be initialized; using SGP.NET.");
-        ctx.Settings.OrbitSources.Backend = OrbitEngineMode.SgpNet;
-        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+        Log.Error(ex, "Orekit orbit backend could not be initialized.");
         MessageBox.Show(
-          "Orekit initialization failed; the existing SGP.NET orbit engine is active.\r\n\r\n" +
+          "Orekit initialization failed; orbit tracking will remain unavailable until the data or installation is repaired.\r\n\r\n" +
           ex.GetBaseException().Message,
           "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
 
-    private void MainForm_Load(object sender, EventArgs e)
+    private async void MainForm_Load(object sender, EventArgs e)
     {
+      // Download data before Orekit creates/caches its process-wide UTC and ITRF context.
+      // On network failure use whatever verified local data is already installed.
+      try
+      {
+        await OrekitDataBootstrapper.EnsureAsync(ctx.Settings.OrbitSources);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Orekit automatic data bootstrap failed; trying local data.");
+      }
+      TryConfigureOrbitBackend();
       ReadOrDownloadSatelliteData();
-      EnsureJplEphemerisAvailableAsync().DoNotAwait();
 
       // apply settings
       ctx.Settings.Ui.RestoreWindowPosition(this);
