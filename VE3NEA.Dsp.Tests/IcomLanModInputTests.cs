@@ -136,6 +136,21 @@ namespace VE3NEA.Dsp.Tests
         .Should().Contain("MOD≠LAN");
     }
 
+    [Theory]
+    [InlineData(true, true, 100, true)]
+    [InlineData(true, false, 100, false)]
+    [InlineData(false, true, 100, false)]
+    [InlineData(true, true, 2000, false)]
+    public void AutoModSwitchRequiresActualRecentPcAudioAndCatPtt(
+      bool enabled, bool ptt, int audioAgeMs, bool expected)
+    {
+      long now = new DateTime(2026, 11, 12, 3, 0, 0,
+        DateTimeKind.Utc).Ticks;
+      long sent = now - TimeSpan.FromMilliseconds(audioAgeMs).Ticks;
+      IcomLanModInputState.ShouldAutoSelect(
+        enabled, ptt, sent, now).Should().Be(expected);
+    }
+
     [Fact]
     public void AutomaticSelectionIsConfigurableWithoutChangingDigitalAgc()
     {
