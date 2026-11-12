@@ -38,6 +38,7 @@ namespace SkyRoof
     private IfAfStatus? previousIfAfStatus;
     private DateTime lastIfAfClipUtc;
     private readonly CancellationTokenSource startupDataCancellation = new();
+    private bool initialPassRebuildPending;
     private long recentIfAfClips, recentIfAfOutputSamples;
     internal void ApplyEmbeddedSkyCatSettings() =>
       EmbeddedSkyCat.Apply(ctx.Settings.Cat.Embedded);
@@ -186,6 +187,7 @@ namespace SkyRoof
 
     private void MainForm_Load(object sender, EventArgs e)
     {
+      var startupTimer = Stopwatch.StartNew();
       // Start from installed UTC data and the local satellite cache. Network
       // requests must never delay restoring the saved DockPanel layout.
       // Refreshed IERS EOP is applied by Orekit after the next restart.
@@ -196,6 +198,8 @@ namespace SkyRoof
       ctx.Settings.Ui.RestoreWindowPosition(this);
       Utils.EnsureFormVisible(this);
       ctx.Settings.Ui.RestoreDockingLayout(this);
+      Log.Information("Initial SkyRoof docking layout restored in {ElapsedMs} ms; network updates deferred",
+        startupTimer.ElapsedMilliseconds);
       Clock.UtcMode = ctx.Settings.Ui.ClockUtcMode;
 
       // the layout is back, so the Auto Selection panel exists again if it was open at the last shutdown
@@ -216,8 +220,20 @@ namespace SkyRoof
     {
       // Shown fires before the first complete paint. Allow the docking layout
       // to render before scheduling any network maintenance or database refresh.
-      await Task.Delay(150, startupDataCancellation.Token);
-      if (IsDisposed || Disposing) return;
+      await Task.Delay(150);
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested) return;
+
+      if (initialPassRebuildPending)
+      {
+        initialPassRebuildPending = false;
+        ctx.HamPasses.FullRebuild();
+        ctx.GroupPasses.FullRebuild();
+        ctx.SdrPasses.FullRebuild();
+        ctx.PassesPanel?.ShowPasses();
+        ctx.GroupViewPanel?.LoadGroup();
+        ctx.SkyViewPanel?.ClearPass();
+        ctx.QsoSchedulerPanel?.UpdatePredictions();
+      }
 
       CheckDownloadTle();
       var sources = ctx.Settings.OrbitSources;
@@ -851,7 +867,10 @@ namespace SkyRoof
       ctx.Settings.Satellites.EnsureSolarSystemGroup(ctx.SatnogsDb);
 
       if (ctx.SatnogsDb.Loaded)
+      {
+        initialPassRebuildPending = true;
         SatnogsDb_ListUpdated(null, null);
+      }
     }
 
     private void CheckDownloadSatelliteList()
@@ -2165,9 +2184,12 @@ namespace SkyRoof
       SatelliteSelecionWidget.LoadSatelliteGroups();
       SatellitePhotoWidget.SetSatellite(ctx.SatelliteSelector.SelectedSatellite);
 
-      ctx.HamPasses.FullRebuild();
-      ctx.GroupPasses.FullRebuild();
-      ctx.SdrPasses.FullRebuild();
+      if (!initialPassRebuildPending)
+      {
+        ctx.HamPasses.FullRebuild();
+        ctx.GroupPasses.FullRebuild();
+        ctx.SdrPasses.FullRebuild();
+      }
 
       ctx.PassesPanel?.ShowPasses();
       ctx.SkyViewPanel?.ClearPass();
