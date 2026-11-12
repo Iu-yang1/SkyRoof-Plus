@@ -222,6 +222,9 @@ try
             File.ReadAllBytes(Path.Combine(dataDirectory, "finals2000A.all")))).ToLowerInvariant()
         : null;
 
+    ValladoReferenceReport allVallado = ValladoReferenceSuite.Run(
+        args[0], backend, baselineBackend);
+
     var report = new
     {
         status = "P0_SMOKE_COMPLETED_NOT_ACCURACY_ACCEPTED",
@@ -238,6 +241,7 @@ try
         thousandPredictionsMs,
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
+        allVallado,
         sixDigitErrorMetres,
         analyticPasses,
         unboundedPass,
