@@ -66,3 +66,11 @@
 - `TLEPropagator` 的 PV 查询使用每轨迹互斥锁，依据 Orekit 的 propagator 实例不支持多线程并发调用的官方说明；多卫星仍可分轨迹并行。
 - 新增两后端 `PredictGeodetic`：WGS-84 大地位置与椭球高度的 SI 单位合同，避免覆盖图/星下点继续隐式混用 ECI 坐标和不同高度单位。
 - CI 在独立 Windows Runner 从 USNO/IERS 官方 HTTPS 下载 `finals2000A.all` 到临时测试目录，记录数据哈希；不将动态的 EOP 数据混入生产锁文件。结果区分 UTC-only、EOP 受覆盖时间及预测/快速解。此项仍须实测加载并验证质量标签，不能声称已经达到外部精度要求。
+
+## P1/P6 生产调用链接线（实验分支）
+
+- SkyRoof 通过独立纯 .NET Contracts 项目引用，不引入 Java 类型到 WinForms、CAT 或 Rotator。Orekit 后端 DLL 使用按需加载；原有 SGP.NET 仍是默认。
+- 新增设置 `OrbitSources.Backend`（SgpNet/Orekit）和 `OrekitDataDirectory`；选中 Orekit 后初始化数据、重建卫星追踪对象和群组/无线电/SDR 过境缓存。
+- `SatelliteTracker` 的 `Predict/Observe/ComputePasses` 通过契约适配到 Orekit，外部仍返回现有 SGP.NET 值对象。真实 JPL Moon/Sun/Venus 后端不修改。
+- 若某一元素的 Orekit 创建失败，保留原有效的 SGP.NET 传播能力并记录 WARN；整体引擎加载失败则显示错误并选择 SGP.NET。不会因无实机而关闭任何已实现的追踪控制。
+- 用户数据默认位于 `orekit-data`，第一次使用时从安装目录复制 UTC-TAI 历史；EOP 可通过自定义目录导入。尚需完成独立产物打包、NuGet 锁定、发行版实时控制验证。

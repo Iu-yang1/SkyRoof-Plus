@@ -114,6 +114,7 @@ namespace SkyRoof
       ctx.UdpStreamSender.ctx = ctx;
 
       var settingsLoadResult = ctx.Settings.LoadFromFile();
+      TryConfigureOrbitBackend();
       UpdateCwConsoleMenuText();
 
       AddRotatorControlCard();
@@ -164,6 +165,24 @@ namespace SkyRoof
       ctx.PttHotkey = new PttHotkeyController(ctx);
 
       UpdateSatellitePhotoVisibility();
+    }
+
+    private void TryConfigureOrbitBackend()
+    {
+      try
+      {
+        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Selected Orekit orbit backend could not be initialized; using SGP.NET.");
+        ctx.Settings.OrbitSources.Backend = OrbitEngineMode.SgpNet;
+        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+        MessageBox.Show(
+          "Orekit initialization failed; the existing SGP.NET orbit engine is active.\r\n\r\n" +
+          ex.GetBaseException().Message,
+          "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
     }
 
     private void MainForm_Load(object sender, EventArgs e)

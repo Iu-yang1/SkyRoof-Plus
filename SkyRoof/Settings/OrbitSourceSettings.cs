@@ -9,8 +9,25 @@ namespace SkyRoof
     CustomFile = 2
   }
 
+  public enum OrbitEngineMode
+  {
+    SgpNet = 0,
+    Orekit = 1
+  }
+
   public class OrbitSourceSettings
   {
+    [Category("Orbit engine")]
+    [DisplayName("Orbit Propagation Backend")]
+    [Description("Choose the existing SGP.NET backend or the installed Orekit/IKVM backend. Changes rebuild orbit tracks and pass predictions.")]
+    [DefaultValue(OrbitEngineMode.SgpNet)]
+    public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.SgpNet;
+
+    [Category("Orbit engine")]
+    [DisplayName("Orekit Data Directory")]
+    [Description("Optional directory containing tai-utc.dat and finals2000A.all. Blank uses the SkyRoof user-data/orekit-data directory.")]
+    public string OrekitDataDirectory { get; set; } = string.Empty;
+
     public const string DefaultSatellitesUrl =
       "https://db.satnogs.org/api/satellites/?format=json";
     public const string DefaultTransmittersUrl =

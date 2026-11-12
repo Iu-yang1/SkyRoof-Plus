@@ -4,12 +4,14 @@ using SGPdotNET.CoordinateSystem;
 using SGPdotNET.Observation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
+using SkyRoof.Orbit.Contracts;
 
 namespace SkyRoof
 {
   public class SatelliteTracker
   {
     private Satellite? Satellite;
+    private readonly IOrbitTrack? orbitTrack;
     private readonly JplSpkKernel? JplKernel;
     private readonly JplBody? EphemerisBody;
 
@@ -34,6 +36,18 @@ namespace SkyRoof
       if (Tle == null) return;
 
       Satellite = new(Tle);
+      if (OrbitBackendRegistry.Mode == OrbitEngineMode.Orekit)
+      {
+        try
+        {
+          orbitTrack = OrbitBackendRegistry.CreateTrack(tle);
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Orekit track creation failed for NORAD {Norad}; using SGP.NET for this element.",
+            tle.norad_cat_id);
+        }
+      }
       Enabled = true;
     }
 
@@ -72,6 +86,15 @@ namespace SkyRoof
 
       try
       {
+        if (orbitTrack != null)
+        {
+          DateTime targetUtc = (utc ?? DateTime.UtcNow).ToUniversalTime();
+          var geo = orbitTrack.PredictGeodetic(new DateTimeOffset(targetUtc));
+          return new GeodeticCoordinate(
+            Angle.FromDegrees(geo.LatitudeDegrees),
+            Angle.FromDegrees(geo.LongitudeDegrees),
+            geo.EllipsoidalHeightMetres / 1000.0);
+        }
         return Satellite!
           .Predict(utc ?? DateTime.UtcNow)
           .ToGeodetic();
@@ -111,6 +134,23 @@ namespace SkyRoof
 
       try
       {
+        if (orbitTrack != null)
+        {
+          var geo = groundStation.Location.ToGeodetic();
+          var station = new GroundStationSpec(
+            geo.Latitude.Degrees,
+            geo.Longitude.Degrees,
+            geo.Altitude * 1000.0);
+          var obs = orbitTrack.Observe(
+            station, new DateTimeOffset(utc.ToUniversalTime()));
+          return new TopocentricObservation(
+            Angle.FromDegrees(obs.AzimuthDegrees),
+            Angle.FromDegrees(obs.ElevationDegrees),
+            obs.RangeMetres / 1000.0,
+            obs.RangeRateMetresPerSecond / 1000.0,
+            groundStation.Location);
+        }
+
         return groundStation.Observe(
           Satellite!,
           utc);
@@ -139,6 +179,26 @@ namespace SkyRoof
 
       try
       {
+        if (orbitTrack != null)
+        {
+          var geo = groundStation.Location.ToGeodetic();
+          var station = new GroundStationSpec(
+            geo.Latitude.Degrees,
+            geo.Longitude.Degrees,
+            geo.Altitude * 1000.0);
+          var passes = orbitTrack.FindPasses(
+            station, new DateTimeOffset(startTime.ToUniversalTime()),
+            new DateTimeOffset(endTime.ToUniversalTime()));
+          return passes.Select(p =>
+            new SatelliteVisibilityPeriod(
+              null!,
+              p.StartUtc.UtcDateTime,
+              p.EndUtc.UtcDateTime,
+              Angle.FromDegrees(p.MaximumElevationDegrees),
+              p.CulminationUtc.UtcDateTime,
+              groundStation.Location)).ToList();
+        }
+
         return groundStation.Observe(
           Satellite!,
           startTime,

@@ -771,6 +771,33 @@ namespace SkyRoof
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.OrbitSourceSettings.")))
         ctx.SatnogsDb.ConfigureSources(ctx.Settings.OrbitSources);
 
+      if (ChangedFields.Exists(s =>
+            s is "SkyRoof.OrbitSourceSettings.Backend" or
+                 "SkyRoof.OrbitSourceSettings.OrekitDataDirectory"))
+      {
+        var previousMode = OrbitBackendRegistry.Mode;
+        try
+        {
+          OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+          foreach (var sat in ctx.SatnogsDb.Satellites)
+            if (!sat.IsEphemerisTarget)
+              sat.SetTle(sat.Tle);
+
+          ctx.GroupPasses.FullRebuild();
+          ctx.HamPasses.FullRebuild();
+          ctx.SdrPasses.FullRebuild();
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Orbit engine settings cannot be applied.");
+          ctx.Settings.OrbitSources.Backend = previousMode;
+          MessageBox.Show(
+            "Orbit engine selection was not applied:\r\n\r\n" +
+            ex.GetBaseException().Message,
+            "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+      }
+
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.AmsatSettings.")))
         if (ctx.Settings.Amsat.Enabled)
           ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();

@@ -344,6 +344,13 @@
     <InternalsVisibleTo Include="VE3NEA.Dsp.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />
+    <Content Include="../SkyRoof.Orbit.Orekit.Smoke/TestData/tai-utc.dat"
+             Link="orekit-data/tai-utc.dat"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- In-process SkyCAT server, pinned to a reviewed Git submodule revision. -->
   <ItemGroup>
     <ProjectReference Include="..\Vendor\SkyCAT\skycatd\skycatd.csproj" />
