@@ -1000,16 +1000,16 @@ namespace SkyRoof
         OrbitEopUpdateResult result = await OrbitEopDataUpdater.DownloadAsync(
           ctx.Settings.OrbitSources);
         MessageBox.Show(
-          $"Updated IERS Earth-orientation data from:\\r\\n{result.SourceUrl}" +
-          $"\\r\\nSHA-256: {result.Sha256}" +
-          "\\r\\n\\r\\nRestart SkyRoof to use the new EOP data with Orekit.",
+          $"Updated IERS Earth-orientation data from:\r\n{result.SourceUrl}" +
+          $"\r\nSHA-256: {result.Sha256}" +
+          "\r\n\r\nRestart SkyRoof to use the new EOP data with Orekit.",
           "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
       }
       catch (Exception ex)
       {
         Log.Warning(ex, "Unable to update IERS Orekit EOP data.");
         MessageBox.Show(
-          "The IERS EOP update failed. Existing data was retained.\\r\\n\\r\\n" +
+          "The IERS EOP update failed. Existing data was retained.\r\n\r\n" +
           ex.GetBaseException().Message,
           "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
