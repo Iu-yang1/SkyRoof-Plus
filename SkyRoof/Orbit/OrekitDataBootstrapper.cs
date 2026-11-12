@@ -108,7 +108,8 @@ internal static class OrekitDataBootstrapper
         if (length != De430FileSize)
             return false;
         using var gitHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
-        gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {length}\\0"));
+        gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {length}"));
+        gitHash.AppendData(new byte[] { 0 });
         await using var file = File.OpenRead(path);
         byte[] buffer = new byte[81920];
         int read;
