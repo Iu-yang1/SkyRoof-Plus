@@ -354,13 +354,13 @@ catch (Exception ex)
 
 static double MedianMilliseconds(Action action)
 {
-    var samples = new double[3];
-    for (int i = 0; i < samples.Length; i++)
+    double MeasureOnce()
     {
         var sw = Stopwatch.StartNew();
         action();
-        samples[i] = sw.Elapsed.TotalMilliseconds;
+        return sw.Elapsed.TotalMilliseconds;
     }
+    var samples = new[] { MeasureOnce(), MeasureOnce(), MeasureOnce() };
     Array.Sort(samples);
     return samples[1];
 }
