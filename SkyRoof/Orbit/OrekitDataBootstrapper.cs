@@ -16,12 +16,28 @@ internal static class OrekitDataBootstrapper
     private const string De430BlobSha1 = "70ec728d3d5018ff3df2eaa4ae439e668de7ef6b";
     private const long De430FileSize = 7_459_904;
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(90) };
+    private static readonly SemaphoreSlim DownloadGate = new(1, 1);
 
     internal static async Task EnsureAsync(OrbitSourceSettings settings, bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
         if (!settings.AutoDownloadOrekitData && !forceRefresh)
             return;
 
+        // Automatic startup refresh and the manual Settings action share the
+        // same staging filenames. Serialize them without blocking WinForms.
+        await DownloadGate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureDataAsync(settings, forceRefresh, cancellationToken);
+        }
+        finally
+        {
+            DownloadGate.Release();
+        }
+    }
+
+    private static async Task EnsureDataAsync(OrbitSourceSettings settings, bool forceRefresh, CancellationToken cancellationToken)
+    {
         string directory = OrbitBackendRegistry.ResolveDataDirectory(settings.OrekitDataDirectory);
         Directory.CreateDirectory(directory);
 
