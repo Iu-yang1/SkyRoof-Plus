@@ -4,6 +4,7 @@ using SkyRoof.Orbit.Contracts;
 using SkyRoof.Orbit.Orekit;
 
 internal sealed record ValladoCaseMetrics(
+    int CaseNumber, string ValidationClass,
     int Norad, string Regime, int ReferenceSamples, int ComparedSamples,
     double MaxOrekitPositionErrorMetres,
     double RmsOrekitPositionErrorMetres,
@@ -14,6 +15,9 @@ internal sealed record ValladoCaseMetrics(
 internal sealed record ValladoReferenceReport(
     int Cases, int ReferenceSamples, int ComparedSamples,
     int CasesWithErrors, double MaximumPositionErrorMetres,
+    int NominalCases, int NominalComparedSamples,
+    double MaximumNominalPositionErrorMetres,
+    double MaximumNominalVelocityErrorMetresPerSecond,
     IReadOnlyList<ValladoCaseMetrics> Results);
 
 internal static class ValladoReferenceSuite
@@ -49,37 +53,71 @@ internal static class ValladoReferenceSuite
         // NORAD alone aliases its two epochs and creates multi-megametre
         // false errors; the upstream oracle is ordered by verification case.
         var results = cases.Select((c, i) =>
-            Evaluate(c, vectors[i].Samples, orekit, sgpNet)).ToArray();
+            Evaluate(i + 1, c, vectors[i].Samples, orekit, sgpNet)).ToArray();
         int errors = results.Count(x => x.Error is not null);
         int compared = results.Sum(x => x.ComparedSamples);
         double maximum = results.Max(x => x.MaxOrekitPositionErrorMetres);
         var unexpected = results.Where(x => x.Error is not null && x.Norad != 33334).ToArray();
-        if (unexpected.Length > 0 || compared < 650 ||
+        if (unexpected.Length > 0 || compared != referenceCount - 1 ||
             results.Count(x => x.Norad == 33334 && x.Error is not null) != 1)
             throw new InvalidDataException(
                 $"Vallado valid-case coverage failure: {compared}/{referenceCount} " +
                 $"samples, unexpected failures: {string.Join("; ", unexpected.Select(x => x.Error))}");
+
+        // Verification cases 16 and 30-33 deliberately stress Lyddane,
+        // error-code handling or extrapolation about 3.5 years from a TLE
+        // epoch. Preserve every discrepancy in Results rather than treating
+        // an unphysical stress orbit as routine short-horizon tracking.
+        // These are source-identified cases in the SHA-256 pinned dataset.
+        var nominal = results.Where(x => x.ValidationClass == "NOMINAL").ToArray();
+        if (nominal.Length != 28 ||
+            nominal.Any(x => x.Error is not null ||
+                             x.ComparedSamples != x.ReferenceSamples ||
+                             x.MaxOrekitPositionErrorMetres > 0.1 ||
+                             x.MaxOrekitVelocityErrorMetresPerSecond > 0.001))
+            throw new InvalidDataException(
+                "Standard Vallado orbit verification failed 0.1 m / 0.001 m/s " +
+                "TEME tolerances. See per-case metrics (stress cases remain reported).");
+
+        int nominalSamples = nominal.Sum(x => x.ComparedSamples);
+        double nominalPositionMax = nominal.Max(x => x.MaxOrekitPositionErrorMetres);
+        double nominalVelocityMax = nominal.Max(x => x.MaxOrekitVelocityErrorMetresPerSecond);
+        Console.WriteLine(
+            $"Nominal Vallado SGP4/SDP4 accuracy accepted: {nominal.Length} cases, " +
+            $"{nominalSamples} samples, Δr max={nominalPositionMax:F6} m, " +
+            $"Δv max={nominalVelocityMax:F9} m/s; five stress cases remain separately diagnosed");
         Console.WriteLine(
             $"Vallado 33-case verification: reference={referenceCount}, compared={compared}, " +
             $"incomplete/failed={errors}, max TEME Δr={maximum:F6} m");
         foreach (var result in results)
             Console.WriteLine(
-                $"  NORAD {result.Norad:D5} {result.Regime}: {result.ComparedSamples}/{result.ReferenceSamples} " +
+                $"  CASE {result.CaseNumber:D2} {result.ValidationClass} NORAD {result.Norad:D5} {result.Regime}: {result.ComparedSamples}/{result.ReferenceSamples} " +
                 $"Orekit Δr max={result.MaxOrekitPositionErrorMetres:F3} m " +
                 $"SGP.NET Δr max={result.MaxSgpNetPositionErrorMetres:F3} m " +
                 $"{result.Error}");
 
         return new ValladoReferenceReport(
-            cases.Count, referenceCount, compared, errors, maximum, results);
+            cases.Count, referenceCount, compared, errors, maximum,
+            nominal.Length, nominalSamples, nominalPositionMax, nominalVelocityMax, results);
     }
 
     private static ValladoCaseMetrics Evaluate(
-        TleCase item, IReadOnlyList<ReferenceSample>? reference,
+        int caseNumber, TleCase item, IReadOnlyList<ReferenceSample>? reference,
         IOrbitBackend orekit, IOrbitBackend sgpNet)
     {
         string regime = MeanMotion(item.Line2) < 6.4 ? "SDP4" : "SGP4";
+        string validationClass = caseNumber switch
+        {
+            16 => "LYDDANE_STRESS",
+            30 => "EXPECTED_ERROR_CODE_4",
+            31 => "EXPECTED_ERROR_CODE_2",
+            32 => "EXPECTED_ERROR_CODE_3_STRESS",
+            33 => "EXTREME_TLE_EXTRAPOLATION",
+            _ => "NOMINAL"
+        };
         if (reference is null || reference.Count == 0)
-            return new(item.Norad, regime, 0, 0, 0, 0, 0, 0, "Reference vectors missing");
+            return new(caseNumber, validationClass, item.Norad, regime, 0, 0, 0, 0, 0, 0,
+                "Reference vectors missing");
 
         int compared = 0;
         double maxP = 0, sumSqP = 0, maxV = 0, maxSgpP = 0;
@@ -131,7 +169,7 @@ internal static class ValladoReferenceSuite
         }
 
         return new ValladoCaseMetrics(
-            item.Norad, regime, reference.Count, compared,
+            caseNumber, validationClass, item.Norad, regime, reference.Count, compared,
             maxP, compared > 0 ? Math.Sqrt(sumSqP / compared) : 0,
             maxV, maxSgpP, failure);
     }
