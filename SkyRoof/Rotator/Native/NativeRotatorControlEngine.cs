@@ -51,6 +51,9 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   private readonly RotatorFeedbackFilter feedbackFilter;
   // Issued open-loop endpoint reference; never presented as a measured angle.
   private RotatorPosition? openLoopReference;
+  private readonly Rc3040sMotionPlanner motionPlanner=new();
+  private readonly Rc3040sPlannerFeedbackGuard plannerFeedback=new();
+  private long lastPlanTick,lastPlannerCommandTick;
   private DateTime lastReadUtc = DateTime.MinValue;
   private DateTime lastProtocolReplyUtc = DateTime.MinValue;
   // Only C2 replies to queries initiated AFTER a management verification
@@ -562,9 +565,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   {
     int retryFailures=0;
     bool hadConnection=false;
-    var motionPlanner=new Rc3040sMotionPlanner();
-    var plannerFeedback=new Rc3040sPlannerFeedbackGuard();
-    long lastPlanTick=0,lastPlannerCommandTick=0;
+    // Planner state is shared with PublishPosition on this same I/O thread.
     while(!stopping)
     {
       bool transportEstablished=false;
