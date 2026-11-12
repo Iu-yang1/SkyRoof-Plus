@@ -92,3 +92,10 @@
 - 正式 Windows P0 证据显示 `IKVM.CoreLib.dll`、`IKVM.Java.dll`、`IKVM.Runtime.dll` 主要位于 `runtimes/win/lib/net8.0`，`ikvm.dll` 位于 `runtimes/win-x64/native`。不能假定它们在烟测程序顶层目录。
 - 安装器准备脚本现按 RID 拷贝这三份 Windows 托管运行库及 x64 本地动态库到对应目录，同时提供顶层程序集以支持 SkyRoof 的显式 Orekit 插件加载；Inno Setup 与安装后检查明确覆盖这些路径。
 - 这是根据已获得的实际程序集清单对打包遗漏故障进行修复；等待完整安装器 CI 才能确认闭环。
+
+## 操作者可执行的 IERS EOP 数据更新
+
+- `Tools → Orbit / TLE Sources → Update Orekit IERS EOP Data...` 新增非阻塞下载入口，尝试 USNO 和 IERS 官方 HTTPS 数据地址。不会在启动或逐秒 TRACK 路径中执行网络访问。
+- 下载先写入同目录临时文件，检查大小和格式再原子替换旧 `finals2000A.all`；SHA-256、原始 URL、获取时间、文件字节数写入 `finals2000A.manifest.json`。
+- Orekit 已加载的时间/坐标服务可能缓存旧 EOP，提示重新启动以使用新数据。更新失败不会删除已有可用 EOP，也不禁止已有的 SGP.NET/轨道功能。
+- 数据更新的异常、网络断开与取消应独立测试；本实现不将动态下载的 EOP 纳入源码仓库或发布安装包。

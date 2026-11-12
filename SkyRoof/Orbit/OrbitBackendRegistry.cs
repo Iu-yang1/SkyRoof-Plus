@@ -124,7 +124,7 @@ internal static class OrbitBackendRegistry
         return backend.CreateTleTrack(elements.tle1, elements.tle2);
     }
 
-    private static string ResolveDataDirectory(string configured)
+    internal static string ResolveDataDirectory(string configured)
     {
         if (!string.IsNullOrWhiteSpace(configured))
             return Path.GetFullPath(configured);
