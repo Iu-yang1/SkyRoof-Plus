@@ -52,6 +52,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   // Issued open-loop endpoint reference; never presented as a measured angle.
   private RotatorPosition? openLoopReference;
   private DateTime lastReadUtc = DateTime.MinValue;
+  private DateTime lastProtocolReplyUtc = DateTime.MinValue;
   // Only C2 replies to queries initiated AFTER a management verification
   // checkpoint may confirm post-management feedback. A pre-checkpoint reply
   // can arrive after the checkpoint and must not authorize motion.
@@ -385,8 +386,8 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
   private bool HasFreshPositionLocked() =>
     connected && Volatile.Read(ref ready)==1 &&
     Volatile.Read(ref consecutiveFeedbackMisses)==0 &&
-    lastReadUtc != DateTime.MinValue &&
-    (DateTime.UtcNow-lastReadUtc).TotalMilliseconds <=
+    (feedbackFilter.IsDegraded ? lastProtocolReplyUtc : lastReadUtc) != DateTime.MinValue &&
+    (DateTime.UtcNow-(feedbackFilter.IsDegraded ? lastProtocolReplyUtc : lastReadUtc)).TotalMilliseconds <=
       Math.Max(2500,3L*Math.Clamp(settings.NativePollMs,200,30000));
 
   private byte[]? CommandBytes() => NativeRotatorCodec.Query(settings.NativeProtocol,settings.NativeQueryTemplate);
@@ -507,10 +508,14 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
         motionPlanner.Reset();plannerFeedback.Reset();
         lastPlanTick=lastPlannerCommandTick=0;
       }
-      if(accepted)lastRead=current;
-      // Protocol liveness stays fresh with valid frames even when their
-      // bearing is rejected. LastReadBearing remains the trusted angle.
-      lastReadUtc=receivedUtc;
+      if(accepted)
+      {
+        lastRead=current;
+        lastReadUtc=receivedUtc;
+      }
+      // Rejected replies show link liveness, not a fresh physical position.
+      // PARK and feedback-based trajectory checks only see accepted timestamps.
+      lastProtocolReplyUtc=receivedUtc;
       lastSuccessfulQueryStartedUtc=queryStartedUtc;
       if(accepted && settings.NativeProtocol==RotatorProtocolKind.Rc3040sLan)
       {
@@ -594,6 +599,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
           lastRead = null;
           feedbackFilter.Reset();openLoopReference=null;
           lastReadUtc = DateTime.MinValue;
+          lastProtocolReplyUtc = DateTime.MinValue;
           lastSuccessfulQueryStartedUtc=DateTime.MinValue;
           lastSuccessfulSessionFeedbackUtc=DateTime.MinValue;
           rateEstimator.Reset();latestRate=null;
