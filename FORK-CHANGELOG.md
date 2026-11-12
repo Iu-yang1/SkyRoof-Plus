@@ -3,7 +3,7 @@
 ### v.1.69 同版本安装包补充修正 / Installer replacement
 
 - **自动更新来源：** 从原作者网站的 HTML 版本解析切换到本 Fork 的 `Iu-yang1/SkyRoof-Plus` GitHub Releases API。检查已发布版本（包括带安装包的预发布版），更新链接指向 Fork 的版本发布页。Windows 安装器的更新和支持链接也指向本仓库。
-- **About 双署名：** 在 `Help → About` 内保留 Alex Shovkoplyas VE3NEA 的原始版权及官网链接，新增 `Fork modifications © 2026 Iu-yang1` 和 Fork 仓库链接；不修改原始 LICENSE。
+- **About 双署名：** 在 `Help → About` 内保留 Alex Shovkoplyas VE3NEA 的原始版权及官网链接，新增 `Fork modifications © 2026 Iu-yang1 BG5JSU` 和 Fork 仓库链接；不修改原始 LICENSE。
 - **发布完整性：** 同版本替换仅允许在原始 v.1.69 标签未被移动的情况下执行，构建、测试和新安装包哈希匹配后才移动标签；最终验证标签、下载包及 SHA-256。
 
 - **Updater source:** The app now queries the fork's GitHub releases (including prereleases with matching installers) instead of scraping the upstream HTML page; the installer update/support links point to this fork.
