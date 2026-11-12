@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
     <!-- The isolated P0 probe does not participate in the production locked restore.
          Generate and commit a stable lockfile before moving it into SkyRoof.sln. -->
-    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />

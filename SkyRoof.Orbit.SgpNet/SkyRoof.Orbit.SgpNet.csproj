@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />
