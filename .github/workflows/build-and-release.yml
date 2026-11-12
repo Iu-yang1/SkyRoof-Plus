@@ -246,7 +246,11 @@ jobs:
           dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore
           ./scripts/stage-orekit-backend.ps1 -Configuration Release
 
-      - name: Validate Orekit TLE and OMM before packaging
+      - name: Fetch pinned Orekit-native DE430 ephemeris for release validation
+        shell: pwsh
+        run: ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
+
+      - name: Validate Orekit satellite and celestial propagation before packaging
         run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-build --no-restore -- SkyRoof.Orbit.Orekit.Smoke/TestData artifacts/orekit-release/p0-smoke.json
 
       - name: Package with Inno Setup
@@ -278,7 +282,11 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_TOKEN)) {
             "SIGNPATH_AVAILABLE=false" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-            Write-Host "::warning::No SignPath token configured; release will be an unsigned pre-release."
+            if ("${{ steps.get_version.outputs.version }}" -eq '1.71') {
+              Write-Host "::warning::User-authorized stable v.1.71 release may ship unsigned; installer SHA-256 verification remains mandatory."
+            } else {
+              Write-Host "::warning::No SignPath token configured; release will be an unsigned pre-release."
+            }
           } else {
             "SIGNPATH_AVAILABLE=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           }
@@ -328,7 +336,11 @@ jobs:
             throw "SignPath is configured but installer signature is not valid: $($signature.Status)"
           }
           if ($env:SIGNPATH_AVAILABLE -ne 'true') {
-            Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
+            if ("${{ steps.get_version.outputs.version }}" -eq '1.71') {
+              Write-Host "::warning::Publishing user-authorized unsigned stable v.1.71; Authenticode status is clearly disclosed."
+            } else {
+              Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
+            }
           }
 
       - name: Verify versioned release notes before publication
@@ -349,9 +361,9 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
-          # Preserve the already published stable v.1.69 Release classification.
-          # For new versions, retain the normal unsigned-prerelease rule.
-          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' }}
+          # One-time owner authorization for stable v.1.71 even without Authenticode.
+          # All other unsigned releases remain prereleases by default.
+          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
           overwrite_files: ${{ env.REPLACE_V169 == 'true' }}
           fail_on_unmatched_files: true
@@ -420,7 +432,9 @@ jobs:
           }
           $asset = @($release.assets | Where-Object { $_.name -eq $name })
           if ($asset.Count -ne 1) { throw "Release asset $name missing or duplicated" }
-          $expectedPrerelease = $env:REPLACE_V169 -ne 'true' -and $env:SIGNPATH_AVAILABLE -ne 'true'
+          $expectedPrerelease = $env:REPLACE_V169 -ne 'true' -and
+             $env:SIGNPATH_AVAILABLE -ne 'true' -and
+             "${{ steps.get_version.outputs.version }}" -ne '1.71'
           if ($release.isPrerelease -ne $expectedPrerelease) {
             throw "Release prerelease setting does not match signing capability"
           }

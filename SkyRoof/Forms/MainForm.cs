@@ -114,7 +114,6 @@ namespace SkyRoof
       ctx.UdpStreamSender.ctx = ctx;
 
       var settingsLoadResult = ctx.Settings.LoadFromFile();
-      TryConfigureOrbitBackend();
       UpdateCwConsoleMenuText();
 
       AddRotatorControlCard();
@@ -175,20 +174,28 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        Log.Warning(ex, "Selected Orekit orbit backend could not be initialized; using SGP.NET.");
-        ctx.Settings.OrbitSources.Backend = OrbitEngineMode.SgpNet;
-        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+        Log.Error(ex, "Orekit orbit backend could not be initialized.");
         MessageBox.Show(
-          "Orekit initialization failed; the existing SGP.NET orbit engine is active.\r\n\r\n" +
+          "Orekit initialization failed; orbit tracking will remain unavailable until the data or installation is repaired.\r\n\r\n" +
           ex.GetBaseException().Message,
           "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
 
-    private void MainForm_Load(object sender, EventArgs e)
+    private async void MainForm_Load(object sender, EventArgs e)
     {
+      // Download data before Orekit creates/caches its process-wide UTC and ITRF context.
+      // On network failure use whatever verified local data is already installed.
+      try
+      {
+        await OrekitDataBootstrapper.EnsureAsync(ctx.Settings.OrbitSources);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Orekit automatic data bootstrap failed; trying local data.");
+      }
+      TryConfigureOrbitBackend();
       ReadOrDownloadSatelliteData();
-      EnsureJplEphemerisAvailableAsync().DoNotAwait();
 
       // apply settings
       ctx.Settings.Ui.RestoreWindowPosition(this);
@@ -871,60 +878,6 @@ namespace SkyRoof
       ctx.SatnogsDb.LoadTleFromFile(dlg.FileName);
     }
 
-    private bool JplBootstrapRunning;
-
-    private Task EnsureJplEphemerisAvailableAsync()
-    {
-      var settings = ctx.Settings.OrbitSources;
-      if (JplBootstrapRunning ||
-          !settings.ShowSolarSystemTargets ||
-          !settings.AutoDownloadJplKernel ||
-          settings.JplKernel == JplEphemerisKernel.CustomFile)
-        return Task.CompletedTask;
-
-      string path = ctx.SatnogsDb.GetJplKernelPath(settings);
-      if (File.Exists(path))
-        return Task.CompletedTask;
-
-      JplBootstrapRunning = true;
-
-      try
-      {
-        Log.Information(
-          $"JPL ephemeris cache missing; downloading {settings.JplKernel} from the configured source list.");
-
-        if (!DownloadDialog.DownloadJpl(
-              this,
-              ctx,
-              settings.JplKernel,
-              out string? downloadedPath))
-          return Task.CompletedTask;
-
-        int targets =
-          ActivateJplEphemeris(
-            settings.JplKernel,
-            customFile: null);
-
-        Log.Information(
-          $"JPL ephemeris bootstrap complete: {targets} tracking targets from {downloadedPath}.");
-      }
-      catch (Exception ex)
-      {
-        // Planetary ephemeris is optional: a network outage must not prevent
-        // normal TLE satellite operation. The Tools menu can retry manually.
-        Log.Warning(
-          ex,
-          $"Automatic JPL {settings.JplKernel} ephemeris download failed.");
-      }
-      finally
-      {
-        JplBootstrapRunning = false;
-      }
-
-      return Task.CompletedTask;
-    }
-
-
     private void AddOrbitSourceMenuItems()
     {
       var sourceMenu =
@@ -943,196 +896,12 @@ namespace SkyRoof
       reload.Click += async (_, _) =>
         await ReloadCustomTleSourcesAsync();
 
-      var de440s =
-        new ToolStripMenuItem(
-          "Download DE440&s (recommended)...");
-      de440s.Click += async (_, _) =>
-        await DownloadJplEphemerisAsync(
-          JplEphemerisKernel.DE440s);
-
-      var de421 =
-        new ToolStripMenuItem(
-          "Download DE&421...");
-      de421.Click += async (_, _) =>
-        await DownloadJplEphemerisAsync(
-          JplEphemerisKernel.DE421);
-
-      var load =
-        new ToolStripMenuItem(
-          "Load SPK/BSP From &File...");
-      load.Click += (_, _) =>
-        LoadJplEphemerisFromFile();
-
       sourceMenu.DropDownItems.Add(editSources);
       sourceMenu.DropDownItems.Add(reload);
-      sourceMenu.DropDownItems.Add(
-        new ToolStripSeparator());
-      sourceMenu.DropDownItems.Add(de440s);
-      sourceMenu.DropDownItems.Add(de421);
-      sourceMenu.DropDownItems.Add(load);
-      var updateIers =
-        new ToolStripMenuItem("Update Orekit IERS EOP Data...");
-      updateIers.Click += async (_, _) =>
-      {
-        updateIers.Enabled = false;
-        try
-        {
-          await DownloadOrekitEopAsync();
-        }
-        finally
-        {
-          updateIers.Enabled = true;
-        }
-      };
-      sourceMenu.DropDownItems.Add(new ToolStripSeparator());
-      sourceMenu.DropDownItems.Add(updateIers);
-
       toolsToolStripMenuItem.DropDownItems.Add(
         new ToolStripSeparator());
       toolsToolStripMenuItem.DropDownItems.Add(
         sourceMenu);
-    }
-
-    private async Task DownloadOrekitEopAsync()
-    {
-      try
-      {
-        OrbitEopUpdateResult result = await OrbitEopDataUpdater.DownloadAsync(
-          ctx.Settings.OrbitSources);
-        MessageBox.Show(
-          $"Updated IERS Earth-orientation data from:\r\n{result.SourceUrl}" +
-          $"\r\nSHA-256: {result.Sha256}" +
-          "\r\n\r\nRestart SkyRoof to use the new EOP data with Orekit.",
-          "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
-      }
-      catch (Exception ex)
-      {
-        Log.Warning(ex, "Unable to update IERS Orekit EOP data.");
-        MessageBox.Show(
-          "The IERS EOP update failed. Existing data was retained.\r\n\r\n" +
-          ex.GetBaseException().Message,
-          "Orekit EOP Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      }
-    }
-
-    private Task DownloadJplEphemerisAsync(
-      JplEphemerisKernel kernel)
-    {
-      string name =
-        kernel == JplEphemerisKernel.DE421
-          ? "DE421"
-          : "DE440s";
-
-      var answer = MessageBox.Show(
-        $"Download the JPL {name} SPK ephemeris from the configured source list?\r\n\r\n" +
-        (kernel == JplEphemerisKernel.DE421
-          ? "Approximate size: 16 MB."
-          : "Approximate size: 31 MB."),
-        "JPL Ephemeris",
-        MessageBoxButtons.YesNo,
-        MessageBoxIcon.Question);
-
-      if (answer != DialogResult.Yes)
-        return Task.CompletedTask;
-
-      if (!DownloadDialog.DownloadJpl(
-            this,
-            ctx,
-            kernel,
-            out string? path))
-        return Task.CompletedTask;
-
-      try
-      {
-        int targets =
-          ActivateJplEphemeris(
-            kernel,
-            customFile: null);
-
-        MessageBox.Show(
-          $"{name} installed successfully.\r\n\r\n" +
-          $"Loaded {targets} solar-system targets.\r\n{path}",
-          "JPL Ephemeris",
-          MessageBoxButtons.OK,
-          MessageBoxIcon.Information);
-      }
-      catch (Exception ex)
-      {
-        Log.Error(ex, $"Unable to activate JPL {name} ephemeris.");
-        MessageBox.Show(
-          $"The downloaded {name} file could not be activated.\r\n\r\n{ex.Message}",
-          "JPL Ephemeris",
-          MessageBoxButtons.OK,
-          MessageBoxIcon.Error);
-      }
-
-      return Task.CompletedTask;
-    }
-
-    private int ActivateJplEphemeris(
-      JplEphemerisKernel kernel,
-      string? customFile)
-    {
-      ctx.Settings.OrbitSources.JplKernel = kernel;
-      ctx.Settings.OrbitSources.JplKernelFile =
-        kernel == JplEphemerisKernel.CustomFile
-          ? customFile ?? string.Empty
-          : string.Empty;
-
-      int targets =
-        ctx.SatnogsDb.ConfigureSolarSystem(
-          ctx.Settings.OrbitSources);
-
-      // Keep the settings model and every satellite/group UI in sync with the
-      // newly activated kernel. This makes Moon/Sun/Venus immediately visible
-      // in Satellites and Groups rather than only after the next restart.
-      ctx.Settings.Satellites.EnsureSolarSystemGroup(
-        ctx.SatnogsDb);
-      ctx.Settings.SaveToFile();
-      SatnogsDb_ListUpdated(
-        null,
-        EventArgs.Empty);
-
-      return targets;
-    }
-
-    private void LoadJplEphemerisFromFile()
-    {
-      using var dlg = new OpenFileDialog
-      {
-        Filter =
-          "NAIF SPK/BSP Files (*.bsp)|*.bsp|All Files (*.*)|*.*",
-        Title = "Load JPL / NAIF Planetary Ephemeris"
-      };
-
-      if (dlg.ShowDialog(this) != DialogResult.OK)
-        return;
-
-      try
-      {
-        // Validate before persisting the path.
-        _ = new JplSpkKernel(dlg.FileName);
-
-        int targets =
-          ActivateJplEphemeris(
-            JplEphemerisKernel.CustomFile,
-            dlg.FileName);
-
-        MessageBox.Show(
-          $"Loaded {targets} solar-system targets from:\r\n{dlg.FileName}",
-          "JPL Ephemeris",
-          MessageBoxButtons.OK,
-          MessageBoxIcon.Information);
-      }
-      catch (Exception ex)
-      {
-        Log.Error(ex, "Unable to load JPL SPK/BSP ephemeris.");
-        MessageBox.Show(
-          $"The selected file could not be used as a JPL/NAIF SPK ephemeris.\r\n\r\n{ex.Message}",
-          "JPL Ephemeris",
-          MessageBoxButtons.OK,
-          MessageBoxIcon.Error);
-      }
     }
 
     private async Task ReloadCustomTleSourcesAsync()

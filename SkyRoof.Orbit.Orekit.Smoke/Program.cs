@@ -225,6 +225,78 @@ try
     ValladoReferenceReport allVallado = ValladoReferenceSuite.Run(
         args[0], backend, baselineBackend);
 
+    Assert(backend is ICelestialOrbitBackend, "Orekit celestial backend contract unavailable");
+    Assert(File.Exists(Path.Combine(dataDirectory, "lnxp1990.430")),
+        "The pinned Orekit-native DE430 ephemeris fixture is missing");
+    var celestialBackend = (ICelestialOrbitBackend)backend;
+    var celestialEpoch = new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero);
+    var celestialGround = new GroundStationSpec(28.5, 115.9, 40);
+    var moon = celestialBackend.CreateCelestialTrack("Moon");
+    var sun = celestialBackend.CreateCelestialTrack("Sun");
+    var venus = celestialBackend.CreateCelestialTrack("Venus");
+    var moonObservation = moon.Observe(celestialGround, celestialEpoch);
+    var sunObservation = sun.Observe(celestialGround, celestialEpoch);
+    var venusObservation = venus.Observe(celestialGround, celestialEpoch);
+    foreach (var item in new[] { moonObservation, sunObservation, venusObservation })
+        Assert(double.IsFinite(item.AzimuthDegrees) && item.AzimuthDegrees >= 0 &&
+               item.AzimuthDegrees < 360 && double.IsFinite(item.ElevationDegrees) &&
+               double.IsFinite(item.RangeMetres) && double.IsFinite(item.RangeRateMetresPerSecond),
+            "Orekit celestial topocentric result is not finite");
+    Assert(moonObservation.RangeMetres > 3.0e8 && moonObservation.RangeMetres < 4.5e8,
+        "Orekit lunar range outside plausible Earth-Moon bounds");
+    Assert(sunObservation.RangeMetres > 1.35e11 && sunObservation.RangeMetres < 1.6e11,
+        "Orekit solar range outside plausible Earth-Sun bounds");
+    Assert(venusObservation.RangeMetres > 3e10 && venusObservation.RangeMetres < 3e11,
+        "Orekit Venus range outside broad plausible bounds");
+    double moonFiniteRangeRate = (moon.Observe(celestialGround, celestialEpoch.AddSeconds(1)).RangeMetres -
+        moon.Observe(celestialGround, celestialEpoch.AddSeconds(-1)).RangeMetres) / 2.0;
+    Assert(Math.Abs(moonObservation.RangeRateMetresPerSecond - moonFiniteRangeRate) < 20,
+        "Orekit lunar range rate differs from finite-difference range");
+    double lunarDopplerHzAt432080 = -432_080_000.0 *
+        moonObservation.RangeRateMetresPerSecond / 299_792_458.0;
+    Assert(Math.Sign(lunarDopplerHzAt432080) == -Math.Sign(moonObservation.RangeRateMetresPerSecond) ||
+           Math.Abs(moonObservation.RangeRateMetresPerSecond) < 1e-9,
+        "Lunar one-way downlink Doppler has the wrong sign");
+    Console.WriteLine($"Orekit DE430 Moon: range={moonObservation.RangeMetres:F0} m, " +
+        $"range rate={moonObservation.RangeRateMetresPerSecond:F3} m/s, " +
+        $"Doppler at 432.080 MHz={lunarDopplerHzAt432080:F3} Hz");
+
+    // Measure representative warmed orbit + station observation loops, keeping
+    // IKVM JIT startup separate from steady-state timing. Medians reduce CI noise.
+    var perfTimes = Enumerable.Range(0, 1000)
+        .Select(i => instantUtc.AddSeconds(i)).ToArray();
+    var moonPerfTimes = Enumerable.Range(0, 200)
+        .Select(i => celestialEpoch.AddSeconds(i * 10)).ToArray();
+    double orekitTeme1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = interfaceTrack.PredictTeme(t);
+    });
+    double sgpNetTeme1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = sgpNetTrack.PredictTeme(t);
+    });
+    double orekitObserve1000MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in perfTimes) _ = interfaceTrack.Observe(station, t);
+    });
+    double moonObserve200MedianMs = MedianMilliseconds(() =>
+    {
+        foreach (var t in moonPerfTimes) _ = moon.Observe(celestialGround, t);
+    });
+
+    // These are broad throughput sanity checks, not a claim that GitHub's
+    // shared Windows runners measure production hardware latency.
+    Assert(orekitTeme1000MedianMs > 0 && orekitTeme1000MedianMs < 15_000,
+        $"Orekit TEME propagation performance regression: {orekitTeme1000MedianMs:F1} ms / 1000");
+    Assert(orekitObserve1000MedianMs > 0 && orekitObserve1000MedianMs < 30_000,
+        $"Orekit topocentric observation performance regression: {orekitObserve1000MedianMs:F1} ms / 1000");
+    Assert(moonObserve200MedianMs > 0 && moonObserve200MedianMs < 30_000,
+        $"Orekit lunar ephemeris observation performance regression: {moonObserve200MedianMs:F1} ms / 200");
+    Console.WriteLine($"Orekit/IKVM warmed median: TEME 1000={orekitTeme1000MedianMs:F2} ms, " +
+        $"station Observe 1000={orekitObserve1000MedianMs:F2} ms, " +
+        $"Moon Observe 200={moonObserve200MedianMs:F2} ms; " +
+        $"SGP.NET reference TEME 1000={sgpNetTeme1000MedianMs:F2} ms");
+
     var report = new
     {
         status = "P0_SMOKE_COMPLETED_NOT_ACCURACY_ACCEPTED",
@@ -237,8 +309,17 @@ try
         sgpNetFiniteRangeRate,
         sgpNetRangeRateResidualMps,
         eopQualityAt2026 = OrekitDataContext.DataQuality(new DateTimeOffset(2026, 11, 12, 0, 0, 0, TimeSpan.Zero)),
+        moonObservation,
+        sunObservation,
+        venusObservation,
+        moonFiniteRangeRate,
+        lunarDopplerHzAt432080,
         initialSetupMs = initializedMs,
         thousandPredictionsMs,
+        orekitTeme1000MedianMs,
+        sgpNetTeme1000MedianMs,
+        orekitObserve1000MedianMs,
+        moonObserve200MedianMs,
         processWorkingSetBytes = Environment.WorkingSet,
         comparisons,
         allVallado,
@@ -269,6 +350,19 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(ex);
     return 1;
+}
+
+static double MedianMilliseconds(Action action)
+{
+    double MeasureOnce()
+    {
+        var sw = Stopwatch.StartNew();
+        action();
+        return sw.Elapsed.TotalMilliseconds;
+    }
+    var samples = new[] { MeasureOnce(), MeasureOnce(), MeasureOnce() };
+    Array.Sort(samples);
+    return samples[1];
 }
 
 static double Distance(double[] a, double[] b) =>
