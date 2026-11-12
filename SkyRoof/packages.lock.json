@@ -460,9 +460,12 @@
           "Serilog.Extensions.Logging": "[9.0.2, )",
           "Serilog.Sinks.Console": "[6.0.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
-          "SkyCat": "[1.8.0, )",
+          "SkyCat": "[1.8.1, )",
           "System.IO.Ports": "[9.0.7, )"
         }
+      },
+      "skyroof.orbit.contracts": {
+        "type": "Project"
       }
     }
   }

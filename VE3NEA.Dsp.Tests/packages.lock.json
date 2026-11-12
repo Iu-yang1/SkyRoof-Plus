@@ -547,7 +547,7 @@
           "Serilog.Extensions.Logging": "[9.0.2, )",
           "Serilog.Sinks.Console": "[6.0.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
-          "SkyCat": "[1.8.0, )",
+          "SkyCat": "[1.8.1, )",
           "System.IO.Ports": "[9.0.7, )"
         }
       },
@@ -567,11 +567,15 @@
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "SharpGL.WinForms": "[3.1.1, )",
+          "SkyRoof.Orbit.Contracts": "[1.69.0, )",
           "System.IO.Ports": "[10.0.0, )",
           "System.Speech": "[10.0.5, )",
           "WsjtxUtils.WsjtxMessages": "[1.0.0.69, )",
-          "skycatd": "[1.8.0, )"
+          "skycatd": "[1.8.1, )"
         }
+      },
+      "skyroof.orbit.contracts": {
+        "type": "Project"
       }
     }
   }
