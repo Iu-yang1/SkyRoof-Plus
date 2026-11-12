@@ -15,25 +15,66 @@ namespace SkyRoof
     [DefaultValue(OrbitEngineMode.Orekit)]
     public OrbitEngineMode Backend { get; set; } = OrbitEngineMode.Orekit;
 
-    [Category("Orbit engine")]
+    public const string DefaultOrekitEopSources =
+      "https://maia.usno.navy.mil/ser7/finals2000A.all;" +
+      "https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all";
+
+    public const string DefaultOrekitDe430Url =
+      "https://raw.githubusercontent.com/eSpace-epfl/orekit-data/master/DE-430-ephemerides/lnxp1990.430";
+
+    [Category("Orekit ephemeris")]
     [DisplayName("Auto-download Orekit Data")]
-    [Description("Automatically cache/update IERS Earth orientation data and a verified Orekit-format DE430 planetary ephemeris when required. Existing local files continue to work offline.")]
+    [Description("Download missing Orekit data before engine initialization and refresh IERS EOP data every seven days. Valid cached data remain available offline.")]
     [DefaultValue(true)]
     public bool AutoDownloadOrekitData { get; set; } = true;
 
-    [Category("Orbit engine")]
+    [Category("Orekit ephemeris")]
+    [DisplayName("Show Solar-System Targets")]
+    [Description("Show Moon, Sun and Venus using the Orekit JPL DE430 ephemeris. Restart SkyRoof after changing this option.")]
+    [DefaultValue(true)]
+    public bool ShowSolarSystemTargets { get; set; } = true;
+
+    [Category("Orekit ephemeris")]
     [DisplayName("Orekit Data Directory")]
-    [Description("Optional directory containing tai-utc.dat and finals2000A.all. Blank uses the SkyRoof user-data/orekit-data directory.")]
+    [Description("Directory for tai-utc.dat, IERS finals2000A.all, and Orekit DE430 lnxp1990.430. Leave blank for SkyRoof user-data/orekit-data; changing requires a restart.")]
     public string OrekitDataDirectory { get; set; } = string.Empty;
 
-    [Category("Orbit engine")]
+    [Category("Orekit ephemeris")]
+    [DisplayName("IERS EOP Download Sources")]
+    [Description("Ordered HTTPS URLs for finals2000A.all, separated by semicolons or new lines. Used for initial download and seven-day EOP refresh.")]
+    [DefaultValue(DefaultOrekitEopSources)]
+    public string OrekitEopSources { get; set; } = DefaultOrekitEopSources;
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("JPL DE430 Download URL")]
+    [Description("Orekit-native DE430 data URL. Downloaded data must match the pinned upstream Git blob hash; NAIF BSP/SPK files are not interchangeable.")]
+    [DefaultValue(DefaultOrekitDe430Url)]
+    public string OrekitDe430Url { get; set; } = DefaultOrekitDe430Url;
+
+    [Category("Orekit ephemeris")]
+    [DisplayName("Orekit Data Status")]
+    [ReadOnly(true)]
+    [Newtonsoft.Json.JsonIgnore]
+    [Description("Resolved local directory and file-presence diagnostics. The running data context changes only after restart.")]
+    public string DataStatus
+    {
+      get
+      {
+        string directory = OrbitBackendRegistry.ResolveDataDirectory(OrekitDataDirectory);
+        return $"UTC: {(File.Exists(Path.Combine(directory, "tai-utc.dat")) || File.Exists(Path.Combine(directory, "UTC-TAI.history")) ? "present" : "missing")}; " +
+          $"EOP: {(File.Exists(Path.Combine(directory, "finals2000A.all")) ? "present" : "missing")}; " +
+          $"DE430: {(File.Exists(Path.Combine(directory, "lnxp1990.430")) ? "present" : "missing")}";
+      }
+    }
+
+    [Category("Orekit ephemeris")]
     [DisplayName("Active Orbit Backend")]
     [ReadOnly(true)]
     [Newtonsoft.Json.JsonIgnore]
     [Description("The currently initialized orbit engine, not merely the saved preference.")]
     public string ActiveBackend => OrbitBackendRegistry.CurrentBackendId;
 
-    [Category("Orbit engine")]
+    [Category("Orekit ephemeris")]
     [DisplayName("Orbit Data Quality")]
     [ReadOnly(true)]
     [Newtonsoft.Json.JsonIgnore]
@@ -64,7 +105,7 @@ namespace SkyRoof
         : url;
     }
 
-    [Category("Satellite database")]    [Category("Satellite database")]
+    [Category("Satellite database")]
     [DisplayName("Satellite List URL")]
     [Description("Primary satellite-list endpoint. The default is SatNOGS. You may replace it with a compatible SatNOGS JSON endpoint. Leave blank to keep the last cached file instead of updating it.")]
     [DefaultValue(DefaultSatellitesUrl)]
@@ -98,12 +139,6 @@ namespace SkyRoof
     [Description("Lowest-priority automatic orbit source. The default is the original SatNOGS TLE endpoint. Leave blank to disable updates from this source.")]
     [DefaultValue(DefaultTleUrl)]
     public string TleUrl { get; set; } = DefaultTleUrl;
-
-    [Category("Orbit engine")]
-    [DisplayName("Show Solar-System Targets")]
-    [Description("Automatically include Moon, Sun and Venus using Orekit's planetary ephemerides when a compatible DE data file is present.")]
-    [DefaultValue(true)]
-    public bool ShowSolarSystemTargets { get; set; } = true;
 
     public override string ToString() => string.Empty;
   }
