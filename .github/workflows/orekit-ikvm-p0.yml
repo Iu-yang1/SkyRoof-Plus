@@ -68,6 +68,10 @@ jobs:
           }
           if (-not (Test-Path $target)) { throw 'Official IERS EOP sources unavailable' }
 
+      - name: Download and verify Orekit DE430 test ephemeris
+        shell: pwsh
+        run: ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
+
       - name: UTC TLE TEME and ITRF smoke verification
         shell: pwsh
         run: |

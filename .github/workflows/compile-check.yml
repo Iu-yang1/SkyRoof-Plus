@@ -153,6 +153,10 @@ jobs:
           dotnet build SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-restore
           ./scripts/stage-orekit-backend.ps1 -Configuration Release
 
+      - name: Download and verify Orekit DE430 test ephemeris
+        shell: pwsh
+        run: ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
+
       - name: Smoke test Orekit from Windows build
         run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release --no-build --no-restore -- SkyRoof.Orbit.Orekit.Smoke/TestData artifacts/orekit-release/p0-smoke.json
 
