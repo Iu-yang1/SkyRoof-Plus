@@ -418,7 +418,7 @@ public sealed class NativeRotatorWorkerTests
   }
 
   [Fact]
-  public async Task SuddenPositionJumpLatchesFaultAndTransmitsStop()
+  public async Task SuddenPositionJumpIsIgnoredWhileNativeOpenLoopCommandsContinue()
   {
     int reads=0;
     await using var server=new FakeGs232Bridge(_=>
@@ -429,12 +429,48 @@ public sealed class NativeRotatorWorkerTests
     using var engine=new NativeRotatorControlEngine(settings);
 
     await UntilAsync(()=>engine.LastReadBearing!=null);
-    await UntilAsync(()=>engine.PositionFaulted);
-    await UntilAsync(()=>server.Count("S")>0);
-    int before=server.Commands.Count(x=>x.StartsWith("W",StringComparison.Ordinal));
-    engine.RotateTo(new SkyRoof.Bearing(Math.PI/3,Math.PI/6));
-    await Task.Delay(250);
-    Assert.Equal(before,server.Commands.Count(x=>x.StartsWith("W",StringComparison.Ordinal)));
+    await UntilAsync(()=>engine.FeedbackDegraded);
+    Assert.False(engine.PositionFaulted);
+    Assert.True(engine.FeedbackAzimuthSuspect);
+    Assert.Equal(90,engine.LastReadBearing!.AzDeg,1);
+    Assert.Equal(150,engine.LastRejectedBearing!.AzDeg,1);
+    Assert.Equal(0,server.Count("S"));
+
+    engine.RotateTo(new SkyRoof.Bearing(120*Math.PI/180,Math.PI/6));
+    await UntilAsync(()=>server.Count("W120 030")>0);
+    engine.RotateTo(new SkyRoof.Bearing(130*Math.PI/180,Math.PI/6));
+    await UntilAsync(()=>server.Count("W130 030")>0);
+    Assert.True(engine.FeedbackDegraded);
+    Assert.Equal(90,engine.LastReadBearing!.AzDeg,1);
+    Assert.Equal(0,server.Count("S"));
+  }
+
+  [Fact]
+  public async Task Rc3040sRejectedC2ContinuesBoundedOpenLoopWaypointCommands()
+  {
+    int reads=0;
+    await using var server=new FakeGs232Bridge(_=>
+      Encoding.ASCII.GetBytes(Interlocked.Increment(ref reads)==1
+        ? "AZ=90 EL=30\r" : "AZ=220 EL=30\r"));
+    var settings=CreateSettings(server.Port);
+    settings.NativeProtocol=RotatorProtocolKind.Rc3040sLan;
+    settings.NativePollMs=250;
+    settings.Rc3040sPlannerEnabled=true;
+    settings.Rc3040sMotionHardwareValidated=true;
+    settings.Rc3040sIndependentAngleVerified=true;
+    settings.Rc3040sMotionMode=Rc3040sMotionProfile.Trapezoidal;
+    settings.Rc3040sPlanAzSpeed=4;
+    using var engine=new NativeRotatorControlEngine(settings);
+
+    await UntilAsync(()=>engine.FeedbackDegraded);
+    engine.RotateTo(new SkyRoof.Bearing(120*Math.PI/180,30*Math.PI/180));
+    // The optimizer must advance its commanded reference despite rejecting C2.
+    // It must not silently switch to a direct W120 absolute-target command.
+    await UntilAsync(()=>server.Commands.Any(x=>x.StartsWith("W091",StringComparison.Ordinal)));
+    Assert.False(engine.PositionFaulted);
+    Assert.Equal(90,engine.LastReadBearing!.AzDeg,1);
+    Assert.DoesNotContain(server.Commands,x=>x.StartsWith("W120",StringComparison.Ordinal));
+    Assert.Equal(0,server.Count("S"));
   }
 
   [Fact]

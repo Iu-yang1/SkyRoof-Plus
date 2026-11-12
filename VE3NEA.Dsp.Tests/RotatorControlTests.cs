@@ -288,7 +288,7 @@ public sealed class RotatorControlTests
     }
 
     [Fact]
-    public async Task PositionFeedbackFaultLatchesStopAndBlocksNewMotion()
+    public async Task PositionFeedbackOutlierKeepsTrustedPositionAndAllowsOpenLoopTracking()
     {
         int positionReads = 0;
         await using var server = new FakeRotctld((command, _) =>
@@ -300,15 +300,21 @@ public sealed class RotatorControlTests
             return "RPRT 0\n";
         });
         using var engine = StartEngine(server.Port);
-        await WaitUntilAsync(() => engine.PositionFaulted &&
-            server.Count("S") >= 1);
-        int movesBefore = server.Commands.Count(c => c.StartsWith("P "));
+        await WaitUntilAsync(() => engine.FeedbackDegraded);
+        Assert.False(engine.PositionFaulted);
+        Assert.True(engine.FeedbackAzimuthSuspect);
+        Assert.False(engine.FeedbackElevationSuspect);
+        Assert.Equal(20, engine.LastReadBearing!.AzDeg, 1);
+        Assert.Equal(145, engine.LastRejectedBearing!.AzDeg, 1);
+        Assert.Equal(0, server.Count("S"));
+
         engine.RotateTo(new SkyRoof.Bearing(Math.PI / 2, Math.PI / 6));
-        engine.StartContinuousMove(RotatorContinuousDirection.Right);
-        await Task.Delay(180);
-        Assert.True(engine.PositionFaulted);
-        Assert.Equal(movesBefore, server.Commands.Count(c => c.StartsWith("P ")));
-        Assert.DoesNotContain(server.Commands, c => c.StartsWith("M "));
+        await WaitUntilAsync(() => server.Count("P 90.0 30.0") >= 1);
+        engine.RotateTo(new SkyRoof.Bearing(100 * Math.PI / 180, Math.PI / 6));
+        await WaitUntilAsync(() => server.Count("P 100.0 30.0") >= 1);
+        Assert.True(engine.FeedbackDegraded);
+        Assert.Equal(20, engine.LastReadBearing!.AzDeg, 1);
+        Assert.Equal(0, server.Count("S"));
     }
 
     [Theory]

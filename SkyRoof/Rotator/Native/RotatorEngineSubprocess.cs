@@ -51,6 +51,9 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
   private readonly ConcurrentDictionary<long,TaskCompletionSource<bool>> pending=new();
   private RotatorWireMessage? newestTarget;
   private bool disposed,connected,ready,faulted=true,review,localSafetyLatched;
+  private bool feedbackDegraded,feedbackAzimuthSuspect,feedbackElevationSuspect;
+  private double? rejectedAz,rejectedEl;
+  private long feedbackSinceTicks;
   private long nextId,readTicks,targetTicks,stopTicks,rateTicks;
   private long lastHeartbeatTimestamp;
   private const double HeartbeatTimeoutSeconds=5.0;
@@ -137,6 +140,13 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
   public bool HasLiveConnection => IsRunning && IsReady;
   public bool PositionFaulted
   {get {lock(sync)return faulted || disposed || ChildExited || HeartbeatExpired;}}
+  public bool FeedbackDegraded {get {lock(sync)return feedbackDegraded;}}
+  public bool FeedbackAzimuthSuspect {get {lock(sync)return feedbackAzimuthSuspect;}}
+  public bool FeedbackElevationSuspect {get {lock(sync)return feedbackElevationSuspect;}}
+  public Bearing? LastRejectedBearing {get {lock(sync)return ToBearing(rejectedAz,rejectedEl);}}
+  public DateTime FeedbackDegradedSinceUtc
+  {get {lock(sync)return feedbackSinceTicks>0 ?
+    new DateTime(feedbackSinceTicks,DateTimeKind.Utc) : DateTime.MinValue;}}
   public bool ManagementReviewRequired
   {get {lock(sync)return review || HeartbeatExpired;}}
   public string GetStatusString()
@@ -483,11 +493,19 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
       if(disposed)return;
       posChanged=az!=m.Az||el!=m.El;
       changed=connected!=m.Running || ready!=m.Ready ||
-        faulted!=m.Faulted || review!=m.Review;
+        faulted!=m.Faulted || review!=m.Review ||
+        feedbackDegraded!=m.FeedbackDegraded ||
+        feedbackAzimuthSuspect!=m.FeedbackAzimuthSuspect ||
+        feedbackElevationSuspect!=m.FeedbackElevationSuspect;
       connected=m.Running;
       ready=m.Ready && !localSafetyLatched;
       faulted=m.Faulted || localSafetyLatched;
       review=m.Review || localSafetyLatched;
+      feedbackDegraded=m.FeedbackDegraded;
+      feedbackAzimuthSuspect=m.FeedbackAzimuthSuspect;
+      feedbackElevationSuspect=m.FeedbackElevationSuspect;
+      rejectedAz=m.RejectedAz;rejectedEl=m.RejectedEl;
+      feedbackSinceTicks=m.FeedbackSinceTicks;
       az=m.Az;el=m.El;requestAz=m.RequestAz;requestEl=m.RequestEl;
       writtenAz=m.WrittenAz;writtenEl=m.WrittenEl;
       rateAz=m.RateAz;rateEl=m.RateEl;rateTicks=m.RateTicks;
@@ -686,6 +704,12 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
               Running=engine.IsRunning,Ready=engine.IsReady,
               Faulted=engine.PositionFaulted,
               Review=engine.ManagementReviewRequired,
+              FeedbackDegraded=engine.FeedbackDegraded,
+              FeedbackAzimuthSuspect=engine.FeedbackAzimuthSuspect,
+              FeedbackElevationSuspect=engine.FeedbackElevationSuspect,
+              RejectedAz=engine.LastRejectedBearing?.AzDeg,
+              RejectedEl=engine.LastRejectedBearing?.ElDeg,
+              FeedbackSinceTicks=engine.FeedbackDegradedSinceUtc.Ticks,
               Az=engine.LastReadBearing?.AzDeg,
               El=engine.LastReadBearing?.ElDeg,
               RequestAz=engine.RequestedBearing?.AzDeg,
@@ -880,5 +904,11 @@ internal sealed class RotatorWireMessage
   public bool Ready {get;set;}
   public bool Faulted {get;set;}
   public bool Review {get;set;}
+  public bool FeedbackDegraded {get;set;}
+  public bool FeedbackAzimuthSuspect {get;set;}
+  public bool FeedbackElevationSuspect {get;set;}
+  public double? RejectedAz {get;set;}
+  public double? RejectedEl {get;set;}
+  public long FeedbackSinceTicks {get;set;}
   public string? Status {get;set;}
 }
