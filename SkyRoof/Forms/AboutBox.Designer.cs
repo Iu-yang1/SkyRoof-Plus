@@ -3,16 +3,13 @@ namespace SkyRoof
   partial class AboutBox
   {
     private System.ComponentModel.IContainer components = null;
-
     protected override void Dispose(bool disposing)
     {
       if (disposing && (components != null))
         components.Dispose();
       base.Dispose(disposing);
     }
-
     #region Windows Form Designer generated code
-
     private void InitializeComponent()
     {
       CloseBtn = new Button();
@@ -22,9 +19,7 @@ namespace SkyRoof
       WebsiteLabel = new LinkLabel();
       ForkWebsiteLabel = new LinkLabel();
       SuspendLayout();
-      //
       // CloseBtn
-      //
       CloseBtn.Anchor = AnchorStyles.Bottom;
       CloseBtn.Location = new Point(226, 178);
       CloseBtn.Name = "CloseBtn";
@@ -33,9 +28,7 @@ namespace SkyRoof
       CloseBtn.Text = "Close";
       CloseBtn.UseVisualStyleBackColor = true;
       CloseBtn.DialogResult = DialogResult.OK;
-      //
       // label1
-      //
       label1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
       label1.Font = new Font("Segoe UI", 20.25F, FontStyle.Bold);
       label1.ForeColor = Color.Teal;
@@ -45,9 +38,7 @@ namespace SkyRoof
       label1.TabIndex = 1;
       label1.Text = "Product";
       label1.TextAlign = ContentAlignment.MiddleCenter;
-      //
       // label2 (original author)
-      //
       label2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
       label2.Location = new Point(12, 55);
       label2.Name = "label2";
@@ -55,9 +46,7 @@ namespace SkyRoof
       label2.TabIndex = 2;
       label2.Text = "Original author copyright";
       label2.TextAlign = ContentAlignment.MiddleCenter;
-      //
       // label3 (fork modifications)
-      //
       label3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
       label3.Location = new Point(12, 82);
       label3.Name = "label3";
@@ -65,9 +54,7 @@ namespace SkyRoof
       label3.TabIndex = 3;
       label3.Text = "Fork modifications";
       label3.TextAlign = ContentAlignment.MiddleCenter;
-      //
       // WebsiteLabel
-      //
       WebsiteLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
       WebsiteLabel.LinkColor = Color.Blue;
       WebsiteLabel.Location = new Point(12, 111);
@@ -78,9 +65,7 @@ namespace SkyRoof
       WebsiteLabel.Text = "Original project / 原作者网站 (VE3NEA)";
       WebsiteLabel.TextAlign = ContentAlignment.MiddleCenter;
       WebsiteLabel.LinkClicked += WebsiteLabel_LinkClicked;
-      //
       // ForkWebsiteLabel
-      //
       ForkWebsiteLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
       ForkWebsiteLabel.LinkColor = Color.Blue;
       ForkWebsiteLabel.Location = new Point(12, 137);
@@ -91,9 +76,7 @@ namespace SkyRoof
       ForkWebsiteLabel.Text = "SkyRoof-Plus / Fork 仓库 (Iu-yang1)";
       ForkWebsiteLabel.TextAlign = ContentAlignment.MiddleCenter;
       ForkWebsiteLabel.LinkClicked += ForkWebsiteLabel_LinkClicked;
-      //
       // AboutBox
-      //
       AcceptButton = CloseBtn;
       AutoScaleDimensions = new SizeF(7F, 15F);
       AutoScaleMode = AutoScaleMode.Font;
@@ -114,9 +97,7 @@ namespace SkyRoof
       Text = "About SkyRoof";
       ResumeLayout(false);
     }
-
     #endregion
-
     private Button CloseBtn;
     private Label label1;
     private Label label2;
