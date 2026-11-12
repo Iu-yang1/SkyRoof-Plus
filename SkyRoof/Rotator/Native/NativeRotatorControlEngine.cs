@@ -17,6 +17,12 @@ internal interface IRotatorEngine : IDisposable
   Bearing? LastWrittenBearing { get; }
   DateTime LastSuccessfulBearingReadUtc { get; }
   bool PositionFaulted { get; }
+  // Telemetry rejection is advisory and does not lock motor control.
+  bool FeedbackDegraded { get; }
+  bool FeedbackAzimuthSuspect { get; }
+  bool FeedbackElevationSuspect { get; }
+  Bearing? LastRejectedBearing { get; }
+  DateTime FeedbackDegradedSinceUtc { get; }
   bool IsRunning { get; }
   event EventHandler? StatusChanged;
   event EventHandler? BearingChanged;
