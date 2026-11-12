@@ -114,6 +114,11 @@ namespace SkyRoof
     [DefaultValue(true)]
     public bool Enabled { get; set; } = true;
 
+    [DisplayName("Auto select LAN MOD input")]
+    [Description("When Direct LAN TX is connected, read IC-9700 DATA OFF MOD and DATA MOD using CI-V and set either non-LAN source to LAN. Independent radio readback verifies the change. Disable to retain manual radio input selection. This may leave the radio in LAN input after disconnect.")]
+    [DefaultValue(true)]
+    public bool AutoSelectLanModInput { get; set; } = true;
+
     [DisplayName("TX sample rate")]
     [DefaultValue(IcomLanAudioSampleRate.Hz48000)]
     public IcomLanAudioSampleRate SampleRate { get; set; } = IcomLanAudioSampleRate.Hz48000;

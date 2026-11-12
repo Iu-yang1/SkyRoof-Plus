@@ -98,6 +98,18 @@ TX 固定 `MicrophoneGain` 是 0–200% 的软件 PCM 倍率（100% = 0 dB、200
 
 每 5 秒的 `Direct LAN TX levels` 日志新增实际配置值、`voiceAgc`、`agcGain`、`agcFrames`，与 `TX pacing` 的欠载／丢包日志配合核对。注意 `agcGain`、`MIC dBFS` 仍只是本机 PCM 数据，不代表 IC-9700 的 ALC 或 RF 输出功率。SSB 模式最终应以电台 ALC 刻度和另一个台站的接收录音判断过载与失真；Icom 手册建议正常讲话 ALC 峰值大致落在 30–50% 刻度范围。
 
+## 2026-11-12 MIC 有读数但 IC-9700 完全没有调制
+
+用户实机确认：SkyRoof 状态栏显示 `MIC -17 dBFS`，发射时电台没有实际调制，PO 为零，ALC 未有有效读数。**PCM 包已经由本机送到 UDP 端口，并不证明 IC-9700 选择了 LAN 作为调制源。** 新增加电台端寄存器确认：
+
+- IC-9700 `MENU → SET → Connectors → MOD Input`：`DATA OFF MOD`（非 DATA 的 SSB/FM/AM）和 `DATA MOD`（USB-D/FM-D 等数据模式）均支持 `LAN`；出厂默认分别为 `MIC,ACC` 和 `ACC`。
+- CI-V 官方寄存器 `1A 05 0115` 为 DATA OFF MOD、`1A 05 0116` 为 DATA MOD；`05` 代表 LAN。`1A 05 0114` 为 LAN MOD Level，返回 0000–0255 的相对 BCD 刻度。
+- Native Direct LAN TX 会话建立后按低优先级轮询三个寄存器并显示真实回读状态；只有实际 CAT PTT 已处于 TX 且 1.5 秒内存在本机发送的 PCM，自动选择才会修改电台预设（RX/频谱浏览不会改动电台麦克风输入）；选中 `Transmit → Auto select LAN MOD input`（默认 ON）时，只有已确认电台当前选择非 LAN，才向对应寄存器发送 `05` 写入，并通过新的电台回读核验；如果电台持续报告非 LAN，最多重试三次，不假设发出命令就是已生效。
+- 用户可以关闭自动选择，以保留电台的手动输入源。**自动选择是电台级持久设置，并不保证断开 SkyRoof 时自动恢复 MIC；使用手持麦克风或本机讲话前，请按需将该设置改回 MIC/MIC,ACC。**
+- 自动选择不发送 PTT、频率、模式或 LAN MOD Level 增益写入；LAN MOD Level 若为 0%，会显示警告但不会擅自放大电台的输入电平。TX AGC 与这个寄存器设置互相独立。
+
+**确认方法**：在电台前面板选择 SSB，确认 `DATA OFF MOD=LAN`、`LAN MOD Level` 非零，按住已核验的 PTT 对麦克风讲话，观察电台自身 ALC 与 PO，同时使用独立接收机监听。若仍无调制，收集 `Direct LAN TX modulation source`、`Direct LAN media`、`Direct LAN TX pacing` 和 SkyCAT PTT 回读日志，进一步核对发送的音频报文及实际收发状态。
+
 ## 验收边界
 代码层提供 CI-V 相关响应校验、设备能力采样率协商、LPCM/PCM/u-law 封包与解码测试、状态栏数据显示与 stale 处理。Windows x64 CI 自动构建及单元测试不是实际 IC-9700 网络音频发射验收。需用真实电台检验 RF PTT 与 LAN MOD 模式、分组乱序/丢包及音频延迟，保留原有 RS-BA1 方案作为对照。
 
