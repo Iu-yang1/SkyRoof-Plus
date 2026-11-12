@@ -57,10 +57,16 @@ namespace SkyRoof
     private volatile bool stopNotSupported = false;
     private int requestedContinuousDirection;
     private int appliedContinuousDirection;
-    private int positionFaulted;
+    private readonly RotatorFeedbackFilter feedbackFilter;
     private readonly double positionJumpLimitDegrees;
     private readonly double positionCommandResolutionDegrees;
-    public bool PositionFaulted => Volatile.Read(ref positionFaulted) != 0;
+    // Angle outliers are telemetry quality warnings, not latched motor faults.
+    public bool PositionFaulted => false;
+    public bool FeedbackDegraded { get { lock (feedbackFilter) return feedbackFilter.IsDegraded; } }
+    public bool FeedbackAzimuthSuspect { get { lock (feedbackFilter) return feedbackFilter.AzimuthSuspect; } }
+    public bool FeedbackElevationSuspect { get { lock (feedbackFilter) return feedbackFilter.ElevationSuspect; } }
+    public Bearing? LastRejectedBearing { get { lock (feedbackFilter) return feedbackFilter.Rejected; } }
+    public DateTime FeedbackDegradedSinceUtc { get { lock (feedbackFilter) return feedbackFilter.DegradedSinceUtc; } }
     public event EventHandler<RotatorPositionFaultEventArgs>? PositionFaultDetected;
 
     public event EventHandler? BearingChanged;
@@ -68,6 +74,7 @@ namespace SkyRoof
     public RotatorControlEngine(RotatorSettings settings) : base(settings.Host, settings.Port, settings)
     {
       positionJumpLimitDegrees = Math.Clamp(settings.PositionJumpLimitDegrees, 5, 180);
+      feedbackFilter = new RotatorFeedbackFilter(positionJumpLimitDegrees);
       // Hamlib GS-232B rounds P targets to integer degrees before issuing W.
       // Keep the generic default at 0.1 degree so other rotators are unaffected.
       double resolution = settings.PositionCommandResolutionDegrees;
@@ -93,12 +100,13 @@ namespace SkyRoof
       if (hadContinuousMove)
         stopRequested = true;
       Interlocked.Exchange(ref LastSuccessfulBearingReadTicks, 0);
+      lock (feedbackFilter) feedbackFilter.Reset();
       return true;
     }
 
     public void RotateTo(Bearing bearing)
     {
-      if (PositionFaulted) return; // Latched until the operator re-applies rotator settings.
+      // Rejected position feedback must not disable open-loop positioning.
       bool continuousWasActive =
         Volatile.Read(ref requestedContinuousDirection) != 0 ||
         Volatile.Read(ref appliedContinuousDirection) != 0;
@@ -117,7 +125,6 @@ namespace SkyRoof
     internal void StartContinuousMove(
       RotatorContinuousDirection direction)
     {
-      if (PositionFaulted) return;
       if (stopNotSupported)
       {
         Log.Warning(
@@ -194,13 +201,6 @@ namespace SkyRoof
         // A direction switch or transition back to absolute positioning may
         // already be queued. Continue this cycle after the acknowledged stop
         // so the motor does not sit idle for an unnecessary polling interval.
-      }
-
-      if (PositionFaulted)
-      {
-        // Keep polling to show the actual reported position, but never resume motion.
-        ReadBearing();
-        return;
       }
 
       int requestedMove =
@@ -351,40 +351,27 @@ namespace SkyRoof
         azimuth * Math.PI / 180.0,
         elevation * Math.PI / 180.0);
 
-      // Only compare consecutive fresh observations from the same connection;
-      // an initial read or a read delayed by reconnect/network loss is not
-      // evidence that the physical rotor jumped.
+      // A valid protocol reply keeps the connection alive even when its angle
+      // is an outlier. Preserve the last trusted bearing for open-loop tracking.
       long nowTicks = DateTime.UtcNow.Ticks;
-      long previousTicks = Interlocked.Exchange(ref LastSuccessfulBearingReadTicks, nowTicks);
-      Bearing? previous = LastReadBearing;
-      if (!PositionFaulted && previous != null && previousTicks != 0 &&
-          IsSuspiciousBearingJump(previous, bearing,
-            TimeSpan.FromTicks(nowTicks - previousTicks).TotalSeconds,
-            positionJumpLimitDegrees, out double azJump, out double elJump))
+      Interlocked.Exchange(ref LastSuccessfulBearingReadTicks, nowTicks);
+      bool accepted, becameDegraded;
+      lock (feedbackFilter)
       {
-        // Latch before posting a user notification: a queued tracking/PARK
-        // request cannot race the STOP or resume motion after acknowledging UI.
-        Interlocked.Exchange(ref positionFaulted, 1);
-        RequestedBearing = LastWrittenBearing = null;
-        Volatile.Write(ref requestedContinuousDirection, 0);
-        // Already on the rotctld worker thread: send STOP immediately, not
-        // after another Delay-cycle. Keep the latch even if STOP is rejected.
-        stopRequested = false;
-        bool stopAcknowledged;
-        try { stopAcknowledged = SendStopCommand(); }
-        catch (Exception ex)
-        {
-          stopAcknowledged = false;
-          Log.Error(ex, "Unable to confirm emergency rotator STOP.");
-        }
-        Log.Error("Rotator feedback jump: az {Az:F1} degrees, el {El:F1} degrees, STOP acknowledged: {Stop}. Inspect physical position.",
-          azJump, elJump, stopAcknowledged);
-        var fault = new RotatorPositionFaultEventArgs(previous, bearing,
-          azJump, elJump, stopAcknowledged);
-        syncContext.Post(_ => PositionFaultDetected?.Invoke(this, fault), null);
+        bool wasDegraded = feedbackFilter.IsDegraded;
+        accepted = feedbackFilter.Observe(bearing, new DateTime(nowTicks, DateTimeKind.Utc),
+          LastWrittenBearing ?? RequestedBearing);
+        becameDegraded = !wasDegraded && feedbackFilter.IsDegraded;
       }
-
-      if (bearing == LastReadBearing) return;
+      if (becameDegraded)
+        Log.Warning("Rotator angle feedback outlier; continuing open-loop from last trusted AZ/EL without STOP.");
+      if (!accepted)
+      {
+        // Refresh warning details; never copy an outlier into LastReadBearing.
+        OnBearingChanged();
+        return;
+      }
+      if (bearing == LastReadBearing && !FeedbackDegraded) return;
       LastReadBearing = bearing;
       OnBearingChanged();
     }
