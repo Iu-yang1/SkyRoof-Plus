@@ -267,9 +267,18 @@ namespace SkyRoof
 
     private void CreateGroundStation(string gridSquare, double altitude)
     {
-      var pos = GridSquare.ToGeoPoint(gridSquare);
-      var myLocation = new GeodeticCoordinate(Angle.FromRadians(pos.LatitudeRad), Angle.FromRadians(pos.LongitudeRad), altitude / 1000d);
-      GroundStation = new GroundStation(myLocation);
+      GroundStation = CreateStationFromGridSquare(gridSquare, altitude);
+    }
+
+    // One conversion path for pass prediction, Doppler and rotator tracking.
+    internal static GroundStation CreateStationFromGridSquare(string gridSquare, double altitude)
+    {
+      var position = GridSquare.ToGeoPoint(gridSquare);
+      var location = new GeodeticCoordinate(
+        Angle.FromRadians(position.LatitudeRad),
+        Angle.FromRadians(position.LongitudeRad),
+        altitude / 1000d);
+      return new GroundStation(location);
     }
 
     internal TopocentricObservation? ObserveSatellite(SatnogsDbSatellite? satellite, DateTime utcNow)
