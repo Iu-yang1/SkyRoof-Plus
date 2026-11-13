@@ -3,10 +3,10 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.72: cache-first UI startup and deferred Orekit data maintenance. -->
+  <!-- SkyRoof Plus v1.73: async satellite selection, group pass caches and responsive Orekit manual updates. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <Version>1.72</Version>
+    <Version>1.73</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

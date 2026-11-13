@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
+
+Release date / 发布日期：2026-11-13。响应式卫星切换、群组/SDR 后台预测、Orekit 手动数据更新线程分离以及短期校验缓存。作为独立正式修复迭代，不覆盖 v1.72。
+
+- **UI 响应性：** 卫星切换使用 Orekit 优先后台预测，缓存按 Tracker 身份区分并支持无过境负结果；快速切换不接纳旧结果。
+- **耗时计算与缓存：** 多卫星群组、SDR 频段过境、工具提示、地图与卫星详情均从 WinForms 事件/周期绘制中剥离；按 UI 代次提交和缓存失效，不使用同步 Task.Result。
+- **手动星历更新：** 复制本次数据源设置，后台 HTTP、DE430/EOP 文件校验与 I/O；已验证的 DE430 在路径、大小和修改时间一致时复用进程内缓存。保留自动更新与手动更新互斥。
+- **测试：** [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) Windows x64 构建、全量单测、Orekit/IKVM 安装器烟测、固定 aislop 和双语 DocFX 均通过。旋转器模拟握手超时测试使用适当等待时间，不更改控制逻辑。
+- **English:** Responsive, bounded, tracker-aware next-pass worker queues; group/SDR snapshot predictions, Earth-view and tooltip caching; off-thread manual Orekit ephemeris downloads. Retains Doppler, CAT and rotator behavior. Actual hardware and user-PC UI latency remain unmeasured.
+
+完整双语说明 / Full bilingual details：[`RELEASE_NOTES.md`](RELEASE_NOTES.md)。
+
+---
+
 # SkyRoof Fork v.1.72 / SkyRoof Fork 1.72 版本说明
 
 Release date / 发布日期：2026-11-13。首次加载缓存优先及 Orekit 网络更新异步化；正式修复迭代，不覆盖 v.1.71。
