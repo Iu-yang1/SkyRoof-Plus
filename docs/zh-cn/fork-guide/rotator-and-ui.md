@@ -99,3 +99,18 @@ SkyRoof 原有 Native Rotator 默认响应超时为 600 ms；短时间连续 3 �
 TCP 建连超时与建立后读写失败分开诊断；连接重试的 500/1000/2000/4000 ms 指数退避不再被界面定时的 `Retry()` 唤醒压缩到约 750 ms。正常退出和 STOP 可以立即中断等待。日志增加 Worker PID、会话号、连接阶段和 SocketError，便于跨进程对齐多轮会话。
 
 **实机验证**：先使用低速、短角度、有人值守且留足机械余量的模式，测试反复保存设置、STOP、断网恢复、长时间空闲，再对比发射时的 PTT 日志；同时使用 Wireshark 捕获 `ip.addr == 192.168.1.9 && tcp.port == 60020`（替换为实际 IP），区分源自控制器/网桥的 RST 和 PC 侧主动断开。仍须对实际 AZ/EL 与 C2 反馈进行独立校验；本次软件修复不意味着已验证原先 30°/60° 的机械偏差。
+
+## Yaesu G-5500 专属右键控制
+
+SkyRoof 的 **Rotator Model → YaesuG5500** 只负责切换右键控制面板，不创建新通信协议、不更改控制器 COM 参数，也不会单独触发硬件重连。**G-5500 本身不是 RS-232 设备**：须配备 Yaesu GS-232A / GS-232B 或实现相同协议的接口控制器，才能接入电脑控制。软件不会直接驱动 G-5500 控制器的模拟引脚。
+
+推荐两种现有方式：
+
+- **Native：** Controller Driver = Native，Native Protocol = Gs232，Native Transport = Serial（或指向 GS-232 串口桥的 TCP），设置真实 COM/波特率/8N1。只有确认你的适配器兼容 GS-232 时才采用此模式。
+- **Hamlib：** 使用 `rotctld -m 601`（GS-232A）或 `rotctld -m 603`（GS-232B），在 SkyRoof 里选择 LegacyRotctld 并填写对应的主机/端口（常见 127.0.0.1:4533）。
+
+在状态栏 Rotator 或主界面旋转器组件上**右键**打开专属面板：显示 **AZ 0–450° / EL 0–180°** 当前反馈条、目标/卫星角度；按住方向轮发送连续移动指令，松开或丢失鼠标捕获发送 STOP；提供独立 STOP、Track、Park、AZ/EL 数值 GO。**PARK 右键**沿用现有航点编辑窗口。
+
+所有命令仍经原有 Native/Hamlib 工作者、实际角度反馈、机械限位、路径规划与故障处理；新增面板**不绕过**位置异常和 Track 状态机制。GS-232 使用 Waaa eee 定位、C2 角度回读、R/L/U/D 连续转动及 S 停止。选中 G-5500 后既有 Min/Max Azimuth/Elevation 仍是实际限制，不因面板刻度自动放大机械活动范围。默认范围为 AZ 0–450°、EL 0–180°，请按实际安装条件缩小。
+
+**验证边界：** 已加入通过模拟 GS-232 TCP 设备校验 W/C2/R/S 的回归测试；无真实 G-5500 控制器的机械、校准或 STOP 实测，实际使用前请核对接口、方向、角度反馈及限位。参见 [Hamlib 支持列表](https://github.com/Hamlib/Hamlib/wiki/Supported-Rotators) 和 [Yaesu GS-232A 官方手册](https://www.yaesu.com/Files/4CB6273C-1018-01AF-FA4D504B591F641A/GS232A.pdf)。
