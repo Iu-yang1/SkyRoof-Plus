@@ -146,10 +146,32 @@ namespace SkyRoof
     internal static readonly TimeSpan LosGracePeriod = TimeSpan.FromMinutes(2);
 
     private DateTime LastPredictionTime = DateTime.MinValue;
-    // Each entry owns its own computation and is keyed by the actual orbit
-    // tracker. A fresh TLE produces a new key instead of reusing stale passes.
+    private sealed class NextPassCacheEntry
+    {
+      private int ready;
+      private SatellitePass? value;
+
+      internal DateTime CreatedUtc { get; } = DateTime.UtcNow;
+      internal Task<SatellitePass?> Work { get; }
+      internal bool Ready => Volatile.Read(ref ready) == 1;
+      internal SatellitePass? Value => value;
+
+      internal NextPassCacheEntry(Func<Task<SatellitePass?>> compute)
+      {
+        Work = CaptureAsync(compute);
+      }
+
+      private async Task<SatellitePass?> CaptureAsync(Func<Task<SatellitePass?>> compute)
+      {
+        var result = await compute().ConfigureAwait(false);
+        value = result;
+        Volatile.Write(ref ready, 1);
+        return result;
+      }
+    }
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<SatelliteTracker,
-      (DateTime CreatedUtc, Task<SatellitePass?> Result)> nextPassCache = new();
+      NextPassCacheEntry> nextPassCache = new();
     private static readonly SemaphoreSlim NextPassWorkers = new(2, 2);
 
     public List<SatellitePass> Passes = new();
@@ -166,9 +188,6 @@ namespace SkyRoof
       SatellitePass[] Passes,
       DateTime CalculationUtc);
 
-    // This method only uses a captured satellite array and a fixed ground
-    // station. It can be called on a worker without touching WinForms or
-    // mutating the pass tables used by current CAT/rotator consumers.
     internal FullRebuildSnapshot ComputeFullRebuildSnapshot(
       SatnogsDbSatellite[] requested, CancellationToken cancellationToken)
     {
@@ -288,7 +307,8 @@ namespace SkyRoof
       return satellite?.Tracker.Observe(GroundStation, utcNow);
     }
 
-    internal Task<SatellitePass?> GetNextPassAsync(SatnogsDbSatellite? satellite)
+    internal Task<SatellitePass?> GetNextPassAsync(
+      SatnogsDbSatellite? satellite, bool prioritize = false)
     {
       if (satellite == null || !satellite.Tracker.Enabled)
         return Task.FromResult<SatellitePass?>(null);
@@ -298,34 +318,35 @@ namespace SkyRoof
       if (nextPassCache.TryGetValue(tracker, out var cached))
       {
         if (now - cached.CreatedUtc < TimeSpan.FromMinutes(2) &&
-            !(cached.Result.IsCompletedSuccessfully &&
-              cached.Result.Result?.EndTime < now))
-          return cached.Result;
+            (!cached.Ready || cached.Value?.EndTime >= now))
+        {
+          if (!prioritize || cached.Ready ||
+              now - cached.CreatedUtc < TimeSpan.FromMilliseconds(80))
+            return cached.Work;
+        }
         nextPassCache.TryRemove(tracker, out _);
       }
 
       if (nextPassCache.Count > 512)
         nextPassCache.Clear();
+
       return nextPassCache.GetOrAdd(tracker, _ =>
-      {
-        // No UI access or WinForms synchronization context in this worker.
-        var work = Task.Run(async () =>
-        {
-          await NextPassWorkers.WaitAsync().ConfigureAwait(false);
-          try { return GetNextPass(satellite); }
-          finally { NextPassWorkers.Release(); }
-        });
-        return (DateTime.UtcNow, work);
-      }).Result;
+        new NextPassCacheEntry(() =>
+          prioritize
+            ? Task.Run(() => GetNextPass(satellite))
+            : Task.Run(async () =>
+              {
+                await NextPassWorkers.WaitAsync().ConfigureAwait(false);
+                try { return GetNextPass(satellite); }
+                finally { NextPassWorkers.Release(); }
+              }))).Work;
     }
 
-    // This method is called by the one-second group view timer. It only
-    // reads a completed cache entry; never starts a one-day orbit search
-    // synchronously on the UI thread.
     internal SatellitePass? GetNextPassCached(SatnogsDbSatellite satellite)
     {
-      var work = GetNextPassAsync(satellite);
-      return work.IsCompletedSuccessfully ? work.Result : null;
+      _ = GetNextPassAsync(satellite);
+      return nextPassCache.TryGetValue(satellite.Tracker, out var entry) && entry.Ready
+        ? entry.Value : null;
     }
 
     internal SatellitePass? GetNextPass(SatnogsDbSatellite? satellite)
