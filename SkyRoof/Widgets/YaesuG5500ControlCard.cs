@@ -39,6 +39,14 @@ namespace SkyRoof
       MinimumSize = Size;
       MaximumSize = Size;
 
+      BuildIndicators();
+      BuildManualControls();
+      BuildTargetControls();
+      StartRefreshTimer();
+    }
+
+    private void BuildIndicators()
+    {
       AddLabel("YAESU G-5500", new Rectangle(12, 10, 192, 25), true);
       connection.Location = new Point(210, 12);
       connection.Size = new Size(140, 22);
@@ -68,6 +76,10 @@ namespace SkyRoof
       elevationBar.Maximum = 180;
       Controls.Add(elevationBar);
 
+    }
+
+    private void BuildManualControls()
+    {
       wheel.Location = new Point(12, 157);
       wheel.Size = new Size(202, 202);
       wheel.MoveStarted += direction =>
@@ -107,6 +119,10 @@ namespace SkyRoof
       parkButton.MouseUp += ParkButton_MouseUp;
       Controls.Add(parkButton);
 
+    }
+
+    private void BuildTargetControls()
+    {
       target.Location = new Point(12, 365);
       target.Size = new Size(338, 18);
       Controls.Add(target);
@@ -136,6 +152,10 @@ namespace SkyRoof
           (double)targetElevation.Value);
       Controls.Add(goButton);
 
+    }
+
+    private void StartRefreshTimer()
+    {
       refreshTimer.Interval = 500;
       refreshTimer.Tick += (_, _) =>
       {
