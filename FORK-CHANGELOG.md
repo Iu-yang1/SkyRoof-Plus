@@ -1,3 +1,5 @@
+# SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
+
 ## v1.73 原位重构 / In-place performance rebuild (2026-11-13)
 
 - 前台首帧前不执行 Orekit 初始化及大量卫星数据库读取；启动载入状态先绘制，缓存与轨道跟踪器后台初始化。
