@@ -17,6 +17,7 @@ namespace SkyRoof
 
     private readonly Font BoldFont;
     private readonly Pen PathPen = new Pen(Theme.Now, 2);
+    private CancellationTokenSource? miniPathCancellation;
 
 
     public PassesPanel()
@@ -55,11 +56,13 @@ namespace SkyRoof
       Log.Information("Closing PassesPanel");
       ctx.PassesPanel = null;
       ctx.MainForm.SatellitePassesMNU.Checked = false;
+      miniPathCancellation?.Cancel();
     }
 
     private void listViewEx1_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
     {
-      e.Item = Items[e.ItemIndex];
+      e.Item = e.ItemIndex >= 0 && e.ItemIndex < Items.Count
+        ? Items[e.ItemIndex] : new ListViewItem();
     }
 
     private void listViewEx1_Resize(object sender, EventArgs e)
@@ -127,6 +130,36 @@ namespace SkyRoof
       Items = CreatePassItems(passes).ToList();
       listViewEx1.VirtualListSize = Items.Count;
       listViewEx1.Invalidate();
+      PrepareMiniPathsAsync(Items.Select(i => (SatellitePass)i.Tag!).ToArray());
+    }
+
+    private async void PrepareMiniPathsAsync(SatellitePass[] passes)
+    {
+      miniPathCancellation?.Cancel();
+      var cancellation = new CancellationTokenSource();
+      miniPathCancellation = cancellation;
+      try
+      {
+        await Task.Run(() =>
+        {
+          foreach (var pass in passes)
+          {
+            cancellation.Token.ThrowIfCancellationRequested();
+            pass.MakeMiniPath();
+          }
+        }, cancellation.Token);
+        if (!IsDisposed && !Disposing && IsHandleCreated &&
+            ReferenceEquals(miniPathCancellation, cancellation))
+          listViewEx1.Invalidate();
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      catch (Exception ex) { Log.Warning(ex, "Mini pass path preparation failed."); }
+      finally
+      {
+        if (ReferenceEquals(miniPathCancellation, cancellation))
+          miniPathCancellation = null;
+        cancellation.Dispose();
+      }
     }
 
     internal void UpdatePassTimes()
@@ -150,8 +183,6 @@ namespace SkyRoof
     {
       var item = new ListViewItem();
       item.Tag = pass;
-
-      pass.MakeMiniPath();
 
       return item;
     }
@@ -244,7 +275,7 @@ namespace SkyRoof
       e.Graphics.DrawEllipse(Pens.Silver, rect); // fixed: mini sky view grid, silver in both themes
 
       var path = ((SatellitePass)e.Item.Tag).MiniPath;
-      if (path.Length > 1)
+      if (path is { Length: > 1 })
       {
         // path
         var points = path.Select(p =>
