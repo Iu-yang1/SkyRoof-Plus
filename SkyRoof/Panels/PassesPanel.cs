@@ -151,10 +151,9 @@ namespace SkyRoof
     internal static bool SamePassSequence<T>(
       IReadOnlyList<ListViewItem> displayed, IReadOnlyList<T> next) where T : class
     {
-      if (displayed.Count != next.Count) return false;
-      for (int i = 0; i < next.Count; i++)
-        if (!ReferenceEquals(displayed[i].Tag, next[i])) return false;
-      return true;
+      return displayed.Count == next.Count &&
+        displayed.Zip(next, (row, pass) => ReferenceEquals(row.Tag, pass))
+          .All(same => same);
     }
 
     private async Task PrepareMiniPathsAsync(SatellitePass[] passes)
