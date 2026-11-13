@@ -264,6 +264,14 @@ namespace SkyRoof
       return satellite?.Tracker.Observe(GroundStation, utcNow);
     }
 
+    internal SatellitePass? GetPrecomputedNextPass(SatnogsDbSatellite satellite)
+    {
+      var now = DateTime.UtcNow;
+      return Passes
+        .Where(p => ReferenceEquals(p.Satellite, satellite) && p.EndTime >= now)
+        .MinBy(p => p.StartTime);
+    }
+
     internal Task<SatellitePass?> GetNextPassAsync(
       SatnogsDbSatellite? satellite, bool prioritize = false)
     {
@@ -300,6 +308,8 @@ namespace SkyRoof
 
     internal SatellitePass? GetNextPassCached(SatnogsDbSatellite satellite)
     {
+      var prepared = GetPrecomputedNextPass(satellite);
+      if (prepared != null) return prepared;
       _ = GetNextPassAsync(satellite);
       return nextPassCache.TryGetValue(satellite.Tracker, out var entry) && entry.Ready
         ? entry.Value : null;

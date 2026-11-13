@@ -200,8 +200,10 @@ namespace SkyRoof
       // Do not block the ComboBox event handler. Ignore obsolete selections
       // and do not overwrite a pass explicitly chosen by the operator.
       long request = ++nextPassRequestVersion;
-      SetSelectedPass(null);
-      LoadNextPassAsync(SelectedSatellite, request).DoNotAwait();
+      var prepared = ctx.HamPasses.GetPrecomputedNextPass(SelectedSatellite);
+      SetSelectedPass(prepared);
+      if (prepared == null)
+        LoadNextPassAsync(SelectedSatellite, request).DoNotAwait();
     }
 
     internal static bool ShouldApplyNextPass(
