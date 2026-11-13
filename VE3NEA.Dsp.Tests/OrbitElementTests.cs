@@ -85,6 +85,63 @@ public sealed class OrbitElementTests
     }
 
     [Fact]
+    public void StagedOrbitMergePreservesOperatorManualPriorityAndSatelliteIdentity()
+    {
+        var now = DateTime.UtcNow;
+        var oldAutomatic = new SatnogsDbTle
+        {
+            norad_cat_id = 25544, tle0 = "OLD",
+            tle1 = "1 old", tle2 = "2 old", updated = now
+        };
+        var newAutomatic = new SatnogsDbTle
+        {
+            norad_cat_id = 25544, tle0 = "NEW",
+            tle1 = "1 new", tle2 = "2 new", updated = now
+        };
+        var manual = new SatnogsDbTle
+        {
+            norad_cat_id = 25544, tle0 = "MANUAL",
+            tle1 = "1 manual", tle2 = "2 manual", updated = now
+        };
+        var live = new SatnogsDbSatellite { name = "ISS", names = "ISS" };
+        live.SetAutomaticTle(oldAutomatic, now);
+        live.SetManualTle(manual, now.AddDays(1), now);
+        var staging = new SatnogsDbSatellite { name = "ISS", names = "ISS" };
+        staging.SetAutomaticTle(newAutomatic, now);
+
+        SatnogsDb.MergeSatelliteOrbit(live, staging, now);
+
+        Assert.Same(manual, live.Tle);
+        Assert.Same(newAutomatic, live.AutomaticTle);
+        Assert.True(live.HasActiveManualOrbit(now));
+    }
+
+    [Fact]
+    public void StagedOrbitMergeReusesIdenticalOrbitWithoutResettingTrack()
+    {
+        var now = DateTime.UtcNow;
+        var old = new SatnogsDbTle
+        {
+            norad_cat_id = 123, tle0 = "SAME",
+            tle1 = "1 identical", tle2 = "2 identical"
+        };
+        var newest = new SatnogsDbTle
+        {
+            norad_cat_id = 123, tle0 = "SAME",
+            tle1 = "1 identical", tle2 = "2 identical"
+        };
+        var live = new SatnogsDbSatellite { name = "SAT", names = "SAT" };
+        live.SetAutomaticTle(old, now);
+        var staging = new SatnogsDbSatellite { name = "SAT", names = "SAT" };
+        staging.SetAutomaticTle(newest, now);
+
+        SatnogsDb.MergeSatelliteOrbit(live, staging, now);
+
+        Assert.Same(old, live.Tle);
+        Assert.Same(newest, live.AutomaticTle);
+    }
+
+    [Fact]
     public void AutomaticFallbackCanRefreshWhileManualOrbitRemainsSelected()
     {
         var now = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc);
