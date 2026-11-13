@@ -132,6 +132,7 @@ namespace SkyRoof
     private readonly System.Collections.Concurrent.ConcurrentDictionary<SatelliteTracker,
       NextPassCacheEntry> nextPassCache = new();
     private static readonly SemaphoreSlim NextPassWorkers = new(2, 2);
+    private static readonly SemaphoreSlim SelectedPassWorker = new(1, 1);
 
     public List<SatellitePass> Passes = new();
 
@@ -309,7 +310,23 @@ namespace SkyRoof
       return nextPassCache.GetOrAdd(tracker, _ =>
         new NextPassCacheEntry(() =>
           prioritize
-            ? Task.Run(() => GetNextPass(satellite))
+            ? Task.Run(async () =>
+              {
+                await SelectedPassWorker.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                  // Quickly skip queued obsolete selections. A burst of
+                  // rapid clicks must not queue unbounded 24h Orekit scans.
+                  if (!ReferenceEquals(ctx.SatelliteSelector.SelectedSatellite, satellite) ||
+                      !ReferenceEquals(satellite.Tracker, tracker))
+                  {
+                    nextPassCache.TryRemove(tracker, out _);
+                    return null;
+                  }
+                  return GetNextPass(satellite);
+                }
+                finally { SelectedPassWorker.Release(); }
+              })
             : Task.Run(async () =>
               {
                 await NextPassWorkers.WaitAsync().ConfigureAwait(false);

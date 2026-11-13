@@ -222,8 +222,9 @@ namespace SkyRoof
         if (IsDisposed || Disposing || request != nextPassRequestVersion ||
             !ReferenceEquals(SelectedSatellite, satellite))
           return;
+        var selectedTracker = satellite.Tracker;
         var next = await ctx.HamPasses.GetNextPassAsync(satellite, prioritize: true);
-        if (IsDisposed || Disposing ||
+        if (IsDisposed || Disposing || !ReferenceEquals(selectedTracker, satellite.Tracker) ||
             !ShouldApplyNextPass(request, nextPassRequestVersion,
               satellite, SelectedSatellite, SelectedPass != null))
           return;
