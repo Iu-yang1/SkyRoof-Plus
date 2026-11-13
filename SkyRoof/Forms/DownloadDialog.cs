@@ -60,6 +60,8 @@ namespace SkyRoof
       // Construct the staging database away from WinForms as well: loading
       // override files in its constructor can involve disk I/O.
       var sources = ctx.Settings.OrbitSources;
+      var groupIds = ctx.Settings.Satellites.SatelliteGroups
+        .SelectMany(group => group.SatelliteIds).Distinct().ToArray();
       db = await Task.Run(() =>
       {
         var staging = new SatnogsDb();
@@ -102,7 +104,12 @@ namespace SkyRoof
           DateTime.UtcNow);
 
         await Task.Run(() => db.LoadAutomaticOrbitOverlaysAsync());
-        await Task.Run(() => db.ConfigureSolarSystem(sources));
+        await Task.Run(() =>
+        {
+          db.ConfigureSolarSystem(sources);
+          foreach (string id in groupIds)
+            _ = db.GetSatellite(id)?.Tracker.Enabled;
+        });
 
         // The one atomic UI handoff preserves selection/CAT ownership.
         ctx.Settings.Satellites.EnsureSolarSystemGroup(db);

@@ -213,6 +213,8 @@ namespace SkyRoof
       try
       {
         var sources = ctx.Settings.OrbitSources;
+        var groupIds = ctx.Settings.Satellites.SatelliteGroups
+          .SelectMany(group => group.SatelliteIds).Distinct().ToArray();
         var prepared = await Task.Run(() =>
         {
           Exception? orbitError = null;
@@ -223,6 +225,10 @@ namespace SkyRoof
           database.ConfigureSources(sources);
           database.LoadFromFile();
           database.ConfigureSolarSystem(sources);
+          // The group sanitizer otherwise creates each Orekit tracker on the
+          // WinForms thread as soon as the download/cached DB is bound.
+          foreach (string id in groupIds)
+            _ = database.GetSatellite(id)?.Tracker.Enabled;
           return (Database: database, OrbitError: orbitError);
         }, startupDataCancellation.Token);
 
