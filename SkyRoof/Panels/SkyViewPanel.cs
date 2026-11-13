@@ -13,6 +13,9 @@ namespace SkyRoof
     private SatellitePass? Pass;
     private Dictionary<RectangleF, SatellitePass> SatLabelRects = new();
     private readonly HashSet<SatellitePass> requestedRenderTracks = new();
+    private Dictionary<SatellitePass, string[]> cachedTooltips = new();
+    private int labelsGeneration;
+    private bool labelWorkerRunning;
     
     private readonly Font RegularFont, BoldFont;
     private readonly Image OkImage, XMarkImage, ArrowImage, SatImage;
@@ -99,6 +102,8 @@ namespace SkyRoof
       OrbitRadioBtn.Enabled = false;
       OrbitRadioBtn.Text = "Selected Orbit";
       RealTimeRadioBtn.Checked = true;
+      SetLabels();
+      DrawPanel.Invalidate();
     }
 
     public void Advance() // on timer tick
@@ -199,6 +204,7 @@ namespace SkyRoof
       if (pass == null) return;
 
       var ready = pass.GetRenderTrackAsync();
+      if (ready.IsFaulted || ready.IsCanceled) return;
       if (!ready.IsCompletedSuccessfully)
       {
         RequestRenderTrack(pass, ready);
@@ -388,7 +394,8 @@ namespace SkyRoof
         Cursor = Cursors.Hand;
         var pass = SatLabelRects[rect];
 
-        string tooltip = pass.Satellite.GetTooltipText() + "\n\n" + string.Join("\n", pass.GetTooltipText(false));
+        if (!cachedTooltips.TryGetValue(pass, out var details)) return;
+        string tooltip = pass.Satellite.GetTooltipText() + "\n\n" + string.Join("\n", details);
         if (tooltip != toolTip1.GetToolTip(DrawPanel))
         {
           toolTip1.ToolTipTitle = pass.Satellite.name;
@@ -423,48 +430,79 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                        labels
     //----------------------------------------------------------------------------------------------
+    private sealed record LabelSnapshot(
+      SatellitePass Pass, string[] Tooltip, TopocentricObservation? Observation);
+
     private void SetLabels()
     {
-      FlowPanel.SuspendLayout();
-
-      if (RealTimeRadioBtn.Checked) ShowSatLabels();
-      else if (Pass != null) ShowPassLabels();
-      else FlowPanel.Controls.Clear();
-
-      FlowPanel.ResumeLayout();
+      ++labelsGeneration;
+      if (!labelWorkerRunning)
+        _ = RefreshLabelsAsync();
     }
 
-    private void ShowPassLabels()
+    private async Task RefreshLabelsAsync()
     {
-      EnsureLabels(ORBIT_LABEL_COUNT);
-      var tooltip = Pass.GetTooltipText();
-
-      FlowPanel.Controls[0].Text = tooltip[0];
-      FlowPanel.Controls[1].Text = $"{tooltip[1]}   {tooltip[2]}";
-      FlowPanel.Controls[2].Text = tooltip[3];
-      FlowPanel.Controls[3].Text = tooltip[4];
-    }
-
-    private void ShowSatLabels()
-    {
-      var now = DateTime.UtcNow;
-      var passes = ctx.GroupPasses.Passes.Where(p => now > p.StartTime && now < p.EndTime).ToArray();
-
-      EnsureLabels(passes.Length * 3);
-
-      // set label text
-      for (int i = 0; i < passes.Length; i++)
+      labelWorkerRunning = true;
+      try
       {
-        var tooltip = passes[i].GetTooltipText();
-        bool selected = passes[i].Satellite == ctx.SatelliteSelector.SelectedSatellite;
-        var observation = passes[i].GetObservationAt(now);
-        if (observation == null) continue;
+        while (!IsDisposed && !Disposing)
+        {
+          int generation = labelsGeneration;
+          bool realTime = RealTimeRadioBtn.Checked;
+          SatellitePass? selected = Pass;
+          DateTime now = DateTime.UtcNow;
+          var passes = realTime
+            ? ctx.GroupPasses.Passes.Where(p => now > p.StartTime && now < p.EndTime).ToArray()
+            : selected != null ? new[] { selected } : Array.Empty<SatellitePass>();
 
-        FlowPanel.Controls[i * 3].Font = selected ? BoldFont : RegularFont;
-        FlowPanel.Controls[i * 3].Text = passes[i].Satellite.name;
-        FlowPanel.Controls[i * 3 + 1].Text = tooltip[0];
-        FlowPanel.Controls[i * 3 + 2].Text = $"Az. {observation.Azimuth.Degrees:F1}°  El. {observation.Elevation.Degrees:F1}°";
+          var rows = await Task.Run(() => passes.Select(pass => new LabelSnapshot(
+            pass, pass.GetTooltipText(), realTime ? pass.GetObservationAt(now) : null))
+            .ToArray());
+
+          if (IsDisposed || Disposing) return;
+          // A satellite/mode change supersedes an unfinished worker response.
+          if (generation != labelsGeneration) continue;
+
+          cachedTooltips = rows.ToDictionary(row => row.Pass, row => row.Tooltip);
+          FlowPanel.SuspendLayout();
+          try
+          {
+            if (realTime)
+            {
+              EnsureLabels(rows.Length * 3);
+              for (int i = 0; i < rows.Length; i++)
+              {
+                var row = rows[i];
+                bool isSelected = row.Pass.Satellite == ctx.SatelliteSelector.SelectedSatellite;
+                FlowPanel.Controls[i * 3].Font = isSelected ? BoldFont : RegularFont;
+                FlowPanel.Controls[i * 3].Text = row.Pass.Satellite.name;
+                FlowPanel.Controls[i * 3 + 1].Text = row.Tooltip[0];
+                FlowPanel.Controls[i * 3 + 2].Text = row.Observation == null
+                  ? ""
+                  : $"Az. {row.Observation.Azimuth.Degrees:F1}°  El. {row.Observation.Elevation.Degrees:F1}°";
+              }
+            }
+            else if (rows.Length > 0)
+            {
+              var tooltip = rows[0].Tooltip;
+              EnsureLabels(ORBIT_LABEL_COUNT);
+              FlowPanel.Controls[0].Text = tooltip[0];
+              FlowPanel.Controls[1].Text = $"{tooltip[1]}   {tooltip[2]}";
+              FlowPanel.Controls[2].Text = tooltip[3];
+              FlowPanel.Controls[3].Text = tooltip[4];
+            }
+            else
+              FlowPanel.Controls.Clear();
+          }
+          finally { FlowPanel.ResumeLayout(); }
+          return;
+        }
       }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Sky View label refresh failed.");
+      }
+      finally { labelWorkerRunning = false; }
     }
 
     private const int ORBIT_LABEL_COUNT = 4;
