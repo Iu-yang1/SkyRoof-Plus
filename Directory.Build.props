@@ -6,7 +6,7 @@
   <!-- SkyRoof Plus v1.73: async satellite selection, group pass caches and responsive Orekit manual updates. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <!-- v1.73-maidenhead-skyview-replacement-20261113: guarded high-precision locator and UI repaint installer replacement. -->
+    <!-- v1.73-pass-panel-atomic-replacement-20261113: guarded atomic Group prediction snapshot and intermittent white-screen fix. -->
     <Version>1.73</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
