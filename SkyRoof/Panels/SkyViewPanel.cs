@@ -12,6 +12,7 @@ namespace SkyRoof
     private readonly Context ctx;
     private SatellitePass? Pass;
     private Dictionary<RectangleF, SatellitePass> SatLabelRects = new();
+    private readonly HashSet<SatellitePass> requestedRenderTracks = new();
     
     private readonly Font RegularFont, BoldFont;
     private readonly Image OkImage, XMarkImage, ArrowImage, SatImage;
@@ -124,6 +125,7 @@ namespace SkyRoof
       var g = e.Graphics;
       g.SmoothingMode = SmoothingMode.AntiAlias;
       DrawBackground(g);
+      if (Radius <= 0) return;
       DrawRotatorPosition(g);
 
       SatLabelRects.Clear();
@@ -156,10 +158,11 @@ namespace SkyRoof
       Center = new PointF(DrawPanel.Width / 2, DrawPanel.Height / 2);
       float radiusX = Center.X - Math.Max(sizeE.Width, sizeW.Width) - 4;
       float radiusY = Center.Y - Math.Max(sizeN.Width, sizeS.Width) - 4;
-      Radius = Math.Min(radiusX, radiusY);
+      Radius = Math.Max(0, Math.Min(radiusX, radiusY));
 
       // fill bg
       g.FillRectangle(SystemBrushes.Window, DrawPanel.ClientRectangle);
+      if (Radius <= 0) return;
       RectangleF rect = new RectangleF(Center.X - Radius, Center.Y - Radius, 2 * Radius, 2 * Radius);
       var brush = OrbitRadioBtn.Checked ? SilverBrush : BlueBrush;
       g.FillEllipse(brush, rect);
@@ -195,21 +198,24 @@ namespace SkyRoof
     {
       if (pass == null) return;
 
-      // compute track points
-      var track = pass.Track;
-      var points = new PointF[track.Count];
-      for (int i = 0; i < track.Count; i++)
-        points[i] = TrackPointToXY(pass.Track[i]);
+      var ready = pass.GetRenderTrackAsync();
+      if (!ready.IsCompletedSuccessfully)
+      {
+        RequestRenderTrack(pass, ready);
+        return;
+      }
 
-      // draw track
+      // Skip invalid ephemeris samples rather than throwing inside WM_PAINT.
+      var track = ready.Result.Where(point => point.Observation != null).ToArray();
+      if (track.Length < 2) return;
+
+      var points = track.Select(TrackPointToXY).ToArray();
       using var pen = new Pen(Color.Green, 2f);
       g.DrawLines(pen, points);
-      var startPoint = TrackPointToXY(pass.Track.First());
-      var endPoint = TrackPointToXY(pass.Track.Last());
+      var startPoint = points[0];
+      var endPoint = points[^1];
 
-      // draw end icons
       float size = Math.Min(16, 0.04f * Radius + 5);
-
       g.TranslateTransform(startPoint.X, startPoint.Y);
       g.ScaleTransform(size / OkImage.Width, size / OkImage.Height);
       DrawImage(g, OkImage, true);
@@ -220,30 +226,54 @@ namespace SkyRoof
       DrawImage(g, XMarkImage, true);
       g.ResetTransform();
 
-      // draw arrow
       size *= 0.8f;
-      int idx = (int)(pass.Track.Count * (1f / 2));
-      DrawArrow(g, pass, idx, size);
+      if (track.Length > 2)
+        DrawArrow(g, track, track.Length / 2, size);
 
-      // sat
       var now = DateTime.UtcNow;
-      if (pass.StartTime < now && pass.EndTime > now) DrawSat(g, pass);
+      if (pass.StartTime < now && pass.EndTime > now)
+        DrawSat(g, pass, track, now);
     }
 
-
-
-
-    //----------------------------------------------------------------------------------------------
-    //                                   helper functions
-    //----------------------------------------------------------------------------------------------
-    private void DrawSat(Graphics g, SatellitePass pass)
+    private async void RequestRenderTrack(
+      SatellitePass pass, Task<List<SatellitePass.TrackPoint>> work)
     {
-      var now = DateTime.UtcNow;
-      var obs = pass.GetObservationAt(now);
-      if (obs == null) return;
+      if (!requestedRenderTracks.Add(pass)) return;
+      try
+      {
+        await work;
+        if (!IsDisposed && !Disposing && IsHandleCreated)
+          DrawPanel.Invalidate();
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Sky View track preparation failed.");
+      }
+      finally { requestedRenderTracks.Remove(pass); }
+    }
 
-      var location = ObservationToXY(obs);
-      float angle = ComputeDirection(pass, now);
+    // Interpolate the already prepared orbit samples. Graphics painting and
+    // the real-time marker never call Orekit on the UI thread.
+    private void DrawSat(Graphics g, SatellitePass pass,
+      SatellitePass.TrackPoint[] track, DateTime now)
+    {
+      int index = Array.FindIndex(track, point => point.Utc >= now);
+      if (index < 0) index = track.Length - 1;
+      index = Math.Clamp(index, 1, track.Length - 1);
+
+      var previous = track[index - 1];
+      var next = track[index];
+      var p1 = TrackPointToXY(previous);
+      var p2 = TrackPointToXY(next);
+      double seconds = (next.Utc - previous.Utc).TotalSeconds;
+      double fraction = seconds > 0
+        ? Math.Clamp((now - previous.Utc).TotalSeconds / seconds, 0, 1)
+        : 0;
+      var location = new PointF(
+        p1.X + (float)((p2.X - p1.X) * fraction),
+        p1.Y + (float)((p2.Y - p1.Y) * fraction));
+      float angle = pass.Geostationary ? 0 :
+        (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
       float scale = Math.Min(1, 0.5f + 0.0013f * Radius);
 
       g.TranslateTransform(location.X, location.Y);
@@ -253,10 +283,12 @@ namespace SkyRoof
       g.ResetTransform();
 
       string text = pass.Satellite.name;
-      var font = (pass.Satellite == ctx.SatelliteSelector.SelectedSatellite) ? BoldFont : RegularFont;
+      var font = pass.Satellite == ctx.SatelliteSelector.SelectedSatellite
+        ? BoldFont : RegularFont;
       var size = g.MeasureString(text, font);
       var offset = SatImage.Height / 3f * scale;
-      var rect = new RectangleF(location.X + offset, location.Y - size.Height - offset, size.Width, size.Height);
+      var rect = new RectangleF(location.X + offset,
+        location.Y - size.Height - offset, size.Width, size.Height);
       if (rect.Right > DrawPanel.Width) rect.X -= 2 * offset + size.Width;
       g.DrawString(text, font, SystemBrushes.WindowText, rect);
       SatLabelRects[rect] = pass;
@@ -270,26 +302,13 @@ namespace SkyRoof
       g.DrawImage(image, rect);
     }
 
-    private float ComputeDirection(SatellitePass pass, DateTime utc)
+    private void DrawArrow(Graphics g,
+      SatellitePass.TrackPoint[] track, int idx, float size)
     {
-      if (pass.Geostationary) return 0;
-
-      var obs1 = pass.GetObservationAt(utc.AddSeconds(-10));
-      if (obs1 == null) return 0;
-
-      var obs2 = pass.GetObservationAt(utc.AddSeconds(10));
-      if (obs2 == null) return 0;
-
-      var p1 = ObservationToXY(obs1);
-      var p2 = ObservationToXY(obs2);
-      return (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
-    }
-
-    private void DrawArrow(Graphics g, SatellitePass pass, int idx, float size)
-    {
-      var arrowPoint = TrackPointToXY(pass.Track[idx]);
-      var p1 = TrackPointToXY(pass.Track[idx - 1]);
-      var p2 = TrackPointToXY(pass.Track[idx + 1]);
+      idx = Math.Clamp(idx, 1, track.Length - 2);
+      var arrowPoint = TrackPointToXY(track[idx]);
+      var p1 = TrackPointToXY(track[idx - 1]);
+      var p2 = TrackPointToXY(track[idx + 1]);
       float angle = (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
 
       g.TranslateTransform(arrowPoint.X, arrowPoint.Y);
