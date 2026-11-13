@@ -74,3 +74,12 @@ Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full 
 - 新增固定组/换组缓存决策、相同/不同列表身份、滚动区域行刷新单元测试；Windows CI 和 aislop 的实际执行结果见对应 PR/Action。无真实 Windows 长时间白屏复现设备，本次修复不主张已完成实机验收。
 
 **English:** Preserve the last published GroupSatellitePasses snapshot during the same group's minute refresh instead of blanking the virtual list pending Orekit computation. Clear stale data only on a real group switch. Skip redundant full list redraws and thumbnail workers on identical pass references; invalidate visible countdown rows only. Hardware/UI soak remains unverified.
+
+
+## 2026-11-13 十位网格设置校验修复 / 10-character Maidenhead settings hotfix
+
+- 修复 Settings → User Information → Grid Square 仍拒绝合法 10 位 Maidenhead 的问题。根因是 C# 逐字正则字符串 `@"..."` 中的十进制字符 `\\d` 被多写了反斜杠，误当作文字 `\d` 匹配；原先的完整精度转换器和 Orekit GroundStation 坐标入口并非拒绝原因。
+- 4/6/8/10 位设置校验现在与 Maidenhead 解析器一致。新增用户复现值 `OL79WQ96HJ` 的输入、经纬度中心 (29.6933159722°N, 115.9109375°E)、10 位逆向转换和 GroundStation 传递的回归测试，同时覆盖无效长度和非法字母组合。
+- 正式版维持 v.1.73，并采用现有 Release 身份、原标签提交、原资产 ID 与 SHA-256 的严格比对进行一次受控安装包替换。Windows 编译、xUnit、aislop 和 Orekit 运行时校验状态以本次 GitHub Actions 执行结果为准。尚未在用户 Windows 安装环境中复现操作过程。
+
+**English:** Fix the escaped decimal-digit regex in the Settings property-grid validation path, which rejected valid Maidenhead locators despite the high-precision geodetic converter already supporting them. The user-reported `OL79WQ96HJ` now has regression assertions for accepted input, its exact locator-cell center, reverse conversion and the actual orbit ground-station coordinate. Guard the replacement of the existing v.1.73 installer by tag and published SHA-256 identity; hardware/UI testing remains outstanding.
