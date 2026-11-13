@@ -301,8 +301,22 @@ namespace SkyRoof
       if (item == null || item == HoveredItem) return;
       HoveredItem = item;
 
-      var pass = (SatellitePass)item.Tag!;
-      item.ToolTipText = $"{pass.Satellite.GetTooltipText()}\n\n{string.Join("\n", pass.GetTooltipText(false))}";
+      _ = PrepareTooltipAsync(item, (SatellitePass)item.Tag!);
+    }
+
+    private async Task PrepareTooltipAsync(ListViewItem item, SatellitePass pass)
+    {
+      try
+      {
+        string tooltip = await Task.Run(() =>
+          $"{pass.Satellite.GetTooltipText()}\n\n{string.Join("\n", pass.GetTooltipText(false))}");
+        if (!IsDisposed && !Disposing && ReferenceEquals(HoveredItem, item))
+          item.ToolTipText = tooltip;
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Satellite pass tooltip preparation failed.");
+      }
     }
   }
 }
