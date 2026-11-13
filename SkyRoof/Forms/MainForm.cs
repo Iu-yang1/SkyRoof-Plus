@@ -215,22 +215,9 @@ namespace SkyRoof
         var sources = ctx.Settings.OrbitSources;
         var groupIds = ctx.Settings.Satellites.SatelliteGroups
           .SelectMany(group => group.SatelliteIds).Distinct().ToArray();
-        var prepared = await Task.Run(() =>
-        {
-          Exception? orbitError = null;
-          try { OrbitBackendRegistry.Configure(sources); }
-          catch (Exception ex) { orbitError = ex; }
-
-          var database = new SatnogsDb();
-          database.ConfigureSources(sources);
-          database.LoadFromFile();
-          database.ConfigureSolarSystem(sources);
-          // The group sanitizer otherwise creates each Orekit tracker on the
-          // WinForms thread as soon as the download/cached DB is bound.
-          foreach (string id in groupIds)
-            _ = database.GetSatellite(id)?.Tracker.Enabled;
-          return (Database: database, OrbitError: orbitError);
-        }, startupDataCancellation.Token);
+        var prepared = await Task.Run(
+          () => PrepareSatelliteDatabase(sources, groupIds),
+          startupDataCancellation.Token);
 
         if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested)
           return;
@@ -265,22 +252,7 @@ namespace SkyRoof
           }
         }
 
-        ctx.Settings.Ui.RestoreDockingLayout(this);
-        Log.Information(
-          "Initial SkyRoof docking layout restored in {ElapsedMs} ms; Orekit and satellite cache initialized off UI thread",
-          timer.ElapsedMilliseconds);
-
-        ctx.AutoSelector.RestoreEnabledIfRequested();
-        if (EmbeddedSkyCatRunning)
-          ctx.CatControl.ApplySettings();
-        StartSdrIfEnabled();
-
-        VersionChecker = new VersionChecker(ctx.Settings.LatestVersion);
-        VersionChecker.UpdateAvailable += UpdateAvailable_handler;
-        VersionChecker.CheckVersionAsync().DoNotAwait();
-        ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();
-
-        startupReady = true;
+        RestoreStartupLayout(timer.ElapsedMilliseconds);
       }
       catch (OperationCanceledException) when (startupDataCancellation.IsCancellationRequested)
       {
@@ -307,6 +279,41 @@ namespace SkyRoof
       }
 
       await CompleteDeferredStartupAsync();
+    }
+
+    private static (SatnogsDb Database, Exception? OrbitError) PrepareSatelliteDatabase(
+      OrbitSourceSettings sources, string[] groupIds)
+    {
+      Exception? orbitError = null;
+      try { OrbitBackendRegistry.Configure(sources); }
+      catch (Exception ex) { orbitError = ex; }
+
+      var database = new SatnogsDb();
+      database.ConfigureSources(sources);
+      database.LoadFromFile();
+      database.ConfigureSolarSystem(sources);
+      foreach (string id in groupIds)
+        _ = database.GetSatellite(id)?.Tracker.Enabled;
+      return (database, orbitError);
+    }
+
+    private void RestoreStartupLayout(long elapsedMs)
+    {
+      ctx.Settings.Ui.RestoreDockingLayout(this);
+      Log.Information(
+        "Initial SkyRoof docking layout restored in {ElapsedMs} ms; Orekit and satellite cache initialized off UI thread",
+        elapsedMs);
+
+      ctx.AutoSelector.RestoreEnabledIfRequested();
+      if (EmbeddedSkyCatRunning)
+        ctx.CatControl.ApplySettings();
+      StartSdrIfEnabled();
+
+      VersionChecker = new VersionChecker(ctx.Settings.LatestVersion);
+      VersionChecker.UpdateAvailable += UpdateAvailable_handler;
+      VersionChecker.CheckVersionAsync().DoNotAwait();
+      ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();
+      startupReady = true;
     }
 
     private async Task CompleteDeferredStartupAsync()
