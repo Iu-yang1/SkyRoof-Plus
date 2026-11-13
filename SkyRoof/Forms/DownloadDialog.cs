@@ -57,14 +57,23 @@ namespace SkyRoof
 
     private async Task DownloadSatelliteDataAsync()
     {
-      db = new();
-      db.ConfigureSources(ctx.Settings.OrbitSources);
+      // Construct the staging database away from WinForms as well: loading
+      // override files in its constructor can involve disk I/O.
+      var sources = ctx.Settings.OrbitSources;
+      var groupIds = ctx.Settings.Satellites.SatelliteGroups
+        .SelectMany(group => group.SatelliteIds).Distinct().ToArray();
+      db = await Task.Run(() =>
+      {
+        var staging = new SatnogsDb();
+        staging.ConfigureSources(sources);
+        return staging;
+      });
       db.DownloadProgress += SatnogsDb_DownloadProgress;
 
       // download files
       try
       {
-        await db.DownloadAll();
+        await Task.Run(() => db.DownloadAll());
       }
       catch (OperationCanceledException)
       {
@@ -84,17 +93,25 @@ namespace SkyRoof
       // import files
       try
       {
-        db.ImportAll();
+        // Parsing the satellite JSON, merging transmitter overrides, and
+        // writing the imported cache are CPU/disk tasks, never UI work.
+        await Task.Run(db.ImportAll);
 
-        // Preserve any still-valid manual file override across a full SatNOGS
-        // database rebuild. Automatic sources are then refreshed underneath it.
+        // Read the live operator's manual orbit overrides only on the UI
+        // thread. The staged database itself remains private to this dialog.
         db.CopyActiveManualOrbitOverridesFrom(
           ctx.SatnogsDb,
           DateTime.UtcNow);
 
-        await db.LoadAutomaticOrbitOverlaysAsync();
+        await Task.Run(() => db.LoadAutomaticOrbitOverlaysAsync());
+        await Task.Run(() =>
+        {
+          db.ConfigureSolarSystem(sources);
+          foreach (string id in groupIds)
+            _ = db.GetSatellite(id)?.Tracker.Enabled;
+        });
 
-        db.ConfigureSolarSystem(ctx.Settings.OrbitSources);
+        // The one atomic UI handoff preserves selection/CAT ownership.
         ctx.Settings.Satellites.EnsureSolarSystemGroup(db);
         ctx.SatnogsDb.ReplaceSatelliteList(db);
         DialogResult = DialogResult.OK;
@@ -111,7 +128,13 @@ namespace SkyRoof
       object? sender,
       ProgressChangedEventArgs e)
     {
-      progressBar1.Value = e.ProgressPercentage;
+      if (InvokeRequired)
+      {
+        BeginInvoke(() => SatnogsDb_DownloadProgress(sender, e));
+        return;
+      }
+      if (!IsDisposed && !Disposing)
+        progressBar1.Value = Math.Clamp(e.ProgressPercentage, 0, 100);
     }
   }
 }

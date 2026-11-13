@@ -1,5 +1,15 @@
 # SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
 
+## v1.73 原位重构 / In-place performance rebuild (2026-11-13)
+
+- 前台首帧前不执行 Orekit 初始化及大量卫星数据库读取；启动载入状态先绘制，缓存与轨道跟踪器后台初始化。
+- 卫星列表来源并发下载，数据库解析与导入后台化；手动 TLE 更新使用暂存数据库、原子合入已选对象并保持人工星历优先级。
+- Ham / 群组 / SDR 批量预测采用独立工作线程和每个卫星至多四路并行，UI 定时器不再同步执行整批 Orekit 传播。
+- 仅在原 v.1.73 标签/Release 身份和旧安装包哈希精确匹配时允许一次性覆盖，经发布工作流重新验证 SHA-256 和签名状态；旧安装包校验值失效。
+- English: Responsive startup, concurrent feeds, worker-owned imports and orbit snapshots, bounded multi-core propagation, and a guarded single-use v.1.73 replacement. Software CI is not physical CAT/rotator or end-user latency acceptance.
+
+# SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
+
 Release date / 发布日期：2026-11-13。响应式卫星切换、群组/SDR 后台预测、Orekit 手动数据更新线程分离以及短期校验缓存。作为独立正式修复迭代，不覆盖 v1.72。
 
 - **UI 响应性：** 卫星切换使用 Orekit 优先后台预测，缓存按 Tracker 身份区分并支持无过境负结果；快速切换不接纳旧结果。

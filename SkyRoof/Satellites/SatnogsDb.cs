@@ -191,6 +191,72 @@ namespace SkyRoof
       ListUpdated?.Invoke(this, EventArgs.Empty);
     }
 
+    // Commit a worker-owned orbit refresh without replacing the objects
+    // already held by the radio link, rotator, and selected UI panels.
+    // Only the short commit executes on WinForms. Parsing, network and
+    // persistence have already completed on the staging database.
+    internal void CommitDownloadedOrbits(SatnogsDb staging)
+    {
+      var now = DateTime.UtcNow;
+      foreach (var candidate in staging.SatelliteList.Values)
+      {
+        if (candidate.IsEphemerisTarget) continue;
+        if (!SatelliteList.TryGetValue(candidate.sat_id, out var existing))
+        {
+          SatelliteList[candidate.sat_id] = candidate;
+          continue;
+        }
+        if (existing.IsEphemerisTarget) continue;
+
+        MergeSatelliteOrbit(existing, candidate, now);
+      }
+
+      loaded = SatelliteList.Count > 0;
+      TleUpdated?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal static void MergeSatelliteOrbit(
+      SatnogsDbSatellite existing, SatnogsDbSatellite candidate, DateTime utc)
+    {
+      bool preserveManual = existing.HasActiveManualOrbit(utc);
+      existing.AutomaticTle = candidate.AutomaticTle;
+      if (!preserveManual)
+      {
+        existing.ManualTle = candidate.ManualTle;
+        existing.ManualTleExpiresUtc = candidate.ManualTleExpiresUtc;
+      }
+
+      SatnogsDbTle? selected = existing.HasActiveManualOrbit(utc)
+        ? existing.ManualTle : existing.AutomaticTle;
+      bool sameOrbit = existing.Tle == null && selected == null ||
+        existing.Tle != null && selected != null &&
+        SatelliteTracker.BuildOrbitElementKey(existing.Tle) ==
+        SatelliteTracker.BuildOrbitElementKey(selected);
+
+      if (!sameOrbit)
+      {
+        existing.SetTle(selected);
+        if (ReferenceEquals(selected, candidate.Tle) &&
+            candidate.PreparedTracker is SatelliteTracker prepared)
+          existing.SetTracker(prepared);
+        existing.updated = selected?.updated ?? existing.updated;
+        existing.BuildAllNames();
+      }
+
+      bool addedTransmitter = false;
+      foreach (var transmitter in candidate.Transmitters)
+      {
+        if (!transmitter.local_custom ||
+            existing.Transmitters.Any(t => t.uuid == transmitter.uuid))
+          continue;
+        transmitter.Satellite = existing;
+        existing.Transmitters.Add(transmitter);
+        addedTransmitter = true;
+      }
+      if (addedTransmitter)
+        existing.RefreshTransmitterDerivedData();
+    }
+
     public SatnogsDbSatellite? GetSatellite(string satId)
     {
       return SatelliteList.GetValueOrDefault(satId);
@@ -208,41 +274,32 @@ namespace SkyRoof
     public async Task DownloadAll()
     {
       cts = new CancellationTokenSource();
+      int completedWeight = 0;
 
-      await DownloadConfigured(
-        "satellites",
-        OrbitSources.SatellitesUrl,
-        required: true);
-      Log.Information("satellites download step complete");
-      DownloadProgress?.Invoke(this, new(25, null));
-
-      await DownloadConfigured(
-        "transmitters",
-        OrbitSources.TransmittersUrl,
-        required: true);
-      Log.Information("transmitters download step complete");
-      DownloadProgress?.Invoke(this, new(50, null));
-
-      await DownloadConfigured(
-        "tle",
-        OrbitSources.TleUrl,
-        required: false);
-      Log.Information("primary TLE download step complete");
-      DownloadProgress?.Invoke(this, new(70, null));
-
-      await DownloadJE9PEL();
-      Log.Information("JE9PEL downloaded");
-      DownloadProgress?.Invoke(this, new(85, null));
-
-      // gr-satellites satyaml is enrichment only — a failure here must not abort the download.
-      try
+      // These five sources have independent destination files. Download them
+      // concurrently; the database is imported only after all have settled.
+      async Task TrackAsync(Task download, int weight, string name)
       {
-        await DownloadSatyaml();
-        Log.Information("satyaml downloaded");
+        await download.ConfigureAwait(false);
+        int progress = Interlocked.Add(ref completedWeight, weight);
+        Log.Information("{Source} download step complete", name);
+        DownloadProgress?.Invoke(this, new(Math.Min(99, progress), null));
       }
-      catch (OperationCanceledException) { throw; }
-      catch (Exception ex) { Log.Warning(ex, "satyaml download/extract failed (enrichment skipped)"); }
-      DownloadProgress?.Invoke(this, new(99, null));
+
+      async Task OptionalSatyamlAsync()
+      {
+        try { await DownloadSatyaml().ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { throw; }
+        catch (Exception ex) { Log.Warning(ex, "satyaml download/extract failed (enrichment skipped)"); }
+      }
+
+      await Task.WhenAll(
+        TrackAsync(DownloadConfigured("satellites", OrbitSources.SatellitesUrl, required: true), 25, "satellites"),
+        TrackAsync(DownloadConfigured("transmitters", OrbitSources.TransmittersUrl, required: true), 25, "transmitters"),
+        TrackAsync(DownloadConfigured("tle", OrbitSources.TleUrl, required: false), 20, "primary TLE"),
+        TrackAsync(DownloadJE9PEL(), 15, "JE9PEL"),
+        TrackAsync(OptionalSatyamlAsync(), 14, "satyaml")
+      ).ConfigureAwait(false);
     }
 
     public async Task DownloadTle()

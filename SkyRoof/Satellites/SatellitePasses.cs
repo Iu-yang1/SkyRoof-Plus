@@ -153,20 +153,25 @@ namespace SkyRoof
     {
       var selected = requested.Where(s => s.Tracker.Enabled && s.IsAlive()).ToArray();
       var now = DateTime.UtcNow;
-      var result = new List<SatellitePass>();
-      foreach (var sat in selected)
+      var result = new System.Collections.Concurrent.ConcurrentBag<SatellitePass>();
+      // Orekit TLE propagators are synchronized per orbit track. Distributing
+      // different satellites across cores is safe; no WinForms or pass-table
+      // mutations occur until the completed snapshot is published on the UI.
+      Parallel.ForEach(selected, new ParallelOptions
       {
-        cancellationToken.ThrowIfCancellationRequested();
-        result.AddRange(ComputePassesFor(sat, now, now + PredictionTimeSpan));
-      }
-      cancellationToken.ThrowIfCancellationRequested();
-      result.Sort((left, right) => left.StartTime.CompareTo(right.StartTime));
-      foreach (var pass in result)
+        CancellationToken = cancellationToken,
+        MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 4)
+      }, sat =>
       {
-        cancellationToken.ThrowIfCancellationRequested();
-        pass.MakeMiniPath();
-      }
-      return new FullRebuildSnapshot(selected, result.ToArray(), now);
+        foreach (var pass in ComputePassesFor(sat, now, now + PredictionTimeSpan))
+        {
+          cancellationToken.ThrowIfCancellationRequested();
+          pass.MakeMiniPath();
+          result.Add(pass);
+        }
+      });
+      return new FullRebuildSnapshot(
+        selected, result.OrderBy(p => p.StartTime).ToArray(), now);
     }
 
     internal void ApplyFullRebuildSnapshot(FullRebuildSnapshot snapshot)

@@ -6,6 +6,7 @@
   <!-- SkyRoof Plus v1.73: async satellite selection, group pass caches and responsive Orekit manual updates. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
+    <!-- v1.73-responsive-ui-replacement-20261113: one-time guarded asset replacement. -->
     <Version>1.73</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
