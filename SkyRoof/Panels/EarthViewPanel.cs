@@ -142,6 +142,10 @@ namespace SkyRoof
     {
       try
       {
+        await Task.Delay(60);
+        if (IsDisposed || Disposing || request != polygonRequestVersion ||
+            !ReferenceEquals(Pass, pass))
+          return;
         var polygon = await Task.Run(pass.GetCoveragePolygon);
         if (IsDisposed || Disposing || request != polygonRequestVersion ||
             !ReferenceEquals(Pass, pass))

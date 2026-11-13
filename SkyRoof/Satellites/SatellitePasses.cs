@@ -115,10 +115,17 @@ namespace SkyRoof
 
       private async Task<SatellitePass?> CaptureAsync(Func<Task<SatellitePass?>> compute)
       {
-        var result = await compute().ConfigureAwait(false);
-        value = result;
+        try
+        {
+          value = await compute().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Background satellite pass prediction failed.");
+          value = null;
+        }
         Volatile.Write(ref ready, 1);
-        return result;
+        return value;
       }
     }
 
