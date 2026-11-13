@@ -38,8 +38,11 @@ public sealed class NativeRotatorWorkerTests
 
     engine.StartContinuousMove(RotatorContinuousDirection.Right);
     await UntilAsync(() => server.Count("R") > 0);
+    int stopsBeforeRelease = server.Count("S");
     engine.StopRotation();
-    await UntilAsync(() => server.Count("S") > 0);
+    // A previous W->jog transition may already have emitted S; require the
+    // STOP issued specifically after releasing the continuous direction.
+    await UntilAsync(() => server.Count("S") > stopsBeforeRelease);
     string[] commands = server.Commands.ToArray();
     int jog = Array.LastIndexOf(commands, "R");
     int stop = Array.LastIndexOf(commands, "S");
