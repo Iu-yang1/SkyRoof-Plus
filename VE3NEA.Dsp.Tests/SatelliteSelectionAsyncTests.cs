@@ -13,6 +13,24 @@ public sealed class SatelliteSelectionAsyncTests
             7, 7, satellite, satellite, operatorSelectedPass: false));
     }
 
+    [Theory]
+    [InlineData(false, false, 30, true)]
+    [InlineData(true, false, 30, true)]
+    [InlineData(true, true, 30, true)]
+    [InlineData(true, false, 121, false)]
+    [InlineData(true, true, 30, false, true)]
+    public void NextPassCacheFreshnessAlsoCachesNoPassResult(
+        bool ready, bool hasPass, int ageSeconds,
+        bool expected, bool expiredPass = false)
+    {
+        var now = new DateTime(2026, 11, 13, 0, 0, 0, DateTimeKind.Utc);
+        DateTime? passEnd = hasPass
+            ? (expiredPass ? now.AddSeconds(-1) : now.AddMinutes(20))
+            : null;
+        Assert.Equal(expected, SatellitePasses.IsNextPassCacheFresh(
+            now, now.AddSeconds(-ageSeconds), ready, passEnd));
+    }
+
     [Fact]
     public void StaleOrUnrelatedSatellitePredictionCannotOverwriteSelection()
     {

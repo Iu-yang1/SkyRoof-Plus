@@ -279,6 +279,11 @@ namespace SkyRoof
         .MinBy(p => p.StartTime);
     }
 
+    internal static bool IsNextPassCacheFresh(
+      DateTime now, DateTime created, bool ready, DateTime? passEnd) =>
+      now - created < TimeSpan.FromMinutes(2) &&
+      (!ready || passEnd == null || passEnd >= now);
+
     internal Task<SatellitePass?> GetNextPassAsync(
       SatnogsDbSatellite? satellite, bool prioritize = false)
     {
@@ -289,8 +294,8 @@ namespace SkyRoof
       var now = DateTime.UtcNow;
       if (nextPassCache.TryGetValue(tracker, out var cached))
       {
-        if (now - cached.CreatedUtc < TimeSpan.FromMinutes(2) &&
-            (!cached.Ready || cached.Value == null || cached.Value.EndTime >= now))
+        if (IsNextPassCacheFresh(
+              now, cached.CreatedUtc, cached.Ready, cached.Value?.EndTime))
         {
           if (!prioritize || cached.Ready)
             return cached.Work;
