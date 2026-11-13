@@ -13,6 +13,8 @@ public sealed class MaidenheadPrecisionTests
     [InlineData("OL79WQ", 29.6875, 115.875)]
     [InlineData("OL79WQ12", 29.677083333333332, 115.84583333333333)]
     [InlineData("OL79WQ12AB", 29.675260416666667, 115.84184027777778)]
+    [InlineData("OL79WQ96", 29.69375, 115.9125)]
+    [InlineData("OL79WQ96HJ", 29.69331597222222, 115.9109375)]
     public void LocatorConversionUsesFullPrecision(
         string grid, double expectedLatitude, double expectedLongitude)
     {
@@ -38,6 +40,33 @@ public sealed class MaidenheadPrecisionTests
     }
 
     [Theory]
+    [InlineData("OL79")]
+    [InlineData("OL79WQ")]
+    [InlineData("OL79WQ96")]
+    [InlineData("OL79WQ96HJ")]
+    [InlineData("ol79wq96hj")]
+    public void SettingsGridValidatorAcceptsAllConfiguredMaidenheadLengths(string grid)
+    {
+        string normalized = grid.ToUpperInvariant();
+        Assert.True(Utils.GridSquareExtendedRegex.IsMatch(normalized));
+        Assert.True(GridSquare.IsValid(normalized));
+        Assert.Equal(normalized, GridSquare.FromGeoPoint(
+            GridSquare.ToGeoPoint(normalized), normalized.Length).ToUpperInvariant());
+    }
+
+    [Theory]
+    [InlineData("OL79W")]
+    [InlineData("OL79WQ9")]
+    [InlineData("OL79WQ96H")]
+    [InlineData("OL79WQ96HJJ")]
+    [InlineData("OL79WQ96YZ")]
+    [InlineData("RR73")]
+    public void SettingsGridValidatorRejectsInvalidStationLocators(string grid)
+    {
+        Assert.False(Utils.GridSquareExtendedRegex.IsMatch(grid));
+    }
+
+    [Theory]
     [InlineData("RR73")]
     [InlineData("OL79W")]
     [InlineData("OL79WQ1")]
@@ -55,7 +84,7 @@ public sealed class MaidenheadPrecisionTests
     [Fact]
     public void FullTenCharacterLocatorReachesTheOrbitGroundStation()
     {
-        const string grid = "OL79WQ12AB";
+        const string grid = "OL79WQ96HJ";
         var station = SatellitePasses.CreateStationFromGridSquare(grid, 56);
         var geodetic = station.Location.ToGeodetic();
         var exactCenter = GridSquare.ToGeoPoint(grid);
