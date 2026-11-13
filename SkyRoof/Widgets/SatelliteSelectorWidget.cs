@@ -204,6 +204,14 @@ namespace SkyRoof
       LoadNextPassAsync(SelectedSatellite, request).DoNotAwait();
     }
 
+    internal static bool ShouldApplyNextPass(
+      long expectedVersion, long currentVersion,
+      SatnogsDbSatellite expectedSatellite, SatnogsDbSatellite currentSatellite,
+      bool operatorSelectedPass) =>
+      expectedVersion == currentVersion &&
+      ReferenceEquals(expectedSatellite, currentSatellite) &&
+      !operatorSelectedPass;
+
     private async Task LoadNextPassAsync(SatnogsDbSatellite satellite, long request)
     {
       try
@@ -213,8 +221,9 @@ namespace SkyRoof
             !ReferenceEquals(SelectedSatellite, satellite))
           return;
         var next = await ctx.HamPasses.GetNextPassAsync(satellite, prioritize: true);
-        if (IsDisposed || Disposing || request != nextPassRequestVersion ||
-            !ReferenceEquals(SelectedSatellite, satellite) || SelectedPass != null)
+        if (IsDisposed || Disposing ||
+            !ShouldApplyNextPass(request, nextPassRequestVersion,
+              satellite, SelectedSatellite, SelectedPass != null))
           return;
         SetSelectedPass(next);
       }

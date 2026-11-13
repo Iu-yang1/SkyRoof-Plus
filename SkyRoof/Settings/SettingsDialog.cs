@@ -245,13 +245,18 @@ namespace SkyRoof
       {
         // Keep the network fetch, checksum, and file I/O off the WinForms
         // synchronization context even when the cache is already present.
-        var sources = edited.OrbitSources;
+        var sources = new OrbitSourceSettings
+        {
+          OrekitDataDirectory = edited.OrbitSources.OrekitDataDirectory,
+          OrekitEopSources = edited.OrbitSources.OrekitEopSources,
+          OrekitDe430Url = edited.OrbitSources.OrekitDe430Url
+        };
         await Task.Run(() => OrekitDataBootstrapper.EnsureAsync(
           sources, forceRefresh: true, cancellationToken: orekitRefreshCancellation.Token),
           orekitRefreshCancellation.Token);
         if (IsDisposed || Disposing || orekitRefreshCancellation.IsCancellationRequested) return;
         string directory = OrbitBackendRegistry.ResolveDataDirectory(
-          edited.OrbitSources.OrekitDataDirectory);
+          sources.OrekitDataDirectory);
         bool hasEop = File.Exists(Path.Combine(directory, "finals2000A.all"));
         bool hasDe430 = File.Exists(Path.Combine(directory, "lnxp1990.430"));
         grid.Refresh();
