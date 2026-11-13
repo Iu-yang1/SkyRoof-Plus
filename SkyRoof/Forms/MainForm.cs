@@ -18,6 +18,9 @@ namespace SkyRoof
     private RotatorControlCard? RotatorControlCard;
     private ToolStripControlHost? RotatorControlHost;
     private ToolStripDropDown? RotatorControlPopup;
+    private YaesuG5500ControlCard? YaesuG5500ControlCard;
+    private ToolStripControlHost? YaesuG5500ControlHost;
+    private ToolStripDropDown? YaesuG5500ControlPopup;
     private MouseButtons LastRotatorStatusMouseButton;
     private ToolStripProfessionalRenderer? ThemeRenderer;
     private readonly EmbeddedSkyCatHost EmbeddedSkyCat = new();
@@ -1998,6 +2001,31 @@ namespace SkyRoof
       RotatorControlPopup.Items.Add(
         RotatorControlHost);
 
+      YaesuG5500ControlCard = new YaesuG5500ControlCard();
+      YaesuG5500ControlCard.Attach(ctx, ctx.RotatorControl);
+      YaesuG5500ControlHost = new ToolStripControlHost(YaesuG5500ControlCard)
+      {
+        AutoSize = false,
+        Margin = Padding.Empty,
+        Padding = Padding.Empty,
+        Size = YaesuG5500ControlCard.Size
+      };
+      YaesuG5500ControlPopup = new ToolStripDropDown
+      {
+        AutoSize = false,
+        AutoClose = true,
+        DropShadowEnabled = true,
+        Margin = Padding.Empty,
+        Padding = Padding.Empty,
+        Size = new Size(YaesuG5500ControlCard.Width + 2,
+          YaesuG5500ControlCard.Height + 2)
+      };
+      YaesuG5500ControlPopup.Items.Add(YaesuG5500ControlHost);
+      // Releasing the popup must also release any continuous manual motor
+      // command (the mouse-up may occur outside the direction wheel).
+      YaesuG5500ControlPopup.Closed += (_, _) =>
+        YaesuG5500ControlCard.CancelHeldMove();
+
       RotatorLedLabel.MouseDown += RotatorStatus_MouseDown;
       RotatorStatusLabel.MouseDown += RotatorStatus_MouseDown;
       RotatorDropdownBtn.MouseDown += RotatorStatus_MouseDown;
@@ -2016,34 +2044,50 @@ namespace SkyRoof
         Cursor.Position);
     }
 
-    internal void ShowRotatorManualControl(
-      Point screenPoint)
+    internal void ShowRotatorManualControl(Point screenPoint)
     {
-      if (RotatorControlPopup == null ||
-          RotatorControlCard == null)
+      bool yaesu = ctx.Settings.Rotator.HardwareModel == RotatorHardwareModel.YaesuG5500;
+
+      if (yaesu)
+      {
+        if (YaesuG5500ControlPopup == null || YaesuG5500ControlCard == null ||
+            YaesuG5500ControlHost == null)
+          return;
+
+        RotatorControlPopup?.Close(ToolStripDropDownCloseReason.AppClicked);
+        YaesuG5500ControlCard.RefreshState();
+        YaesuG5500ControlHost.Size = YaesuG5500ControlCard.Size;
+        YaesuG5500ControlPopup.Size = new Size(
+          YaesuG5500ControlCard.Width + 2,
+          YaesuG5500ControlCard.Height + 2);
+        Point location = ClampPopupLocation(
+          Screen.FromPoint(screenPoint).WorkingArea,
+          YaesuG5500ControlPopup.Size, screenPoint);
+        if (YaesuG5500ControlPopup.Visible)
+          YaesuG5500ControlPopup.Close(ToolStripDropDownCloseReason.AppClicked);
+        YaesuG5500ControlPopup.Show(location);
+        return;
+      }
+
+      if (RotatorControlPopup == null || RotatorControlCard == null ||
+          RotatorControlHost == null)
         return;
 
+      YaesuG5500ControlPopup?.Close(ToolStripDropDownCloseReason.AppClicked);
       RotatorControlCard.RefreshState();
 
-      // The RC-3040S version adds a speed panel beneath the same manual
-      // direction wheel. Update the host and popup before clamping to the
-      // working area, including on subsequent protocol/theme changes.
-      RotatorControlHost!.Size = RotatorControlCard.Size;
+      // Keep the RC-3040S extended card and its original layout unchanged.
+      RotatorControlHost.Size = RotatorControlCard.Size;
       RotatorControlPopup.Size = new Size(
-        RotatorControlCard.Width + 2,RotatorControlCard.Height + 2);
+        RotatorControlCard.Width + 2, RotatorControlCard.Height + 2);
 
-      Point location =
-        ClampPopupLocation(
-          Screen.FromPoint(screenPoint).WorkingArea,
-          RotatorControlPopup.Size,
-          screenPoint);
+      Point genericLocation = ClampPopupLocation(
+        Screen.FromPoint(screenPoint).WorkingArea,
+        RotatorControlPopup.Size, screenPoint);
 
       if (RotatorControlPopup.Visible)
-        RotatorControlPopup.Close(
-          ToolStripDropDownCloseReason.AppClicked);
-
-      RotatorControlPopup.Show(
-        location);
+        RotatorControlPopup.Close(ToolStripDropDownCloseReason.AppClicked);
+      RotatorControlPopup.Show(genericLocation);
       RotatorControlCard.PopupOpened();
     }
 
@@ -2086,6 +2130,8 @@ namespace SkyRoof
 
       RotatorStatusLabel.ToolTipText = ctx.RotatorControl.GetStatusString();
       RotatorControlCard?.RefreshState();
+      if (YaesuG5500ControlPopup?.Visible == true)
+        YaesuG5500ControlCard?.RefreshState();
     }
 
 
