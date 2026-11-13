@@ -290,7 +290,7 @@ namespace SkyRoof
       if (nextPassCache.TryGetValue(tracker, out var cached))
       {
         if (now - cached.CreatedUtc < TimeSpan.FromMinutes(2) &&
-            (!cached.Ready || cached.Value?.EndTime >= now))
+            (!cached.Ready || cached.Value == null || cached.Value.EndTime >= now))
         {
           if (!prioritize || cached.Ready)
             return cached.Work;
