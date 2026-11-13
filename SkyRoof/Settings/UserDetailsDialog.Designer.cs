@@ -138,7 +138,7 @@
       label3.Name = "label3";
       label3.Size = new Size(131, 15);
       label3.TabIndex = 3;
-      label3.Text = "6-character Grid Square";
+      label3.Text = "Grid Square (4/6/8/10)";
       // 
       // textBox2
       // 

@@ -31,13 +31,30 @@ namespace SkyRoof
 
     public PointF[]? MiniPath;
     private PointF[] hump;
-    private List<TrackPoint> track;
-    public List<TrackPoint> Track { get => track ?? MakeTrack(); }
+    private List<TrackPoint>? track;
+    private readonly object trackLock = new();
+    private readonly Lazy<Task<List<TrackPoint>>> renderTrack;
+    private static readonly SemaphoreSlim RenderWorkers = new(2, 2);
+
+    public List<TrackPoint> Track
+    {
+      get { lock (trackLock) return track ?? MakeTrack(); }
+    }
+
+    // Orbit samples must never be computed by the Sky View Paint event.
+    // The Lazy shares one background computation across repeated repaints.
+    internal Task<List<TrackPoint>> GetRenderTrackAsync() => renderTrack.Value;
 
 
 
     public SatellitePass(GroundStation groundStation, SatnogsDbSatellite satellite, SatelliteVisibilityPeriod visibilityPeriod)
     {
+      renderTrack = new Lazy<Task<List<TrackPoint>>>(async () =>
+      {
+        await RenderWorkers.WaitAsync().ConfigureAwait(false);
+        try { return await Task.Run(() => Track).ConfigureAwait(false); }
+        finally { RenderWorkers.Release(); }
+      });
       GroundStation = groundStation;
       Satellite = satellite;
       SatelliteVisibilityPeriod = visibilityPeriod;
@@ -179,7 +196,7 @@ namespace SkyRoof
 
       var duration = EndTime - StartTime;
       var step = duration / StepCount;
-      MiniPath = new PointF[StepCount + 1];
+      var path = new PointF[StepCount + 1];
 
       for (int i = 0; i <= StepCount; i++)
       {
@@ -189,9 +206,13 @@ namespace SkyRoof
 
         double ro = 1 - observation.Elevation.Radians / Utils.HalfPi;
         double phi = Utils.HalfPi - observation.Azimuth.Radians;
-
-        MiniPath[i] = new PointF((float)(ro * Math.Cos(phi)), (float)(ro * Math.Sin(phi)));
+        path[i] = new PointF((float)(ro * Math.Cos(phi)),
+          (float)(ro * Math.Sin(phi)));
       }
+
+      // Publish only fully computed paths: owner-draw may read this while the
+      // worker prepares a replacement.
+      Volatile.Write(ref MiniPath, path);
     }
 
     // boundary polygon of the area covered by the satellite during this pass, as absolute geo points

@@ -12,6 +12,10 @@ namespace SkyRoof
     private readonly Context ctx;
     private SatellitePass? Pass;
     private Dictionary<RectangleF, SatellitePass> SatLabelRects = new();
+    private readonly HashSet<SatellitePass> requestedRenderTracks = new();
+    private Dictionary<SatellitePass, string[]> cachedTooltips = new();
+    private int labelsGeneration;
+    private bool labelWorkerRunning;
     
     private readonly Font RegularFont, BoldFont;
     private readonly Image OkImage, XMarkImage, ArrowImage, SatImage;
@@ -42,7 +46,12 @@ namespace SkyRoof
 
       FlowPanel.BackColor = SystemColors.Window;
 
+      // Orbit image and labels are independently refreshed at 1 Hz.
+      // Buffer both surfaces so a label layout change never exposes their
+      // erased intermediate background between WM_PAINT messages.
       Utils.SetDoubleBuffered(DrawPanel, true);
+      Utils.SetDoubleBuffered(FlowPanel, true);
+      Utils.SetDoubleBuffered(RadioButtonsPanel, true);
     }
 
     private void SkyViewPanel_FormClosing(object sender, FormClosingEventArgs e)
@@ -98,6 +107,8 @@ namespace SkyRoof
       OrbitRadioBtn.Enabled = false;
       OrbitRadioBtn.Text = "Selected Orbit";
       RealTimeRadioBtn.Checked = true;
+      SetLabels();
+      DrawPanel.Invalidate();
     }
 
     public void Advance() // on timer tick
@@ -124,6 +135,7 @@ namespace SkyRoof
       var g = e.Graphics;
       g.SmoothingMode = SmoothingMode.AntiAlias;
       DrawBackground(g);
+      if (Radius <= 0) return;
       DrawRotatorPosition(g);
 
       SatLabelRects.Clear();
@@ -156,10 +168,11 @@ namespace SkyRoof
       Center = new PointF(DrawPanel.Width / 2, DrawPanel.Height / 2);
       float radiusX = Center.X - Math.Max(sizeE.Width, sizeW.Width) - 4;
       float radiusY = Center.Y - Math.Max(sizeN.Width, sizeS.Width) - 4;
-      Radius = Math.Min(radiusX, radiusY);
+      Radius = Math.Max(0, Math.Min(radiusX, radiusY));
 
       // fill bg
       g.FillRectangle(SystemBrushes.Window, DrawPanel.ClientRectangle);
+      if (Radius <= 0) return;
       RectangleF rect = new RectangleF(Center.X - Radius, Center.Y - Radius, 2 * Radius, 2 * Radius);
       var brush = OrbitRadioBtn.Checked ? SilverBrush : BlueBrush;
       g.FillEllipse(brush, rect);
@@ -195,21 +208,25 @@ namespace SkyRoof
     {
       if (pass == null) return;
 
-      // compute track points
-      var track = pass.Track;
-      var points = new PointF[track.Count];
-      for (int i = 0; i < track.Count; i++)
-        points[i] = TrackPointToXY(pass.Track[i]);
+      var ready = pass.GetRenderTrackAsync();
+      if (ready.IsFaulted || ready.IsCanceled) return;
+      if (!ready.IsCompletedSuccessfully)
+      {
+        _ = RequestRenderTrack(pass, ready);
+        return;
+      }
 
-      // draw track
+      // Skip invalid ephemeris samples rather than throwing inside WM_PAINT.
+      var track = ready.Result.Where(point => point.Observation != null).ToArray();
+      if (track.Length < 2) return;
+
+      var points = track.Select(TrackPointToXY).ToArray();
       using var pen = new Pen(Color.Green, 2f);
       g.DrawLines(pen, points);
-      var startPoint = TrackPointToXY(pass.Track.First());
-      var endPoint = TrackPointToXY(pass.Track.Last());
+      var startPoint = points[0];
+      var endPoint = points[^1];
 
-      // draw end icons
       float size = Math.Min(16, 0.04f * Radius + 5);
-
       g.TranslateTransform(startPoint.X, startPoint.Y);
       g.ScaleTransform(size / OkImage.Width, size / OkImage.Height);
       DrawImage(g, OkImage, true);
@@ -220,30 +237,54 @@ namespace SkyRoof
       DrawImage(g, XMarkImage, true);
       g.ResetTransform();
 
-      // draw arrow
       size *= 0.8f;
-      int idx = (int)(pass.Track.Count * (1f / 2));
-      DrawArrow(g, pass, idx, size);
+      if (track.Length > 2)
+        DrawArrow(g, track, track.Length / 2, size);
 
-      // sat
       var now = DateTime.UtcNow;
-      if (pass.StartTime < now && pass.EndTime > now) DrawSat(g, pass);
+      if (pass.StartTime < now && pass.EndTime > now)
+        DrawSat(g, pass, track, now);
     }
 
-
-
-
-    //----------------------------------------------------------------------------------------------
-    //                                   helper functions
-    //----------------------------------------------------------------------------------------------
-    private void DrawSat(Graphics g, SatellitePass pass)
+    private async Task RequestRenderTrack(
+      SatellitePass pass, Task<List<SatellitePass.TrackPoint>> work)
     {
-      var now = DateTime.UtcNow;
-      var obs = pass.GetObservationAt(now);
-      if (obs == null) return;
+      if (!requestedRenderTracks.Add(pass)) return;
+      try
+      {
+        await work;
+        if (!IsDisposed && !Disposing && IsHandleCreated)
+          DrawPanel.Invalidate();
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Sky View track preparation failed.");
+      }
+      finally { requestedRenderTracks.Remove(pass); }
+    }
 
-      var location = ObservationToXY(obs);
-      float angle = ComputeDirection(pass, now);
+    // Interpolate the already prepared orbit samples. Graphics painting and
+    // the real-time marker never call Orekit on the UI thread.
+    private void DrawSat(Graphics g, SatellitePass pass,
+      SatellitePass.TrackPoint[] track, DateTime now)
+    {
+      int index = Array.FindIndex(track, point => point.Utc >= now);
+      if (index < 0) index = track.Length - 1;
+      index = Math.Clamp(index, 1, track.Length - 1);
+
+      var previous = track[index - 1];
+      var next = track[index];
+      var p1 = TrackPointToXY(previous);
+      var p2 = TrackPointToXY(next);
+      double seconds = (next.Utc - previous.Utc).TotalSeconds;
+      double fraction = seconds > 0
+        ? Math.Clamp((now - previous.Utc).TotalSeconds / seconds, 0, 1)
+        : 0;
+      var location = new PointF(
+        p1.X + (float)((p2.X - p1.X) * fraction),
+        p1.Y + (float)((p2.Y - p1.Y) * fraction));
+      float angle = pass.Geostationary ? 0 :
+        (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
       float scale = Math.Min(1, 0.5f + 0.0013f * Radius);
 
       g.TranslateTransform(location.X, location.Y);
@@ -253,10 +294,12 @@ namespace SkyRoof
       g.ResetTransform();
 
       string text = pass.Satellite.name;
-      var font = (pass.Satellite == ctx.SatelliteSelector.SelectedSatellite) ? BoldFont : RegularFont;
+      var font = pass.Satellite == ctx.SatelliteSelector.SelectedSatellite
+        ? BoldFont : RegularFont;
       var size = g.MeasureString(text, font);
       var offset = SatImage.Height / 3f * scale;
-      var rect = new RectangleF(location.X + offset, location.Y - size.Height - offset, size.Width, size.Height);
+      var rect = new RectangleF(location.X + offset,
+        location.Y - size.Height - offset, size.Width, size.Height);
       if (rect.Right > DrawPanel.Width) rect.X -= 2 * offset + size.Width;
       g.DrawString(text, font, SystemBrushes.WindowText, rect);
       SatLabelRects[rect] = pass;
@@ -270,26 +313,13 @@ namespace SkyRoof
       g.DrawImage(image, rect);
     }
 
-    private float ComputeDirection(SatellitePass pass, DateTime utc)
+    private void DrawArrow(Graphics g,
+      SatellitePass.TrackPoint[] track, int idx, float size)
     {
-      if (pass.Geostationary) return 0;
-
-      var obs1 = pass.GetObservationAt(utc.AddSeconds(-10));
-      if (obs1 == null) return 0;
-
-      var obs2 = pass.GetObservationAt(utc.AddSeconds(10));
-      if (obs2 == null) return 0;
-
-      var p1 = ObservationToXY(obs1);
-      var p2 = ObservationToXY(obs2);
-      return (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
-    }
-
-    private void DrawArrow(Graphics g, SatellitePass pass, int idx, float size)
-    {
-      var arrowPoint = TrackPointToXY(pass.Track[idx]);
-      var p1 = TrackPointToXY(pass.Track[idx - 1]);
-      var p2 = TrackPointToXY(pass.Track[idx + 1]);
+      idx = Math.Clamp(idx, 1, track.Length - 2);
+      var arrowPoint = TrackPointToXY(track[idx]);
+      var p1 = TrackPointToXY(track[idx - 1]);
+      var p2 = TrackPointToXY(track[idx + 1]);
       float angle = (float)(Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI);
 
       g.TranslateTransform(arrowPoint.X, arrowPoint.Y);
@@ -369,7 +399,8 @@ namespace SkyRoof
         Cursor = Cursors.Hand;
         var pass = SatLabelRects[rect];
 
-        string tooltip = pass.Satellite.GetTooltipText() + "\n\n" + string.Join("\n", pass.GetTooltipText(false));
+        if (!cachedTooltips.TryGetValue(pass, out var details)) return;
+        string tooltip = pass.Satellite.GetTooltipText() + "\n\n" + string.Join("\n", details);
         if (tooltip != toolTip1.GetToolTip(DrawPanel))
         {
           toolTip1.ToolTipTitle = pass.Satellite.name;
@@ -404,48 +435,83 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                        labels
     //----------------------------------------------------------------------------------------------
+    private sealed record LabelSnapshot(
+      SatellitePass Pass, string[] Tooltip, TopocentricObservation? Observation);
+
     private void SetLabels()
     {
-      FlowPanel.SuspendLayout();
-
-      if (RealTimeRadioBtn.Checked) ShowSatLabels();
-      else if (Pass != null) ShowPassLabels();
-      else FlowPanel.Controls.Clear();
-
-      FlowPanel.ResumeLayout();
+      ++labelsGeneration;
+      if (!labelWorkerRunning)
+        _ = RefreshLabelsAsync();
     }
 
-    private void ShowPassLabels()
+    private async Task RefreshLabelsAsync()
     {
-      EnsureLabels(ORBIT_LABEL_COUNT);
-      var tooltip = Pass.GetTooltipText();
-
-      FlowPanel.Controls[0].Text = tooltip[0];
-      FlowPanel.Controls[1].Text = $"{tooltip[1]}   {tooltip[2]}";
-      FlowPanel.Controls[2].Text = tooltip[3];
-      FlowPanel.Controls[3].Text = tooltip[4];
-    }
-
-    private void ShowSatLabels()
-    {
-      var now = DateTime.UtcNow;
-      var passes = ctx.GroupPasses.Passes.Where(p => now > p.StartTime && now < p.EndTime).ToArray();
-
-      EnsureLabels(passes.Length * 3);
-
-      // set label text
-      for (int i = 0; i < passes.Length; i++)
+      labelWorkerRunning = true;
+      try
       {
-        var tooltip = passes[i].GetTooltipText();
-        bool selected = passes[i].Satellite == ctx.SatelliteSelector.SelectedSatellite;
-        var observation = passes[i].GetObservationAt(now);
-        if (observation == null) continue;
+        while (!IsDisposed && !Disposing)
+        {
+          int generation = labelsGeneration;
+          bool realTime = RealTimeRadioBtn.Checked;
+          SatellitePass? selected = Pass;
+          DateTime now = DateTime.UtcNow;
+          var passes = realTime
+            ? ctx.GroupPasses.Passes.Where(p => now > p.StartTime && now < p.EndTime).ToArray()
+            : selected != null ? new[] { selected } : Array.Empty<SatellitePass>();
 
-        FlowPanel.Controls[i * 3].Font = selected ? BoldFont : RegularFont;
-        FlowPanel.Controls[i * 3].Text = passes[i].Satellite.name;
-        FlowPanel.Controls[i * 3 + 1].Text = tooltip[0];
-        FlowPanel.Controls[i * 3 + 2].Text = $"Az. {observation.Azimuth.Degrees:F1}°  El. {observation.Elevation.Degrees:F1}°";
+          var rows = await Task.Run(() => passes.Select(pass => new LabelSnapshot(
+            pass, pass.GetTooltipText(), realTime ? pass.GetObservationAt(now) : null))
+            .ToArray());
+
+          if (IsDisposed || Disposing) return;
+          // Discard only a different satellite/mode, not a newer one-second
+          // timer tick. Otherwise heavy observations may always finish one
+          // tick late and starve the labels of an updated frame.
+          if (realTime != RealTimeRadioBtn.Checked ||
+              !ReferenceEquals(selected, Pass)) continue;
+
+          cachedTooltips = rows.ToDictionary(row => row.Pass, row => row.Tooltip);
+          FlowPanel.SuspendLayout();
+          try
+          {
+            if (realTime)
+            {
+              EnsureLabels(rows.Length * 3);
+              for (int i = 0; i < rows.Length; i++)
+              {
+                var row = rows[i];
+                bool isSelected = row.Pass.Satellite == ctx.SatelliteSelector.SelectedSatellite;
+                FlowPanel.Controls[i * 3].Font = isSelected ? BoldFont : RegularFont;
+                FlowPanel.Controls[i * 3].Text = row.Pass.Satellite.name;
+                FlowPanel.Controls[i * 3 + 1].Text = row.Tooltip[0];
+                FlowPanel.Controls[i * 3 + 2].Text = row.Observation == null
+                  ? ""
+                  : $"Az. {row.Observation.Azimuth.Degrees:F1}°  El. {row.Observation.Elevation.Degrees:F1}°";
+              }
+            }
+            else if (rows.Length > 0)
+            {
+              var tooltip = rows[0].Tooltip;
+              EnsureLabels(ORBIT_LABEL_COUNT);
+              FlowPanel.Controls[0].Text = tooltip[0];
+              FlowPanel.Controls[1].Text = $"{tooltip[1]}   {tooltip[2]}";
+              FlowPanel.Controls[2].Text = tooltip[3];
+              FlowPanel.Controls[3].Text = tooltip[4];
+            }
+            else
+              FlowPanel.Controls.Clear();
+          }
+          finally { FlowPanel.ResumeLayout(); }
+          // Publish completed telemetry before preparing the latest tick.
+          if (generation == labelsGeneration) return;
+        }
       }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Sky View label refresh failed.");
+      }
+      finally { labelWorkerRunning = false; }
     }
 
     private const int ORBIT_LABEL_COUNT = 4;

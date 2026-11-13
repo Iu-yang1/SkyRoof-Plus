@@ -17,6 +17,7 @@ namespace SkyRoof
 
     private readonly Font BoldFont;
     private readonly Pen PathPen = new Pen(Theme.Now, 2);
+    private CancellationTokenSource? miniPathCancellation;
 
 
     public PassesPanel()
@@ -55,11 +56,13 @@ namespace SkyRoof
       Log.Information("Closing PassesPanel");
       ctx.PassesPanel = null;
       ctx.MainForm.SatellitePassesMNU.Checked = false;
+      miniPathCancellation?.Cancel();
     }
 
     private void listViewEx1_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
     {
-      e.Item = Items[e.ItemIndex];
+      e.Item = e.ItemIndex >= 0 && e.ItemIndex < Items.Count
+        ? Items[e.ItemIndex] : new ListViewItem();
     }
 
     private void listViewEx1_Resize(object sender, EventArgs e)
@@ -82,9 +85,8 @@ namespace SkyRoof
     {
       var item = listViewEx1.GetItemAt(e.X, e.Y);
      
-      if (item != null && e.Button == MouseButtons.Left)
+      if (e.Button == MouseButtons.Left && item?.Tag is SatellitePass pass)
       {
-        var pass = (SatellitePass)item.Tag!;
         var sat = pass.Satellite;
         ctx.SatelliteSelector.SetSelectedSatellite(sat);
         ctx.SatelliteSelector.SetSelectedPass(pass);
@@ -125,19 +127,56 @@ namespace SkyRoof
 
       passes = passes.Where(pass => pass.EndTime >= startTime && pass.StartTime < endTime);
       Items = CreatePassItems(passes).ToList();
-      listViewEx1.VirtualListSize = Items.Count;
+      if (listViewEx1.VirtualListSize != Items.Count)
+        listViewEx1.VirtualListSize = Items.Count;
       listViewEx1.Invalidate();
+      _ = PrepareMiniPathsAsync(Items.Select(i => i.Tag).OfType<SatellitePass>().ToArray());
+    }
+
+    private async Task PrepareMiniPathsAsync(SatellitePass[] passes)
+    {
+      miniPathCancellation?.Cancel();
+      var cancellation = new CancellationTokenSource();
+      miniPathCancellation = cancellation;
+      try
+      {
+        await Task.Run(() =>
+        {
+          foreach (var pass in passes)
+          {
+            cancellation.Token.ThrowIfCancellationRequested();
+            pass.MakeMiniPath();
+          }
+        }, cancellation.Token);
+        if (!IsDisposed && !Disposing && IsHandleCreated &&
+            ReferenceEquals(miniPathCancellation, cancellation))
+          listViewEx1.Invalidate();
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      catch (Exception ex) { Log.Warning(ex, "Mini pass path preparation failed."); }
+      finally
+      {
+        if (ReferenceEquals(miniPathCancellation, cancellation))
+          miniPathCancellation = null;
+        cancellation.Dispose();
+      }
     }
 
     internal void UpdatePassTimes()
     {
-      // delete finished passes
-      int oldCount = Items.Count;
+      // Refresh countdown labels without resetting the virtual list every second.
+      // Assigning VirtualListSize unconditionally tears down the native list-view
+      // display cache and produces periodic full-white repaints.
+      var now = DateTime.UtcNow;
       for (int i = Items.Count - 1; i >= 0; i--)
-        if (((SatellitePass)Items[i].Tag).EndTime < DateTime.UtcNow) Items.RemoveAt(i);
+        if (Items[i].Tag is SatellitePass pass && pass.EndTime < now)
+          Items.RemoveAt(i);
 
-      listViewEx1.VirtualListSize = Items.Count;
-      listViewEx1.Invalidate();
+      if (listViewEx1.VirtualListSize != Items.Count)
+        listViewEx1.VirtualListSize = Items.Count;
+
+      if (Items.Count > 0 && listViewEx1.IsHandleCreated)
+        listViewEx1.RedrawItems(0, Items.Count - 1, invalidateOnly: true);
     }
 
     public IEnumerable<ListViewItem> CreatePassItems(IEnumerable<SatellitePass> passes)
@@ -150,8 +189,6 @@ namespace SkyRoof
     {
       var item = new ListViewItem();
       item.Tag = pass;
-
-      pass.MakeMiniPath();
 
       return item;
     }
@@ -179,8 +216,7 @@ namespace SkyRoof
     private void listViewEx1_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
     {
       e.DrawBackground();
-
-      var pass = (SatellitePass)e.Item.Tag;
+      if (e.Item.Tag is not SatellitePass pass) return;
       int h = e.Bounds.Height - 1;
       int w = e.Bounds.Width - h;
       bool now = pass.StartTime < DateTime.UtcNow;
@@ -244,7 +280,7 @@ namespace SkyRoof
       e.Graphics.DrawEllipse(Pens.Silver, rect); // fixed: mini sky view grid, silver in both themes
 
       var path = ((SatellitePass)e.Item.Tag).MiniPath;
-      if (path.Length > 1)
+      if (path is { Length: > 1 })
       {
         // path
         var points = path.Select(p =>
@@ -270,8 +306,23 @@ namespace SkyRoof
       if (item == null || item == HoveredItem) return;
       HoveredItem = item;
 
-      var pass = (SatellitePass)item.Tag!;
-      item.ToolTipText = $"{pass.Satellite.GetTooltipText()}\n\n{string.Join("\n", pass.GetTooltipText(false))}";
+      if (item.Tag is SatellitePass pass)
+        _ = PrepareTooltipAsync(item, pass);
+    }
+
+    private async Task PrepareTooltipAsync(ListViewItem item, SatellitePass pass)
+    {
+      try
+      {
+        string tooltip = await Task.Run(() =>
+          $"{pass.Satellite.GetTooltipText()}\n\n{string.Join("\n", pass.GetTooltipText(false))}");
+        if (!IsDisposed && !Disposing && ReferenceEquals(HoveredItem, item))
+          item.ToolTipText = tooltip;
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Satellite pass tooltip preparation failed.");
+      }
     }
   }
 }

@@ -572,7 +572,7 @@ namespace SkyRoof
           break;
 
         case "SkyRoof.UserSettings.Square":
-          canChange = ValidateByRegex(e, Utils.GridSquare6Regex, "grid square", CharacterCasing.Upper);
+          canChange = ValidateByRegex(e, Utils.GridSquareExtendedRegex, "grid square", CharacterCasing.Upper);
           break;
 
         case "SkyRoof.UserSettings.Altitude":

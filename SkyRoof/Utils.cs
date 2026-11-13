@@ -71,6 +71,7 @@ namespace VE3NEA
     );
 
     public static Regex GridSquare6Regex = new Regex(@"^(?!RR73)[A-R]{2}\d{2}([A-X]{2})$", RegexOptions.Compiled);
+    public static Regex GridSquareExtendedRegex = new Regex(@"^(?!RR73$)[A-R]{2}\\d{2}(?:[A-X]{2}(?:\\d{2}(?:[A-X]{2})?)?)?$", RegexOptions.Compiled);
     public static Regex GridSquare4Regex = new Regex(@"^[A-R]{2}\d{2}$", RegexOptions.Compiled);
 
 
