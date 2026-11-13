@@ -64,3 +64,13 @@ Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full 
 - 继续基于已发布 v.1.73 原位替换，不修改版本号。替换前检查当前 Release、安装器 SHA-256 和 tag commit；发布后再次回读校验，旧版安装器哈希不再适用。
 
 **English:** Accept full 4/6/8/10-character station Maidenhead locators and propagate the true cell-center coordinates to the Orekit observer. Prepare Sky View orbit tracks, labels and Satellite Passes mini-paths/tooltips off the UI thread, draw only cached data and fix zero-radius dock-panel painting. Guard the existing v.1.73 asset and tag identities for replacement, then independently verify the published installer. Hardware testing remains outstanding.
+
+
+## 2026-11-13 Satellite Passes 间歇性空白二次修复 / atomic pass refresh
+
+- 修复已定位的周期性白屏：每分钟 Group 过境刷新在旧缓存失效时无条件调用 ClearPendingGroupPasses，导致旧表立即清空，并在 Orekit/IKVM 后台重新计算期间出现数秒空列表。现同一个群组保留**最后一次完整预测快照**，新结果计算完成后一次性替换；**实际切换群组**才清除旧群组数据，以免混淆卫星。
+- 当预测列表的 SatellitePass 引用序列没有发生变化时，保留原有 WinForms 虚拟列表项、滚动位置及缩略轨迹缓存；不再次安排轨迹计算。需要更新时优先使用预先计算完毕的轨迹。
+- 每秒倒计时仅调用 RedrawItems 刷新当前可见行，避免对所有虚拟行进行无谓的背景重绘。使用 Volatile.Read 接收后台完整发布的 MiniPath 数组。
+- 新增固定组/换组缓存决策、相同/不同列表身份、滚动区域行刷新单元测试；Windows CI 和 aislop 的实际执行结果见对应 PR/Action。无真实 Windows 长时间白屏复现设备，本次修复不主张已完成实机验收。
+
+**English:** Preserve the last published GroupSatellitePasses snapshot during the same group's minute refresh instead of blanking the virtual list pending Orekit computation. Clear stale data only on a real group switch. Skip redundant full list redraws and thumbnail workers on identical pass references; invalidate visible countdown rows only. Hardware/UI soak remains unverified.

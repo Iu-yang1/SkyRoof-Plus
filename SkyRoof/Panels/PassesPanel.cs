@@ -17,6 +17,7 @@ namespace SkyRoof
 
     private readonly Font BoldFont;
     private readonly Pen PathPen = new Pen(Theme.Now, 2);
+    private int rowHeight;
     private CancellationTokenSource? miniPathCancellation;
 
 
@@ -36,7 +37,7 @@ namespace SkyRoof
 
       BoldFont = new Font(listViewEx1.Font, FontStyle.Bold);
 
-      int rowHeight = TextRenderer.MeasureText("0", Font, Size, TextFormatFlags.NoPadding).Height * 2 + 15;
+      rowHeight = TextRenderer.MeasureText("0", Font, Size, TextFormatFlags.NoPadding).Height * 2 + 15;
       listViewEx1.SetRowHeight(rowHeight);
       
       
@@ -125,17 +126,38 @@ namespace SkyRoof
         endTime = startTime + TimeSpan.FromHours(2);
       }
 
-      passes = passes.Where(pass => pass.EndTime >= startTime && pass.StartTime < endTime);
-      Items = CreatePassItems(passes).ToList();
+      var nextPasses = passes
+        .Where(pass => pass.EndTime >= startTime && pass.StartTime < endTime)
+        .OrderBy(pass => pass.StartTime)
+        .ToArray();
+
+      // A cache hit and a minute tick can request the same passes again.
+      // Preserving native virtual-list items/scroll state prevents a full
+      // erase/repaint and avoids rescheduling already-computed mini paths.
+      if (SamePassSequence(Items, nextPasses)) return;
+
+      miniPathCancellation?.Cancel();
+      Items = CreatePassItems(nextPasses).ToList();
       if (listViewEx1.VirtualListSize != Items.Count)
         listViewEx1.VirtualListSize = Items.Count;
       listViewEx1.Invalidate();
-      _ = PrepareMiniPathsAsync(Items.Select(i => i.Tag).OfType<SatellitePass>().ToArray());
+
+      var missingPaths = nextPasses
+        .Where(pass => Volatile.Read(ref pass.MiniPath) == null).ToArray();
+      if (missingPaths.Length != 0)
+        _ = PrepareMiniPathsAsync(missingPaths);
+    }
+
+    internal static bool SamePassSequence<T>(
+      IReadOnlyList<ListViewItem> displayed, IReadOnlyList<T> next) where T : class
+    {
+      return displayed.Count == next.Count &&
+        displayed.Zip(next, (row, pass) => ReferenceEquals(row.Tag, pass))
+          .All(same => same);
     }
 
     private async Task PrepareMiniPathsAsync(SatellitePass[] passes)
     {
-      miniPathCancellation?.Cancel();
       var cancellation = new CancellationTokenSource();
       miniPathCancellation = cancellation;
       try
@@ -176,7 +198,23 @@ namespace SkyRoof
         listViewEx1.VirtualListSize = Items.Count;
 
       if (Items.Count > 0 && listViewEx1.IsHandleCreated)
-        listViewEx1.RedrawItems(0, Items.Count - 1, invalidateOnly: true);
+      {
+        // Only invalidate rows on-screen. Full-range redraw invalidates the
+        // virtual list's entire background once a second while scrolling.
+        int topIndex = listViewEx1.TopItem?.Index ?? 0;
+        var (first, last) = VisibleRedrawRange(
+          Items.Count, topIndex, listViewEx1.ClientSize.Height, rowHeight);
+        listViewEx1.RedrawItems(first, last, invalidateOnly: true);
+      }
+    }
+
+    internal static (int First, int Last) VisibleRedrawRange(
+      int count, int topIndex, int viewHeight, int itemHeight)
+    {
+      int first = Math.Clamp(topIndex, 0, count - 1);
+      int h = Math.Max(itemHeight, 1);
+      int visibleCount = Math.Max(1, Math.Max(0, viewHeight) / h + 2);
+      return (first, Math.Min(count - 1, first + visibleCount - 1));
     }
 
     public IEnumerable<ListViewItem> CreatePassItems(IEnumerable<SatellitePass> passes)
@@ -279,7 +317,7 @@ namespace SkyRoof
       rect.Inflate(-radius / 2, -radius / 2);
       e.Graphics.DrawEllipse(Pens.Silver, rect); // fixed: mini sky view grid, silver in both themes
 
-      var path = ((SatellitePass)e.Item.Tag).MiniPath;
+      var path = Volatile.Read(ref pass.MiniPath);
       if (path is { Length: > 1 })
       {
         // path

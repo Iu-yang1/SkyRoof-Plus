@@ -54,6 +54,14 @@ namespace SkyRoof
       DateTime CachedUtc, SatnogsDbSatellite[] Sources,
       SatelliteTracker[] Trackers, SatellitePasses.FullRebuildSnapshot Snapshot);
     private readonly Dictionary<string, GroupPassCacheEntry> groupPassCache = new();
+    // The identity of the snapshot currently presented by GroupPasses.
+    // Keep that snapshot visible while refreshing the SAME group.
+    private string? displayedPassGroupId;
+
+    internal static bool CanRetainGroupPassesDuringRefresh(
+      string? displayedGroupId, string requestedGroupId) =>
+      displayedGroupId == null ||
+      string.Equals(displayedGroupId, requestedGroupId, StringComparison.Ordinal);
     private long recentIfAfClips, recentIfAfOutputSamples;
     internal void ApplyEmbeddedSkyCatSettings() =>
       EmbeddedSkyCat.Apply(ctx.Settings.Cat.Embedded);
@@ -2493,11 +2501,22 @@ namespace SkyRoof
             ReferenceEquals(tracks[i], entry.Trackers[i])).All(valid => valid))
       {
         service.ApplySelectedGroupSnapshot(entry.Snapshot);
+        displayedPassGroupId = groupId;
         ctx.PassesPanel?.ShowPasses();
         return;
       }
 
-      service.ClearPendingGroupPasses();
+      // A full recomputation may take seconds on an Orekit/IKVM worker.
+      // Clearing the SAME group's published list here makes the WinForms
+      // virtual list empty at every cache expiry (the reported white flash).
+      // Retain its last complete snapshot until the replacement is ready.
+      // When switching to a different group, however, never show the old
+      // group's satellites as if they belonged to the newly selected group.
+      if (!CanRetainGroupPassesDuringRefresh(displayedPassGroupId, groupId))
+      {
+        service.ClearPendingGroupPasses();
+        displayedPassGroupId = null;
+      }
       var cancellation = new CancellationTokenSource();
       groupPassCancellation = cancellation;
       long generation = groupPassGeneration;
@@ -2526,6 +2545,7 @@ namespace SkyRoof
           return;
 
         service.ApplySelectedGroupSnapshot(snapshot);
+        displayedPassGroupId = groupId;
         groupPassCache[groupId] = new GroupPassCacheEntry(
           DateTime.UtcNow, source, tracks, snapshot);
         ctx.PassesPanel?.ShowPasses();

@@ -92,9 +92,9 @@ jobs:
             $existingSha = (@($existing)[0] -split '\s+')[0]
             $replaceV173 = $version -eq '1.73' -and
               "${{ github.event_name }}" -eq 'push' -and
-              (Get-Content Directory.Build.props -Raw).Contains('v1.73-maidenhead-skyview-replacement-20261113')
+              (Get-Content Directory.Build.props -Raw).Contains('v1.73-pass-panel-atomic-replacement-20261113')
             if ($replaceV173) {
-              if ($existingSha -ne 'e1dba967d38cb55267f66445f270ed42ee73be29') {
+              if ($existingSha -ne '190b26ec62b4b73fe274a52f010146c4ae656798') {
                 throw 'v.1.73 original tag moved; refusing replacement'
               }
               $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
@@ -103,12 +103,12 @@ jobs:
                 throw 'v.1.73 existing Release identity or stability differs'
               }
               $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.73.exe' })
-              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 742389009 -or
-                  $oldAsset[0].digest -ne 'sha256:031f1ea29794c306c9037daee1f8c285a02613039af352a880525c9caa9e64ff') {
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 742529482 -or
+                  $oldAsset[0].digest -ne 'sha256:a6d442abe1f3875d5881fd5ef4b4766d9c83d539f9715ad30d1d6690e5ce33eb') {
                 throw 'v.1.73 existing installer changed; refusing replacement'
               }
               "REPLACE_V173=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-              Write-Host "Authorized one-time v.1.73 Maidenhead and Sky View installer replacement"
+              Write-Host "Authorized one-time v.1.73 Satellite Passes atomic-refresh installer replacement"
             }
             elseif (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
@@ -429,7 +429,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Failed to update release target commit" }
           Write-Host "v.1.69 now points to $newCommit with verified asset sha256:$localHash"
 
-      - name: Finalize one-time v.1.73 Maidenhead and Sky View installer replacement
+      - name: Finalize one-time v.1.73 Satellite Passes atomic-refresh installer replacement
         if: env.REPLACE_V173 == 'true'
         shell: pwsh
         env:
@@ -438,7 +438,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = 'v.1.73'
           $newCommit = "${{ github.sha }}"
-          $oldCommit = 'e1dba967d38cb55267f66445f270ed42ee73be29'
+          $oldCommit = '190b26ec62b4b73fe274a52f010146c4ae656798'
           $name = 'SkyRoofSetup-v.1.73.exe'
           $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
