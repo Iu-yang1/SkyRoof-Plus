@@ -320,7 +320,7 @@ namespace SkyRoof
                   if (!ReferenceEquals(ctx.SatelliteSelector.SelectedSatellite, satellite) ||
                       !ReferenceEquals(satellite.Tracker, tracker))
                   {
-                    nextPassCache.TryRemove(tracker, out _);
+                    nextPassCache.TryRemove(tracker, out var discardedEntry);
                     return null;
                   }
                   return GetNextPass(satellite);
