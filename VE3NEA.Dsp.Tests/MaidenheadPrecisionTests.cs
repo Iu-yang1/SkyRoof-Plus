@@ -52,6 +52,18 @@ public sealed class MaidenheadPrecisionTests
     }
 
     [Fact]
+    public void FullTenCharacterLocatorReachesTheOrbitGroundStation()
+    {
+        const string grid = "OL79WQ12AB";
+        var station = SatellitePasses.CreateStationFromGridSquare(grid, 56);
+        var geodetic = station.Location.ToGeodetic();
+        var exactCenter = GridSquare.ToGeoPoint(grid);
+        Assert.Equal(exactCenter.Latitude, geodetic.Latitude.Degrees, 7);
+        Assert.Equal(exactCenter.Longitude, geodetic.Longitude.Degrees, 7);
+        Assert.Equal(0.056, geodetic.Altitude, 7);
+    }
+
+    [Fact]
     public void TenCharacterLocatorIsNotTruncatedToSixCharacters()
     {
         GeoPoint coarse = GridSquare.ToGeoPoint("OL79WQ");
