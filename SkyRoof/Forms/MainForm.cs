@@ -2044,9 +2044,14 @@ namespace SkyRoof
         Cursor.Position);
     }
 
+    // Configuration-driven view selection; the control engine remains the
+    // same GS-232 or Hamlib backend regardless of which panel is displayed.
+    internal static bool UsesYaesuG5500Panel(RotatorSettings settings) =>
+      settings.HardwareModel == RotatorHardwareModel.YaesuG5500;
+
     internal void ShowRotatorManualControl(Point screenPoint)
     {
-      bool yaesu = ctx.Settings.Rotator.HardwareModel == RotatorHardwareModel.YaesuG5500;
+      bool yaesu = UsesYaesuG5500Panel(ctx.Settings.Rotator);
 
       if (yaesu)
       {
