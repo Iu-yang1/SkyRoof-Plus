@@ -807,8 +807,14 @@ namespace SkyRoof
         ctx.MainForm.ShowCatStatus();
       }
 
-      if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.RotatorSettings.")))
+      // HardwareModel selects an operator UI only. Do not disconnect a
+      // tracking antenna or restart its serial owner for a cosmetic switch.
+      if (ChangedFields.Exists(s =>
+            s.StartsWith("SkyRoof.RotatorSettings.") &&
+            s != "SkyRoof.RotatorSettings.HardwareModel"))
         ctx.RotatorControl.ApplySettings(true);
+      else if (ChangedFields.Contains("SkyRoof.RotatorSettings.HardwareModel"))
+        ctx.MainForm.ShowRotatorStatus();
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.WaterfallSettings.")))
         ctx.WaterfallPanel?.ApplySettings();
