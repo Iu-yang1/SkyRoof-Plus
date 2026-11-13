@@ -208,7 +208,11 @@ namespace SkyRoof
     {
       try
       {
-        var next = await ctx.HamPasses.GetNextPassAsync(satellite);
+        await Task.Delay(60);
+        if (IsDisposed || Disposing || request != nextPassRequestVersion ||
+            !ReferenceEquals(SelectedSatellite, satellite))
+          return;
+        var next = await ctx.HamPasses.GetNextPassAsync(satellite, prioritize: true);
         if (IsDisposed || Disposing || request != nextPassRequestVersion ||
             !ReferenceEquals(SelectedSatellite, satellite) || SelectedPass != null)
           return;

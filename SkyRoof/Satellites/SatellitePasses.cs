@@ -320,8 +320,7 @@ namespace SkyRoof
         if (now - cached.CreatedUtc < TimeSpan.FromMinutes(2) &&
             (!cached.Ready || cached.Value?.EndTime >= now))
         {
-          if (!prioritize || cached.Ready ||
-              now - cached.CreatedUtc < TimeSpan.FromMilliseconds(80))
+          if (!prioritize || cached.Ready)
             return cached.Work;
         }
         nextPassCache.TryRemove(tracker, out _);
