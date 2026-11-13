@@ -53,7 +53,7 @@ namespace SkyRoof
 
     private void ValidateAll()
     {
-      bool ok = textBox2.Text.Length == 6 && GridSquare.IsValid(textBox2.Text.Trim());
+      bool ok = textBox2.Text.Trim().Length >= 4 && GridSquare.IsValid(textBox2.Text.Trim());
       label3.ForeColor = ok ? SystemColors.WindowText : Color.Red;
 
       okBtn.Enabled = ok;
