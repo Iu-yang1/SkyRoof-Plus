@@ -207,7 +207,7 @@ namespace SkyRoof
       if (ready.IsFaulted || ready.IsCanceled) return;
       if (!ready.IsCompletedSuccessfully)
       {
-        RequestRenderTrack(pass, ready);
+        _ = RequestRenderTrack(pass, ready);
         return;
       }
 
@@ -241,7 +241,7 @@ namespace SkyRoof
         DrawSat(g, pass, track, now);
     }
 
-    private async void RequestRenderTrack(
+    private async Task RequestRenderTrack(
       SatellitePass pass, Task<List<SatellitePass.TrackPoint>> work)
     {
       if (!requestedRenderTracks.Add(pass)) return;
