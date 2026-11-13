@@ -46,7 +46,12 @@ namespace SkyRoof
 
       FlowPanel.BackColor = SystemColors.Window;
 
+      // Orbit image and labels are independently refreshed at 1 Hz.
+      // Buffer both surfaces so a label layout change never exposes their
+      // erased intermediate background between WM_PAINT messages.
       Utils.SetDoubleBuffered(DrawPanel, true);
+      Utils.SetDoubleBuffered(FlowPanel, true);
+      Utils.SetDoubleBuffered(RadioButtonsPanel, true);
     }
 
     private void SkyViewPanel_FormClosing(object sender, FormClosingEventArgs e)
