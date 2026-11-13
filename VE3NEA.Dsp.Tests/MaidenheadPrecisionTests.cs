@@ -75,6 +75,25 @@ public sealed class MaidenheadPrecisionTests
     }
 
     [Fact]
+    public void DeterministicWideAreaCoordinatesRoundTripForAllSupportedPrecisionLevels()
+    {
+        var random = new Random(20261113);
+        for (int i = 0; i < 200; i++)
+        {
+            double latitude = -90 + random.NextDouble() * 180;
+            double longitude = -180 + random.NextDouble() * 360;
+            foreach (int length in new[] { 4, 6, 8, 10 })
+            {
+                string locator = GridSquare.FromGeoPoint(
+                    new GeoPoint(latitude, longitude), length);
+                Assert.True(GridSquare.IsValid(locator));
+                Assert.Equal(locator,
+                    GridSquare.FromGeoPoint(GridSquare.ToGeoPoint(locator), length));
+            }
+        }
+    }
+
+    [Fact]
     public void FourAndTenCharacterLocatorsPreserveCellCenterOnRoundTrip()
     {
         foreach (int length in new[] { 4, 6, 8, 10 })
