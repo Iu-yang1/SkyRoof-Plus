@@ -1,5 +1,6 @@
 using System;
 using SkyRoof;
+using SGPdotNET.CoordinateSystem;
 using VE3NEA;
 using Xunit;
 
