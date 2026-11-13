@@ -39,6 +39,12 @@ namespace SkyRoof
       ctx.Announcer.RebuildQueue();
     }
 
+    internal void ApplySelectedGroupSnapshot(FullRebuildSnapshot snapshot)
+    {
+      ApplyFullRebuildSnapshot(snapshot);
+      ctx.Announcer.RebuildQueue();
+    }
+
     public override SatellitePass[] PredictMorePasses()
     {
       var newPasses = base.PredictMorePasses();
@@ -76,54 +82,6 @@ namespace SkyRoof
 
 
   //----------------------------------------------------------------------------------------------
-  //                                 SdrSatellitePasses
-  //----------------------------------------------------------------------------------------------
-  public class SdrSatellitePasses : SatellitePasses
-  {
-    private double StartFrequency, EndFrequency;
-
-    public SdrSatellitePasses(Context ctx) : base(ctx)
-    {
-      PredictionTimeSpan = TimeSpan.FromMinutes(6);
-      UpdateFrequencyRange();
-    }
-
-    public void UpdateFrequencyRange()
-    {
-      double startFrequency = 0;
-      double endFrequency = 0;
-
-      if (ctx.WaterfallPanel != null && ctx.Sdr != null &&
-        !SatnogsDbTransmitter.IsHamFrequency(ctx.FrequencyControl.GetSdrRfCenter()))
-      {
-        double centerFrequency = ctx.FrequencyControl.GetSdrRfCenter();
-        double wing = ctx.Sdr.Info.MaxBandwidth / 2;
-        startFrequency = centerFrequency - wing;
-        endFrequency = centerFrequency + wing;
-      }
-
-      if (startFrequency == StartFrequency && endFrequency == EndFrequency) return;
-
-      StartFrequency = startFrequency;
-      EndFrequency = endFrequency;
-
-      FullRebuild();
-    }
-
-    protected override IEnumerable<SatnogsDbSatellite> ListSatellites()
-    {
-      if (StartFrequency == 0 || EndFrequency == 0) return Array.Empty<SatnogsDbSatellite>();
-
-      return ctx.SatnogsDb.Satellites.Where(sat =>
-        sat.Transmitters.Any(tx => tx.DownlinkLow >= StartFrequency) &&
-        sat.Transmitters.Any(tx => tx.DownlinkLow <= EndFrequency));
-    }
-}
-
-
-
-
-  //----------------------------------------------------------------------------------------------
   //                                     base class
   //----------------------------------------------------------------------------------------------
   public abstract class SatellitePasses
@@ -140,6 +98,41 @@ namespace SkyRoof
     internal static readonly TimeSpan LosGracePeriod = TimeSpan.FromMinutes(2);
 
     private DateTime LastPredictionTime = DateTime.MinValue;
+    private sealed class NextPassCacheEntry
+    {
+      private int ready;
+      private SatellitePass? value;
+
+      internal DateTime CreatedUtc { get; } = DateTime.UtcNow;
+      internal Task<SatellitePass?> Work { get; }
+      internal bool Ready => Volatile.Read(ref ready) == 1;
+      internal SatellitePass? Value => value;
+
+      internal NextPassCacheEntry(Func<Task<SatellitePass?>> compute)
+      {
+        Work = CaptureAsync(compute);
+      }
+
+      private async Task<SatellitePass?> CaptureAsync(Func<Task<SatellitePass?>> compute)
+      {
+        try
+        {
+          value = await compute().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Background satellite pass prediction failed.");
+          value = null;
+        }
+        Volatile.Write(ref ready, 1);
+        return value;
+      }
+    }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<SatelliteTracker,
+      NextPassCacheEntry> nextPassCache = new();
+    private static readonly SemaphoreSlim NextPassWorkers = new(2, 2);
+    private static readonly SemaphoreSlim SelectedPassWorker = new(1, 1);
 
     public List<SatellitePass> Passes = new();
 
@@ -148,6 +141,48 @@ namespace SkyRoof
       this.ctx = ctx;
 
       CreateGroundStation(ctx.Settings.User.Square, ctx.Settings.User.Altitude);
+    }
+
+    internal sealed record FullRebuildSnapshot(
+      SatnogsDbSatellite[] Satellites,
+      SatellitePass[] Passes,
+      DateTime CalculationUtc);
+
+    internal FullRebuildSnapshot ComputeFullRebuildSnapshot(
+      SatnogsDbSatellite[] requested, CancellationToken cancellationToken)
+    {
+      var selected = requested.Where(s => s.Tracker.Enabled && s.IsAlive()).ToArray();
+      var now = DateTime.UtcNow;
+      var result = new List<SatellitePass>();
+      foreach (var sat in selected)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        result.AddRange(ComputePassesFor(sat, now, now + PredictionTimeSpan));
+      }
+      cancellationToken.ThrowIfCancellationRequested();
+      result.Sort((left, right) => left.StartTime.CompareTo(right.StartTime));
+      foreach (var pass in result)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        pass.MakeMiniPath();
+      }
+      return new FullRebuildSnapshot(selected, result.ToArray(), now);
+    }
+
+    internal void ApplyFullRebuildSnapshot(FullRebuildSnapshot snapshot)
+    {
+      Satellites = snapshot.Satellites.ToList();
+      Passes = snapshot.Passes.ToList();
+      LastPredictionTime = snapshot.CalculationUtc;
+    }
+
+    // Clear a previous group's pass data immediately while a replacement is
+    // being prepared; otherwise Group view can show unrelated passes.
+    internal void ClearPendingGroupPasses()
+    {
+      Satellites.Clear();
+      Passes.Clear();
+      LastPredictionTime = DateTime.MinValue;
     }
 
     // call when satellite list or group changes
@@ -235,6 +270,78 @@ namespace SkyRoof
     internal TopocentricObservation? ObserveSatellite(SatnogsDbSatellite? satellite, DateTime utcNow)
     {
       return satellite?.Tracker.Observe(GroundStation, utcNow);
+    }
+
+    internal SatellitePass? GetPrecomputedNextPass(SatnogsDbSatellite satellite)
+    {
+      var now = DateTime.UtcNow;
+      return Passes
+        .Where(p => ReferenceEquals(p.Satellite, satellite) && p.EndTime >= now)
+        .MinBy(p => p.StartTime);
+    }
+
+    internal static bool IsNextPassCacheFresh(
+      DateTime now, DateTime created, bool ready, DateTime? passEnd) =>
+      now - created < TimeSpan.FromMinutes(2) &&
+      (!ready || passEnd == null || passEnd >= now);
+
+    internal Task<SatellitePass?> GetNextPassAsync(
+      SatnogsDbSatellite? satellite, bool prioritize = false)
+    {
+      if (satellite == null || !satellite.Tracker.Enabled)
+        return Task.FromResult<SatellitePass?>(null);
+
+      var tracker = satellite.Tracker;
+      var now = DateTime.UtcNow;
+      if (nextPassCache.TryGetValue(tracker, out var cached))
+      {
+        if (IsNextPassCacheFresh(
+              now, cached.CreatedUtc, cached.Ready, cached.Value?.EndTime))
+        {
+          if (!prioritize || cached.Ready)
+            return cached.Work;
+        }
+        nextPassCache.TryRemove(tracker, out _);
+      }
+
+      if (nextPassCache.Count > 512)
+        nextPassCache.Clear();
+
+      return nextPassCache.GetOrAdd(tracker, _ =>
+        new NextPassCacheEntry(() =>
+          prioritize
+            ? Task.Run(async () =>
+              {
+                await SelectedPassWorker.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                  // Quickly skip queued obsolete selections. A burst of
+                  // rapid clicks must not queue unbounded 24h Orekit scans.
+                  if (!ReferenceEquals(ctx.SatelliteSelector.SelectedSatellite, satellite) ||
+                      !ReferenceEquals(satellite.Tracker, tracker))
+                  {
+                    nextPassCache.TryRemove(tracker, out var discardedEntry);
+                    return null;
+                  }
+                  return GetNextPass(satellite);
+                }
+                finally { SelectedPassWorker.Release(); }
+              })
+            : Task.Run(async () =>
+              {
+                await NextPassWorkers.WaitAsync().ConfigureAwait(false);
+                try { return GetNextPass(satellite); }
+                finally { NextPassWorkers.Release(); }
+              }))).Work;
+    }
+
+    internal SatellitePass? GetNextPassCached(SatnogsDbSatellite satellite)
+    {
+      var prepared = GetPrecomputedNextPass(satellite);
+      if (prepared != null) return prepared;
+      _ = GetNextPassAsync(satellite);
+      return nextPassCache.TryGetValue(satellite.Tracker, out var entry) && entry.Ready
+        ? entry.Value : null;
     }
 
     internal SatellitePass? GetNextPass(SatnogsDbSatellite? satellite)

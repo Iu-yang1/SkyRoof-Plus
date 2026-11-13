@@ -11,6 +11,7 @@ namespace SkyRoof
     public Context ctx;
     private bool changing;
     private SatelliteGroup SelectedGroup;
+    private long nextPassRequestVersion;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public SatnogsDbSatellite[] GroupSatellites { get; private set; } = [];
@@ -195,7 +196,44 @@ namespace SkyRoof
 
       LoadTransmitters();
 
-      SetSelectedPass(ctx.HamPasses.GetNextPass(SelectedSatellite));
+      // The next visible pass may require a full day of Orekit propagation.
+      // Do not block the ComboBox event handler. Ignore obsolete selections
+      // and do not overwrite a pass explicitly chosen by the operator.
+      long request = ++nextPassRequestVersion;
+      var prepared = ctx.HamPasses.GetPrecomputedNextPass(SelectedSatellite);
+      SetSelectedPass(prepared);
+      if (prepared == null)
+        LoadNextPassAsync(SelectedSatellite, request).DoNotAwait();
+    }
+
+    internal static bool ShouldApplyNextPass(
+      long expectedVersion, long currentVersion,
+      SatnogsDbSatellite expectedSatellite, SatnogsDbSatellite currentSatellite,
+      bool operatorSelectedPass) =>
+      expectedVersion == currentVersion &&
+      ReferenceEquals(expectedSatellite, currentSatellite) &&
+      !operatorSelectedPass;
+
+    private async Task LoadNextPassAsync(SatnogsDbSatellite satellite, long request)
+    {
+      try
+      {
+        await Task.Delay(60);
+        if (IsDisposed || Disposing || request != nextPassRequestVersion ||
+            !ReferenceEquals(SelectedSatellite, satellite))
+          return;
+        var selectedTracker = satellite.Tracker;
+        var next = await ctx.HamPasses.GetNextPassAsync(satellite, prioritize: true);
+        if (IsDisposed || Disposing || !ReferenceEquals(selectedTracker, satellite.Tracker) ||
+            !ShouldApplyNextPass(request, nextPassRequestVersion,
+              satellite, SelectedSatellite, SelectedPass != null))
+          return;
+        SetSelectedPass(next);
+      }
+      catch (Exception ex)
+      {
+        Serilog.Log.Warning(ex, "Could not predict next pass for {Satellite}", satellite.name);
+      }
     }
 
     private void ShowSelectedTransmitter()

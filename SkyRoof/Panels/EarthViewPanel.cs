@@ -35,6 +35,11 @@ namespace SkyRoof
     private EarthViewMode Mode = EarthViewMode.RealTime;
     private SatellitePass? Pass;
     private List<GeoPoint>? CoveragePolygon;
+    private long polygonRequestVersion;
+    private readonly Dictionary<SatellitePass, List<GeoPoint>> polygonCache = new();
+    private long positionRevision;
+    private bool positionUpdatePending;
+    private bool zoomAfterSatelliteSwitch;
     private readonly Color PolygonColor = Color.FromArgb(230, 0, 110, 255);
 
 
@@ -89,9 +94,23 @@ namespace SkyRoof
     {
       Satellite = satellite ?? ctx.SatelliteSelector.SelectedSatellite;
       label1.Text = Satellite.name;
-
-      ComputeSatLocation();
-      Zoom = 0.9 * Math.PI / SatFootprint;
+      ++positionRevision;
+      zoomAfterSatelliteSwitch = true;
+      // The constructor may call this before WinForms has a synchronization
+      // context. Use the existing synchronous path only before the handle
+      // exists, then keep every later selection free of Orekit propagation.
+      if (!IsHandleCreated)
+      {
+        ComputeSatLocation();
+        Zoom = 0.9 * Math.PI / SatFootprint;
+        zoomAfterSatelliteSwitch = false;
+      }
+      else
+      {
+        SatelliteSprite.Enabled = false;
+        SatGeoPoint = Center = Home;
+        SchedulePositionUpdate();
+      }
       openglControl1.Invalidate();
     }
     public void Advance()
@@ -102,14 +121,18 @@ namespace SkyRoof
       if (Mode == EarthViewMode.Pass && Pass != null && Pass.IsActive())
         RealTimeRadioBtn.Checked = true;
 
-      ComputeSatLocation();
+      SchedulePositionUpdate();
       openglControl1.Invalidate();
     }
 
     internal void SetPass(SatellitePass? pass)
     {
       Pass = pass;
-      CoveragePolygon = pass?.GetCoveragePolygon();
+      long request = ++polygonRequestVersion;
+      CoveragePolygon = pass != null && polygonCache.TryGetValue(pass, out var cached)
+        ? cached : null;
+      if (pass != null && CoveragePolygon == null)
+        ComputeCoveragePolygonAsync(pass, request).DoNotAwait();
 
       PassRadioBtn.Enabled = pass != null;
       PassRadioBtn.Text = pass == null
@@ -124,12 +147,37 @@ namespace SkyRoof
       else
         RealTimeRadioBtn.Checked = true;
 
-      ComputeSatLocation();
+      SchedulePositionUpdate();
 
       // zoom so the whole coverage polygon fits the rectangular panel
       ZoomToFitPolygon();
 
       openglControl1.Invalidate();
+    }
+
+    private async Task ComputeCoveragePolygonAsync(SatellitePass pass, long request)
+    {
+      try
+      {
+        await Task.Delay(60);
+        if (IsDisposed || Disposing || request != polygonRequestVersion ||
+            !ReferenceEquals(Pass, pass))
+          return;
+        var polygon = await Task.Run(pass.GetCoveragePolygon);
+        if (IsDisposed || Disposing || request != polygonRequestVersion ||
+            !ReferenceEquals(Pass, pass))
+          return;
+        if (polygonCache.Count > 48)
+          polygonCache.Clear();
+        polygonCache[pass] = polygon;
+        CoveragePolygon = polygon;
+        ZoomToFitPolygon();
+        openglControl1.Invalidate();
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Satellite coverage polygon generation failed.");
+      }
     }
 
     // set the zoom so that every polygon vertex fits within the rectangular panel.
@@ -166,16 +214,83 @@ namespace SkyRoof
 
       Mode = PassRadioBtn.Checked ? EarthViewMode.Pass : EarthViewMode.RealTime;
 
-      ComputeSatLocation();
+      SchedulePositionUpdate();
       openglControl1.Invalidate();
+    }
+
+    private void SchedulePositionUpdate()
+    {
+      if (positionUpdatePending || IsDisposed || Disposing) return;
+      if (!IsHandleCreated)
+      {
+        ComputeSatLocation();
+        return;
+      }
+      positionUpdatePending = true;
+      UpdatePositionAsync(Satellite, positionRevision).DoNotAwait();
+    }
+
+    private async Task UpdatePositionAsync(SatnogsDbSatellite sat, long revision)
+    {
+      try
+      {
+        var tracker = sat.Tracker;
+        var position = await Task.Run(() =>
+        {
+          var now = DateTime.UtcNow;
+          var current = tracker.Predict(now);
+          var next = tracker.Predict(now.AddSeconds(10));
+          if (current == null || next == null)
+            return (Valid: false, Latitude: 0d, Longitude: 0d,
+              NextLatitude: 0d, NextLongitude: 0d, Footprint: Math.PI);
+          return (Valid: true, Latitude: current.Latitude.Degrees,
+            Longitude: current.Longitude.Degrees,
+            NextLatitude: next.Latitude.Degrees,
+            NextLongitude: next.Longitude.Degrees,
+            Footprint: current.GetFootprintAngle().Radians);
+        });
+        if (IsDisposed || Disposing || revision != positionRevision ||
+            !ReferenceEquals(sat, Satellite) ||
+            !ReferenceEquals(tracker, sat.Tracker))
+          return;
+
+        ApplySatLocation(position.Valid, position.Latitude, position.Longitude,
+          position.NextLatitude, position.NextLongitude, position.Footprint);
+        if (zoomAfterSatelliteSwitch)
+        {
+          Zoom = 0.9 * Math.PI / SatFootprint;
+          zoomAfterSatelliteSwitch = false;
+        }
+        openglControl1.Invalidate();
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Background Earth view satellite position update failed.");
+      }
+      finally
+      {
+        positionUpdatePending = false;
+        if (!IsDisposed && !Disposing && revision != positionRevision)
+          SchedulePositionUpdate();
+      }
     }
 
     private void ComputeSatLocation()
     {
-      var p = Satellite.Tracker.Predict();
-      var nextP = Satellite.Tracker.Predict(DateTime.UtcNow.AddSeconds(10));
+      var now = DateTime.UtcNow;
+      var p = Satellite.Tracker.Predict(now);
+      var nextP = Satellite.Tracker.Predict(now.AddSeconds(10));
+      ApplySatLocation(p != null && nextP != null,
+        p?.Latitude.Degrees ?? 0, p?.Longitude.Degrees ?? 0,
+        nextP?.Latitude.Degrees ?? 0, nextP?.Longitude.Degrees ?? 0,
+        p?.GetFootprintAngle().Radians ?? Math.PI);
+    }
 
-      if (p == null || nextP == null)
+    private void ApplySatLocation(
+      bool valid, double latitude, double longitude,
+      double nextLatitude, double nextLongitude, double footprint)
+    {
+      if (!valid)
       {
         SatGeoPoint = Home;
         SatFootprint = Math.PI;
@@ -184,24 +299,22 @@ namespace SkyRoof
       }
       else
       {
-        SatGeoPoint = new(p.Latitude.Degrees, p.Longitude.Degrees);
-        var nextCenter = new GeoPoint(nextP.Latitude.Degrees, nextP.Longitude.Degrees);
-        SatFootprint = p.GetFootprintAngle().Radians;
+        SatGeoPoint = new(latitude, longitude);
+        var nextCenter = new GeoPoint(nextLatitude, nextLongitude);
+        SatFootprint = footprint;
         Azimuth = (nextCenter - SatGeoPoint).AzimuthRad;
         SatelliteSprite.Enabled = true;
       }
 
       if (Mode == EarthViewMode.Pass)
       {
-        // center on the user, do not show the satellite footprint circle or the satellite
         Center = Home;
         DimmingRadius = Math.PI;
         SatelliteSprite.Enabled = false;
       }
       else
       {
-        // center on the satellite, show its footprint circle
-        Center = (p == null) ? Home : SatGeoPoint;
+        Center = valid ? SatGeoPoint : Home;
         DimmingRadius = SatFootprint;
       }
     }

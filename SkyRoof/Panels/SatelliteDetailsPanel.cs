@@ -3,6 +3,8 @@ using System.Diagnostics;
 using Serilog;
 using WeifenLuo.WinFormsUI.Docking;
 
+using VE3NEA;
+
 namespace SkyRoof
 {
   public partial class SatelliteDetailsPanel : DockContent
@@ -37,12 +39,13 @@ namespace SkyRoof
       ImageLabel.LinkColor = WebsiteLabel.LinkColor = SatnogsLabel.LinkColor = Theme.Link;
     }
 
+    private long orbitDetailVersion;
+
     public void SetSatellite(SatnogsDbSatellite? sat = null)
     {
       sat ??= ctx.SatelliteSelector.SelectedSatellite;
-      sat.ComputeOrbitDetails();
-
       Satellite = sat;
+      RefreshOrbitDetailsAsync(sat, ++orbitDetailVersion).DoNotAwait();
       SatNameLabel.Text = sat.name;
 
       SatAkaLabel.Visible = sat.AllNames.Count > 1;
@@ -54,6 +57,16 @@ namespace SkyRoof
       SatnogsLabel.Visible = !sat.IsEphemerisTarget;
 
       SatellitePropertyGrid.SelectedObject = sat;
+    }
+
+    private async Task RefreshOrbitDetailsAsync(SatnogsDbSatellite sat, long request)
+    {
+      // Metadata is cheap, but PredictGeodetic may have to initialize
+      // Orekit/IKVM frames. Do it outside the UI thread.
+      await Task.Run(sat.ComputeOrbitDetails);
+      if (!IsDisposed && !Disposing && request == orbitDetailVersion &&
+          ReferenceEquals(Satellite, sat))
+        SatellitePropertyGrid.Refresh();
     }
 
     private void SatelliteDetailsPanel_Shown(object? sender, EventArgs e)

@@ -20,6 +20,7 @@ namespace SkyRoof
     private Button? readIcomLanButton;
     private Label? readIcomLanHint;
     private Button? updateOrekitDataButton;
+    private readonly CancellationTokenSource orekitRefreshCancellation = new();
     private Label? orekitDataHint;
     private Button? cableOfficialDownload;
     private Button? cableRefresh;
@@ -242,9 +243,20 @@ namespace SkyRoof
         orekitDataHint.Text = SettingsLanguage.Text("正在更新 IERS / DE430...", "Updating IERS / DE430...");
       try
       {
-        await OrekitDataBootstrapper.EnsureAsync(edited.OrbitSources, forceRefresh: true);
+        // Keep the network fetch, checksum, and file I/O off the WinForms
+        // synchronization context even when the cache is already present.
+        var sources = new OrbitSourceSettings
+        {
+          OrekitDataDirectory = edited.OrbitSources.OrekitDataDirectory,
+          OrekitEopSources = edited.OrbitSources.OrekitEopSources,
+          OrekitDe430Url = edited.OrbitSources.OrekitDe430Url
+        };
+        await Task.Run(() => OrekitDataBootstrapper.EnsureAsync(
+          sources, forceRefresh: true, cancellationToken: orekitRefreshCancellation.Token),
+          orekitRefreshCancellation.Token);
+        if (IsDisposed || Disposing || orekitRefreshCancellation.IsCancellationRequested) return;
         string directory = OrbitBackendRegistry.ResolveDataDirectory(
-          edited.OrbitSources.OrekitDataDirectory);
+          sources.OrekitDataDirectory);
         bool hasEop = File.Exists(Path.Combine(directory, "finals2000A.all"));
         bool hasDe430 = File.Exists(Path.Combine(directory, "lnxp1990.430"));
         grid.Refresh();
@@ -258,8 +270,13 @@ namespace SkyRoof
         MessageBox.Show(message, "Orekit / Ephemeris", MessageBoxButtons.OK,
           hasEop && hasDe430 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
       }
+      catch (OperationCanceledException) when (orekitRefreshCancellation.IsCancellationRequested)
+      {
+        return;
+      }
       catch (Exception ex)
       {
+        if (IsDisposed || Disposing) return;
         Log.Warning(ex, "Manual Orekit data refresh failed.");
         if (orekitDataHint != null)
           orekitDataHint.Text = SettingsLanguage.Text("更新失败", "Update failed");
@@ -268,7 +285,8 @@ namespace SkyRoof
       }
       finally
       {
-        updateOrekitDataButton.Enabled = true;
+        if (!IsDisposed && !Disposing)
+          updateOrekitDataButton.Enabled = true;
       }
     }
 
@@ -452,6 +470,7 @@ namespace SkyRoof
 
     private void SettingsDialog_FormClosing(object? sender, FormClosingEventArgs e)
     {
+      orekitRefreshCancellation.Cancel();
       ctx.CatControl.IcomNetworkReadbackReceived -= OnIcomNetworkReadback;
       ctx.Settings.Ui.SavePropertyGridLabelWidth("SettingsDialog", grid);
       // Cancel must also undo a language preview. Apply commits the preview

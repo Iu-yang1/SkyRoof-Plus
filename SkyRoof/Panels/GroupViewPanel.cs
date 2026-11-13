@@ -12,6 +12,10 @@ namespace SkyRoof
     {
       public SatnogsDbSatellite Sat;
       public SatellitePass? Pass;
+      public SatellitePass? TooltipPass;
+      public string[]? TooltipLines;
+      public DateTime LastTooltipUtc;
+      public bool TooltipPending;
       public ItemData(SatnogsDbSatellite sat) { Sat = sat; }
     }
 
@@ -22,6 +26,7 @@ namespace SkyRoof
     private Font BoldFont, StrikeoutFont;
     // sat the context menu was opened on, captured at Opening time (see SatelliteDetailsMNU_Click)
     private SatnogsDbSatellite? ContextMenuSat;
+    private static readonly SemaphoreSlim TooltipWorkers = new(2, 2);
 
 
 
@@ -144,7 +149,7 @@ namespace SkyRoof
           // re-sort only when the next-pass orbit number actually changes,
           // so satellites with no upcoming pass (Pass stays null) don't force a sort every second
           int? oldOrbit = data.Pass?.OrbitNumber;
-          data.Pass = ctx.HamPasses.GetNextPass(data.Sat);
+          data.Pass = ctx.HamPasses.GetNextPassCached(data.Sat);
           if (data.Pass?.OrbitNumber != oldOrbit) changed = true;
         }
 
@@ -164,12 +169,52 @@ namespace SkyRoof
           item.SubItems[3].Text = $"{Math.Round(data.Pass.MaxElevation)}°";
         }
 
-        item.ToolTipText = $"{data.Sat.GetTooltipText()}\n\n{string.Join("\n", data.Pass?.GetTooltipText(false) ?? [])}";
+        if (data.Pass == null)
+        {
+          data.TooltipPass = null;
+          data.TooltipLines = null;
+        }
+        else if (!data.TooltipPending &&
+                 (!ReferenceEquals(data.TooltipPass, data.Pass) ||
+                  now - data.LastTooltipUtc >= TimeSpan.FromSeconds(15)))
+        {
+          data.TooltipPass = data.Pass;
+          data.TooltipPending = true;
+          UpdatePassTooltipAsync(item, data, data.Pass).DoNotAwait();
+        }
+        item.ToolTipText = $"{data.Sat.GetTooltipText()}\n\n{string.Join("\n", data.TooltipLines ?? [])}";
       }
 
       // only auto-sort while the list is ordered by the Next Pass column
       if (changed && SortColumn == 2) SortItems();
       listView1.Invalidate();
+    }
+
+    private async Task UpdatePassTooltipAsync(
+      ListViewItem item, ItemData data, SatellitePass pass)
+    {
+      try
+      {
+        var lines = await Task.Run(async () =>
+        {
+          await TooltipWorkers.WaitAsync().ConfigureAwait(false);
+          try { return pass.GetTooltipText(false); }
+          finally { TooltipWorkers.Release(); }
+        });
+        if (IsDisposed || Disposing || !ReferenceEquals(data.Pass, pass))
+          return;
+        data.TooltipLines = lines;
+        data.LastTooltipUtc = DateTime.UtcNow;
+        item.ToolTipText = $"{data.Sat.GetTooltipText()}\n\n{string.Join("\n", lines)}";
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Group satellite pass tooltip prediction failed.");
+      }
+      finally
+      {
+        data.TooltipPending = false;
+      }
     }
 
     private void SortItems()
