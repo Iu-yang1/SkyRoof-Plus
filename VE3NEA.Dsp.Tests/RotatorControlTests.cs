@@ -145,7 +145,10 @@ public sealed class RotatorControlTests
             command == "p"
                 ? "90.0\n30.0\n"
                 : "RPRT 0\n");
-        using var engine = StartEngine(server.Port);
+        // Confirm the fake controller has answered before testing the
+        // accepted target → stop → manual-move transaction under CI load.
+        using var engine = StartEngine(server.Port, timeoutMs: 3000);
+        await WaitUntilAsync(() => engine.LastReadBearing != null);
 
         engine.RotateTo(
             new SkyRoof.Bearing(
@@ -299,7 +302,9 @@ public sealed class RotatorControlTests
                     : "145.0\n10.0\n";
             return "RPRT 0\n";
         });
-        using var engine = StartEngine(server.Port);
+        // Avoid false reconnects from the default 500 ms localhost read
+        // timeout when the Windows runner is compiling other test projects.
+        using var engine = StartEngine(server.Port, timeoutMs: 3000);
         await WaitUntilAsync(() => engine.FeedbackDegraded);
         Assert.False(engine.PositionFaulted);
         Assert.True(engine.FeedbackAzimuthSuspect);
