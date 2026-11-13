@@ -118,18 +118,29 @@ namespace SkyRoof
       QueueRangeRebuild();
     }
 
-    public override void FullRebuild()
+    private void CancelPendingRangeRebuild()
     {
       ++rebuildVersion;
       rebuildCancellation?.Cancel();
       rebuildCancellation = null;
+    }
+
+    public override void FullRebuild()
+    {
+      CancelPendingRangeRebuild();
       base.FullRebuild();
+    }
+
+    public override void Rebuild()
+    {
+      CancelPendingRangeRebuild();
+      base.Rebuild();
     }
 
     private void QueueRangeRebuild()
     {
-      long generation = ++rebuildVersion;
-      rebuildCancellation?.Cancel();
+      CancelPendingRangeRebuild();
+      long generation = rebuildVersion;
       if (StartFrequency == 0 || EndFrequency == 0)
       {
         ClearPendingGroupPasses();
@@ -137,6 +148,7 @@ namespace SkyRoof
       }
 
       var source = ListSatellites().ToArray();
+      ClearPendingGroupPasses();
       var cancellation = new CancellationTokenSource();
       rebuildCancellation = cancellation;
       RebuildRangeAsync(source, generation, cancellation).DoNotAwait();
@@ -155,6 +167,10 @@ namespace SkyRoof
         ApplyFullRebuildSnapshot(snapshot);
       }
       catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Background SDR pass prediction failed.");
+      }
       finally
       {
         if (ReferenceEquals(rebuildCancellation, cancellation))
