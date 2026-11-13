@@ -35,6 +35,8 @@ namespace SkyRoof
     private EarthViewMode Mode = EarthViewMode.RealTime;
     private SatellitePass? Pass;
     private List<GeoPoint>? CoveragePolygon;
+    private long polygonRequestVersion;
+    private readonly Dictionary<SatellitePass, List<GeoPoint>> polygonCache = new();
     private readonly Color PolygonColor = Color.FromArgb(230, 0, 110, 255);
 
 
@@ -109,7 +111,11 @@ namespace SkyRoof
     internal void SetPass(SatellitePass? pass)
     {
       Pass = pass;
-      CoveragePolygon = pass?.GetCoveragePolygon();
+      long request = ++polygonRequestVersion;
+      CoveragePolygon = pass != null && polygonCache.TryGetValue(pass, out var cached)
+        ? cached : null;
+      if (pass != null && CoveragePolygon == null)
+        ComputeCoveragePolygonAsync(pass, request).DoNotAwait();
 
       PassRadioBtn.Enabled = pass != null;
       PassRadioBtn.Text = pass == null
@@ -130,6 +136,27 @@ namespace SkyRoof
       ZoomToFitPolygon();
 
       openglControl1.Invalidate();
+    }
+
+    private async Task ComputeCoveragePolygonAsync(SatellitePass pass, long request)
+    {
+      try
+      {
+        var polygon = await Task.Run(pass.GetCoveragePolygon);
+        if (IsDisposed || Disposing || request != polygonRequestVersion ||
+            !ReferenceEquals(Pass, pass))
+          return;
+        if (polygonCache.Count > 48)
+          polygonCache.Clear();
+        polygonCache[pass] = polygon;
+        CoveragePolygon = polygon;
+        ZoomToFitPolygon();
+        openglControl1.Invalidate();
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Satellite coverage polygon generation failed.");
+      }
     }
 
     // set the zoom so that every polygon vertex fits within the rectangular panel.

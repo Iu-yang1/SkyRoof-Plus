@@ -264,6 +264,11 @@ namespace SkyRoof
       }
       cancellationToken.ThrowIfCancellationRequested();
       result.Sort((left, right) => left.StartTime.CompareTo(right.StartTime));
+      foreach (var pass in result)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        pass.MakeMiniPath();
+      }
       return new FullRebuildSnapshot(selected, result.ToArray(), now);
     }
 
