@@ -140,6 +140,11 @@ namespace SkyRoof
     internal static readonly TimeSpan LosGracePeriod = TimeSpan.FromMinutes(2);
 
     private DateTime LastPredictionTime = DateTime.MinValue;
+    // Each entry owns its own computation and is keyed by the actual orbit
+    // tracker. A fresh TLE produces a new key instead of reusing stale passes.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<SatelliteTracker,
+      (DateTime CreatedUtc, Task<SatellitePass?> Result)> nextPassCache = new();
+    private static readonly SemaphoreSlim NextPassWorkers = new(2, 2);
 
     public List<SatellitePass> Passes = new();
 
@@ -235,6 +240,46 @@ namespace SkyRoof
     internal TopocentricObservation? ObserveSatellite(SatnogsDbSatellite? satellite, DateTime utcNow)
     {
       return satellite?.Tracker.Observe(GroundStation, utcNow);
+    }
+
+    internal Task<SatellitePass?> GetNextPassAsync(SatnogsDbSatellite? satellite)
+    {
+      if (satellite == null || !satellite.Tracker.Enabled)
+        return Task.FromResult<SatellitePass?>(null);
+
+      var tracker = satellite.Tracker;
+      var now = DateTime.UtcNow;
+      if (nextPassCache.TryGetValue(tracker, out var cached))
+      {
+        if (now - cached.CreatedUtc < TimeSpan.FromMinutes(2) &&
+            !(cached.Result.IsCompletedSuccessfully &&
+              cached.Result.Result?.EndTime < now))
+          return cached.Result;
+        nextPassCache.TryRemove(tracker, out _);
+      }
+
+      if (nextPassCache.Count > 512)
+        nextPassCache.Clear();
+      return nextPassCache.GetOrAdd(tracker, _ =>
+      {
+        // No UI access or WinForms synchronization context in this worker.
+        var work = Task.Run(async () =>
+        {
+          await NextPassWorkers.WaitAsync().ConfigureAwait(false);
+          try { return GetNextPass(satellite); }
+          finally { NextPassWorkers.Release(); }
+        });
+        return (DateTime.UtcNow, work);
+      }).Result;
+    }
+
+    // This method is called by the one-second group view timer. It only
+    // reads a completed cache entry; never starts a one-day orbit search
+    // synchronously on the UI thread.
+    internal SatellitePass? GetNextPassCached(SatnogsDbSatellite satellite)
+    {
+      var work = GetNextPassAsync(satellite);
+      return work.IsCompletedSuccessfully ? work.Result : null;
     }
 
     internal SatellitePass? GetNextPass(SatnogsDbSatellite? satellite)

@@ -144,7 +144,7 @@ namespace SkyRoof
           // re-sort only when the next-pass orbit number actually changes,
           // so satellites with no upcoming pass (Pass stays null) don't force a sort every second
           int? oldOrbit = data.Pass?.OrbitNumber;
-          data.Pass = ctx.HamPasses.GetNextPass(data.Sat);
+          data.Pass = ctx.HamPasses.GetNextPassCached(data.Sat);
           if (data.Pass?.OrbitNumber != oldOrbit) changed = true;
         }
 
