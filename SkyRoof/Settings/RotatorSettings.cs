@@ -20,8 +20,17 @@ namespace SkyRoof
 
   public enum Rc3040sMotionProfile { Direct = 0, PrecisionStop = 1, Trapezoidal = 2, SCurve = 3 }
 
+  // Device identity controls the right-click operator panel; serial/TCP
+  // protocol choice stays independent for GS-232A/B or compatible adapters.
+  public enum RotatorHardwareModel { Generic = 0, YaesuG5500 = 1 }
+
   public class RotatorSettings : IControlEngineSettings
   {
+    [DisplayName("Rotator Model")]
+    [Description("Select Yaesu G-5500 to show its dedicated right-click AZ/EL panel. Requires an external GS-232A/B-compatible computer interface; choose Native GS-232 or a Hamlib rotctld server for that interface.")]
+    [DefaultValue(RotatorHardwareModel.Generic)]
+    public RotatorHardwareModel HardwareModel { get; set; } = RotatorHardwareModel.Generic;
+
     [DisplayName("Controller Driver")]
     [Description("Native directly controls the configured serial/TCP/UDP hardware. LegacyRotctld connects to an external Hamlib server.")]
     [TypeConverter(typeof(RotatorDriverModeConverter))]
