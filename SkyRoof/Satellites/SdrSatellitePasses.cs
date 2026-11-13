@@ -8,6 +8,7 @@ namespace SkyRoof
     private double StartFrequency, EndFrequency;
     private long rebuildVersion;
     private CancellationTokenSource? rebuildCancellation;
+    private static readonly SemaphoreSlim RangeWorkers = new(1, 1);
 
     public SdrSatellitePasses(Context ctx) : base(ctx)
     {
@@ -78,8 +79,13 @@ namespace SkyRoof
     {
       try
       {
-        var snapshot = await Task.Run(() =>
-          ComputeFullRebuildSnapshot(source, cancellation.Token), cancellation.Token);
+        var token = cancellation.Token;
+        var snapshot = await Task.Run(async () =>
+        {
+          await RangeWorkers.WaitAsync(token).ConfigureAwait(false);
+          try { return ComputeFullRebuildSnapshot(source, token); }
+          finally { RangeWorkers.Release(); }
+        }, token);
         if (cancellation.IsCancellationRequested || generation != rebuildVersion ||
             !ReferenceEquals(ctx.SdrPasses, this))
           return;
