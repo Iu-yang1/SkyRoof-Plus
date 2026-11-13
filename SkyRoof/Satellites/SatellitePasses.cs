@@ -267,7 +267,7 @@ namespace SkyRoof
 
     private void CreateGroundStation(string gridSquare, double altitude)
     {
-      var pos = GridSquare.ToGeoPoint(ctx.Settings.User.Square);
+      var pos = GridSquare.ToGeoPoint(gridSquare);
       var myLocation = new GeodeticCoordinate(Angle.FromRadians(pos.LatitudeRad), Angle.FromRadians(pos.LongitudeRad), altitude / 1000d);
       GroundStation = new GroundStation(myLocation);
     }
