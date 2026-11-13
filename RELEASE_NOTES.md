@@ -1,41 +1,41 @@
-# SkyRoof-Plus v.1.72
+# SkyRoof-Plus v.1.73
 
-SkyRoof Plus 1.72 — responsive cache-first startup and deferred Orekit/IKVM data maintenance.  
-SkyRoof Plus 1.72 — **主界面启动白屏与耗时加载修复版**。
+SkyRoof Plus v1.73 — responsive satellite switching and manual Orekit ephemeris updates.  
+SkyRoof Plus v1.73 — **切换卫星及手动星历更新无响应修复版**。
 
 ## 中文
 
-### 本版修复
+### 主要修复
 
-- **优先显示主界面：** 修复 v1.71 在 `MainForm_Load` 中先等待 IERS `finals2000A.all` 和 JPL DE430 网络下载/校验，最后才恢复 DockPanel 工作区，导致顶部工具栏显示后中央长时间空白的问题。现在优先使用本地缓存初始化 Orekit，并恢复已保存的停靠窗口。
-- **全量过境预测延后：** 首次卫星群组/业余卫星过境重建在主窗口 `Shown` 后触发，允许界面完成首次绘制，随后仍完整生成预计 AOS/LOS、最高仰角和过境列表。
-- **后台更新星历：** 首屏显示之后再在后台线程运行 IERS EOP/DE430 下载、文件校验与缓存管理；自动更新设置、原生 Orekit 引擎、月球/太阳/金星星历、多普勒及旋转器协议均不取消、不降级。
-- **手动/自动下载事务串行化：** 统一 Orekit 缓存的自动刷新与设置页「更新 Orekit 星历」按钮使用下载互斥机制，防止同时改写同一临时文件。
-- **卫星数据库周更新：** 对已有本地数据库，保留每周 SatNOGS 列表更新的提示，但在主界面完成第一帧后检查，避免布局尚未恢复时出现网络等待；也避免等待 EOP 网络超时数分钟后才弹出数据库刷新对话框。
-- **首次安装：** 完全没有卫星数据库缓存时，仍需要完成首次 SatNOGS 列表下载/导入才能生成可用卫星列表。这属于数据依赖，而非人为功能锁定。
-- **状态、诊断与精度：** 记录初始 DockPanel 布局恢复耗时。Orekit 使用已安装的 EOP 进行当前会话计算，新下载或刷新的 EOP 因进程全局时间尺度/坐标框架缓存需要重启后生效；在状态提示和日志中给出说明。第一次下载 DE430 后尝试立即添加 Moon/Sun/Venus，如果运行时还未发现新文件则重启。
-  
-### 验证
+- **切换卫星不卡 UI：** 原卫星选择事件直接执行未来一天 Orekit 过境预测；现在优先复用已经计算的过境，未命中时经过短暂防抖后使用后台任务计算。以实际 Tracker 为缓存键，缓存有效期两分钟；新的 TLE/OMM 不会复用旧轨道预测。最新选择优先处理，旧卫星任务不得覆盖当前选择或用户人工选定的过境。
+- **限制并发并处理快速切换：** 当前选择采用专属有界后台执行队列，群组列表使用独立最多两条预测任务，跳过失效请求，避免连续选择引发大量全日计算并发堆积。
+- **群组/SDR 预测快照：** 未来两天的群组过境、SDR 频率范围改变触发的预测在工作线程执行。结果只在最新代次、目标一致时提交主线程；更改台站、TLE、数据库时使群组缓存失效，过时频段不再显示旧过境。
+- **卫星列表的周期性刷新：** 每秒刷新不再逐颗同步执行 Orekit 搜索，悬浮提示中的观测角度等数据以最多两条后台工作者计算，保留完整提示内容，短期缓存 15 秒。
+- **地球视图与卫星详情：** EarthView 的卫星地心地理位置、覆盖区边界、轨道路径采样，以及详情页卫星高度、足迹计算和缓存图片解码/缩放，不再阻塞正常选择 UI。地图结果按选择代次更新，不允许旧卫星的任务覆盖新卫星。
+- **手动下载星历不卡设置窗口：** 点击「更新 Orekit 星历」后，对本次数据源配置进行快照，IERS EOP/DE430 网络请求、文件读取/校验/写入全部在工作线程进行。自动下载与手动下载沿用互斥写入，不会争用临时文件；关闭对话框会取消尚未完成的操作。
+- **DE430 缓存校验：** 首次完成固定来源文件的哈希校验后，在同一进程内若本地路径、文件长度和修改时间均未变化，可复用验证结果，减少反复下载和读取；文件变化后仍执行完整校验。
+- **旋转器模拟测试稳定性：** 适度增加模拟 rotctld 握手等待时间以减少高负载 Windows CI 偶发超时；生产 CAT、PTT、GS232B/rotctld、ONVIF 和旋转器安全逻辑没有被改写。
+- **既有 Orekit 引擎保持：** TLE/OMM 传播及月球、太阳、金星仍使用 v1.71 起统一的 Orekit/IKVM；不修改 AZ/EL、距离变化率、Doppler 和 Tracking 数据接口。
 
-- [PR #198](https://github.com/Iu-yang1/SkyRoof-Plus/pull/198) 已通过 Windows .NET 10 x64 编译与测试、安装包内 Orekit/IKVM 运行验证、固定版本 `aislop` 质量检查、DocFX 中英文文档验证，已合并至 master。
-- 保持 v1.71 的 Orbital backend、TLE/OMM、AZ/EL、距离变化率、单程多普勒和 CAT/Rotator 计算接口不变。本次修复仅修改启动时序与下载并发机制。
-- **启动速度尚未在用户 Windows 设备上实测**，不能把源码调度优化或 CI 构建成功称为已实测的具体启动时间。可在 Serilog 日志中查看 `Initial SkyRoof docking layout restored in ... ms` 并比较修复前后。
+### 验证与限制
 
-### 发布说明
-
-- 由用户授权的正式 GitHub Release；保留 `v.1.71` 原有标签和安装包，另建 `v.1.72`。
-- 如果当前 CI 缺少 SignPath，则安装包 **Authenticode 未签名**。最终以发布后的工作流记录、Release 目标提交、SHA-256 核验结果及签名状态为准；不虚构签名或真实硬件测试结果。
-- **尚无 IC-9700/CAT/GS232B 实机和真实启动耗时验收**，首次运行应检查实际 EOP 数据质量和卫星列表状态。
+- [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) 已完成 Windows x64 Release 方案构建、全部 xUnit、CW FFT 检查、独立 Orekit/IKVM 运行时与安装器冒烟、固定版本 `aislop` 质量检查、中英文 DocFX，并合并到 `master`。合并提交为 `4d24423577096f755837592d93360c30d6b57a45`。
+- 具体用户设备上的 UI 首次响应延迟、连续切星延迟、手动网络下载时的响应性，以及 IC-9700/CAT/旋转器联动仍需实际安装验证。CI 不能替代这些实机测试；不声称测得具体毫秒数。
+- 本次升级从 v1.72 发布为独立 `v.1.73`，**不移动旧标签或覆盖旧安装包**。签名能力以正式发布的工作流记录为准：如没有 SignPath，按照本次已有正式迭代发布授权保留 Stable 分类并公开声明 Authenticode 未签名；通过 SHA-256 比对发布附件。
 
 ## English
 
-- **Cache-first UI:** Restore locally cached satellite data and docking layout before fetching IERS EOP and Orekit-native DE430, removing network latency from the v1.71 blank central-workspace startup path.
-- **Deferred pass rebuild:** Build initial satellite passes after the first visible docking frame; pass calculations, tracking, Doppler and rotator protocols remain enabled and numerically unchanged.
-- **Non-blocking ephemeris update:** Refresh/cache/download Orekit files on a background worker; serialize automatic and manual updates to the shared staging paths. Newly downloaded EOP requires a restart because Orekit caches its time scales and frames.
-- **SatNOGS data:** Preserve the initial import on a clean installation; with existing cached data, the weekly refresh occurs only after initial UI presentation.
-- **Verification:** PR #198 Windows x64 compile/unit/integrity tests, Orekit/IKVM packaged runtime smoke, `aislop`, bilingual DocFX passed. No actual user-device first-frame benchmark or connected CAT/rotator hardware acceptance is claimed.
-- **Authenticode:** User-authorized stable patch release; may be unsigned if SignPath credentials are absent, disclosed transparently with downloaded asset SHA-256 verification.
+### Improvements
+- **Non-blocking satellite selection:** Reuse already computed passes or compute a 24-hour Orekit next-pass result on a background worker after a 60 ms debounce. Short-lived tracker-identity cache avoids stale TLE/OMM use. Ignore late results for an older selection or operator-selected pass.
+- **Bounded calculation queues:** Current satellite predictions take priority; old queued selections are skipped and cannot create unbounded full-day propagation work. Group lists use separate bounded worker pools and two-minute pass-result caches.
+- **Detached group and SDR snapshots:** Compute multi-day group passes and frequency-window passes off the WinForms UI thread; commit only the latest generation. Invalidate cached groups on location, TLE and database changes.
+- **Periodic UI:** Group pass list reads completed results, with original detailed hover tooltips calculated off-thread and cached briefly.
+- **Earth-view rendering and satellite details:** Move geodetic position, footprint polygons, pass mini-paths, satellite details and photo cache decoding to workers. Replace UI state only for the current satellite.
+- **Manual IERS/DE430 refresh:** Snapshot settings, execute HTTP, SHA validation, disk I/O and downloading on a worker instead of the WinForms synchronization context. Automatic/manual downloads remain serialized, with cancellation when the dialog closes.
+- **Correctness:** Retain Orekit tracking, CAT, Doppler and rotator protocols. Stabilize one flaky mock rotctld test handshake under Windows CI load without changing hardware motion policy.
 
-**Technical trace:** [PR #198](https://github.com/Iu-yang1/SkyRoof-Plus/pull/198) · [CI checks](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43318521845).
+### Acceptance boundary
 
-**Previous release:** [v.1.71](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.71), retained without replacement.
+Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full Windows x64 solution build, xUnit, Orekit/IKVM smoke and packaged-runtime validation, pinned `aislop` and DocFX validation. No real-world Windows first-response benchmark, IC-9700 test or hardware rotator acceptance has been performed. This independent release does not replace v1.72. If Authenticode signing is unavailable, the installer remains unsigned and its SHA-256 release-asset validation is mandatory.
+
+**Previous stable:** [v.1.72](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.72).
