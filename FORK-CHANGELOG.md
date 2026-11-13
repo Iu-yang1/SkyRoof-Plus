@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
+
+Release date / 发布日期：2026-11-13。异步卫星切换、过境预测缓存、手动 Orekit 星历更新界面响应性修复。
+
+- **切换卫星：** 优先使用已计算的两小时过境，缺失时后台搜索 24 小时，当前卫星优先并具备快速切换防抖、过时结果丢弃及缓存策略。
+- **群组与 SDR：** 两天群组过境和频段相关预测在后台计算，应用最新版快照，群组/位置/TLE 变更时取消或失效旧结果；地图覆盖区域和照片解码也移出 UI 线程。
+- **手动更新星历：** IERS、DE430 下载与哈希校验在后台进行，修改配置使用任务快照，自动/手动更新互斥，文件未变时可复用验证结果。
+- **控制兼容：** 无轨道算法、多普勒、CAT、旋转器或 PTT 门禁变更；不把软件测试等同于 IC-9700 / GS232B 实机验收。
+- **English:** Background next-pass prediction with TLE-aware cache and latest-wins results; async group/SDR pass snapshots, map/picture processing, and manual Orekit download/checksum operations. Existing Doppler/CAT/rotator behavior retained. Windows CI verified separately from real user-device latency; unsigned installer possible without SignPath.
+
+完整双语说明 / Full bilingual details：[`RELEASE_NOTES.md`](RELEASE_NOTES.md)。
+
+---
+
 # SkyRoof Fork v.1.72 / SkyRoof Fork 1.72 版本说明
 
 Release date / 发布日期：2026-11-13。首次加载缓存优先及 Orekit 网络更新异步化；正式修复迭代，不覆盖 v.1.71。
