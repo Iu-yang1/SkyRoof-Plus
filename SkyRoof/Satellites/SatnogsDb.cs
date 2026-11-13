@@ -208,41 +208,32 @@ namespace SkyRoof
     public async Task DownloadAll()
     {
       cts = new CancellationTokenSource();
+      int completedWeight = 0;
 
-      await DownloadConfigured(
-        "satellites",
-        OrbitSources.SatellitesUrl,
-        required: true);
-      Log.Information("satellites download step complete");
-      DownloadProgress?.Invoke(this, new(25, null));
-
-      await DownloadConfigured(
-        "transmitters",
-        OrbitSources.TransmittersUrl,
-        required: true);
-      Log.Information("transmitters download step complete");
-      DownloadProgress?.Invoke(this, new(50, null));
-
-      await DownloadConfigured(
-        "tle",
-        OrbitSources.TleUrl,
-        required: false);
-      Log.Information("primary TLE download step complete");
-      DownloadProgress?.Invoke(this, new(70, null));
-
-      await DownloadJE9PEL();
-      Log.Information("JE9PEL downloaded");
-      DownloadProgress?.Invoke(this, new(85, null));
-
-      // gr-satellites satyaml is enrichment only — a failure here must not abort the download.
-      try
+      // These five sources have independent destination files. Download them
+      // concurrently; the database is imported only after all have settled.
+      async Task TrackAsync(Task download, int weight, string name)
       {
-        await DownloadSatyaml();
-        Log.Information("satyaml downloaded");
+        await download.ConfigureAwait(false);
+        int progress = Interlocked.Add(ref completedWeight, weight);
+        Log.Information("{Source} download step complete", name);
+        DownloadProgress?.Invoke(this, new(Math.Min(99, progress), null));
       }
-      catch (OperationCanceledException) { throw; }
-      catch (Exception ex) { Log.Warning(ex, "satyaml download/extract failed (enrichment skipped)"); }
-      DownloadProgress?.Invoke(this, new(99, null));
+
+      async Task OptionalSatyamlAsync()
+      {
+        try { await DownloadSatyaml().ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { throw; }
+        catch (Exception ex) { Log.Warning(ex, "satyaml download/extract failed (enrichment skipped)"); }
+      }
+
+      await Task.WhenAll(
+        TrackAsync(DownloadConfigured("satellites", OrbitSources.SatellitesUrl, required: true), 25, "satellites"),
+        TrackAsync(DownloadConfigured("transmitters", OrbitSources.TransmittersUrl, required: true), 25, "transmitters"),
+        TrackAsync(DownloadConfigured("tle", OrbitSources.TleUrl, required: false), 20, "primary TLE"),
+        TrackAsync(DownloadJE9PEL(), 15, "JE9PEL"),
+        TrackAsync(OptionalSatyamlAsync(), 14, "satyaml")
+      ).ConfigureAwait(false);
     }
 
     public async Task DownloadTle()
