@@ -3,6 +3,8 @@ using System.Diagnostics;
 using Serilog;
 using WeifenLuo.WinFormsUI.Docking;
 
+using VE3NEA;
+
 namespace SkyRoof
 {
   public partial class SatelliteDetailsPanel : DockContent
