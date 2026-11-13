@@ -936,6 +936,8 @@ namespace SkyRoof
     const int TLE_DOWNLOAD_DAYS = 1;
 
     bool DownloadOk = true;
+    private bool satelliteListDownloading;
+    private bool tleDownloading;
 
     private void CheckDownloadSatelliteList()
     {
@@ -947,42 +949,73 @@ namespace SkyRoof
 
     private void DownloadSatList()
     {
-      DownloadOk = DownloadDialog.Download(this, ctx);
+      if (satelliteListDownloading || tleDownloading) return;
+      satelliteListDownloading = true;
+      try { DownloadOk = DownloadDialog.Download(this, ctx); }
+      finally { satelliteListDownloading = false; }
       ShowSatDataStatus();
     }
 
     public void CheckDownloadTle()
     {
+      if (satelliteListDownloading || tleDownloading) return;
       if (DateTime.UtcNow < ctx.Settings.Satellites.LastTleTime.AddDays(TLE_DOWNLOAD_DAYS)) return;
       DownloadTle().DoNotAwait();
     }
 
     private async Task<bool> DownloadTle()
     {
+      if (satelliteListDownloading || tleDownloading) return false;
+      tleDownloading = true;
       try
       {
         SatDataLedLabel.ForeColor = SystemColors.GrayText;
-        SatDataStatusLabel.ToolTipText = SatDataLedLabel.ToolTipText = "Downloading orbit elements...";
+        SatDataStatusLabel.ToolTipText = SatDataLedLabel.ToolTipText =
+          "Downloading orbit elements...";
 
+        var sources = ctx.Settings.OrbitSources;
+        var original = ctx.SatnogsDb;
+        var groupIds = ctx.Settings.Satellites.SatelliteGroups
+          .SelectMany(group => group.SatelliteIds).Distinct().ToArray();
 
-        await ctx.SatnogsDb.DownloadTle();
+        var staging = await Task.Run(() =>
+        {
+          var db = new SatnogsDb();
+          db.ConfigureSources(sources);
+          db.LoadFromFile();
+          return db;
+        });
+
+        // This reads manual operator state only on WinForms; heavy orbit
+        // parsing and remote I/O operate entirely on the staging instance.
+        staging.CopyActiveManualOrbitOverridesFrom(original, DateTime.UtcNow);
+        await Task.Run(() => staging.DownloadTle());
+        await Task.Run(() =>
+        {
+          foreach (string id in groupIds)
+            _ = staging.GetSatellite(id)?.Tracker.Enabled;
+        });
+
+        if (IsDisposed || Disposing || !ReferenceEquals(original, ctx.SatnogsDb))
+          return false;
+        original.CommitDownloadedOrbits(staging);
 
         DownloadOk = true;
-        Log.Information("Orbit elements downloaded");
+        Log.Information("Orbit elements downloaded and committed from worker snapshot");
         return true;
       }
       catch (Exception ex)
       {
         DownloadOk = false;
-        Log.Error(ex, "TLE download failed");
-        ShowSatDataStatus();
+        Log.Error(ex, "TLE download or staged commit failed");
+        if (!IsDisposed && !Disposing) ShowSatDataStatus();
         return false;
       }
+      finally
+      {
+        tleDownloading = false;
+      }
     }
-
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                      menu

@@ -215,6 +215,7 @@ namespace SkyRoof
     [Browsable(false)]
     internal SatelliteTracker Tracker { get => tracker ??= new SatelliteTracker(Tle); }
     private SatelliteTracker? tracker;
+    internal SatelliteTracker? PreparedTracker => tracker;
 
     internal void SetTracker(SatelliteTracker customTracker)
     {

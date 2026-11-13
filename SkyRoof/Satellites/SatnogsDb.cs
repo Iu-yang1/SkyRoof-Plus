@@ -191,6 +191,68 @@ namespace SkyRoof
       ListUpdated?.Invoke(this, EventArgs.Empty);
     }
 
+    // Commit a worker-owned orbit refresh without replacing the objects
+    // already held by the radio link, rotator, and selected UI panels.
+    // Only the short commit executes on WinForms. Parsing, network and
+    // persistence have already completed on the staging database.
+    internal void CommitDownloadedOrbits(SatnogsDb staging)
+    {
+      var now = DateTime.UtcNow;
+      foreach (var candidate in staging.SatelliteList.Values)
+      {
+        if (candidate.IsEphemerisTarget) continue;
+        if (!SatelliteList.TryGetValue(candidate.sat_id, out var existing))
+        {
+          SatelliteList[candidate.sat_id] = candidate;
+          continue;
+        }
+        if (existing.IsEphemerisTarget) continue;
+
+        // An operator may import a newer manual orbit while a download runs.
+        // That explicitly selected orbit must retain its higher priority.
+        bool preserveManual = existing.HasActiveManualOrbit(now);
+        existing.AutomaticTle = candidate.AutomaticTle;
+        if (!preserveManual)
+        {
+          existing.ManualTle = candidate.ManualTle;
+          existing.ManualTleExpiresUtc = candidate.ManualTleExpiresUtc;
+        }
+
+        SatnogsDbTle? selected = existing.HasActiveManualOrbit(now)
+          ? existing.ManualTle : existing.AutomaticTle;
+        bool sameOrbit = existing.Tle == null && selected == null ||
+          existing.Tle != null && selected != null &&
+          SatelliteTracker.BuildOrbitElementKey(existing.Tle) ==
+          SatelliteTracker.BuildOrbitElementKey(selected);
+
+        if (!sameOrbit)
+        {
+          existing.SetTle(selected);
+          // The worker has already prepared the selected-group propagators.
+          // Reusing them avoids lazy Orekit initialization in the UI callback.
+          if (ReferenceEquals(selected, candidate.Tle) &&
+              candidate.PreparedTracker is SatelliteTracker prepared)
+            existing.SetTracker(prepared);
+        }
+
+        existing.updated = selected?.updated ?? existing.updated;
+        existing.BuildAllNames();
+
+        foreach (var transmitter in candidate.Transmitters)
+        {
+          if (!transmitter.local_custom ||
+              existing.Transmitters.Any(t => t.uuid == transmitter.uuid))
+            continue;
+          transmitter.Satellite = existing;
+          existing.Transmitters.Add(transmitter);
+        }
+        existing.RefreshTransmitterDerivedData();
+      }
+
+      loaded = SatelliteList.Count > 0;
+      TleUpdated?.Invoke(this, EventArgs.Empty);
+    }
+
     public SatnogsDbSatellite? GetSatellite(string satId)
     {
       return SatelliteList.GetValueOrDefault(satId);
