@@ -53,3 +53,14 @@ Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full 
 
 **English:** This is a one-time, guarded in-place replacement of the existing v.1.73 installer. Orekit initialization and cached database parsing are deferred until after the first WinForms paint and executed on worker threads. Independent satellite sources download concurrently; parsed orbit data and TLE layers are prepared in staging snapshots and committed on the UI thread. Ham/group/SDR pass computations use bounded multi-core parallelism with stale-request rejection. Existing numerical orbit, Doppler, CAT, PTT and rotator algorithms are not restricted or replaced. Validation is via CI and installed-runtime smoke tests, not physical radio or measured end-user UI latency. Previously recorded v.1.73 installer hashes must be replaced with the new published hash.
 
+
+
+## 2026-11-13 Maidenhead 精度及右侧面板修复 / locator and panel hotfix
+
+- 台站网格配置统一接受 4、6、8、10 位 Maidenhead；坐标转换按完整位数计算单元格中心，不再截断至 6 位。台站经纬度由配置字段转换并通过现有 GroundStation → Orekit/IKVM 观测接口传递，用于过境、方位俯仰、距离变化率及 Doppler。
+- Sky View 的整轨迹计算、观测标签刷新和 Tooltip 移至后台，并缓存轨迹。实时卫星位置在已有轨迹上插值，不在绘制事件中同步运行 Orekit。修复过小 Dock 窗口零半径绘图导致的异常循环。
+- Satellite Passes 的缩略轨迹与悬浮提示在工作线程生成，旧请求可取消，UI 始终使用已就绪的轨迹快照；避免滚动、切换卫星及窗口重绘期间的同步轨道采样。
+- 新增独立经纬度参考值、精度与输入格式单元测试；Windows 构建/测试和 pinned aislop 结果以本次实际 GitHub Actions 运行记录为准。未开展真实 Windows 交互白屏复现和连接 IC-9700/旋转器的实机测试。
+- 继续基于已发布 v.1.73 原位替换，不修改版本号。替换前检查当前 Release、安装器 SHA-256 和 tag commit；发布后再次回读校验，旧版安装器哈希不再适用。
+
+**English:** Accept full 4/6/8/10-character station Maidenhead locators and propagate the true cell-center coordinates to the Orekit observer. Prepare Sky View orbit tracks, labels and Satellite Passes mini-paths/tooltips off the UI thread, draw only cached data and fix zero-radius dock-panel painting. Guard the existing v.1.73 asset and tag identities for replacement, then independently verify the published installer. Hardware testing remains outstanding.
