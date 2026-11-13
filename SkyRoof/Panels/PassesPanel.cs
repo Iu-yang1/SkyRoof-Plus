@@ -130,10 +130,10 @@ namespace SkyRoof
       Items = CreatePassItems(passes).ToList();
       listViewEx1.VirtualListSize = Items.Count;
       listViewEx1.Invalidate();
-      PrepareMiniPathsAsync(Items.Select(i => (SatellitePass)i.Tag!).ToArray());
+      _ = PrepareMiniPathsAsync(Items.Select(i => i.Tag).OfType<SatellitePass>().ToArray());
     }
 
-    private async void PrepareMiniPathsAsync(SatellitePass[] passes)
+    private async Task PrepareMiniPathsAsync(SatellitePass[] passes)
     {
       miniPathCancellation?.Cancel();
       var cancellation = new CancellationTokenSource();
@@ -301,7 +301,8 @@ namespace SkyRoof
       if (item == null || item == HoveredItem) return;
       HoveredItem = item;
 
-      _ = PrepareTooltipAsync(item, (SatellitePass)item.Tag!);
+      if (item.Tag is SatellitePass pass)
+        _ = PrepareTooltipAsync(item, pass);
     }
 
     private async Task PrepareTooltipAsync(ListViewItem item, SatellitePass pass)
