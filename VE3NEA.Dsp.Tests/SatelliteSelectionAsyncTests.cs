@@ -14,14 +14,14 @@ public sealed class SatelliteSelectionAsyncTests
     }
 
     [Theory]
-    [InlineData(false, false, 30, true)]
-    [InlineData(true, false, 30, true)]
-    [InlineData(true, true, 30, true)]
-    [InlineData(true, false, 121, false)]
+    [InlineData(false, false, 30, true, false)]
+    [InlineData(true, false, 30, true, false)]
+    [InlineData(true, true, 30, true, false)]
+    [InlineData(true, false, 121, false, false)]
     [InlineData(true, true, 30, false, true)]
     public void NextPassCacheFreshnessAlsoCachesNoPassResult(
         bool ready, bool hasPass, int ageSeconds,
-        bool expected, bool expiredPass = false)
+        bool expected, bool expiredPass)
     {
         var now = new DateTime(2026, 11, 13, 0, 0, 0, DateTimeKind.Utc);
         DateTime? passEnd = hasPass
