@@ -87,6 +87,8 @@ namespace SkyRoof
   public class SdrSatellitePasses : SatellitePasses
   {
     private double StartFrequency, EndFrequency;
+    private long rebuildVersion;
+    private CancellationTokenSource? rebuildCancellation;
 
     public SdrSatellitePasses(Context ctx) : base(ctx)
     {
@@ -113,7 +115,52 @@ namespace SkyRoof
       StartFrequency = startFrequency;
       EndFrequency = endFrequency;
 
-      FullRebuild();
+      QueueRangeRebuild();
+    }
+
+    public override void FullRebuild()
+    {
+      ++rebuildVersion;
+      rebuildCancellation?.Cancel();
+      rebuildCancellation = null;
+      base.FullRebuild();
+    }
+
+    private void QueueRangeRebuild()
+    {
+      long generation = ++rebuildVersion;
+      rebuildCancellation?.Cancel();
+      if (StartFrequency == 0 || EndFrequency == 0)
+      {
+        ClearPendingGroupPasses();
+        return;
+      }
+
+      var source = ListSatellites().ToArray();
+      var cancellation = new CancellationTokenSource();
+      rebuildCancellation = cancellation;
+      RebuildRangeAsync(source, generation, cancellation).DoNotAwait();
+    }
+
+    private async Task RebuildRangeAsync(
+      SatnogsDbSatellite[] source, long generation, CancellationTokenSource cancellation)
+    {
+      try
+      {
+        var snapshot = await Task.Run(() =>
+          ComputeFullRebuildSnapshot(source, cancellation.Token), cancellation.Token);
+        if (cancellation.IsCancellationRequested || generation != rebuildVersion ||
+            !ReferenceEquals(ctx.SdrPasses, this))
+          return;
+        ApplyFullRebuildSnapshot(snapshot);
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      finally
+      {
+        if (ReferenceEquals(rebuildCancellation, cancellation))
+          rebuildCancellation = null;
+        cancellation.Dispose();
+      }
     }
 
     protected override IEnumerable<SatnogsDbSatellite> ListSatellites()
