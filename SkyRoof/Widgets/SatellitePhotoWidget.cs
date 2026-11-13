@@ -65,7 +65,8 @@ namespace SkyRoof
         if (File.Exists(cacheFile))
         {
           ct.ThrowIfCancellationRequested();
-          SetImage(LoadBitmapNoLock(cacheFile));
+          var cachedBitmap = await Task.Run(() => LoadBitmapNoLock(cacheFile), ct);
+          SetImageForSatellite(sat.sat_id, cachedBitmap);
           return;
         }
 
@@ -74,14 +75,18 @@ namespace SkyRoof
         byte[] bytes = await DownloadBytesAsync(url, ct);
         ct.ThrowIfCancellationRequested();
 
-        using var ms = new MemoryStream(bytes);
-        using var original = Image.FromStream(ms);
-        using var resized = ResizeToFit(original, CacheImageSize);
+        var downloadedBitmap = await Task.Run(() =>
+        {
+          ct.ThrowIfCancellationRequested();
+          using var ms = new MemoryStream(bytes);
+          using var original = Image.FromStream(ms);
+          using var resized = ResizeToFit(original, CacheImageSize);
+          resized.Save(cacheFile, ImageFormat.Png);
+          ct.ThrowIfCancellationRequested();
+          return new Bitmap(resized);
+        }, ct);
 
-        resized.Save(cacheFile, ImageFormat.Png);
-        ct.ThrowIfCancellationRequested();
-
-        SetImage(new Bitmap(resized));
+        SetImageForSatellite(sat.sat_id, downloadedBitmap);
       }
       catch (OperationCanceledException)
       {
@@ -90,8 +95,29 @@ namespace SkyRoof
       catch
       {
         // download or decode failure; just show blank
-        SetImage(null);
+        if (CurrentSatId == sat.sat_id)
+          SetImage(null);
       }
+    }
+
+    private void SetImageForSatellite(string satId, Image bitmap)
+    {
+      if (IsDisposed || !IsHandleCreated)
+      {
+        bitmap.Dispose();
+        return;
+      }
+      if (InvokeRequired)
+      {
+        BeginInvoke(() => SetImageForSatellite(satId, bitmap));
+        return;
+      }
+      if (CurrentSatId != satId)
+      {
+        bitmap.Dispose();
+        return;
+      }
+      SetImage(bitmap);
     }
 
     private static async Task<byte[]> DownloadBytesAsync(string url, CancellationToken ct)
