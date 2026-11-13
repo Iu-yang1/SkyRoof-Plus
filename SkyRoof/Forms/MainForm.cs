@@ -41,6 +41,9 @@ namespace SkyRoof
     private bool initialPassRebuildPending;
     private bool startupReady;
     private Label? startupOverlay;
+    private long hamPassGeneration;
+    private CancellationTokenSource? hamPassCancellation;
+    private static readonly SemaphoreSlim HamPassWorker = new(1, 1);
     private CancellationTokenSource? groupPassCancellation;
     private long groupPassGeneration;
     private static readonly SemaphoreSlim GroupPassWorker = new(1, 1);
@@ -310,7 +313,7 @@ namespace SkyRoof
       if (initialPassRebuildPending)
       {
         initialPassRebuildPending = false;
-        ctx.HamPasses.FullRebuild();
+        QueueHamPassRebuild();
         QueueGroupPassRebuild();
         ctx.SdrPasses.FullRebuild();
         ctx.PassesPanel?.ShowPasses();
@@ -381,6 +384,7 @@ namespace SkyRoof
     private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
       startupDataCancellation.Cancel();
+      CancelPendingHamPassRebuild();
       CancelPendingGroupPassRebuild();
       // CAT/CW radio release is deliberately asynchronous: an unreachable
       // SkyCAT worker or a stuck USB/serial port must not block WinForms.
@@ -2179,13 +2183,16 @@ namespace SkyRoof
       ShowCpuUsage();
       if (ctx.Settings.IfAf.Enabled) ShowSoundcardLabels();
     }
-    private async Task OneMinuteTick()
+    private Task OneMinuteTick()
     {
-      ctx.GroupPasses.PredictMorePasses();
-      ctx.HamPasses.PredictMorePasses();
-      ctx.SdrPasses.PredictMorePasses();
+      // All three schedulers previously performed Orekit propagation on the
+      // 8-Hz WinForms timer. Refresh asynchronously and publish snapshots.
+      QueueGroupPassRebuild();
+      QueueHamPassRebuild();
+      ctx.SdrPasses.FullRebuild();
       ctx.PassesPanel?.ShowPasses();
       ctx.WaterfallPanel?.ScaleControl?.BuildLabels();
+      return Task.CompletedTask;
     }
 
     private void OneHourTick()
@@ -2247,7 +2254,7 @@ namespace SkyRoof
 
       if (!initialPassRebuildPending)
       {
-        ctx.HamPasses.FullRebuild();
+        QueueHamPassRebuild();
         QueueGroupPassRebuild();
         ctx.SdrPasses.FullRebuild();
       }
@@ -2269,7 +2276,7 @@ namespace SkyRoof
       QueueGroupPassRebuild();
 
       ctx.HamPasses = new(ctx);
-      ctx.HamPasses.FullRebuild();
+      QueueHamPassRebuild();
 
       ctx.SdrPasses = new(ctx);
       ctx.SdrPasses.FullRebuild();
@@ -2290,7 +2297,7 @@ namespace SkyRoof
       ctx.Settings.Satellites.LastTleTime = DateTime.UtcNow;
       ShowSatDataStatus();
 
-      ctx.HamPasses.Rebuild();
+      QueueHamPassRebuild();
       QueueGroupPassRebuild();
       ctx.SdrPasses.Rebuild();
 
@@ -2309,6 +2316,63 @@ namespace SkyRoof
       ctx.PassesPanel?.ShowPasses();
       ctx.SkyViewPanel?.ClearPass();
       ctx.QsoSchedulerPanel?.SetSatelliteList();
+    }
+
+    private void CancelPendingHamPassRebuild()
+    {
+      ++hamPassGeneration;
+      hamPassCancellation?.Cancel();
+      hamPassCancellation = null;
+    }
+
+    private void QueueHamPassRebuild()
+    {
+      CancelPendingHamPassRebuild();
+      var service = ctx.HamPasses;
+      var selected = ctx.SatnogsDb.Satellites
+        .Where(s => s.Flags.HasFlag(SatelliteFlags.Vhf) ||
+                    s.Flags.HasFlag(SatelliteFlags.Uhf))
+        .ToArray();
+      var cancellation = new CancellationTokenSource();
+      hamPassCancellation = cancellation;
+      long generation = hamPassGeneration;
+      RebuildHamPassesAsync(service, selected, generation, cancellation).DoNotAwait();
+    }
+
+    private async Task RebuildHamPassesAsync(
+      HamSatellitePasses service, SatnogsDbSatellite[] selected,
+      long generation, CancellationTokenSource cancellation)
+    {
+      try
+      {
+        var token = cancellation.Token;
+        var snapshot = await Task.Run(async () =>
+        {
+          await HamPassWorker.WaitAsync(token).ConfigureAwait(false);
+          try { return service.ComputeFullRebuildSnapshot(selected, token); }
+          finally { HamPassWorker.Release(); }
+        }, token);
+
+        if (IsDisposed || Disposing || token.IsCancellationRequested ||
+            generation != hamPassGeneration ||
+            !ReferenceEquals(service, ctx.HamPasses))
+          return;
+
+        service.ApplyFullRebuildSnapshot(snapshot);
+        ctx.PassesPanel?.ShowPasses();
+        ctx.GroupViewPanel?.UpdatePassTimes();
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      catch (Exception ex)
+      {
+        Log.Error(ex, "Background amateur satellite pass rebuild failed.");
+      }
+      finally
+      {
+        if (ReferenceEquals(hamPassCancellation, cancellation))
+          hamPassCancellation = null;
+        cancellation.Dispose();
+      }
     }
 
     private void CancelPendingGroupPassRebuild()

@@ -45,17 +45,9 @@ namespace SkyRoof
       rebuildCancellation = null;
     }
 
-    public override void FullRebuild()
-    {
-      CancelPendingRangeRebuild();
-      base.FullRebuild();
-    }
+    public override void FullRebuild() => QueueRangeRebuild();
 
-    public override void Rebuild()
-    {
-      CancelPendingRangeRebuild();
-      base.Rebuild();
-    }
+    public override void Rebuild() => QueueRangeRebuild();
 
     private void QueueRangeRebuild()
     {
