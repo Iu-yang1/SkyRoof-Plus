@@ -127,7 +127,8 @@ namespace SkyRoof
 
       passes = passes.Where(pass => pass.EndTime >= startTime && pass.StartTime < endTime);
       Items = CreatePassItems(passes).ToList();
-      listViewEx1.VirtualListSize = Items.Count;
+      if (listViewEx1.VirtualListSize != Items.Count)
+        listViewEx1.VirtualListSize = Items.Count;
       listViewEx1.Invalidate();
       _ = PrepareMiniPathsAsync(Items.Select(i => i.Tag).OfType<SatellitePass>().ToArray());
     }
@@ -163,13 +164,19 @@ namespace SkyRoof
 
     internal void UpdatePassTimes()
     {
-      // delete finished passes
-      int oldCount = Items.Count;
+      // Refresh countdown labels without resetting the virtual list every second.
+      // Assigning VirtualListSize unconditionally tears down the native list-view
+      // display cache and produces periodic full-white repaints.
+      var now = DateTime.UtcNow;
       for (int i = Items.Count - 1; i >= 0; i--)
-        if (((SatellitePass)Items[i].Tag).EndTime < DateTime.UtcNow) Items.RemoveAt(i);
+        if (Items[i].Tag is SatellitePass pass && pass.EndTime < now)
+          Items.RemoveAt(i);
 
-      listViewEx1.VirtualListSize = Items.Count;
-      listViewEx1.Invalidate();
+      if (listViewEx1.VirtualListSize != Items.Count)
+        listViewEx1.VirtualListSize = Items.Count;
+
+      if (Items.Count > 0 && listViewEx1.IsHandleCreated)
+        listViewEx1.RedrawItems(0, Items.Count - 1, invalidateOnly: true);
     }
 
     public IEnumerable<ListViewItem> CreatePassItems(IEnumerable<SatellitePass> passes)
