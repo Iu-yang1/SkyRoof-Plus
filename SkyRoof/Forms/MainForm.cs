@@ -39,6 +39,13 @@ namespace SkyRoof
     private DateTime lastIfAfClipUtc;
     private readonly CancellationTokenSource startupDataCancellation = new();
     private bool initialPassRebuildPending;
+    private CancellationTokenSource? groupPassCancellation;
+    private long groupPassGeneration;
+    private static readonly SemaphoreSlim GroupPassWorker = new(1, 1);
+    private sealed record GroupPassCacheEntry(
+      DateTime CachedUtc, SatnogsDbSatellite[] Sources,
+      SatelliteTracker[] Trackers, SatellitePasses.FullRebuildSnapshot Snapshot);
+    private readonly Dictionary<string, GroupPassCacheEntry> groupPassCache = new();
     private long recentIfAfClips, recentIfAfOutputSamples;
     internal void ApplyEmbeddedSkyCatSettings() =>
       EmbeddedSkyCat.Apply(ctx.Settings.Cat.Embedded);
@@ -227,7 +234,7 @@ namespace SkyRoof
       {
         initialPassRebuildPending = false;
         ctx.HamPasses.FullRebuild();
-        ctx.GroupPasses.FullRebuild();
+        QueueGroupPassRebuild();
         ctx.SdrPasses.FullRebuild();
         ctx.PassesPanel?.ShowPasses();
         ctx.GroupViewPanel?.LoadGroup();
@@ -297,6 +304,7 @@ namespace SkyRoof
     private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
       startupDataCancellation.Cancel();
+      CancelPendingGroupPassRebuild();
       // CAT/CW radio release is deliberately asynchronous: an unreachable
       // SkyCAT worker or a stuck USB/serial port must not block WinForms.
       if(!radioShutdownCompleted)
@@ -2171,6 +2179,8 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     private void SatnogsDb_ListUpdated(object? sender, EventArgs e)
     {
+      CancelPendingGroupPassRebuild();
+      groupPassCache.Clear();
       if (sender != null)
       {
         ctx.Settings.Satellites.LastDownloadTime = DateTime.UtcNow;
@@ -2188,7 +2198,7 @@ namespace SkyRoof
       if (!initialPassRebuildPending)
       {
         ctx.HamPasses.FullRebuild();
-        ctx.GroupPasses.FullRebuild();
+        QueueGroupPassRebuild();
         ctx.SdrPasses.FullRebuild();
       }
 
@@ -2203,8 +2213,10 @@ namespace SkyRoof
     internal void SetLocation()
     {
       // update data
+      CancelPendingGroupPassRebuild();
+      groupPassCache.Clear();
       ctx.GroupPasses = new(ctx);
-      ctx.GroupPasses.FullRebuild();
+      QueueGroupPassRebuild();
 
       ctx.HamPasses = new(ctx);
       ctx.HamPasses.FullRebuild();
@@ -2223,11 +2235,13 @@ namespace SkyRoof
 
     private void SatnogsDb_TleUpdated(object? sender, EventArgs e)
     {
+      CancelPendingGroupPassRebuild();
+      groupPassCache.Clear();
       ctx.Settings.Satellites.LastTleTime = DateTime.UtcNow;
       ShowSatDataStatus();
 
       ctx.HamPasses.Rebuild();
-      ctx.GroupPasses.Rebuild();
+      QueueGroupPassRebuild();
       ctx.SdrPasses.Rebuild();
 
       ctx.SatelliteSelector.SetSelectedPass(null);
@@ -2241,10 +2255,82 @@ namespace SkyRoof
     private void SatelliteSelector_SelectedGroupChanged(object sender, EventArgs e)
     {
       ctx.GroupViewPanel?.LoadGroup();
-      ctx.GroupPasses.FullRebuild();
+      QueueGroupPassRebuild();
       ctx.PassesPanel?.ShowPasses();
       ctx.SkyViewPanel?.ClearPass();
       ctx.QsoSchedulerPanel?.SetSatelliteList();
+    }
+
+    private void CancelPendingGroupPassRebuild()
+    {
+      ++groupPassGeneration;
+      groupPassCancellation?.Cancel();
+      groupPassCancellation = null;
+    }
+
+    private void QueueGroupPassRebuild()
+    {
+      CancelPendingGroupPassRebuild();
+      var source = ctx.SatelliteSelector.GroupSatellites.ToArray();
+      var tracks = source.Select(s => s.Tracker).ToArray();
+      string groupId = ctx.Settings.Satellites.SelectedGroupId;
+      var service = ctx.GroupPasses;
+      if (groupPassCache.TryGetValue(groupId, out var entry) &&
+          DateTime.UtcNow - entry.CachedUtc < TimeSpan.FromMinutes(2) &&
+          entry.Sources.Length == source.Length &&
+          source.Select((s, i) => ReferenceEquals(s, entry.Sources[i]) &&
+            ReferenceEquals(tracks[i], entry.Trackers[i])).All(valid => valid))
+      {
+        service.ApplySelectedGroupSnapshot(entry.Snapshot);
+        ctx.PassesPanel?.ShowPasses();
+        return;
+      }
+
+      service.ClearPendingGroupPasses();
+      var cancellation = new CancellationTokenSource();
+      groupPassCancellation = cancellation;
+      long generation = groupPassGeneration;
+      ComputeGroupPassesAsync(service, groupId, source, tracks,
+        generation, cancellation).DoNotAwait();
+    }
+
+    private async Task ComputeGroupPassesAsync(
+      GroupSatellitePasses service, string groupId,
+      SatnogsDbSatellite[] source, SatelliteTracker[] tracks,
+      long generation, CancellationTokenSource cancellation)
+    {
+      try
+      {
+        var token = cancellation.Token;
+        var snapshot = await Task.Run(async () =>
+        {
+          await GroupPassWorker.WaitAsync(token).ConfigureAwait(false);
+          try { return service.ComputeFullRebuildSnapshot(source, token); }
+          finally { GroupPassWorker.Release(); }
+        }, token);
+        if (IsDisposed || Disposing || token.IsCancellationRequested ||
+            generation != groupPassGeneration ||
+            !ReferenceEquals(service, ctx.GroupPasses) ||
+            ctx.Settings.Satellites.SelectedGroupId != groupId)
+          return;
+
+        service.ApplySelectedGroupSnapshot(snapshot);
+        groupPassCache[groupId] = new GroupPassCacheEntry(
+          DateTime.UtcNow, source, tracks, snapshot);
+        ctx.PassesPanel?.ShowPasses();
+        ctx.QsoSchedulerPanel?.UpdatePredictions();
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+      catch (Exception ex)
+      {
+        Log.Error(ex, "Asynchronous Orekit group pass prediction failed.");
+      }
+      finally
+      {
+        if (ReferenceEquals(groupPassCancellation, cancellation))
+          groupPassCancellation = null;
+        cancellation.Dispose();
+      }
     }
 
     private void SatelliteSelector_SelectedSatelliteChanged(object sender, EventArgs e)
