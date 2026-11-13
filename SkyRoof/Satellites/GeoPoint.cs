@@ -14,85 +14,103 @@
 
   public class GridSquare
   {
+    // Maidenhead subdivisions alternate decimal and 24-letter pairs.
+    // Every returned position is the CENTER of the complete locator cell.
     public static GeoPoint ToGeoPoint(string square)
     {
       if (!IsValid(square))
-        throw new Exception($"Invalid grid square: '{square}'");
+        throw new ArgumentException($"Invalid grid square: '{square}'", nameof(square));
 
-      if (square.Length > 6) square = square.Substring(0, 6);
-      square = square.ToUpper();
-      GeoPoint point = new GeoPoint();
+      square = square.ToUpperInvariant();
+      double longitude = -180, latitude = -90;
+      double longitudeCell = 20, latitudeCell = 10;
 
-      point.Longitude = -180 + (square[0] - 'A') * 20;
-      point.Latitude = -90 + (square[1] - 'A') * 10;
-
-      if (square.Length > 3)
+      for (int i = 0; i < square.Length; i += 2)
       {
-        point.Longitude += 2 * (square[2] - '0');
-        point.Latitude += square[3] - '0';
+        if (i != 0)
+        {
+          int radix = i % 4 == 2 ? 10 : 24;
+          longitudeCell /= radix;
+          latitudeCell /= radix;
+        }
+
+        int first = square[i] - (i % 4 == 2 ? '0' : 'A');
+        int second = square[i + 1] - (i % 4 == 2 ? '0' : 'A');
+        longitude += first * longitudeCell;
+        latitude += second * latitudeCell;
       }
 
-      if (square.Length > 5)
-      {
-        point.Longitude += 2 / 24d * (square[4] - 'A');
-        point.Latitude += 1 / 24d * (square[5] - 'A');
-      }
-
-      // corner to center
-      double mid = 5;
-      if (square.Length == 4) mid /= 10; else if (square.Length == 6) mid /= 240;
-      point.Latitude += mid;
-      point.Longitude += 2 * mid;
-
-      return point;
+      return new GeoPoint(latitude + latitudeCell / 2, longitude + longitudeCell / 2);
     }
 
     public static string FromGeoPoint(GeoPoint point, int length)
     {
-      double x = (point.Longitude + 180) / 20;
-      double y = (point.Latitude + 90) / 10;
-      string square = $"{(char)('A' + (int)x)}{(char)('A' + (int)y)}";
+      if (length is not (2 or 4 or 6 or 8 or 10))
+        throw new ArgumentOutOfRangeException(nameof(length));
 
-      if (length > 2)
+      double longitude = Math.Clamp(point.Longitude, -180d, Math.BitDecrement(180d)) + 180;
+      double latitude = Math.Clamp(point.Latitude, -90d, Math.BitDecrement(90d)) + 90;
+      double longitudeCell = 20, latitudeCell = 10;
+      var result = new System.Text.StringBuilder(length);
+
+      for (int i = 0; i < length; i += 2)
       {
-        x = 10 * (x - (int)x);
-        y = 10 * (y - (int)y);
-        square += $"{(char)('0' + (int)x)}{(char)('0' + (int)y)}";
-      }
-      if (length > 4)
-      {
-        x = 24 * (x - (int)x);
-        y = 24 * (y - (int)y);
-        square += $"{(char)('a' + (int)x)}{(char)('a' + (int)y)}";
+        int radix = i == 0 ? 18 : i % 4 == 2 ? 10 : 24;
+        if (i != 0)
+        {
+          longitudeCell /= radix;
+          latitudeCell /= radix;
+        }
+
+        int x = Math.Clamp((int)Math.Floor(longitude / longitudeCell), 0, radix - 1);
+        int y = Math.Clamp((int)Math.Floor(latitude / latitudeCell), 0, radix - 1);
+        char start = i % 4 == 2 ? '0' : i == 0 ? 'A' : 'a';
+        result.Append((char)(start + x));
+        result.Append((char)(start + y));
+        longitude -= x * longitudeCell;
+        latitude -= y * latitudeCell;
       }
 
-      return square;
+      return result.ToString();
     }
 
-    public static bool IsValid(string square)
+    public static bool IsValid(string? square)
     {
-      if (square == "RR73") return false;
+      if (square == null || square.Length is not (2 or 4 or 6 or 8 or 10))
+        return false;
+      if (square.Equals("RR73", StringComparison.OrdinalIgnoreCase))
+        return false;
 
-      if (square.Length != 2 && square.Length != 4 && square.Length != 6) return false;
-      square = square.ToUpper();
-
-      bool ok = square[0] >= 'A' && square[0] <= 'R' && square[1] >= 'A' && square[1] <= 'R';
-      if (square.Length == 2) return ok;
-
-      ok = ok && square[2] >= '0' && square[2] <= '9' && square[3] >= '0' && square[3] <= '9';
-      if (square.Length == 4) return ok;
-
-      return ok && square[4] >= 'A' && square[4] <= 'X' && square[5] >= 'A' && square[5] <= 'X';
+      for (int i = 0; i < square.Length; i += 2)
+      {
+        char first = char.ToUpperInvariant(square[i]);
+        char second = char.ToUpperInvariant(square[i + 1]);
+        char max = i == 0 ? 'R' : 'X';
+        if (i % 4 == 2)
+        {
+          if (first < '0' || first > '9' || second < '0' || second > '9')
+            return false;
+        }
+        else if (first < 'A' || first > max || second < 'A' || second > max)
+          return false;
+      }
+      return true;
     }
 
     internal static string? ForceCase(string? square)
     {
-      switch (square?.Length)
+      if (square == null || !IsValid(square))
+        return square;
+
+      string upper = square.ToUpperInvariant();
+      return square.Length switch
       {
-        case 4: return square.ToUpper();
-        case 6: return square.Substring(0, 4).ToUpper() + square.Substring(4, 2).ToLower();
-        default: return square;
-      }
+        6 => upper[..4] + upper[4..].ToLowerInvariant(),
+        8 => upper[..4] + upper[4..6].ToLowerInvariant() + upper[6..],
+        10 => upper[..4] + upper[4..6].ToLowerInvariant() +
+          upper[6..8] + upper[8..].ToLowerInvariant(),
+        _ => upper
+      };
     }
   }
 
