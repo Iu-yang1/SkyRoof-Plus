@@ -39,6 +39,8 @@ namespace SkyRoof
     private DateTime lastIfAfClipUtc;
     private readonly CancellationTokenSource startupDataCancellation = new();
     private bool initialPassRebuildPending;
+    private bool startupReady;
+    private Label? startupOverlay;
     private CancellationTokenSource? groupPassCancellation;
     private long groupPassGeneration;
     private static readonly SemaphoreSlim GroupPassWorker = new(1, 1);
@@ -96,7 +98,7 @@ namespace SkyRoof
 
       Text = Utils.GetVersionString();
       ctx.MainForm = this;
-      Shown += (_, _) => CompleteDeferredStartupAsync().DoNotAwait();
+      Shown += (_, _) => InitializeStartupAsync().DoNotAwait();
 
       GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
@@ -176,51 +178,126 @@ namespace SkyRoof
       UpdateSatellitePhotoVisibility();
     }
 
-    private void TryConfigureOrbitBackend()
+    private void MainForm_Load(object sender, EventArgs e)
     {
+      // The message pump must reach its first paint before Orekit/IKVM,
+      // cached JSON deserialization or first-run network downloads begin.
+      ctx.Settings.Ui.RestoreWindowPosition(this);
+      Utils.EnsureFormVisible(this);
+      Clock.UtcMode = ctx.Settings.Ui.ClockUtcMode;
+
+      startupOverlay = new Label
+      {
+        Dock = DockStyle.Fill,
+        BackColor = SystemColors.Window,
+        ForeColor = SystemColors.ControlText,
+        TextAlign = ContentAlignment.MiddleCenter,
+        Text = "Initializing orbit engine and satellite cache…"
+      };
+      Controls.Add(startupOverlay);
+      startupOverlay.BringToFront();
+    }
+
+    private async Task InitializeStartupAsync()
+    {
+      // Shown occurs before the first completed render; yield once so the
+      // loading surface itself is painted and remains movable/responsive.
+      await Task.Delay(80);
+      if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested)
+        return;
+
+      var timer = Stopwatch.StartNew();
       try
       {
-        OrbitBackendRegistry.Configure(ctx.Settings.OrbitSources);
+        var sources = ctx.Settings.OrbitSources;
+        var prepared = await Task.Run(() =>
+        {
+          Exception? orbitError = null;
+          try { OrbitBackendRegistry.Configure(sources); }
+          catch (Exception ex) { orbitError = ex; }
+
+          var database = new SatnogsDb();
+          database.ConfigureSources(sources);
+          database.LoadFromFile();
+          database.ConfigureSolarSystem(sources);
+          return (Database: database, OrbitError: orbitError);
+        }, startupDataCancellation.Token);
+
+        if (IsDisposed || Disposing || startupDataCancellation.IsCancellationRequested)
+          return;
+
+        ctx.SatnogsDb = prepared.Database;
+        ctx.SatnogsDb.ListUpdated += SatnogsDb_ListUpdated;
+        ctx.SatnogsDb.TleUpdated += SatnogsDb_TleUpdated;
+        ctx.Settings.Satellites.EnsureSolarSystemGroup(ctx.SatnogsDb);
+
+        if (prepared.OrbitError is Exception orbitError)
+        {
+          Log.Error(orbitError, "Orekit orbit backend could not be initialized.");
+          MessageBox.Show(
+            "Orekit initialization failed; orbit tracking will remain unavailable until the data or installation is repaired.\r\n\r\n" +
+            orbitError.GetBaseException().Message,
+            "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        initialPassRebuildPending = true;
+        if (ctx.SatnogsDb.Loaded)
+          SatnogsDb_ListUpdated(null, EventArgs.Empty);
+        else
+        {
+          // A clean install must populate the initial database before docking
+          // panels can bind to satellite selections. Keep the modal download
+          // progress dialog responsive and parse its data on worker threads.
+          DownloadSatList();
+          if (!ctx.SatnogsDb.Loaded)
+          {
+            Close();
+            return;
+          }
+        }
+
+        ctx.Settings.Ui.RestoreDockingLayout(this);
+        Log.Information(
+          "Initial SkyRoof docking layout restored in {ElapsedMs} ms; Orekit and satellite cache initialized off UI thread",
+          timer.ElapsedMilliseconds);
+
+        ctx.AutoSelector.RestoreEnabledIfRequested();
+        if (EmbeddedSkyCatRunning)
+          ctx.CatControl.ApplySettings();
+        StartSdrIfEnabled();
+
+        VersionChecker = new VersionChecker(ctx.Settings.LatestVersion);
+        VersionChecker.UpdateAvailable += UpdateAvailable_handler;
+        VersionChecker.CheckVersionAsync().DoNotAwait();
+        ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();
+
+        startupReady = true;
+      }
+      catch (OperationCanceledException) when (startupDataCancellation.IsCancellationRequested)
+      {
+        return;
       }
       catch (Exception ex)
       {
-        Log.Error(ex, "Orekit orbit backend could not be initialized.");
-        MessageBox.Show(
-          "Orekit initialization failed; orbit tracking will remain unavailable until the data or installation is repaired.\r\n\r\n" +
-          ex.GetBaseException().Message,
-          "Orbit Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        Log.Error(ex, "Background satellite startup initialization failed.");
+        if (!IsDisposed && !Disposing)
+        {
+          MessageBox.Show(ex.GetBaseException().Message,
+            "Satellite initialization", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          Close();
+        }
+        return;
       }
-    }
+      finally
+      {
+        if (!IsDisposed && !Disposing)
+        {
+          startupOverlay?.Dispose();
+          startupOverlay = null;
+        }
+      }
 
-    private void MainForm_Load(object sender, EventArgs e)
-    {
-      var startupTimer = Stopwatch.StartNew();
-      // Start from installed UTC data and the local satellite cache. Network
-      // requests must never delay restoring the saved DockPanel layout.
-      // Refreshed IERS EOP is applied by Orekit after the next restart.
-      TryConfigureOrbitBackend();
-      ReadOrDownloadSatelliteData();
-
-      // apply settings
-      ctx.Settings.Ui.RestoreWindowPosition(this);
-      Utils.EnsureFormVisible(this);
-      ctx.Settings.Ui.RestoreDockingLayout(this);
-      Log.Information("Initial SkyRoof docking layout restored in {ElapsedMs} ms; network updates deferred",
-        startupTimer.ElapsedMilliseconds);
-      Clock.UtcMode = ctx.Settings.Ui.ClockUtcMode;
-
-      // the layout is back, so the Auto Selection panel exists again if it was open at the last shutdown
-      ctx.AutoSelector.RestoreEnabledIfRequested();
-
-      if(EmbeddedSkyCatRunning)
-        ctx.CatControl.ApplySettings();
-      StartSdrIfEnabled();
-
-      VersionChecker = new VersionChecker(ctx.Settings.LatestVersion);
-      VersionChecker.UpdateAvailable += UpdateAvailable_handler;
-      VersionChecker.CheckVersionAsync().DoNotAwait();
-
-      ctx.AmsatStatusLoader.GetStatusesAsync().DoNotAwait();
+      await CompleteDeferredStartupAsync();
     }
 
     private async Task CompleteDeferredStartupAsync()
@@ -849,38 +926,6 @@ namespace SkyRoof
     const int TLE_DOWNLOAD_DAYS = 1;
 
     bool DownloadOk = true;
-
-    private void ReadOrDownloadSatelliteData()
-    {
-      LoadSatelliteData();
-      // A clean installation still needs an initial database import before
-      // panels can populate. Existing users must not re-download stale data
-      // before the saved docking layout has been restored.
-      if (!ctx.SatnogsDb.Loaded)
-      {
-        initialPassRebuildPending = true;
-        CheckDownloadSatelliteList();
-        if (!ctx.SatnogsDb.Loaded) Environment.Exit(1);
-      }
-    }
-
-    private void LoadSatelliteData()
-    {
-      ctx.SatnogsDb = new();
-      ctx.SatnogsDb.ConfigureSources(ctx.Settings.OrbitSources);
-      ctx.SatnogsDb.ListUpdated += SatnogsDb_ListUpdated;
-      ctx.SatnogsDb.TleUpdated += SatnogsDb_TleUpdated;
-
-      ctx.SatnogsDb.LoadFromFile();
-      ctx.SatnogsDb.ConfigureSolarSystem(ctx.Settings.OrbitSources);
-      ctx.Settings.Satellites.EnsureSolarSystemGroup(ctx.SatnogsDb);
-
-      if (ctx.SatnogsDb.Loaded)
-      {
-        initialPassRebuildPending = true;
-        SatnogsDb_ListUpdated(null, null);
-      }
-    }
 
     private void CheckDownloadSatelliteList()
     {
@@ -2080,6 +2125,11 @@ namespace SkyRoof
 
     private void timer_Tick(object sender, EventArgs e)
     {
+      if (!startupReady)
+      {
+        Clock.ShowTime();
+        return;
+      }
       ctx.IfAf?.UpdateMode(CurrentIfAfMode());
       if ((TickCount & 3) == 0)
       {
