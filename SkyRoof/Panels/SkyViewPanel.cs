@@ -465,8 +465,11 @@ namespace SkyRoof
             .ToArray());
 
           if (IsDisposed || Disposing) return;
-          // A satellite/mode change supersedes an unfinished worker response.
-          if (generation != labelsGeneration) continue;
+          // Discard only a different satellite/mode, not a newer one-second
+          // timer tick. Otherwise heavy observations may always finish one
+          // tick late and starve the labels of an updated frame.
+          if (realTime != RealTimeRadioBtn.Checked ||
+              !ReferenceEquals(selected, Pass)) continue;
 
           cachedTooltips = rows.ToDictionary(row => row.Pass, row => row.Tooltip);
           FlowPanel.SuspendLayout();
@@ -500,7 +503,8 @@ namespace SkyRoof
               FlowPanel.Controls.Clear();
           }
           finally { FlowPanel.ResumeLayout(); }
-          return;
+          // Publish completed telemetry before preparing the latest tick.
+          if (generation == labelsGeneration) return;
         }
       }
       catch (Exception ex)
