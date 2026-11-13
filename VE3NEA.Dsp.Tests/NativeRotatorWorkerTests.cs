@@ -16,6 +16,38 @@ namespace VE3NEA.Dsp.Tests;
 public sealed class NativeRotatorWorkerTests
 {
   [Fact]
+  public async Task YaesuG5500UsesExistingNativeGs232WorkerForMoveJogAndStop()
+  {
+    string? workspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+    if (string.IsNullOrWhiteSpace(workspace)) return;
+    string executable = Path.Combine(workspace, "SkyRoof", "bin", "x64",
+      "Release", "net10.0-windows7.0", "SkyRoof.exe");
+    Assert.True(File.Exists(executable));
+
+    await using var server = new FakeGs232Bridge();
+    var settings = CreateSettings(server.Port);
+    settings.HardwareModel = RotatorHardwareModel.YaesuG5500;
+    using var engine = new RotatorEngineSubprocess(settings, executable);
+    await UntilAsync(() => engine.IsReady);
+    Assert.True(engine.IsReady);
+
+    engine.RotateTo(new SkyRoof.Bearing(450 * Math.PI / 180,
+      90 * Math.PI / 180));
+    await UntilAsync(() => server.Count("W450 090") > 0);
+    Assert.True(server.Count("C2") > 0);
+
+    engine.StartContinuousMove(RotatorContinuousDirection.Right);
+    await UntilAsync(() => server.Count("R") > 0);
+    engine.StopRotation();
+    await UntilAsync(() => server.Count("S") > 0);
+    string[] commands = server.Commands.ToArray();
+    int jog = Array.LastIndexOf(commands, "R");
+    int stop = Array.LastIndexOf(commands, "S");
+    Assert.True(jog >= 0 && stop > jog,
+      "Releasing G-5500 continuous right turn must send STOP after R.");
+  }
+
+  [Fact]
   public async Task IsolatedRotatorChildCrashCannotTerminateTestHost()
   {
     // CI has built SkyRoof.exe before running this functional child test.
