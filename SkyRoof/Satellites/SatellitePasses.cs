@@ -39,6 +39,12 @@ namespace SkyRoof
       ctx.Announcer.RebuildQueue();
     }
 
+    internal void ApplySelectedGroupSnapshot(FullRebuildSnapshot snapshot)
+    {
+      ApplyFullRebuildSnapshot(snapshot);
+      ctx.Announcer.RebuildQueue();
+    }
+
     public override SatellitePass[] PredictMorePasses()
     {
       var newPasses = base.PredictMorePasses();
@@ -153,6 +159,46 @@ namespace SkyRoof
       this.ctx = ctx;
 
       CreateGroundStation(ctx.Settings.User.Square, ctx.Settings.User.Altitude);
+    }
+
+    internal sealed record FullRebuildSnapshot(
+      SatnogsDbSatellite[] Satellites,
+      SatellitePass[] Passes,
+      DateTime CalculationUtc);
+
+    // This method only uses a captured satellite array and a fixed ground
+    // station. It can be called on a worker without touching WinForms or
+    // mutating the pass tables used by current CAT/rotator consumers.
+    internal FullRebuildSnapshot ComputeFullRebuildSnapshot(
+      SatnogsDbSatellite[] requested, CancellationToken cancellationToken)
+    {
+      var selected = requested.Where(s => s.Tracker.Enabled && s.IsAlive()).ToArray();
+      var now = DateTime.UtcNow;
+      var result = new List<SatellitePass>();
+      foreach (var sat in selected)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        result.AddRange(ComputePassesFor(sat, now, now + PredictionTimeSpan));
+      }
+      cancellationToken.ThrowIfCancellationRequested();
+      result.Sort((left, right) => left.StartTime.CompareTo(right.StartTime));
+      return new FullRebuildSnapshot(selected, result.ToArray(), now);
+    }
+
+    internal void ApplyFullRebuildSnapshot(FullRebuildSnapshot snapshot)
+    {
+      Satellites = snapshot.Satellites.ToList();
+      Passes = snapshot.Passes.ToList();
+      LastPredictionTime = snapshot.CalculationUtc;
+    }
+
+    // Clear a previous group's pass data immediately while a replacement is
+    // being prepared; otherwise Group view can show unrelated passes.
+    internal void ClearPendingGroupPasses()
+    {
+      Satellites.Clear();
+      Passes.Clear();
+      LastPredictionTime = DateTime.MinValue;
     }
 
     // call when satellite list or group changes
