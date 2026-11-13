@@ -85,9 +85,8 @@ namespace SkyRoof
     {
       var item = listViewEx1.GetItemAt(e.X, e.Y);
      
-      if (item != null && e.Button == MouseButtons.Left)
+      if (e.Button == MouseButtons.Left && item?.Tag is SatellitePass pass)
       {
-        var pass = (SatellitePass)item.Tag!;
         var sat = pass.Satellite;
         ctx.SatelliteSelector.SetSelectedSatellite(sat);
         ctx.SatelliteSelector.SetSelectedPass(pass);
@@ -210,8 +209,7 @@ namespace SkyRoof
     private void listViewEx1_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
     {
       e.DrawBackground();
-
-      var pass = (SatellitePass)e.Item.Tag;
+      if (e.Item.Tag is not SatellitePass pass) return;
       int h = e.Bounds.Height - 1;
       int w = e.Bounds.Width - h;
       bool now = pass.StartTime < DateTime.UtcNow;
