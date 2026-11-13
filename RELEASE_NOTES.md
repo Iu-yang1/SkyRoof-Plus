@@ -39,3 +39,17 @@ SkyRoof Plus v1.73 — **切换卫星及手动星历更新无响应修复版**�
 Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full Windows x64 solution build, xUnit, Orekit/IKVM smoke and packaged-runtime validation, pinned `aislop` and DocFX validation. No real-world Windows first-response benchmark, IC-9700 test or hardware rotator acceptance has been performed. This independent release does not replace v1.72. If Authenticode signing is unavailable, the installer remains unsigned and its SHA-256 release-asset validation is mandatory.
 
 **Previous stable:** [v.1.72](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.72).
+
+## 2026-11-13 guarded in-place installer replacement / 原版本安装包原位替换
+
+本次属于已发布 **v.1.73** 的性能修复重构，不创建新的版本号。此前 v.1.73 安装包及标签将由经过 GitHub Actions 验收的新构建替换；**此前保存的 SHA-256 校验值届时不再适用，请以最终发布工作流生成的新值为准。**
+
+- **首屏响应：** 先绘制可交互的初始化状态，随后在后台进行 Orekit/IKVM 初始化、卫星缓存 JSON 反序列化和太阳系轨道对象探测，最后回到 WinForms 线程绑定 DockPanel；避免在 `MainForm_Load` 首帧之前同步初始化。
+- **卫星数据更新：** SatNOGS 卫星、发射机、主 TLE、JE9PEL 和 gr-satellites satyaml 独立源并发下载；数据库解析、融合与写盘移出 UI。下载进度仍由 UI 线程呈现。
+- **TLE/OMM 更新：** 使用隔离的暂存数据库执行网络获取与星历合并，成功后一次性将轨道层提交至现有卫星对象，保留仍有效的人工 TLE 优先权、卫星选择以及 CAT/旋转器运行引用；已选群组的 Orekit 跟踪器提前在后台准备。
+- **多核轨道传播：** Ham、群组和 SDR 的过境批量预测均不在 UI 定时器同步运行；按独立卫星并行，每项最多使用四个工作线程，通过取消/代次判定防止过时快照提交。
+- **验证边界：** CI 编译、模拟/单元测试、隔离 Orekit/IKVM 安装包和完整性校验与用户电脑上真实的 UI 最长阻塞时间是不同层级的证据。无 IC-9700、旋转器实机连接和 Windows 交互延迟测量；不声称实机已经无卡顿。
+- **签名状态：** 如无 SignPath 能力，安装包仍可能为 Authenticode `NotSigned`；发布工作流必须回读验证安装包的 SHA-256 和现有 Release 身份。
+
+**English:** This is a one-time, guarded in-place replacement of the existing v.1.73 installer. Orekit initialization and cached database parsing are deferred until after the first WinForms paint and executed on worker threads. Independent satellite sources download concurrently; parsed orbit data and TLE layers are prepared in staging snapshots and committed on the UI thread. Ham/group/SDR pass computations use bounded multi-core parallelism with stale-request rejection. Existing numerical orbit, Doppler, CAT, PTT and rotator algorithms are not restricted or replaced. Validation is via CI and installed-runtime smoke tests, not physical radio or measured end-user UI latency. Previously recorded v.1.73 installer hashes must be replaced with the new published hash.
+
