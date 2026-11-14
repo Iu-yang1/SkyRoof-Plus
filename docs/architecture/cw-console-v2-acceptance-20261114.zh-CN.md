@@ -1,6 +1,6 @@
 # SkyRoof CW Console V2 — P4 验收报告（未发布）
 
-**基线**：SkyRoof-Plus v1.74；P0 #214、P1 #215、P2 #216 已合并。P3 #217 与本次 P4 的准确 SHA/CI 以对应 GitHub PR Checks 为准。  
+**基线**：SkyRoof-Plus v1.74；P0 #214、P1 #215、P2 #216、P3 #217 已合并；P3 合并提交为 `f6290d84d0c328d2107e52b5468725250a2cce9d`。P4 的最终 SHA 与完成状态以 GitHub Checks 为准。  
 **交付方式**：在 `master` 合并源代码后执行 Compile Check 并归档未签名测试安装器；不修改 `Directory.Build.props`，不运行 `Build and Release`，不创建 Release/Tag。
 
 ## 1. 功能验收覆盖
@@ -27,6 +27,12 @@
 - **Docs Validation**：中英文用户指南与文档构建。
 
 GitHub Actions 的精确 Run ID、结果、commit SHA 和工件链接以仓库最新运行记录为准；不得把“已请求”写成“已通过”。独立测试安装器只保留为 CI Artifact，**不发布 GitHub Release**。
+
+**已取得的直接 CI 证据（截至本报告编辑）**：
+
+- P3 `691345e2`：Docs Validation [43563180804](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563180804)、aislop [43563180721](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563180721) 和 CW Real Model Benchmark [43563180780](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563180780) 均返回 `success`；Compile Check [43563180803](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563180803) 已通过 Build solution / Run tests，后续运行状态须继续以 Actions 为准。
+- P4 最初检查提交 `a7317f6f`：aislop [43563551341](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563551341) 返回 `success`；Compile Check [43563551471](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/43563551471) 已通过 Build solution、Run tests、UI DPI Fixture 上传，工作流其余步骤仍以最终状态为准。
+- 以上结果不覆盖本次文档修订后提交。最终验收必须以合并时实际 HEAD 的对应 CI 结果确认。
 
 ## 3. Pileup 基准与录音限制
 
