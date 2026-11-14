@@ -17,7 +17,8 @@ namespace SkyRoof
     private int labelsGeneration;
     private bool labelWorkerRunning;
     
-    private readonly Font RegularFont, BoldFont;
+    private Font RegularFont, BoldFont;
+    private readonly List<Font> sessionFonts = new();
     private readonly Image OkImage, XMarkImage, ArrowImage, SatImage;
     private readonly Brush BlueBrush = new SolidBrush(Theme.SkyRealTimeDisk);
     private readonly Brush SilverBrush = new SolidBrush(Theme.SkyOrbitDisk);
@@ -37,6 +38,11 @@ namespace SkyRoof
 
       RegularFont = new Font(OrbitRadioBtn.Font, FontStyle.Regular);
       BoldFont = new Font(OrbitRadioBtn.Font, FontStyle.Bold);
+      sessionFonts.AddRange(new[] { RegularFont, BoldFont });
+      Disposed += (_, _) =>
+      {
+        foreach (var font in sessionFonts) font.Dispose();
+      };
 
       // icons from https://www.iconsdb.com/
       using (var ms = new MemoryStream(Properties.Resources.ok)) { OkImage = Image.FromStream(ms); }
@@ -52,6 +58,20 @@ namespace SkyRoof
       Utils.SetDoubleBuffered(DrawPanel, true);
       Utils.SetDoubleBuffered(FlowPanel, true);
       Utils.SetDoubleBuffered(RadioButtonsPanel, true);
+    }
+
+    internal void UpdateDpiPresentation(float factor)
+    {
+      // The selected orbit label and satellite labels use dedicated fonts
+      // instead of inherited WinForms fonts. Recreate at the scaled size.
+      RegularFont = new Font(DrawPanel.Font, FontStyle.Regular);
+      BoldFont = new Font(DrawPanel.Font, FontStyle.Bold);
+      sessionFonts.AddRange(new[] { RegularFont, BoldFont });
+      OrbitRadioBtn.Font = OrbitRadioBtn.Checked ? BoldFont : RegularFont;
+      foreach (Label label in FlowPanel.Controls.OfType<Label>())
+        label.Font = RegularFont;
+      SetLabels();
+      DrawPanel.Invalidate();
     }
 
     private void SkyViewPanel_FormClosing(object sender, FormClosingEventArgs e)
