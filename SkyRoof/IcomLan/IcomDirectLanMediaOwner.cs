@@ -51,22 +51,25 @@ namespace SkyRoof
         directLanPttActive: () =>
           ctx.CatControl.Tx?.Ptt == true || ctx.CatControl.Rx?.Ptt == true,
         directLanExternalMeterReadback: () =>
-          ctx.CatControl.HasIcomMeterReadbackBackend);
+          ctx.CatControl.HasIcomMeterReadbackBackend &&
+          ctx.IcomLanSpectrumPanel?.HasRecentExternalMeterReadback == true);
       var localAudio = new IcomDirectLanAudioDevices(
         audio, current,
         (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame));
       current.AudioFrameReceived += OnAudioFrame;
       current.MeterReceived += OnMeter;
+      devices = localAudio;
+      capture = current;
       try
       {
         localAudio.Start();
         current.Start();
-        devices = localAudio;
-        capture = current;
         return current;
       }
       catch
       {
+        capture = null;
+        devices = null;
         current.AudioFrameReceived -= OnAudioFrame;
         current.MeterReceived -= OnMeter;
         localAudio.Dispose();
