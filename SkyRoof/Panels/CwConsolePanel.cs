@@ -89,6 +89,7 @@ namespace SkyRoof
     private IReadOnlyList<CwConsoleSlotDisplay> displayedSlots =
       Array.Empty<CwConsoleSlotDisplay>();
     private int? selectedSlotIndex;
+    private long lastTextTimelineGeneration = -1;
 
     private long displayGeneration = -1;
     private CwConsoleLaneIdentity? selectedIdentity;
@@ -571,6 +572,7 @@ namespace SkyRoof
       WorkSplit.Panel1.Controls.Add(left);
       PileupList.SlotSelected += PileupList_SlotSelected;
       PileupList.SlotCleared += PileupList_SlotCleared;
+      PileupList.SlotHoldChanged += PileupList_SlotHoldChanged;
       WorkSplit.Panel2.Controls.Add(PileupList);
 
       Shown += (_, _) =>
@@ -1006,17 +1008,26 @@ namespace SkyRoof
     {
       CwSignalTrack[] tracks;
       Dictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot> textByLane;
+      long generation;
       lock (stateSync)
       {
         tracks = latestTracks.ToArray();
         textByLane = new(transcripts);
+        generation = displayGeneration;
+      }
+
+      if (lastTextTimelineGeneration != generation)
+      {
+        slotTextMemory.NewTimeline();
+        lastTextTimelineGeneration = generation;
       }
 
       IReadOnlyList<CwConsoleLaneSlot> liveSlots =
         laneSlots.Update(tracks.Where(track =>
           track.KeyingStatus != CwKeyingStatus.Candidate),
           DateTime.UtcNow);
-      displayedSlots = slotTextMemory.Update(liveSlots, textByLane);
+      displayedSlots = slotTextMemory.Update(
+        liveSlots, textByLane, laneSlots.IsHeld);
 
       if (selectedSlotIndex is null)
       {
@@ -1067,6 +1078,15 @@ namespace SkyRoof
     private void PileupList_SlotCleared(int index)
     {
       slotTextMemory.Clear(index);
+      RefreshPileupCards();
+    }
+
+    private void PileupList_SlotHoldChanged(int index, bool hold)
+    {
+      if (hold)
+        laneSlots.Hold(index);
+      else
+        laneSlots.Release(index);
       RefreshPileupCards();
     }
 
@@ -2005,6 +2025,7 @@ namespace SkyRoof
         WaterfallView_LaneClicked;
       PileupList.SlotSelected -= PileupList_SlotSelected;
       PileupList.SlotCleared -= PileupList_SlotCleared;
+      PileupList.SlotHoldChanged -= PileupList_SlotHoldChanged;
       // The background display worker may still be inside native HamNoise.
       // Dispose FFTW plans only after its last calculation has completed.
       DisplaySession.Dispose();
