@@ -80,7 +80,11 @@ namespace SkyRoof.CW
         // section before seeing any new track so old and new stations
         // can never share a transcript just because IDs were recycled.
         if (state.Identity.HasValue)
+        {
+          CwConsoleLaneIdentity? previous = state.LastDisplayIdentity;
           StartNewIdentity(state, default);
+          state.LastDisplayIdentity = previous;
+        }
         state.Identity = null;
       }
     }
