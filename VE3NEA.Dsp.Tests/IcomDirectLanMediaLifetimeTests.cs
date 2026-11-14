@@ -27,6 +27,36 @@ namespace VE3NEA.Dsp.Tests
         IcomLanSpectrumSource.RsBa1, options).Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData("SkyRoof.IcomDirectLanMeterSettings.Enabled", IcomLanSettingsAction.Live)]
+    [InlineData("SkyRoof.IcomDirectLanMeterSettings.PollIntervalMs", IcomLanSettingsAction.Live)]
+    [InlineData("SkyRoof.IcomLanTxAgcSettings.TargetRmsDbfs", IcomLanSettingsAction.Live)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneGain", IcomLanSettingsAction.Live)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerVolume", IcomLanSettingsAction.Live)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneDeviceId", IcomLanSettingsAction.RestartWindowsEndpoints)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerDeviceId", IcomLanSettingsAction.RestartWindowsEndpoints)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.CaptureBufferMs", IcomLanSettingsAction.RestartWindowsEndpoints)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.SampleRate", IcomLanSettingsAction.RenegotiateMedia)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.JitterPrefillMs", IcomLanSettingsAction.RenegotiateMedia)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.Codec", IcomLanSettingsAction.RenegotiateMedia)]
+    public void LocalSettingsDoNotCauseUnnecessaryRadioMediaRenegotiation(
+      string field, IcomLanSettingsAction expected) =>
+      IcomLanSettingsChangePolicy.Classify([field]).Should().Be(expected);
+
+    [Fact]
+    public void MostDisruptiveSettingWinsWhenApplyingSeveralAtOnce()
+    {
+      IcomLanSettingsChangePolicy.Classify([
+        "SkyRoof.IcomDirectLanTransmitSettings.MicrophoneGain",
+        "SkyRoof.IcomDirectLanTransmitSettings.MicrophoneDeviceId"
+      ]).Should().Be(IcomLanSettingsAction.RestartWindowsEndpoints);
+
+      IcomLanSettingsChangePolicy.Classify([
+        "SkyRoof.IcomDirectLanReceiveSettings.SpeakerVolume",
+        "SkyRoof.IcomDirectLanReceiveSettings.Enabled"
+      ]).Should().Be(IcomLanSettingsAction.RenegotiateMedia);
+    }
+
     [Fact]
     public async Task SameRadioCannotStartOverlappingAuthenticatedMediaSessions()
     {
