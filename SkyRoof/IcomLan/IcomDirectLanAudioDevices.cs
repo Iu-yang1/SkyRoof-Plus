@@ -29,6 +29,11 @@ namespace SkyRoof
     private InputSoundcard<float>? microphone;
     private OutputSoundcard<float>? speakers;
     private int disposed;
+    private readonly Task priorEndpointShutdown;
+    private Task? endpointInitialization;
+    private Task endpointShutdown = Task.CompletedTask;
+    internal Task EndpointShutdown => endpointShutdown;
+    internal Task EndpointInitialization => endpointInitialization ?? Task.CompletedTask;
     private long queuedRx;
     private long renderedRx;
     internal string Status { get; private set; } = "Audio endpoints not started";
@@ -37,9 +42,11 @@ namespace SkyRoof
 
     internal IcomDirectLanAudioDevices(
       IcomDirectLanSettings options, IcomLanSpectrumCapture capture,
-      Action<int, IcomLanLpcmAudioCodec.RxFrame>? ifAudioConsumer = null)
+      Action<int, IcomLanLpcmAudioCodec.RxFrame>? ifAudioConsumer = null,
+      Task? priorEndpointShutdown = null)
     {
       this.options = options;
+      this.priorEndpointShutdown = priorEndpointShutdown ?? Task.CompletedTask;
       this.capture = capture;
       this.ifAudioConsumer = ifAudioConsumer;
     }
@@ -52,7 +59,12 @@ namespace SkyRoof
       // Starting a WASAPI endpoint may perform blocking COM operations.
       // Neither the WinForms UI nor any UDP scope/audio receive callback
       // should wait for endpoint initialization.
-      _ = Task.Run(() => InitializeEndpoints(), lifetime.Token);
+      endpointInitialization = Task.Run(async () =>
+      {
+        await priorEndpointShutdown.WaitAsync(lifetime.Token);
+        if (Volatile.Read(ref disposed) == 0)
+          InitializeEndpoints();
+      }, lifetime.Token);
       _ = Task.Run(() => ReceiveLoopAsync(lifetime.Token), lifetime.Token);
       _ = Task.Run(() => FlushSpeakerAsync(lifetime.Token), lifetime.Token);
     }
@@ -139,6 +151,13 @@ namespace SkyRoof
       }
     }
 
+    internal void UpdateSpeakerVolume()
+    {
+      lock (deviceSync)
+        if (speakers != null)
+          speakers.Volume = Math.Clamp(options.Receive.SpeakerVolume, 0, 100) / 100f;
+    }
+
     private void OnMicrophoneSamples(object? sender, DataEventArgs<float> args)
     {
       if (Volatile.Read(ref disposed) == 0 && args.Count > 0)
@@ -220,8 +239,12 @@ namespace SkyRoof
         oldInput.SamplesAvailable -= OnMicrophoneSamples;
       // Stopping WASAPI can block on its reader thread: never block the
       // WinForms UI while closing a spectrum/audio session.
-      _ = Task.Run(() =>
+      Task initialization = endpointInitialization ?? Task.CompletedTask;
+      endpointShutdown = Task.Run(async () =>
       {
+        try { await initialization; }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+        catch (Exception ex) { Log.Warning(ex, "Direct LAN audio endpoint startup failed during shutdown"); }
         try { oldInput?.Dispose(); }
         catch (Exception ex) { Log.Warning(ex, "Direct LAN microphone shutdown failed"); }
         try { oldOutput?.Dispose(); }

@@ -827,13 +827,20 @@ namespace SkyRoof
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.WaterfallSettings.")))
         ctx.WaterfallPanel?.ApplySettings();
 
-      if (ChangedFields.Exists(s =>
-            s.StartsWith("SkyRoof.IcomDirectLanSettings.") ||
-            s.StartsWith("SkyRoof.IcomDirectLanReceiveSettings.") ||
-            s.StartsWith("SkyRoof.IcomDirectLanTransmitSettings.") ||
-            s.StartsWith("SkyRoof.IcomDirectLanMeterSettings.")))
+      IcomLanSettingsAction lanAudioChange =
+        IcomLanSettingsChangePolicy.Classify(ChangedFields);
+      if (lanAudioChange != IcomLanSettingsAction.None)
       {
-        ctx.IcomLanSpectrumPanel?.ApplySettings();
+        if (lanAudioChange == IcomLanSettingsAction.RenegotiateMedia)
+        {
+          if (ctx.IcomLanSpectrumPanel != null)
+            ctx.IcomLanSpectrumPanel.ApplySettings();
+          else
+            ctx.DirectLanMediaOwner?.ReconfigureIfActive();
+        }
+        else
+          ctx.DirectLanMediaOwner?.ApplyCurrentSettings(
+            lanAudioChange == IcomLanSettingsAction.RestartWindowsEndpoints);
         ctx.MainForm.UpdateIcomDirectLanMeterBar();
       }
 
@@ -884,7 +891,12 @@ namespace SkyRoof
             true;
 
         if (transportChanged)
-          ctx.IcomLanSpectrumPanel?.ApplySettings();
+        {
+          if (ctx.IcomLanSpectrumPanel != null)
+            ctx.IcomLanSpectrumPanel.ApplySettings();
+          else
+            ctx.DirectLanMediaOwner?.ReconfigureIfActive();
+        }
         else if (controlChanged)
           ctx.IcomLanSpectrumPanel?.ApplyControlSettings();
         else

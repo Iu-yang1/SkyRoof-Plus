@@ -581,14 +581,22 @@ namespace SkyRoof
           if (AudioTxReady)
             audioTransmit = TransmitAudioAsync(audio, token);
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+          throw;
+        }
         catch (Exception ex)
         {
-          // Scope remains usable, but failed RX/TX audio must be visible.
+          // A successful CI-V handshake is not a usable audio session.
+          // Renew the *whole* authenticated media grant: merely keeping
+          // scope/CI-V alive leaves LAN audio permanently disconnected.
+          AudioTxReady = false;
           AudioLinkConnected = false;
           Log.Warning(ex,
-            "Direct LAN audio UDP handshake failed; scope/CI-V session remains active");
+            "Direct LAN audio handshake failed; renewing authenticated media session");
           Publish("Direct LAN AUDIO FAILED: " + ex.GetType().Name +
-            " during UDP audio handshake; scope may continue without audio.");
+            "; reauthenticating CI-V and audio together.");
+          throw new IOException("Direct LAN audio handshake failed; reconnect required.", ex);
         }
       }
 

@@ -533,6 +533,8 @@ namespace SkyRoof
       // save settings
       ctx.Settings.Ui.StoreDockingLayout(DockHost);
       ctx.ClosePanels();
+      ctx.DirectLanMediaOwner?.Dispose();
+      ctx.DirectLanMediaOwner = null;
 
       ctx.Settings.Ui.StoreWindowPosition(this);
       ctx.Settings.Ui.ClockUtcMode = Clock.UtcMode;
@@ -1367,7 +1369,8 @@ namespace SkyRoof
       directLanTxAudioLabel.Visible = visible && ctx.Settings.IcomDirectLan.Transmit.Enabled;
       if (!visible) return;
 
-      var tx = ctx.IcomLanSpectrumPanel?.TxAudioStatus ?? default;
+      var tx = ctx.IcomLanSpectrumPanel?.TxAudioStatus ??
+        ctx.DirectLanMediaOwner?.TxAudioStatus ?? default;
       bool catPtt = ctx.CatControl.Tx?.Ptt == true ||
                     ctx.CatControl.Rx?.Ptt == true;
       directLanTxAudioLabel.Text = IcomDirectLanTxAudioDisplay.Format(
@@ -1382,7 +1385,8 @@ namespace SkyRoof
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
       IcomMeterSnapshot snapshot =
-        ctx.IcomLanSpectrumPanel?.MeterSnapshot ?? new IcomMeterSnapshot();
+        ctx.IcomLanSpectrumPanel?.MeterSnapshot ??
+        ctx.DirectLanMediaOwner?.MeterSnapshot ?? new IcomMeterSnapshot();
       directLanMeters.UpdateMeters(
         IcomMeterPollingPolicy.VisibleForMode(snapshot, catPtt), meters);
       directLanMetersHost.ToolTipText =

@@ -301,6 +301,12 @@ namespace SkyRoof
 
     private async Task DirectLanLoop(CancellationToken token)
     {
+      // The previous capture can still be finishing radio sign-out after
+      // the UI closes. Never overlap authenticated media grants to the
+      // same radio; waiting is cancellable if the new capture is stopped.
+      using IDisposable sessionLease =
+        await IcomDirectLanSessionSerialGate.EnterAsync(
+          ConfiguredRadioAddress, DirectLanControlPort, token);
       int reconnectCount = 0;
       while (!token.IsCancellationRequested)
       {
