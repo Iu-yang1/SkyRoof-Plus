@@ -362,8 +362,9 @@ namespace SkyRoof
       if (Current == UiLanguage.English) return
         SettingsEnglishSupplement.Name(item.ComponentType.Name + "." + item.Name) ?? item.DisplayName;
       if (Chinese.TryGetValue(item.DisplayName, out string? zh)) return zh;
+      if (SettingsChineseSupplement.Name(item.DisplayName) is string extra) return extra;
       if (Chinese.TryGetValue(item.Name, out zh)) return zh;
-      return SettingsChineseSupplement.Name(item.DisplayName) ?? item.DisplayName;
+      return SettingsChineseSupplement.Name(item.Name) ?? item.DisplayName;
     }
 
     private static string DescriptionFor(PropertyDescriptor item)
