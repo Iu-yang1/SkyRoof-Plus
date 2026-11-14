@@ -23,6 +23,7 @@
 ### 已确认的关键实现细节
 
 - `UiTimer` 为 250 ms 的状态/槽位轮询。音频接受与异步帧完成事件触发 waterfall pump，另有 100 ms fallback；瀑布刷新不应退化为 UI 计时器直接跑 FFT 或 HamNoise。
+- **已识别的职责缺口：** `CwConsolePanel` 当前直接创建并持有 `WaterfallAnalyzer`、`SpectrumAnalyzer` 和 `DisplayFrames`，虽然耗时计算已在后台处理，这仍不符合 V2 的“UI 不直接持有 FFT 资源”最终目标。P2 应将它们封装进独立 display session / service，由 UI 订阅结果并在关闭时解除订阅；不碰接收工作线程的 ONNX、CAT 生命周期。P1 保留现有 DSP 显示路径以控制风险。
 - `Worker_DecodeUpdated` 已丢弃旧解码引擎的迟到结果；timeline generation 变化会清除运行中的轨迹/文字/选中身份。主题或 Dock 改变 **不得** 触发 generation reset。
 - `CwPileupLaneCard` 当前展示的是 local-floor **peak-over-floor**，不是经过校准的解码 SNR。V2 标签使用 `peak`，不可误标为 `SNR`。
 - `CwSelectedLaneView` 避免在文字未变时重写 RichTextBox，以减少 250 ms 刷新对选择/光标/滚动位置的影响；V2 保持相同原则。
@@ -32,7 +33,7 @@
 ## 2. 控件树（P1 目标）
 
 ```text
-CwConsolePanel : DockContent  [CW resource-free view]
+CwConsolePanel : DockContent  [presentation + existing display orchestration]
 └─ Root : TableLayoutPanel (5 rows; 1 column; no responsive reflow)
    ├─ Header : compact status & controls
    │  ├─ RX Toggle │ DecoderMode │ Source │ DisplayMode │ Settings │ History
@@ -134,10 +135,10 @@ flowchart TD
 ## 6. 实施边界与回归清单
 
 ### P1 布局（纯视觉）
-重构 `BuildUi` / 传输区组装、卡片和 Selected Lane 的颜色/间距；不修改 `CwReceiveWorker`、`CwTransmitController`、`CwKeyerClient` 和 CAT 协议；重点回归 8 行同时显示、滚动/选中稳定、输入焦点与重绘缓存。
+重构 `BuildUi` / 传输区组装、卡片和 Selected Lane 的颜色/间距；不修改 `CwReceiveWorker`、`CwTransmitController`、`CwKeyerClient` 和 CAT 协议；重点回归 8 行同时显示、滚动/选中稳定、输入焦点与重绘缓存。为 P2 迁出 display FFT 对象预留接入点，但本阶段不迁移后台处理生命周期。
 
 ### P2 全功能接入
-以旧控件事件链路逐项核对音频源、引擎、模型安装、显示模式、History、WPM、宏和 TX/STOP；不复制已有状态查询，不改变 Settings JSON 的已有字段/含义。
+以旧控件事件链路逐项核对音频源、引擎、模型安装、显示模式、History、WPM、宏和 TX/STOP；封装 display analyzer / processor 于非 UI 资源持有者中，由 UI 使用不可变帧快照与事件订阅。不复制已有状态查询，不改变 Settings JSON 的已有字段/含义。
 
 ### P3 明确增强
 优先 HOLD/RELEASE、Use Callsign、文字/轨迹/视图清理范围及状态提示；只有 CW/CW-R AF↔RF 映射和多普勒事务得到可验证实现时才加入 Tune RX。未定义队列、自动回复、逐字符发射进度不纳入。
