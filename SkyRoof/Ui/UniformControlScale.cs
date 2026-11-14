@@ -24,6 +24,11 @@ namespace SkyRoof
           Visit(child, list);
       }
       Visit(root, controls);
+      // WinForms has already applied system DPI to the designer baseline.
+      // Explicitly scaling fonts under a UserControl.AutoScaleMode.Font would
+      // trigger a second automatic scale of its children.
+      foreach (var c in controls.OfType<ContainerControl>())
+        c.AutoScaleMode = AutoScaleMode.None;
       snapshots = controls.Select(c => new Snapshot(
         c, c.Bounds, c.Padding, c.Margin, c.MinimumSize, c.MaximumSize, c.Font)).ToArray();
     }
