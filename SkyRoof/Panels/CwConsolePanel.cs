@@ -890,11 +890,15 @@ namespace SkyRoof
             SystemColors.ControlText;
         }
 
-        SourceBox.SelectedItem =
-          settings.AudioSource;
-        DecoderModeBtn.Text=settings.DecoderMode==CwDecoderMode.NewCW
+        // The 250-ms status tick must not write back to an open dropdown
+        // or disturb keyboard focus when the selection is unchanged.
+        if (!Equals(SourceBox.SelectedItem, settings.AudioSource))
+          SourceBox.SelectedItem = settings.AudioSource;
+        string decoderLabel = settings.DecoderMode == CwDecoderMode.NewCW
           ? "New CW ▸ DeepCW"
           : "DeepCW ▸ New CW";
+        if (DecoderModeBtn.Text != decoderLabel)
+          DecoderModeBtn.Text = decoderLabel;
       }
       finally
       {
