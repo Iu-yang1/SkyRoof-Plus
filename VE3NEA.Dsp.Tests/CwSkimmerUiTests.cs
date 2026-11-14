@@ -284,11 +284,12 @@ namespace VE3NEA.Dsp.Tests
       layout.ColumnStyles[1].SizeType.Should().Be(
         SizeType.AutoSize);
       var buttons = layout.Controls.OfType<Button>().ToArray();
-      buttons.Select(b => b.Text).Should().BeEquivalentTo("Copy", "Clear");
+      buttons.Select(b => b.Text).Should().BeEquivalentTo("Copy", "Clear", "HOLD");
       var copy = buttons.Single(b => b.Text == "Copy");
       copy.AutoSize.Should().BeTrue();
       copy.MinimumSize.Width.Should().BeGreaterThan(65);
       layout.ColumnStyles[2].SizeType.Should().Be(SizeType.AutoSize);
+      layout.ColumnStyles[3].SizeType.Should().Be(SizeType.AutoSize);
       card.ClearButton.Text.Should().Be("Clear");
     }
 
