@@ -346,7 +346,8 @@ namespace SkyRoof
         .Where(t => t.IsClass && !t.IsAbstract &&
           t.Namespace != null && t.Namespace.StartsWith("SkyRoof", StringComparison.Ordinal) &&
           (t == typeof(Settings) || t == typeof(AfcSettings) ||
-           t.Name.EndsWith("Settings", StringComparison.Ordinal)))
+           t.Name.EndsWith("Settings", StringComparison.Ordinal) ||
+           SettingsChineseSupplement.IsNestedSettingsModel(t)))
         .ToArray();
       foreach (Type type in types)
         TypeDescriptor.AddProvider(
@@ -358,10 +359,12 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglish.TryGetValue(item.Name, out string? en)) return en;
-      if (Current == UiLanguage.English) return item.DisplayName;
+      if (Current == UiLanguage.English) return
+        SettingsEnglishSupplement.Name(item.ComponentType.Name + "." + item.Name) ?? item.DisplayName;
       if (Chinese.TryGetValue(item.DisplayName, out string? zh)) return zh;
+      if (SettingsChineseSupplement.Name(item.DisplayName) is string extra) return extra;
       if (Chinese.TryGetValue(item.Name, out zh)) return zh;
-      return item.DisplayName;
+      return SettingsChineseSupplement.Name(item.Name) ?? item.DisplayName;
     }
 
     private static string DescriptionFor(PropertyDescriptor item)
@@ -369,6 +372,8 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglishHelp.TryGetValue(item.Name, out string? en)) return en;
+      if (Current == UiLanguage.English) return
+        SettingsEnglishSupplement.Description(item.ComponentType.Name + "." + item.Name) ?? item.Description;
       if (Current == UiLanguage.SimplifiedChinese)
       {
         string key = item.ComponentType.Name + "." + item.Name;
@@ -376,6 +381,7 @@ namespace SkyRoof
           return orbitHelp;
         if (ChineseDescriptions.TryGetValue(key, out string? zh))
           return zh;
+        if (SettingsChineseSupplement.Description(key) is string extra) return extra;
       }
       return item.Description;
     }
@@ -412,13 +418,12 @@ namespace SkyRoof
         this.source = source;
 
       public override string DisplayName => DisplayFor(source);
-      public override string Category =>
-        OrbitSettingsLocalization.Category(source.Category, Current);
+      public override string Category => SettingsChineseSupplement.CategoryFor(source.Category, Current);
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
       public override Type PropertyType => source.PropertyType;
-      public override TypeConverter Converter => source.Converter;
+      public override TypeConverter Converter => SettingsChineseSupplement.ConverterFor(source.PropertyType, source.Converter);
       public override object? GetEditor(Type editorBaseType) => source.GetEditor(editorBaseType);
       public override bool CanResetValue(object component) => source.CanResetValue(component);
       public override object? GetValue(object? component) => source.GetValue(component);
