@@ -65,6 +65,19 @@ namespace SkyRoof.CW
       return result;
     }
 
+    internal void NewTimeline()
+    {
+      foreach (SlotState state in states)
+      {
+        // A decoder timeline may reuse H/T numeric IDs. Close the old
+        // section before seeing any new track so old and new stations
+        // can never share a transcript just because IDs were recycled.
+        if (state.Identity.HasValue)
+          StartNewIdentity(state, default);
+        state.Identity = null;
+      }
+    }
+
     internal void Clear(int index)
     {
       SlotState state = states[index];
