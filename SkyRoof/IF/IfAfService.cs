@@ -59,6 +59,11 @@ namespace SkyRoof.IF
     private string detail = "Stopped";
     private bool disposed;
     public event EventHandler<DataEventArgs<float>>? RawIfAvailable;
+    /// <summary>Post-demodulation, post-leveler 48-kHz mono RX PCM;
+    /// delivered synchronously before the rented AF buffer is returned.
+    /// Consumers must copy the data before returning from this event.
+    /// Does not include virtual-cable transport, endpoint mix or TX audio.</summary>
+    public event EventHandler<DataEventArgs<float>>? DemodulatedAfAvailable;
     private readonly record struct Frame(float[] Data, DateTime Utc,
       int Version, long FirstSampleIndex, bool Discontinuity = false);
 
@@ -349,6 +354,17 @@ namespace SkyRoof.IF
             Interlocked.Exchange(ref lastBlockClippedSamples, lev.ClippedSamples);
             vac.AddSamples(af, 0, count);
             Interlocked.Add(ref outputSamples, count);
+            if (DemodulatedAfAvailable != null)
+            {
+              var output = new DataEventArgs<float>
+              {
+                Data = af,
+                Count = count,
+                Utc = frame.Utc
+              };
+              try { DemodulatedAfAvailable.Invoke(this, output); }
+              catch (Exception ex) { Log.Warning(ex, "IF-AF PCM subscriber failed"); }
+            }
           }
           finally
           {
