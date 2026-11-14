@@ -11,6 +11,7 @@ namespace SkyRoof
     public int MainWindowDpi { get; set; }
     // 75–125%; the toolbar uniformly scales down further when necessary to fit.
     public int ToolbarScalePercent { get; set; } = 100;
+    public int DockScalePercent { get; set; } = 100;
     public string? DockingLayoutString { get; set; }
     public bool ClockUtcMode { get; set; }
     // Persisted UI presentation preference, independent of radio settings.
