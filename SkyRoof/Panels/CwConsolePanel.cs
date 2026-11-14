@@ -307,6 +307,7 @@ namespace SkyRoof
           AutoScroll = true,
           Height = 36,
           WrapContents = false,
+          BackColor = CwConsolePalette.Surface,
           FlowDirection =
             FlowDirection.LeftToRight,
           Margin = new Padding(
@@ -425,6 +426,7 @@ namespace SkyRoof
           AutoScroll = true,
           Height = 27,
           WrapContents = false,
+          BackColor = CwConsolePalette.Surface,
           FlowDirection =
             FlowDirection.LeftToRight,
           Margin = new Padding(
@@ -444,6 +446,11 @@ namespace SkyRoof
         new Padding(
           0, 4, 0, 4);
 
+      HeaderTxStatusLabel.AutoSize = true;
+      HeaderTxStatusLabel.Margin = new Padding(12, 4, 8, 4);
+      HeaderTxStatusLabel.ForeColor = CwConsolePalette.Text;
+      statusPanel.Controls.Add(HeaderTxStatusLabel);
+
       statusPanel.Controls.Add(
         InputStatusLabel);
       statusPanel.Controls.Add(
@@ -456,11 +463,6 @@ namespace SkyRoof
         SpectrumStatusLabel);
       statusPanel.Controls.Add(
         WorkerStatusLabel);
-
-      HeaderTxStatusLabel.AutoSize = true;
-      HeaderTxStatusLabel.Margin = new Padding(12, 4, 8, 4);
-      HeaderTxStatusLabel.ForeColor = CwConsolePalette.Text;
-      statusPanel.Controls.Add(HeaderTxStatusLabel);
 
       return statusPanel;
     }
