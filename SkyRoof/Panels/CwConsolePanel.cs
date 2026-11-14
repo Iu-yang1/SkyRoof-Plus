@@ -328,6 +328,42 @@ namespace SkyRoof
         "multi-tone separation and Morse HSMM. RX never transmits.");
       toolbar.Controls.Add(DecoderModeBtn);
 
+      ConfigureSourceSelector(toolbar);
+
+      ConfigureSpectrumSelector(toolbar);
+
+      SettingsBtn.Text = "CW Settings…";
+      SettingsBtn.AutoSize = true;
+      SettingsBtn.Click +=
+        (_, _) =>
+        {
+          using var dialog =
+            new SettingsDialog(ctx);
+          dialog.ShowDialog(this);
+
+          LoadSettingsIntoControls();
+        };
+      toolbar.Controls.Add(
+        SettingsBtn);
+
+      RxHistoryBtn.Text="CW History…";
+      RxHistoryBtn.AutoSize=true;
+      RxHistoryBtn.Click+=(_,_)=>ShowRxHistory();
+      toolbar.Controls.Add(RxHistoryBtn);
+
+      InstallModelBtn.Text =
+        "Install DeepCW Model";
+      InstallModelBtn.AutoSize = true;
+      InstallModelBtn.Click +=
+        InstallModelBtn_Click;
+      toolbar.Controls.Add(
+        InstallModelBtn);
+
+      return toolbar;
+    }
+
+    private void ConfigureSourceSelector(FlowLayoutPanel toolbar)
+    {
       SourceBox.DropDownStyle =
         ComboBoxStyle.DropDownList;
       SourceBox.Width = 205;
@@ -353,7 +389,10 @@ namespace SkyRoof
         SourceBox_SelectedIndexChanged;
       toolbar.Controls.Add(
         SourceBox);
+    }
 
+    private void ConfigureSpectrumSelector(FlowLayoutPanel toolbar)
+    {
       toolbar.Controls.Add(
         new Label
         {
@@ -385,35 +424,6 @@ namespace SkyRoof
         SpectrumCleanupBox_SelectedIndexChanged;
       toolbar.Controls.Add(
         SpectrumCleanupBox);
-
-      SettingsBtn.Text = "CW Settings…";
-      SettingsBtn.AutoSize = true;
-      SettingsBtn.Click +=
-        (_, _) =>
-        {
-          using var dialog =
-            new SettingsDialog(ctx);
-          dialog.ShowDialog(this);
-
-          LoadSettingsIntoControls();
-        };
-      toolbar.Controls.Add(
-        SettingsBtn);
-
-      RxHistoryBtn.Text="CW History…";
-      RxHistoryBtn.AutoSize=true;
-      RxHistoryBtn.Click+=(_,_)=>ShowRxHistory();
-      toolbar.Controls.Add(RxHistoryBtn);
-
-      InstallModelBtn.Text =
-        "Install DeepCW Model";
-      InstallModelBtn.AutoSize = true;
-      InstallModelBtn.Click +=
-        InstallModelBtn_Click;
-      toolbar.Controls.Add(
-        InstallModelBtn);
-
-      return toolbar;
     }
 
     private Control BuildStatusBar()
