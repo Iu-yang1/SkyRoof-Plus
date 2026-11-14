@@ -569,7 +569,8 @@ namespace SkyRoof
       toolbarScaleMenu.DropDownOpening += (_, _) =>
       {
         foreach (ToolStripMenuItem option in toolbarScaleMenu.DropDownItems)
-          option.Checked = (int)option.Tag! == ctx.Settings.Ui.ToolbarScalePercent;
+          option.Checked = option.Tag is int value &&
+            value == ctx.Settings.Ui.ToolbarScalePercent;
       };
       toolsToolStripMenuItem.DropDownItems.Add(toolbarScaleMenu);
     }
