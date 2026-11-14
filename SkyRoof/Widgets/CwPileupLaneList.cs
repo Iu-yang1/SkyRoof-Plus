@@ -45,6 +45,7 @@ namespace SkyRoof
     internal event Action<CwConsoleLaneIdentity>? LaneSelected;
     internal event Action<int>? SlotSelected;
     internal event Action<int>? SlotCleared;
+    internal event Action<int, bool>? SlotHoldChanged;
 
     internal CwPileupLaneList()
     {
@@ -61,6 +62,7 @@ namespace SkyRoof
         card.Selected += identity => LaneSelected?.Invoke(identity);
         card.SlotSelected += index => SlotSelected?.Invoke(index);
         card.Cleared += index => SlotCleared?.Invoke(index);
+        card.HoldChanged += (index, hold) => SlotHoldChanged?.Invoke(index, hold);
         laneTable.RowStyles.Add(
           new RowStyle(SizeType.Absolute, MinimumRowHeight));
         laneTable.Controls.Add(card, 0, card.Index);
@@ -124,7 +126,7 @@ namespace SkyRoof
         CwConsoleLaneSlot slot = display.Slot;
         if (slot.Index < 0 || slot.Index >= cards.Length)
           continue;
-        cards[slot.Index].UpdateLane(slot, display.Transcript, selected);
+        cards[slot.Index].UpdateLane(slot, display.Transcript, selected, display.Held);
       }
     }
   }
@@ -136,6 +138,7 @@ namespace SkyRoof
     private string copyText = string.Empty;
     private bool cardSelected;
     private bool cardHovered;
+    private bool slotHeld;
     private readonly ToolTip tip = new();
     private readonly Label title = new()
     {
@@ -153,6 +156,17 @@ namespace SkyRoof
       TextAlign = ContentAlignment.MiddleLeft,
       Font = new Font(FontFamily.GenericMonospace, 9.0f),
       Padding = new Padding(3, 0, 1, 0)
+    };
+    private readonly Button hold = new()
+    {
+      Text = "HOLD",
+      Dock = DockStyle.Fill,
+      AutoSize = true,
+      AutoSizeMode = AutoSizeMode.GrowAndShrink,
+      MinimumSize = new Size(54, 24),
+      Margin = new Padding(1, 0, 1, 0),
+      Padding = new Padding(3, 0, 3, 0),
+      TabStop = false
     };
     private readonly Button clear = new()
     {
@@ -180,6 +194,7 @@ namespace SkyRoof
     internal event Action<CwConsoleLaneIdentity>? Selected;
     internal event Action<int>? SlotSelected;
     internal event Action<int>? Cleared;
+    internal event Action<int, bool>? HoldChanged;
     internal string CopyText => copyText;
     internal bool IsSelected => cardSelected;
     internal string PreviewText => preview.Text;
@@ -203,7 +218,7 @@ namespace SkyRoof
       var layout = new TableLayoutPanel
       {
         Dock = DockStyle.Fill,
-        ColumnCount = 3,
+        ColumnCount = 4,
         RowCount = 2,
         Margin = new Padding(0),
         Padding = new Padding(5, 1, 3, 1),
@@ -213,6 +228,7 @@ namespace SkyRoof
       // Keep DPI-aware Copy sizing; fixed 49px would clip its text.
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+      layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
       layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
       layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
       layout.Controls.Add(title, 0, 0);
@@ -220,6 +236,8 @@ namespace SkyRoof
       layout.SetRowSpan(copy, 2);
       layout.Controls.Add(clear, 2, 0);
       layout.SetRowSpan(clear, 2);
+      layout.Controls.Add(hold, 3, 0);
+      layout.SetRowSpan(hold, 2);
       layout.Controls.Add(preview, 0, 1);
       Controls.Add(layout);
       title.BackColor = CwConsolePalette.Card;
@@ -237,6 +255,13 @@ namespace SkyRoof
       tip.SetToolTip(clear,
         "Clear only this slot's displayed RX text; no decoder reset or transmission.");
       clear.Click += (_, _) => Cleared?.Invoke(Index);
+      hold.FlatStyle = FlatStyle.Flat;
+      hold.FlatAppearance.BorderSize = 0;
+      hold.BackColor = CwConsolePalette.Surface;
+      hold.ForeColor = CwConsolePalette.Text;
+      tip.SetToolTip(hold,
+        "HOLD keeps this slot assigned to its tracked identity until RELEASE; RX/TX tuning is unchanged.");
+      hold.Click += (_, _) => HoldChanged?.Invoke(Index, !slotHeld);
 
       Click += (_, _) => SelectCard();
       title.Click += (_, _) => SelectCard();
@@ -267,9 +292,13 @@ namespace SkyRoof
     internal void UpdateLane(
       CwConsoleLaneSlot slot,
       CwTranscriptSnapshot? transcript,
-      CwConsoleLaneIdentity? selected)
+      CwConsoleLaneIdentity? selected,
+      bool held = false)
     {
       identity = slot.Identity;
+      slotHeld = held;
+      hold.Text = held ? "RELEASE" : "HOLD";
+      hold.Enabled = held || slot.Track.HasValue;
       bool isSelected = identity.HasValue && identity == selected;
       Color background = isSelected
         ? CwConsolePalette.Selected
