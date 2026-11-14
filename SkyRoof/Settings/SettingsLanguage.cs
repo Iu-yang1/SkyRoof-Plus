@@ -359,7 +359,8 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglish.TryGetValue(item.Name, out string? en)) return en;
-      if (Current == UiLanguage.English) return item.DisplayName;
+      if (Current == UiLanguage.English) return
+        SettingsEnglishSupplement.Name(item.ComponentType.Name + "." + item.Name) ?? item.DisplayName;
       if (Chinese.TryGetValue(item.DisplayName, out string? zh)) return zh;
       if (Chinese.TryGetValue(item.Name, out zh)) return zh;
       return SettingsChineseSupplement.Name(item.DisplayName) ?? item.DisplayName;
@@ -370,6 +371,8 @@ namespace SkyRoof
       if (item.ComponentType == typeof(AfcSettings) &&
           Current == UiLanguage.English &&
           AfcEnglishHelp.TryGetValue(item.Name, out string? en)) return en;
+      if (Current == UiLanguage.English) return
+        SettingsEnglishSupplement.Description(item.ComponentType.Name + "." + item.Name) ?? item.Description;
       if (Current == UiLanguage.SimplifiedChinese)
       {
         string key = item.ComponentType.Name + "." + item.Name;
