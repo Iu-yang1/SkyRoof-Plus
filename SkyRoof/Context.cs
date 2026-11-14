@@ -56,6 +56,7 @@ namespace SkyRoof
     internal PttHotkeyController? PttHotkey;
     public CwAudioSourceController? CwAudio;
     public IfAfService? IfAf;
+    internal IcomDirectLanMediaOwner? DirectLanMediaOwner;
     public CwReceiveWorker? CwReceiveWorker;
     public CwTransmitController? CwTransmit;
 
