@@ -38,7 +38,6 @@ namespace SkyRoof
       ["Rotator Model"] = "旋转器硬件型号",
       ["Ap"] = "先验解码标记 Ap",
       ["SNR"] = "信噪比 SNR",
-      ["New file every"] = "新建 ADIF 日志周期",
       ["Transmitter"] = "发射配置",
       ["Receive"] = "接收配置",
       ["Transmit"] = "发射配置"
