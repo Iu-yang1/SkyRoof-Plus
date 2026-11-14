@@ -36,7 +36,7 @@ namespace SkyRoof
         throw new ArgumentOutOfRangeException(nameof(centerFrequencyHz));
       CenterFrequencyHz = centerFrequencyHz;
       omega = 2.0 * Math.PI * centerFrequencyHz / Rate;
-      for (int i = 0; i < Taps; i++)
+      foreach (int i in Enumerable.Range(0, Taps))
       {
         int lag = i - Delay;
         if (lag == 0 || (lag & 1) == 0) continue;
@@ -162,10 +162,12 @@ namespace SkyRoof
         {
           case TelemetryReceiveSource.Shared12kIf:
           case TelemetryReceiveSource.IfAfDemodulatedAf:
-            sharedIf = ifAf;
+            var sharedHub = ifAf ?? throw new InvalidOperationException(
+              "The shared IF-AF receiver is unavailable.");
+            sharedIf = sharedHub;
             sharedIsAf = config.InputSource == TelemetryReceiveSource.IfAfDemodulatedAf;
-            if (sharedIsAf) sharedIf!.DemodulatedAfAvailable += OnSamples;
-            else sharedIf!.RawIfAvailable += OnSamples;
+            if (sharedIsAf) sharedHub.DemodulatedAfAvailable += OnSamples;
+            else sharedHub.RawIfAvailable += OnSamples;
             break;
           case TelemetryReceiveSource.Capture12kIf:
           case TelemetryReceiveSource.CaptureAf:
