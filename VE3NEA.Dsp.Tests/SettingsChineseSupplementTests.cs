@@ -101,6 +101,65 @@ public sealed class SettingsChineseSupplementTests
   }
 
   [Fact]
+  public void IfAfSettingsUseChineseLabelsHelpValuesAndReadOnlyStatuses()
+  {
+    UiLanguage previous = SettingsLanguage.Current;
+    try
+    {
+      var config = new IfAfSettings();
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+
+      foreach (PropertyDescriptor property in TypeDescriptor.GetProperties(config))
+      {
+        if (!property.IsBrowsable) continue;
+        Assert.Contains(property.DisplayName,
+          new[]
+          {
+            "启用 12 kHz IF→AF 解调", "原始 IF 输入来源",
+            "USB 12 kHz IF 采集设备", "IF 采集声道",
+            "解调模式", "AF 输出路由", "AF 输出延迟预设",
+            "虚拟声卡配对状态", "WSJT-X 虚拟录音输入",
+            "虚拟声卡播放输出设备", "SSB 音频带宽", "CW 音频带宽",
+            "FM 信道带宽", "SSB 有效下限频率 (Hz)",
+            "SSB 有效上限频率 (Hz)", "CW 有效中心频率 (Hz)",
+            "CW 有效带宽 (Hz)", "FM 中频有效截止频率 (Hz)",
+            "FM 音频有效截止频率 (Hz)", "FM 频偏基准 (Hz)",
+            "FM 语音处理", "FM 语音静噪",
+            "FM 语音静噪门限 (dBFS)", "SSB 语音陷波",
+            "SSB 语音降噪", "SSB 输出微调 (dB)",
+            "CW 输出微调 (dB)", "FM 输出增益 (dB)",
+            "SSB/CW 慢速自动增益", "SSB/CW AGC 目标均方根电平 (dBFS)",
+            "SSB/CW AGC 最大提升 (dB)"
+          });
+        Assert.True(property.Description.Any(c => c >= 0x3400 && c <= 0x9fff),
+          "Untranslated help: " + property.Name);
+      }
+      Assert.Equal("接收滤波器", Property(config, "SsbBandwidth").Category);
+      Assert.Equal("音频增强", Property(config, "FmVoiceProcessing").Category);
+      Assert.Equal("左声道", Property(config, "CaptureChannel")
+        .Converter.ConvertToString(AudioChannelChoice.Left));
+      Assert.Equal(AudioChannelChoice.Right, Property(config, "CaptureChannel")
+        .Converter.ConvertFrom("右声道"));
+      Assert.Equal("跟随电台模式", Property(config, "Mode")
+        .Converter.ConvertToString(IfAfSelection.FollowRadio));
+      Assert.Equal("自动识别配对虚拟声卡", Property(config, "AudioRoute")
+        .Converter.ConvertToString(IfAfAudioRoute.AutoSignedCable));
+      Assert.Equal("已关闭", config.ToString());
+      Assert.Contains("录音端点", config.VirtualCaptureDevice);
+
+      SettingsLanguage.Set(UiLanguage.English);
+      Assert.Equal("AF audio route", Property(config, "AudioRoute").DisplayName);
+      Assert.Equal("Receive filters", Property(config, "SsbBandwidth").Category);
+      Assert.Equal("Left", Property(config, "CaptureChannel")
+        .Converter.ConvertToString(AudioChannelChoice.Left));
+      Assert.Equal("FollowRadio", Property(config, "Mode")
+        .Converter.ConvertToString(IfAfSelection.FollowRadio));
+      Assert.Equal("Disabled", config.ToString());
+    }
+    finally { SettingsLanguage.Set(previous); }
+  }
+
+  [Fact]
   public void SettingLanguageChangesOnlyPresentationNotJsonOrEnumOrdinal()
   {
     UiLanguage old = SettingsLanguage.Current;
