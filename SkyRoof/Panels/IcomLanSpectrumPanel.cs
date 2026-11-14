@@ -81,7 +81,12 @@ namespace SkyRoof
       TimeSpan.FromSeconds(3).Ticks;
     internal IcomMeterSnapshot MeterSnapshot
     {
-      get { lock (meterStateSync) return meterState; }
+      get
+      {
+        if (Capture == null && ctx.DirectLanMediaOwner?.IsActive == true)
+          return ctx.DirectLanMediaOwner.MeterSnapshot;
+        lock (meterStateSync) return meterState;
+      }
     }
     private long LastScopeFrames;
     private long LastScopeUpdates;
