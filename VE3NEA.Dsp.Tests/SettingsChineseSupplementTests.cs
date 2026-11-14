@@ -160,6 +160,39 @@ public sealed class SettingsChineseSupplementTests
   }
 
   [Fact]
+  public void AfcEnglishMetadataNeverFallsBackToChinese()
+  {
+    UiLanguage previous = SettingsLanguage.Current;
+    try
+    {
+      SettingsLanguage.Set(UiLanguage.English);
+      var afc = new AfcSettings();
+      foreach (PropertyDescriptor property in TypeDescriptor.GetProperties(afc))
+      {
+        if (!property.IsBrowsable) continue;
+        Assert.DoesNotContain(property.DisplayName,
+          new[] { "捕获策略（速度 / 灵敏度）", "信号丢失后的 AFC 修正策略",
+            "IF 录音声道" });
+        Assert.DoesNotContain(property.Description,
+          new[] { "选择 IC-9700 USB IF 实际所在声道。",
+            "HoldLast（推荐）" });
+        Assert.True(property.Description.All(c => c < 0x3400 || c > 0x9fff),
+          "Unexpected Chinese AFC description: " + property.Name);
+      }
+      Assert.Equal("Acquisition strategy (speed / sensitivity)",
+        Property(afc, "AcquisitionPreset").DisplayName);
+      Assert.Contains("HoldLast",
+        Property(afc, "SignalLossPolicy").Description);
+      Assert.Equal("Adaptive", Property(afc, "AcquisitionPreset")
+        .Converter.ConvertToString(SkyRoof.AFC.AfcAcquisitionPreset.Adaptive));
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+      Assert.Equal("自适应", Property(afc, "AcquisitionPreset")
+        .Converter.ConvertToString(SkyRoof.AFC.AfcAcquisitionPreset.Adaptive));
+    }
+    finally { SettingsLanguage.Set(previous); }
+  }
+
+  [Fact]
   public void SettingLanguageChangesOnlyPresentationNotJsonOrEnumOrdinal()
   {
     UiLanguage old = SettingsLanguage.Current;
