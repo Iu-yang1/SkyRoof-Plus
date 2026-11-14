@@ -578,11 +578,15 @@ namespace SkyRoof
 
       Shown += (_, _) =>
       {
-        if (WorkSplit.ClientSize.Width > 0)
+        int width = WorkSplit.ClientSize.Width;
+        // On a very narrow Dock restore, WinForms can report a width
+        // smaller than the splitter itself. Leave the current distance
+        // untouched rather than assigning an impossible split.
+        if (width > WorkSplit.SplitterWidth + 2)
           WorkSplit.SplitterDistance = Math.Clamp(
-            (int)(WorkSplit.ClientSize.Width * 0.65),
+            (int)(width * 0.65),
             1,
-            Math.Max(1, WorkSplit.ClientSize.Width - 8));
+            width - WorkSplit.SplitterWidth - 1);
       };
     }
 
