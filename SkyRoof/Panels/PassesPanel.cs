@@ -15,7 +15,7 @@ namespace SkyRoof
     // the row whose tooltip text has been composed, see listViewEx1_MouseMove
     private ListViewItem? HoveredItem;
 
-    private readonly Font BoldFont;
+    private Font BoldFont;
     private readonly Pen PathPen = new Pen(Theme.Now, 2);
     private int rowHeight;
     private CancellationTokenSource? miniPathCancellation;
@@ -36,6 +36,8 @@ namespace SkyRoof
       ctx.MainForm.SatellitePassesMNU.Checked = true;
 
       BoldFont = new Font(listViewEx1.Font, FontStyle.Bold);
+      flowLayoutPanel1.WrapContents = false;
+      flowLayoutPanel1.AutoScroll = false;
 
       rowHeight = TextRenderer.MeasureText("0", Font, Size, TextFormatFlags.NoPadding).Height * 2 + 15;
       listViewEx1.SetRowHeight(rowHeight);
@@ -52,6 +54,19 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                        events
     //----------------------------------------------------------------------------------------------
+    internal void UpdateDpiPresentation(float factor)
+    {
+      var previous = BoldFont;
+      BoldFont = new Font(listViewEx1.Font, FontStyle.Bold);
+      previous?.Dispose();
+      rowHeight = TextRenderer.MeasureText("0", listViewEx1.Font,
+        Size.Empty, TextFormatFlags.NoPadding).Height * 2 +
+        UniformControlScale.Pixel(15, factor);
+      listViewEx1.SetRowHeight(rowHeight);
+      PathPen.Width = 2f * factor;
+      listViewEx1.Invalidate();
+    }
+
     private void PassesPanel_FormClosing(object sender, FormClosingEventArgs e)
     {
       Log.Information("Closing PassesPanel");
