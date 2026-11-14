@@ -13,6 +13,8 @@ namespace SkyRoof
     {
       ["Microwave Tuning Step (Hz)"] = "微波段 CAT 调谐步进 (Hz)",
       ["Microwave CAT Cycle (ms)"] = "微波段 CAT 控制周期 (ms)",
+      ["Brightness"] = "亮度",
+      ["Contrast"] = "对比度",
       ["Visible Fields"] = "显示的通联日志字段",
       ["New file every"] = "新建 ADIF 日志周期",
       ["Download Enabled"] = "下载卫星工作状态",
