@@ -22,6 +22,7 @@ namespace SkyRoof
     private readonly object recordingLock = new();
     private InputSoundcard<float>? captureInput;
     private LoopbackInputSoundcard? loopbackInput;
+    private SkyRoof.IF.IfAfService? ifAfInput;
     private RecordingAudioSource activeAudioSource = RecordingAudioSource.Sdr;
     private string recordingSourceStatus = "Not recording";
     private DateTime lastNonSilentAudioUtc;
@@ -67,7 +68,9 @@ namespace SkyRoof
 
       return ctx.Sdr?.IsRunning() == true
         ? RecordingAudioSource.Sdr
-        : RecordingAudioSource.RsBa1Loopback;
+        : ctx.IfAf?.IsRunning == true
+          ? RecordingAudioSource.IfAfDemodulated
+          : RecordingAudioSource.RsBa1Loopback;
     }
 
     private string? ResolveCaptureDevice() =>
@@ -85,6 +88,18 @@ namespace SkyRoof
       if (activeAudioSource == RecordingAudioSource.Sdr)
       {
         recordingSourceStatus = "SDR demodulator";
+        return;
+      }
+
+      if (activeAudioSource == RecordingAudioSource.IfAfDemodulated)
+      {
+        SkyRoof.IF.IfAfService? source = ctx.IfAf;
+        if (source?.IsRunning != true)
+          throw new InvalidOperationException(
+            "IF->AF is not running. Start the 12-kHz IF demodulator before recording its AF output.");
+        ifAfInput = source;
+        source.DemodulatedAfAvailable += ExternalAudioSamplesAvailable;
+        recordingSourceStatus = "IF->AF direct decoded 48-kHz PCM (post-DSP)";
         return;
       }
 
@@ -134,6 +149,10 @@ namespace SkyRoof
 
     private void StopExternalAudioInput()
     {
+      var hub = ifAfInput;
+      ifAfInput = null;
+      if (hub != null)
+        hub.DemodulatedAfAvailable -= ExternalAudioSamplesAvailable;
       var capture = captureInput;
       captureInput = null;
       if (capture != null)
@@ -184,7 +203,15 @@ namespace SkyRoof
 
       Log.Information("Starting {Mode} recording from {Source}",
         isAudio ? "audio" : "I/Q", activeAudioSource);
-      if (isAudio) StartExternalAudioInput();
+      if (isAudio)
+      {
+        try { StartExternalAudioInput(); }
+        catch
+        {
+          StopRecording();
+          throw;
+        }
+      }
     }
 
     public TimeSpan StopRecording()
