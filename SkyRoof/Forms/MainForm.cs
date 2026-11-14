@@ -29,6 +29,7 @@ namespace SkyRoof
     private float lastToolbarScale = 1f;
     private readonly ToolStripMenuItem dockScaleMenu = new("Dock & Popup Scale");
     private readonly Dictionary<DockContent, UniformControlScale> dockScalers = new();
+    private readonly HashSet<DockContent> registeredDockPanels = new();
     private UniformControlScale? genericRotatorPopupScale;
     private UniformControlScale? yaesuRotatorPopupScale;
 
@@ -208,6 +209,7 @@ namespace SkyRoof
         yaesuRotatorPopupScale?.Dispose();
         foreach (var scaler in dockScalers.Values) scaler.Dispose();
         dockScalers.Clear();
+        registeredDockPanels.Clear();
       };
       ApplyRotatorPopupScale();
       UpdateSatellitePhotoVisibility();
@@ -566,7 +568,7 @@ namespace SkyRoof
         option.Click += (_, _) =>
         {
           ctx.Settings.Ui.DockScalePercent = percent;
-          foreach (var panel in dockScalers.Keys.ToArray())
+          foreach (var panel in registeredDockPanels.ToArray())
             if (!panel.IsDisposed) ApplyDockScale(panel);
           ApplyRotatorPopupScale();
           ctx.Settings.SaveToFile();
@@ -592,6 +594,8 @@ namespace SkyRoof
       {
         genericRotatorPopupScale ??= new UniformControlScale(RotatorControlCard);
         genericRotatorPopupScale.Apply(factor);
+        RotatorControlCard.PresentationScale = factor;
+        RotatorControlCard.RefreshState();
       }
       if (YaesuG5500ControlCard != null)
       {
@@ -602,9 +606,11 @@ namespace SkyRoof
 
     private void RegisterDockScale(DockContent panel)
     {
+      if (!registeredDockPanels.Add(panel)) return;
       panel.Shown += (_, _) => ApplyDockScale(panel);
       panel.FormClosed += (_, _) =>
       {
+        registeredDockPanels.Remove(panel);
         if (dockScalers.Remove(panel, out var scaler))
           scaler.Dispose();
       };
