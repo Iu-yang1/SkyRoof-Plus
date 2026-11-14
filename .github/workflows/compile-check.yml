@@ -99,6 +99,7 @@ jobs:
         env:
           SKYROOF_SCOPE_LAYOUT_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/scope-dpi-layout
           SKYROOF_SSTV_UI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/sstv-ui
+          SKYROOF_UI_DPI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/ui-dpi-layout
         run: dotnet test VE3NEA.Dsp.Tests/VE3NEA.Dsp.Tests.csproj -c Release -p:Platform=x64 --no-restore
 
       - name: Upload scope DPI layout fixtures
@@ -107,6 +108,14 @@ jobs:
         with:
           name: scope-dpi-layout-matrix
           path: artifacts/scope-dpi-layout/*.png
+          if-no-files-found: warn
+
+      - name: Upload UI DPI scaling fixtures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ui-dpi-layout-matrix
+          path: artifacts/ui-dpi-layout/*.png
           if-no-files-found: warn
 
       - name: Upload SSTV operator UI review images
