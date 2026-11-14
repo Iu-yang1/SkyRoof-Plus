@@ -135,6 +135,7 @@ namespace SkyRoof
       KeyPreview = true;
 
       BuildUi();
+      SelectedRxView.UseCallsignRequested += SelectedRxView_UseCallsignRequested;
 
       ctx.CwConsolePanel = this;
       ctx.MainForm.CwConsoleMNU.Checked = true;
@@ -1060,6 +1061,12 @@ namespace SkyRoof
         SelectedRxView.UpdateLane(display.Slot, display.Transcript);
       else
         SelectedRxView.UpdateLane(null, null);
+
+      string? callsign = selectedSlotIndex is int index
+        ? CwConfirmedCallsign.LastCandidate(
+            slotTextMemory.ConfirmedText(index))
+        : null;
+      SelectedRxView.SetConfirmedCallsign(callsign);
     }
 
     private void PileupList_SlotSelected(int index)
@@ -1079,6 +1086,22 @@ namespace SkyRoof
     {
       slotTextMemory.Clear(index);
       RefreshPileupCards();
+    }
+
+    private void SelectedRxView_UseCallsignRequested(string callsign)
+    {
+      // A user click changes only the composer; no CAT or keyer calls.
+      string insertion = callsign + " ";
+      if (TxTextBox.TextLength - TxTextBox.SelectionLength +
+          insertion.Length > TxTextBox.MaxLength)
+      {
+        MessageBox.Show(this, "The CW message is full.",
+          "Use confirmed callsign", MessageBoxButtons.OK,
+          MessageBoxIcon.Information);
+        return;
+      }
+      TxTextBox.SelectedText = insertion;
+      TxTextBox.Focus();
     }
 
     private void PileupList_SlotHoldChanged(int index, bool hold)
@@ -2026,6 +2049,7 @@ namespace SkyRoof
       PileupList.SlotSelected -= PileupList_SlotSelected;
       PileupList.SlotCleared -= PileupList_SlotCleared;
       PileupList.SlotHoldChanged -= PileupList_SlotHoldChanged;
+      SelectedRxView.UseCallsignRequested -= SelectedRxView_UseCallsignRequested;
       // The background display worker may still be inside native HamNoise.
       // Dispose FFTW plans only after its last calculation has completed.
       DisplaySession.Dispose();
