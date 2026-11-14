@@ -76,6 +76,7 @@ namespace SkyRoof
           RecordingAudioSource.Sdr => "SkyRoof SDR",
           RecordingAudioSource.WasapiCapture => "IC-9700 USB AF (Windows input)",
           RecordingAudioSource.RsBa1Loopback => "RS-BA1 playback (WASAPI loopback)",
+          RecordingAudioSource.IfAfDemodulated => "IF -> AF decoded PCM (direct, 48 kHz)",
           _ => source.ToString()
         }) { Tag = source };
 
@@ -227,8 +228,17 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     private void StartRecording(bool isAudio)
     {
+      try { recordingManager.StartRecording(isAudio); }
+      catch (Exception ex)
+      {
+        RecordBtn.BackColor = Color.Transparent;
+        StatusLabel.Text = "Recording failed: " + ex.Message;
+        Log.Warning(ex, "Recorder could not start {Kind} source", isAudio ? "AF" : "IQ");
+        MessageBox.Show(this, ex.Message, "Recorder", MessageBoxButtons.OK,
+          MessageBoxIcon.Warning);
+        return;
+      }
       RecordBtn.BackColor = Color.LightCoral;
-      recordingManager.StartRecording(isAudio);
       StatusLabel.Text = recordingManager.GetRecordingStatus();
       recordingTimer?.Start();
       RecordingStart = DateTime.Now;
