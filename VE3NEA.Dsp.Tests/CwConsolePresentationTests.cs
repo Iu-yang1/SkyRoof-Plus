@@ -189,6 +189,32 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void HoldPinsIdentityWithoutFreezingFrequencyOrReceiver()
+    {
+      var map = new CwConsoleLaneSlotMap(2, TimeSpan.FromSeconds(1));
+      var original = Track(1, 101) with { FrequencyHz = 600 };
+      var second = Track(2, 202) with { FrequencyHz = 900 };
+      map.Update(new[] { original }, T0);
+      map.Hold(0);
+      map.IsHeld(0).Should().BeTrue();
+
+      var held = map.Update(new[] { second }, T0.AddSeconds(3));
+      held[0].Identity.Should().Be(CwConsolePresentation.Identity(original));
+      held[0].Present.Should().BeFalse();
+      held[1].Identity.Should().Be(CwConsolePresentation.Identity(second));
+
+      var moved = map.Update(new[]
+      {
+        original with { FrequencyHz = 1500 }, second
+      }, T0.AddSeconds(4));
+      moved[0].Track!.Value.FrequencyHz.Should().Be(1500);
+      map.Release(0);
+      map.IsHeld(0).Should().BeFalse();
+      map.Update(Array.Empty<CwSignalTrack>(), T0.AddSeconds(9))
+        .Should().OnlyContain(slot => !slot.Identity.HasValue);
+    }
+
+    [Fact]
     public void LaneLabels_PreferStableAssociationHintButKeepTrackDiagnostic()
     {
       CwSignalTrack hinted =
