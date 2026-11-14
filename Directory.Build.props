@@ -3,11 +3,11 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.73: async satellite selection, group pass caches and responsive Orekit manual updates. -->
+  <!-- SkyRoof Plus v1.74: uniform UI scaling, Dock/DPI consistency, multi-monitor recovery and visual regression fixtures. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <!-- v1.73-grid-regex-correction-20261113: guarded ten-character Maidenhead settings-validation repair. -->
-    <Version>1.73</Version>
+    <!-- v1.74-ui-dpi-p1-p4-20261114: normal versioned UI adaptation release, not an in-place replacement. -->
+    <Version>1.74</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
