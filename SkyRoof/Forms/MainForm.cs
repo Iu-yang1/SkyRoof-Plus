@@ -1353,7 +1353,6 @@ namespace SkyRoof
       int insertAt = position >= 0 ? position : StatusStrip.Items.Count;
       StatusStrip.Items.Insert(insertAt, directLanTxAudioLabel);
       StatusStrip.Items.Insert(insertAt + 1, directLanMetersHost);
-      directLanTxAudioLabel.Click += (_, _) => ShowIcomLanTxDiagnostics();
       UpdateIcomDirectLanMeterBar();
     }
 
@@ -1375,12 +1374,10 @@ namespace SkyRoof
         tx, catPtt, DateTime.UtcNow);
       directLanTxAudioLabel.ForeColor = StatusStrip.ForeColor;
       directLanTxAudioLabel.ToolTipText =
-        $"LAN TX PCM: RMS {tx.LastSentDbfs:F1} dBFS, " +
-        $"peak {tx.LastSentPeakDbfs:F1} dBFS. " +
-        $"IC-9700 CI-V MOD: {tx.ModSource}. " +
-        SettingsLanguage.Text(
-          "点击查看 PTT、LAN MOD Level、PWR/ALC 的完整只读诊断。",
-          "Click for read-only PTT, LAN MOD Level and PWR/ALC diagnostics.");
+        $"PC microphone → LAN UDP audio. Sent {tx.UdpSent} PCM packets in this session; " +
+        $"last sent sample level {tx.LastSentDbfs:F1} dBFS. " +
+        $"IC-9700 radio CI-V MOD input: {tx.ModSource}. " +
+        "TX PCM transmission does not by itself prove the radio used this input or radiated RF.";
 
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
@@ -1391,19 +1388,6 @@ namespace SkyRoof
       directLanMetersHost.ToolTipText =
         "Direct LAN CI-V meter readback (raw data, not calibrated Watts)\n" +
         directLanMeters.StatusText;
-    }
-
-    private void ShowIcomLanTxDiagnostics()
-    {
-      var tx = ctx.IcomLanSpectrumPanel?.TxAudioStatus ?? default;
-      bool catPtt = ctx.CatControl.Tx?.Ptt == true ||
-                    ctx.CatControl.Rx?.Ptt == true;
-      var meters = ctx.IcomLanSpectrumPanel?.MeterSnapshot ??
-        new IcomMeterSnapshot();
-      MessageBox.Show(this,
-        IcomLanTxDiagnostics.Format(tx, catPtt, meters, DateTime.UtcNow),
-        SettingsLanguage.Text("IC-9700 LAN 发射诊断", "IC-9700 LAN TX diagnostics"),
-        MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void ShowIfAfLinkDiagnostics(object? sender, EventArgs e)

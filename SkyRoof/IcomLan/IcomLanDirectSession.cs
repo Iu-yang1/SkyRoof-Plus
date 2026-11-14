@@ -16,8 +16,7 @@ namespace SkyRoof
     long LastSentUtcTicks,
     string ModSource = "",
     bool WrongModSource = false,
-    bool MutedLanLevel = false,
-    double LastSentPeakDbfs = -120);
+    bool MutedLanLevel = false);
 
   internal static class IcomDirectLanTxAudioDisplay
   {
@@ -141,7 +140,6 @@ namespace SkyRoof
     private long AudioTxOverflowSamples;
     private int AudioTxBufferedSamples;
     private double LastSentAudioDbfs = -120;
-    private double LastSentAudioPeakDbfs = -120;
     private double LastAgcGainDb;
     private long AgcProcessedFrames;
     private long LastSentAudioTicks;
@@ -156,8 +154,7 @@ namespace SkyRoof
       Interlocked.Read(ref LastSentAudioTicks),
       ModInputState.Description,
       ModInputState.ConfirmedWrongSource,
-      ModInputState.ConfirmedZeroLanLevel,
-      Volatile.Read(ref LastSentAudioPeakDbfs));
+      ModInputState.ConfirmedZeroLanLevel);
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
@@ -2179,7 +2176,6 @@ namespace SkyRoof
       int maxSamples = 1364 / bytesPerSample;
 
       // All parts of a 20-ms frame use consecutive UDP sequences.
-      int sentPackets = 0;
       for (int offset = 0; offset < frame.Length; offset += maxSamples)
       {
         if (!IsStreaming || IsPttActive?.Invoke() != true) break;
@@ -2202,20 +2198,11 @@ namespace SkyRoof
 
         await SendAudioRawAsync(audio, datagram, token);
         Interlocked.Increment(ref AudioTxDatagrams);
-        sentPackets++;
       }
 
-      // A PTT interruption before the first UDP packet is not TX audio.
-      if (sentPackets == 0) return;
-
       double rms = Math.Sqrt(energy / frame.Length);
-      double peak = 0;
-      foreach (float sample in frame)
-        peak = Math.Max(peak, Math.Abs((double)sample));
       Volatile.Write(ref LastSentAudioDbfs,
         rms > 0 ? 20 * Math.Log10(rms) : -120);
-      Volatile.Write(ref LastSentAudioPeakDbfs,
-        peak > 0 ? 20 * Math.Log10(peak) : -120);
       Interlocked.Exchange(ref LastSentAudioTicks, DateTime.UtcNow.Ticks);
     }
 
