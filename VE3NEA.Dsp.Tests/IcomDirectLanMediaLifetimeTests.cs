@@ -71,10 +71,11 @@ namespace VE3NEA.Dsp.Tests
       using var audio = new IcomDirectLanAudioDevices(
         options, capture, priorEndpointShutdown: oldDeviceClosed.Task);
       audio.Start();
-      await Task.Delay(100);
+      Task initialized = audio.EndpointInitialization;
+      (await Task.WhenAny(initialized, Task.Delay(100))).Should().NotBe(initialized);
       audio.Status.Should().Be("Audio endpoints not started");
       oldDeviceClosed.SetResult();
-      await Task.Delay(200);
+      await initialized.WaitAsync(TimeSpan.FromSeconds(2));
       audio.Status.Should().Contain("disabled");
     }
   }
