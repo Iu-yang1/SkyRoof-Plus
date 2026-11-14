@@ -105,6 +105,15 @@ namespace SkyRoof
       ctx.IfAf?.NetworkIfDisconnected();
     }
 
+    internal void ReconfigureIfActive()
+    {
+      if (!IsActive) return;
+      Stop();
+      if (PreserveAudioOnScopeStop(
+            ctx.Settings.IcomLanSpectrum.Source, ctx.Settings.IcomDirectLan))
+        GetOrStart();
+    }
+
     public void Dispose() => Stop();
   }
 }
