@@ -37,10 +37,9 @@ namespace SkyRoof.CW
       IReadOnlyDictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot> transcripts,
       Func<int, bool>? isHeld = null)
     {
-      var result = new CwConsoleSlotDisplay[slots.Count];
-      for (int i = 0; i < slots.Count; i++)
+      var result = new List<CwConsoleSlotDisplay>(slots.Count);
+      foreach (CwConsoleLaneSlot current in slots)
       {
-        CwConsoleLaneSlot current = slots[i];
         SlotState state = states[current.Index];
         if (current.Identity is CwConsoleLaneIdentity id)
         {
@@ -60,8 +59,8 @@ namespace SkyRoof.CW
           shown = new CwConsoleLaneSlot(
             current.Index, state.LastDisplayIdentity, state.LastTrack, false);
 
-        result[i] = new CwConsoleSlotDisplay(
-          shown, visible, isHeld?.Invoke(current.Index) ?? false);
+        result.Add(new CwConsoleSlotDisplay(
+          shown, visible, isHeld?.Invoke(current.Index) ?? false));
       }
       return result;
     }
