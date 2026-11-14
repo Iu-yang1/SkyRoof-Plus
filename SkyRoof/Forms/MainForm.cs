@@ -1015,6 +1015,9 @@ namespace SkyRoof
         MessageBox.Show(this, ex.Message, "IF-AF Receiver",
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
+      // A shared telemetry source follows the IF receiver when that
+      // service is restarted or its underlying USB/LAN source changes.
+      ctx.TelemetryPanel?.ApplyAudioSettings();
     }
 
     private IfAfMode CurrentIfAfMode() =>
