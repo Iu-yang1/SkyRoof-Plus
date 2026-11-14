@@ -347,8 +347,7 @@ namespace SkyRoof
           t.Namespace != null && t.Namespace.StartsWith("SkyRoof", StringComparison.Ordinal) &&
           (t == typeof(Settings) || t == typeof(AfcSettings) ||
            t.Name.EndsWith("Settings", StringComparison.Ordinal) ||
-           t == typeof(AosAnnouncement) ||
-           t == typeof(PositionAnnouncement)))
+           t == typeof(AosAnnouncement) || t == typeof(PositionAnnouncement)))
         .ToArray();
       foreach (Type type in types)
         TypeDescriptor.AddProvider(
@@ -361,8 +360,7 @@ namespace SkyRoof
           Current == UiLanguage.English &&
           AfcEnglish.TryGetValue(item.Name, out string? en)) return en;
       if (Current == UiLanguage.English) return item.DisplayName;
-      if (SettingsChineseSupplement.Name(item.DisplayName) is string extra)
-        return extra;
+      if (SettingsChineseSupplement.Name(item.DisplayName) is string extra) return extra;
       if (Chinese.TryGetValue(item.DisplayName, out string? zh)) return zh;
       if (Chinese.TryGetValue(item.Name, out zh)) return zh;
       return item.DisplayName;
@@ -380,8 +378,7 @@ namespace SkyRoof
           return orbitHelp;
         if (ChineseDescriptions.TryGetValue(key, out string? zh))
           return zh;
-        if (SettingsChineseSupplement.Description(key) is string extra)
-          return extra;
+        if (SettingsChineseSupplement.Description(key) is string extra) return extra;
       }
       return item.Description;
     }
@@ -418,19 +415,16 @@ namespace SkyRoof
         this.source = source;
 
       public override string DisplayName => DisplayFor(source);
-      public override string Category =>
-        Current == UiLanguage.SimplifiedChinese &&
-        SettingsChineseSupplement.Category(source.Category) is string translated
-          ? translated
-          : OrbitSettingsLocalization.Category(source.Category, Current);
+      public override string Category => Current == UiLanguage.SimplifiedChinese
+        ? SettingsChineseSupplement.Category(source.Category) ??
+          OrbitSettingsLocalization.Category(source.Category, Current)
+        : source.Category;
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
       public override Type PropertyType => source.PropertyType;
-      public override TypeConverter Converter =>
-        SettingsChineseSupplement.HasEnum(source.PropertyType)
-          ? new SettingsEnumValueConverter(source.PropertyType, source.Converter)
-          : source.Converter;
+      public override TypeConverter Converter => SettingsChineseSupplement.HasEnum(source.PropertyType)
+        ? new SettingsEnumValueConverter(source.PropertyType, source.Converter) : source.Converter;
       public override object? GetEditor(Type editorBaseType) => source.GetEditor(editorBaseType);
       public override bool CanResetValue(object component) => source.CanResetValue(component);
       public override object? GetValue(object? component) => source.GetValue(component);
