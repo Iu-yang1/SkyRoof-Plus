@@ -18,6 +18,26 @@ namespace SkyRoof
     bool WrongModSource = false,
     bool MutedLanLevel = false);
 
+  internal enum IcomDirectLanTxLinkState
+  {
+    Disconnected,
+    Reconnecting,
+    Connected
+  }
+
+  internal static class IcomDirectLanTxLinkIndicator
+  {
+    internal static IcomDirectLanTxLinkState Evaluate(
+      bool txEnabled, bool workerActive, bool negotiationComplete, bool txReady)
+    {
+      if (!txEnabled || !workerActive) return IcomDirectLanTxLinkState.Disconnected;
+      if (txReady) return IcomDirectLanTxLinkState.Connected;
+      return negotiationComplete
+        ? IcomDirectLanTxLinkState.Disconnected
+        : IcomDirectLanTxLinkState.Reconnecting;
+    }
+  }
+
   internal static class IcomDirectLanTxAudioDisplay
   {
     internal static string Format(
@@ -37,8 +57,8 @@ namespace SkyRoof
             : "";
         return $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS{warning}";
       }
-      return catPtt ? "LAN TX PTT ON · no PCM" :
-        $"LAN TX idle · {status.UdpSent} pkts";
+      string last = $"LAN TX {status.UdpSent} pkts · MIC {status.LastSentDbfs:F0} dBFS";
+      return catPtt ? last + " · PTT ON · no PCM" : last + " · idle";
     }
   }
 
@@ -125,6 +145,10 @@ namespace SkyRoof
     private uint NegotiatedTxRate;
     private volatile bool AudioTxReady;
     private volatile bool AudioLinkConnected;
+    private volatile bool AudioTxNegotiationComplete;
+    internal bool IsTxUdpReady =>
+      AudioLinkConnected && AudioTxReady && IsStreaming && !Disposed;
+    internal bool HasCompletedTxNegotiation => AudioTxNegotiationComplete;
     private long AudioTxRejectedWithoutPtt;
     private long AudioRxDatagrams;
     private long AudioRxDecodedFrames;
@@ -599,6 +623,7 @@ namespace SkyRoof
           throw new IOException("Direct LAN audio handshake failed; reconnect required.", ex);
         }
       }
+      AudioTxNegotiationComplete = true;
 
       await SendScopeConfigurationAsync(civ, token);
       if (PreferFastScopeSweep)
@@ -649,6 +674,10 @@ namespace SkyRoof
       }
       finally
       {
+        AudioTxReady = false;
+        AudioLinkConnected = false;
+        AudioTxNegotiationComplete = false;
+        IsStreaming = false;
         // Login may already have succeeded even when capability/media
         // negotiation or the second CI-V handshake fails. Always release
         // the radio's authenticated control session before closing sockets.

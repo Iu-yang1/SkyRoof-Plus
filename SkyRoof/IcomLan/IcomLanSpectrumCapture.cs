@@ -101,6 +101,24 @@ namespace SkyRoof
     internal long NativeIngressDrops =>
       NativeIngress?.Dropped ?? Interlocked.Read(ref LastNativeIngressDrops);
     internal int NativeIngressQueued => NativeIngress?.Queued ?? 0;
+    internal bool IsDirectLanWorkerActive => UseDirectLan &&
+      Worker is { IsCompleted: false } && Cancellation?.IsCancellationRequested == false;
+    internal bool HasCompletedTxAudioNegotiation
+    {
+      get
+      {
+        lock (DirectSessionSync)
+          return DirectSession?.HasCompletedTxNegotiation == true;
+      }
+    }
+    internal bool IsTxUdpReady
+    {
+      get
+      {
+        lock (DirectSessionSync)
+          return DirectSession?.IsTxUdpReady == true;
+      }
+    }
     internal IcomDirectLanTxAudioStatus TxAudioStatus
     {
       get
