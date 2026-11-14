@@ -74,7 +74,7 @@ namespace SkyRoof
         {
           RecordingAudioSource.Auto => "Auto (SDR if running, else RS-BA1 playback)",
           RecordingAudioSource.Sdr => "SkyRoof SDR",
-          RecordingAudioSource.WasapiCapture => "IC-9700 USB AF (Windows input)",
+          RecordingAudioSource.WasapiCapture => "Windows AF capture (USB / CABLE Output)",
           RecordingAudioSource.RsBa1Loopback => "RS-BA1 playback (WASAPI loopback)",
           RecordingAudioSource.IfAfDemodulated => "IF -> AF decoded PCM (direct, 48 kHz)",
           _ => source.ToString()
