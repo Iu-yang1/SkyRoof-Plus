@@ -36,6 +36,7 @@ namespace SkyRoof
     }
 
     internal float Current => current;
+    internal Size OriginalMinimumSize => snapshots[0].Minimum;
 
     internal int RequiredWidth(params Control[] excluded) =>
       snapshots.Skip(1)
