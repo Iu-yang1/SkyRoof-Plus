@@ -358,6 +358,8 @@ namespace SkyRoof.IF
         _ => IfAfMode.Usb
       };
     }
-    public override string ToString() => Enabled ? "Enabled" : "Disabled";
+    public override string ToString() =>
+      SkyRoof.SettingsLanguage.Text(Enabled ? "已启用" : "已关闭",
+        Enabled ? "Enabled" : "Disabled");
   }
 }
