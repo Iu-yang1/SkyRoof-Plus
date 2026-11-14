@@ -99,10 +99,7 @@ namespace SkyRoof
       IcomLanSpectrumCapture? current = capture;
       if (original == null || current == null) return;
 
-      // SettingsDialog replaces the whole Settings object when Apply/OK is
-      // clicked; existing session and endpoint workers own the prior root.
-      // Swap nested options in that root so live microphone gain, AGC,
-      // retransmit and meter policies actually observe the new values.
+      // Existing workers retain the previous Settings root after Apply/OK.
       IcomDirectLanSettings updated = ctx.Settings.IcomDirectLan;
       original.Receive = updated.Receive;
       original.Transmit = updated.Transmit;
