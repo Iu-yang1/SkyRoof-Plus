@@ -43,6 +43,8 @@ namespace SkyRoof
         .Select(i => new CwPileupLaneCard(i)).ToArray();
 
     internal event Action<CwConsoleLaneIdentity>? LaneSelected;
+    internal event Action<int>? SlotSelected;
+    internal event Action<int>? SlotCleared;
 
     internal CwPileupLaneList()
     {
@@ -57,6 +59,8 @@ namespace SkyRoof
       foreach (var card in cards)
       {
         card.Selected += identity => LaneSelected?.Invoke(identity);
+        card.SlotSelected += index => SlotSelected?.Invoke(index);
+        card.Cleared += index => SlotCleared?.Invoke(index);
         laneTable.RowStyles.Add(
           new RowStyle(SizeType.Absolute, MinimumRowHeight));
         laneTable.Controls.Add(card, 0, card.Index);
@@ -97,19 +101,30 @@ namespace SkyRoof
       IReadOnlyDictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot> transcripts,
       CwConsoleLaneIdentity? selected)
     {
-      string headerText = "CW verified · " + slots.Count(slot =>
-        slot.Present && slot.Track.HasValue) + "/8";
-      if (header.Text != headerText)
-        header.Text = headerText;
-      foreach (CwConsoleLaneSlot slot in slots)
+      var displays = slots.Select(slot =>
       {
-        if (slot.Index < 0 || slot.Index >= cards.Length)
-          continue;
-
         CwTranscriptSnapshot? transcript = null;
         if (slot.Identity is CwConsoleLaneIdentity id)
           transcripts.TryGetValue(id, out transcript);
-        cards[slot.Index].UpdateLane(slot, transcript, selected);
+        return new CwConsoleSlotDisplay(slot, transcript, false);
+      }).ToArray();
+      UpdateLanes(displays, selected);
+    }
+
+    internal void UpdateLanes(
+      IReadOnlyList<CwConsoleSlotDisplay> displays,
+      CwConsoleLaneIdentity? selected)
+    {
+      string headerText = "CW verified · " + displays.Count(display =>
+        display.Slot.Present && display.Slot.Track.HasValue) + "/8";
+      if (header.Text != headerText)
+        header.Text = headerText;
+      foreach (CwConsoleSlotDisplay display in displays)
+      {
+        CwConsoleLaneSlot slot = display.Slot;
+        if (slot.Index < 0 || slot.Index >= cards.Length)
+          continue;
+        cards[slot.Index].UpdateLane(slot, display.Transcript, selected);
       }
     }
   }
@@ -139,6 +154,17 @@ namespace SkyRoof
       Font = new Font(FontFamily.GenericMonospace, 9.0f),
       Padding = new Padding(3, 0, 1, 0)
     };
+    private readonly Button clear = new()
+    {
+      Text = "Clear",
+      Dock = DockStyle.Fill,
+      AutoSize = true,
+      AutoSizeMode = AutoSizeMode.GrowAndShrink,
+      MinimumSize = new Size(48, 24),
+      Margin = new Padding(1, 0, 1, 0),
+      Padding = new Padding(3, 0, 3, 0),
+      TabStop = false
+    };
     private readonly Button copy = new()
     {
       Text = "Copy",
@@ -152,9 +178,12 @@ namespace SkyRoof
     };
 
     internal event Action<CwConsoleLaneIdentity>? Selected;
+    internal event Action<int>? SlotSelected;
+    internal event Action<int>? Cleared;
     internal string CopyText => copyText;
     internal bool IsSelected => cardSelected;
     internal string PreviewText => preview.Text;
+    internal Button ClearButton => clear;
 
     internal CwPileupLaneCard(int index)
     {
@@ -174,7 +203,7 @@ namespace SkyRoof
       var layout = new TableLayoutPanel
       {
         Dock = DockStyle.Fill,
-        ColumnCount = 2,
+        ColumnCount = 3,
         RowCount = 2,
         Margin = new Padding(0),
         Padding = new Padding(5, 1, 3, 1),
@@ -183,11 +212,14 @@ namespace SkyRoof
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
       // Keep DPI-aware Copy sizing; fixed 49px would clip its text.
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+      layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
       layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
       layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
       layout.Controls.Add(title, 0, 0);
       layout.Controls.Add(copy, 1, 0);
       layout.SetRowSpan(copy, 2);
+      layout.Controls.Add(clear, 2, 0);
+      layout.SetRowSpan(clear, 2);
       layout.Controls.Add(preview, 0, 1);
       Controls.Add(layout);
       title.BackColor = CwConsolePalette.Card;
@@ -198,6 +230,13 @@ namespace SkyRoof
       copy.FlatAppearance.BorderSize = 0;
       copy.BackColor = CwConsolePalette.Surface;
       copy.ForeColor = CwConsolePalette.Text;
+      clear.FlatStyle = FlatStyle.Flat;
+      clear.FlatAppearance.BorderSize = 0;
+      clear.BackColor = CwConsolePalette.Surface;
+      clear.ForeColor = CwConsolePalette.Text;
+      tip.SetToolTip(clear,
+        "Clear only this slot's displayed RX text; no decoder reset or transmission.");
+      clear.Click += (_, _) => Cleared?.Invoke(Index);
 
       Click += (_, _) => SelectCard();
       title.Click += (_, _) => SelectCard();
@@ -255,6 +294,7 @@ namespace SkyRoof
         preview.Text = string.Empty;
         copyText = string.Empty;
         copy.Enabled = false;
+        clear.Enabled = false;
         return;
       }
 
@@ -290,6 +330,7 @@ namespace SkyRoof
         preview.ForeColor = CwConsolePalette.Provisional;
       tip.SetToolTip(preview, shown);
       copy.Enabled = copyText.Length > 0;
+      clear.Enabled = copyText.Length > 0;
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -324,6 +365,7 @@ namespace SkyRoof
 
     private void SelectCard()
     {
+      SlotSelected?.Invoke(Index);
       if (identity is CwConsoleLaneIdentity id)
         Selected?.Invoke(id);
     }
