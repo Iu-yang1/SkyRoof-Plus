@@ -11,11 +11,13 @@ namespace SkyRoof
     private sealed record Snapshot(Control Control, Rectangle Bounds,
       Padding Padding, Padding Margin, Size Minimum, Size Maximum, Font Font);
     private readonly Snapshot[] snapshots;
+    private readonly bool scaleRootBounds;
     private readonly Dictionary<string, Font> fonts = new();
     private float current = 1f;
 
-    internal UniformControlScale(Control root)
+    internal UniformControlScale(Control root, bool scaleRootBounds = true)
     {
+      this.scaleRootBounds = scaleRootBounds;
       var controls = new List<Control>();
       static void Visit(Control control, List<Control> list)
       {
@@ -34,6 +36,7 @@ namespace SkyRoof
     }
 
     internal float Current => current;
+    internal Size OriginalMinimumSize => snapshots[0].Minimum;
 
     internal int RequiredWidth(params Control[] excluded) =>
       snapshots.Skip(1)
@@ -86,6 +89,11 @@ namespace SkyRoof
       {
         foreach (var item in snapshots)
         {
+          if (!scaleRootBounds && ReferenceEquals(item, snapshots[0]))
+          {
+            item.Control.Font = ScaledFont(item.Font, scale);
+            continue;
+          }
           var control = item.Control;
           var bounds = ScaleBounds(item.Bounds, scale);
           control.Margin = ScalePadding(item.Margin, scale);

@@ -39,6 +39,7 @@ namespace SkyRoof
     private Context? ctx;
     private RotatorWidget? rotator;
     private bool updatingStepUi;
+    internal float PresentationScale = 1f;
 
     internal RotatorControlCard()
     {
@@ -296,18 +297,23 @@ namespace SkyRoof
         SkyRoof.NativeRotator.RotatorProtocolKind.Rc3040sLan;
       Rc3040sButton.Visible = rc3040s;
       QuickControls.Visible = rc3040s;
-      int desiredHeight = rc3040s ? 640 : 386;
+      int desiredHeight = UniformControlScale.Pixel(
+        rc3040s ? 640 : 386, PresentationScale);
       if(Height != desiredHeight)
       {
         // Keep the entire fixed-layout card scaled together; never add
         // scrollbars or rearrange the original manual direction controls.
         MinimumSize=Size.Empty;MaximumSize=Size.Empty;
-        Size=new Size(318,desiredHeight);
+        Size=new Size(UniformControlScale.Pixel(318, PresentationScale), desiredHeight);
         MinimumSize=Size;MaximumSize=Size;
       }
       QuickControls.RefreshAccess();
       if(managementFooter!=null)
-        managementFooter.Size=Rc3040sButton.Visible?new Size(204,20):new Size(292,20);
+        managementFooter.Size=Rc3040sButton.Visible?
+          new Size(UniformControlScale.Pixel(204, PresentationScale),
+            UniformControlScale.Pixel(20, PresentationScale)):
+          new Size(UniformControlScale.Pixel(292, PresentationScale),
+            UniformControlScale.Pixel(20, PresentationScale));
       bool enabled = ctx.Settings.Rotator.Enabled;
       bool connected = rotator.IsRunning();
 

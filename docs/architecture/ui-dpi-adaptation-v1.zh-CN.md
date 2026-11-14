@@ -41,6 +41,14 @@
 - 为停靠面板和弹出窗定义共享缩放基准，所有绝对尺寸及文本同步调整；保持数据区的实时绘制缓存，避免在每帧重建控件。
 - 对缩放后内容几何做自动化裁切检测，而不是用 `AutoScroll = true` 或 `WrapContents = true` 代替缩放。
 
+#### P2 已实现（本次）
+
+- `Tools → Dock & Popup Scale` 分别控制 Dock 与旋转器右键卡片的 75/85/100/110/125% 缩放。默认 100%，并兼容原有 Settings.json。
+- 通过 `UniformControlScale(panel, scaleRootBounds: false)` 只缩放 Dock 内容的子控件及字体，不改 DockPanelSuite 负责的窗体坐标和外框尺寸，也不改停靠布局 XML。
+- 为 Sky View 更新专用文本字体；为 Satellite Passes 同步自绘行高、字体和轨迹线宽；Rotator RC-3040S 的扩展面板高度也遵循当前比例。
+- 所有动态创建及 XML 恢复的 DockContent 都注册到统一缩放管理；在 100% 默认值时避免无意义的二次布局。G-5500 专属右键面板采用相同固定基线缩放，STOP、Track、Park 和连续旋转回调不变。
+- CI 使用 WinForms 模拟控件绘制和尺寸断言验证 Dock 自身尺寸未被缩放、G-5500 在 75/100/125% 下的控件没有越界；截图归档供检查。
+
 ### P3 — 多显示器跨 DPI 与长期 UI 验收
 
 - 在 Windows 10/11 对 96/120/144/192 DPI 与跨屏移动进行真实 `Form`、`DockPanel` 视觉与键鼠操作测试；同时评估 Wine 的 `SystemAware` 行为，再决定能否启用 `PerMonitorV2`。
