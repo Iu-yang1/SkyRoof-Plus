@@ -157,6 +157,9 @@ namespace SkyRoof
 
     private static readonly Dictionary<string, string> Enums = new(StringComparer.Ordinal)
     {
+      ["AudioChannelChoice.Mix"] = "混合左右声道",
+      ["AudioChannelChoice.Left"] = "左声道",
+      ["AudioChannelChoice.Right"] = "右声道",
       ["TelemetryReceiveSource.SdrIq"] = "SDR 复数 IQ（原有路径）",
       ["TelemetryReceiveSource.Shared12kIf"] = "共享 IF→AF 原始 12 kHz IF",
       ["TelemetryReceiveSource.Capture12kIf"] = "声卡采集 12 kHz IF",
