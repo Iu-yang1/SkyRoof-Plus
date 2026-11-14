@@ -190,6 +190,10 @@ namespace SkyRoof
       layout.SetRowSpan(copy, 2);
       layout.Controls.Add(preview, 0, 1);
       Controls.Add(layout);
+      title.BackColor = CwConsolePalette.Card;
+      preview.BackColor = CwConsolePalette.Card;
+      title.ForeColor = CwConsolePalette.Text;
+      preview.ForeColor = CwConsolePalette.Text;
       copy.FlatStyle = FlatStyle.Flat;
       copy.FlatAppearance.BorderSize = 0;
       copy.BackColor = CwConsolePalette.Surface;
