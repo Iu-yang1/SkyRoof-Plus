@@ -17,6 +17,7 @@ namespace SkyRoof.CW
     private sealed class SlotState
     {
       internal CwConsoleLaneIdentity? Identity;
+      internal CwConsoleLaneIdentity? LastDisplayIdentity;
       internal CwSignalTrack? LastTrack;
       internal CwTranscriptSnapshot? Latest;
       internal string History = string.Empty;
@@ -57,7 +58,7 @@ namespace SkyRoof.CW
         CwConsoleLaneSlot shown = current;
         if (!current.Identity.HasValue && visible != null)
           shown = new CwConsoleLaneSlot(
-            current.Index, state.Identity, state.LastTrack, false);
+            current.Index, state.LastDisplayIdentity, state.LastTrack, false);
 
         result[i] = new CwConsoleSlotDisplay(
           shown, visible, isHeld?.Invoke(current.Index) ?? false);
@@ -116,6 +117,7 @@ namespace SkyRoof.CW
         }
       }
       state.Identity = next;
+      state.LastDisplayIdentity = next;
       state.Latest = null;
       state.HiddenCharacters = 0;
     }
