@@ -38,15 +38,30 @@ namespace SkyRoof
     private readonly ToolStripStatusLabel[] ifAfStageLabels = new ToolStripStatusLabel[4];
     private readonly IcomDirectLanMeterBar directLanMeters = new();
     private ToolStripControlHost? directLanMetersHost;
+    private readonly ToolStripStatusLabel directLanTxAudioLedLabel = new("n")
+    {
+      Name = "IcomDirectLanTxUdpLed",
+      Font = new Font("Webdings", 9F),
+      ForeColor = Color.Red,
+      Alignment = ToolStripItemAlignment.Right,
+      AutoSize = false,
+      Size = new Size(21, 30),
+      Visible = false,
+      Overflow = ToolStripItemOverflow.Never,
+      TextAlign = ContentAlignment.MiddleCenter,
+      Margin = new Padding(2, 3, 0, 2),
+      ToolTipText = "LAN TX UDP disconnected; click for diagnostics"
+    };
     private readonly ToolStripStatusLabel directLanTxAudioLabel = new()
     {
       Name = "IcomDirectLanTxAudio",
       Alignment = ToolStripItemAlignment.Right,
       AutoSize = true,
       Visible = false,
+      Overflow = ToolStripItemOverflow.Never,
       Text = "LAN TX offline",
       Margin = new Padding(4, 3, 4, 2),
-      ToolTipText = "LAN transmit audio is measured on the PC/UDP side only, not verified RF power"
+      ToolTipText = "Click to inspect TX UDP audio packets, microphone level and modulation input"
     };
     private IfAfStatus? previousIfAfStatus;
     private DateTime lastIfAfClipUtc;
@@ -1353,8 +1368,15 @@ namespace SkyRoof
       directLanMetersHost.Overflow = ToolStripItemOverflow.Never;
       int position = StatusStrip.Items.IndexOf(CpuLoadlabel);
       int insertAt = position >= 0 ? position : StatusStrip.Items.Count;
-      StatusStrip.Items.Insert(insertAt, directLanTxAudioLabel);
-      StatusStrip.Items.Insert(insertAt + 1, directLanMetersHost);
+      StatusStrip.Items.Insert(insertAt, directLanTxAudioLedLabel);
+      StatusStrip.Items.Insert(insertAt + 1, directLanTxAudioLabel);
+      StatusStrip.Items.Insert(insertAt + 2, directLanMetersHost);
+      directLanTxAudioLedLabel.Click += ShowIcomDirectLanTxAudioDiagnostics;
+      directLanTxAudioLabel.Click += ShowIcomDirectLanTxAudioDiagnostics;
+      directLanTxAudioLedLabel.MouseEnter += StatusLabel_MouseEnter;
+      directLanTxAudioLedLabel.MouseLeave += StatusLabel_MouseLeave;
+      directLanTxAudioLabel.MouseEnter += StatusLabel_MouseEnter;
+      directLanTxAudioLabel.MouseLeave += StatusLabel_MouseLeave;
       UpdateIcomDirectLanMeterBar();
     }
 
@@ -1362,26 +1384,50 @@ namespace SkyRoof
     {
       if (directLanMetersHost == null) return;
       IcomDirectLanMeterSettings meters = ctx.Settings.IcomDirectLan.Meters;
-      bool visible = meters.Enabled &&
-        (meters.S || meters.Power || meters.Alc || meters.Swr) &&
+      bool directLanSelected =
         ctx.Settings.IcomLanSpectrum.Source == IcomLanSpectrumSource.DirectLan;
+      bool visible = directLanSelected && meters.Enabled &&
+        (meters.S || meters.Power || meters.Alc || meters.Swr);
+      bool showTxLink = directLanSelected && ctx.Settings.IcomDirectLan.Transmit.Enabled;
       directLanMetersHost.Visible = visible;
-      directLanTxAudioLabel.Visible = visible && ctx.Settings.IcomDirectLan.Transmit.Enabled;
-      if (!visible) return;
+      directLanTxAudioLedLabel.Visible = showTxLink;
+      directLanTxAudioLabel.Visible = showTxLink;
+      if (!visible && !showTxLink) return;
 
-      var tx = ctx.IcomLanSpectrumPanel?.TxAudioStatus ??
-        ctx.DirectLanMediaOwner?.TxAudioStatus ?? default;
       bool catPtt = ctx.CatControl.Tx?.Ptt == true ||
                     ctx.CatControl.Rx?.Ptt == true;
-      directLanTxAudioLabel.Text = IcomDirectLanTxAudioDisplay.Format(
-        tx, catPtt, DateTime.UtcNow);
-      directLanTxAudioLabel.ForeColor = StatusStrip.ForeColor;
-      directLanTxAudioLabel.ToolTipText =
-        $"PC microphone → LAN UDP audio. Sent {tx.UdpSent} PCM packets in this session; " +
-        $"last sent sample level {tx.LastSentDbfs:F1} dBFS. " +
-        $"IC-9700 radio CI-V MOD input: {tx.ModSource}. " +
-        "TX PCM transmission does not by itself prove the radio used this input or radiated RF.";
+      if (showTxLink)
+      {
+        IcomLanSpectrumCapture? capture = ctx.DirectLanMediaOwner?.Capture;
+        var tx = ctx.DirectLanMediaOwner?.TxAudioStatus ??
+          ctx.IcomLanSpectrumPanel?.TxAudioStatus ?? default;
+        IcomDirectLanTxLinkState link = IcomDirectLanTxLinkIndicator.Evaluate(
+          true, capture?.IsDirectLanWorkerActive == true,
+          capture?.HasCompletedTxAudioNegotiation == true,
+          capture?.IsTxUdpReady == true);
+        directLanTxAudioLedLabel.ForeColor = link switch
+        {
+          IcomDirectLanTxLinkState.Connected => Color.Lime,
+          IcomDirectLanTxLinkState.Reconnecting => Color.Gold,
+          _ => Color.Red
+        };
+        string linkInfo = link switch
+        {
+          IcomDirectLanTxLinkState.Connected =>
+            "TX UDP handshake complete; session remains ready while PTT is idle.",
+          IcomDirectLanTxLinkState.Reconnecting =>
+            "TX UDP audio session is connecting or recovering.",
+          _ => "TX UDP audio session disconnected or TX negotiation failed."
+        };
+        string tooltip = linkInfo + " Click for diagnostics.";
+        directLanTxAudioLedLabel.ToolTipText = tooltip;
+        directLanTxAudioLabel.Text = IcomDirectLanTxAudioDisplay.Format(
+          tx, catPtt, DateTime.UtcNow);
+        directLanTxAudioLabel.ForeColor = StatusStrip.ForeColor;
+        directLanTxAudioLabel.ToolTipText = tooltip;
+      }
 
+      if (!visible) return;
       directLanMeters.ForeColor = StatusStrip.ForeColor;
       directLanMeters.BackColor = StatusStrip.BackColor;
       IcomMeterSnapshot snapshot =
@@ -1392,6 +1438,46 @@ namespace SkyRoof
       directLanMetersHost.ToolTipText =
         "Direct LAN CI-V meter readback (raw data, not calibrated Watts)\n" +
         directLanMeters.StatusText;
+    }
+
+    private void ShowIcomDirectLanTxAudioDiagnostics(object? sender, EventArgs e)
+    {
+      IcomLanSpectrumCapture? capture = ctx.DirectLanMediaOwner?.Capture;
+      var tx = ctx.DirectLanMediaOwner?.TxAudioStatus ??
+        ctx.IcomLanSpectrumPanel?.TxAudioStatus ?? default;
+      bool workerActive = capture?.IsDirectLanWorkerActive == true;
+      bool negotiated = capture?.HasCompletedTxAudioNegotiation == true;
+      bool ready = capture?.IsTxUdpReady == true;
+      var link = IcomDirectLanTxLinkIndicator.Evaluate(
+        ctx.Settings.IcomDirectLan.Transmit.Enabled, workerActive, negotiated, ready);
+      string state = link switch
+      {
+        IcomDirectLanTxLinkState.Connected => "绿色 · 会话已建立",
+        IcomDirectLanTxLinkState.Reconnecting => "黄色 · 正在连接/重连",
+        _ => "红色 · 已断开/未建立"
+      };
+      string lastSent = tx.LastSentUtcTicks > 0
+        ? new DateTime(tx.LastSentUtcTicks, DateTimeKind.Utc)
+          .ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'")
+        : "尚未发送";
+      string modSource = string.IsNullOrWhiteSpace(tx.ModSource)
+        ? "尚无电台读回" : tx.ModSource;
+      bool ptt = ctx.CatControl.Tx?.Ptt == true || ctx.CatControl.Rx?.Ptt == true;
+      MessageBox.Show(this,
+        $"TX UDP 链路：{state}\n" +
+        $"网络会话工作线程：{(workerActive ? "运行" : "停止")}\n" +
+        $"音频会话协商：{(negotiated ? "完成" : "未完成")}\n" +
+        $"发射音频流：{(ready ? "就绪" : "未就绪")}\n" +
+        $"PTT：{(ptt ? "ON" : "OFF")}\n\n" +
+        $"UDP PCM 已发送包数：{tx.UdpSent}\n" +
+        $"最近发送音频电平：{tx.LastSentDbfs:F1} dBFS\n" +
+        $"最近发送时间：{lastSent}\n\n" +
+        $"电台 MOD 输入：{modSource}\n" +
+        $"MOD 输入来源不匹配：{(tx.WrongModSource ? "已检测到" : "未检测到")}\n" +
+        $"LAN MOD 电平为零：{(tx.MutedLanLevel ? "已检测到" : "未检测到")}\n\n" +
+        "绿色表示 TX UDP 音频会话就绪，即使 PTT OFF 或未发 PCM 也保持绿色。" +
+        "发包和会话状态不等于电台已正确调制，需结合 MOD 输入、ALC/PWR 或实际 RF 检查。",
+        "LAN TX UDP 音频诊断", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void ShowIfAfLinkDiagnostics(object? sender, EventArgs e)

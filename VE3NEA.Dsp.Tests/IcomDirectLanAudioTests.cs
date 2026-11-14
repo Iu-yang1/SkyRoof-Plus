@@ -149,6 +149,36 @@ namespace VE3NEA.Dsp.Tests
         false, now).Should().Contain("offline");
     }
 
+    [Theory]
+    [InlineData(false, false, false, false, 0)]
+    [InlineData(true, false, false, false, 0)]
+    [InlineData(true, true, false, false, 1)]
+    [InlineData(true, true, true, false, 0)]
+    [InlineData(true, true, true, true, 2)]
+    [InlineData(true, true, false, true, 2)]
+    public void TxUdpIndicatorReflectsSessionReadinessNotPttOrPcmCount(
+      bool enabled, bool worker, bool negotiated, bool ready, int expected)
+    {
+      ((int)IcomDirectLanTxLinkIndicator.Evaluate(
+        enabled, worker, negotiated, ready)).Should().Be(expected);
+    }
+
+    [Fact]
+    public void TxUdpIndicatorStaysGreenWhenNoPcmWasSent()
+    {
+      var idle = new IcomDirectLanTxAudioStatus(
+        AudioConnected: true, TxEnabled: true, UdpSent: 0,
+        LastSentDbfs: -120, LastSentUtcTicks: 0);
+      IcomDirectLanTxLinkIndicator.Evaluate(
+        idle.TxEnabled, workerActive: true, negotiationComplete: true,
+        txReady: true).Should().Be(IcomDirectLanTxLinkState.Connected);
+      string displayed = IcomDirectLanTxAudioDisplay.Format(
+        idle, catPtt: false, DateTime.UtcNow);
+      displayed.Should().Contain("0 pkts");
+      displayed.Should().Contain("MIC -120 dBFS");
+      displayed.Should().Contain("idle");
+    }
+
     [Fact]
     public void AudioSampleRateFollowsRadioCapabilities()
     {
