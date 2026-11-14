@@ -7,6 +7,8 @@ namespace SkyRoof
   {
     public Size MainWindowSize { get; set; }
     public Point MainWindowLocation { get; set; }
+    // Legacy settings (0) have no known DPI and retain their original size.
+    public int MainWindowDpi { get; set; }
     public string? DockingLayoutString { get; set; }
     public bool ClockUtcMode { get; set; }
     // Persisted UI presentation preference, independent of radio settings.
@@ -55,6 +57,7 @@ namespace SkyRoof
 
     public void StoreWindowPosition(Form form)
     {
+      MainWindowDpi = form.DeviceDpi;
       if (form.WindowState == FormWindowState.Normal)
       {
         MainWindowLocation = form.Location;
@@ -66,12 +69,28 @@ namespace SkyRoof
         MainWindowSize = form.RestoreBounds.Size;
       }
     }
+    // Restore the full window at a consistent physical size relative to fonts
+    // after the desktop's DPI changes. Keep screen coordinates untouched: a
+    // virtual desktop can span monitors with different origins and scales.
+    internal static Size ScaleWindowSizeForDpi(Size stored, int storedDpi, int currentDpi)
+    {
+      if (storedDpi <= 0 || currentDpi <= 0 || storedDpi == currentDpi)
+        return stored;
+
+      double factor = (double)currentDpi / storedDpi;
+      return new Size(
+        (int)Math.Round(stored.Width * factor, MidpointRounding.AwayFromZero),
+        (int)Math.Round(stored.Height * factor, MidpointRounding.AwayFromZero));
+    }
+
     public void RestoreWindowPosition(Form form)
     {
-      if (MainWindowSize.Width > 0)
+      if (MainWindowSize.Width > 0 && MainWindowSize.Height > 0)
       {
-        form.Location = MainWindowLocation;
-        form.Size = MainWindowSize;
+        form.StartPosition = FormStartPosition.Manual;
+        form.Bounds = new Rectangle(
+          MainWindowLocation,
+          ScaleWindowSizeForDpi(MainWindowSize, MainWindowDpi, form.DeviceDpi));
       }
     }
 
