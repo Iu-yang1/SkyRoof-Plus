@@ -237,6 +237,48 @@ namespace SkyRoof
         or "Ft4BackgroundColors" or "TransverterBand" or "RotatorParkWaypoint";
   }
 
+  /// <summary>Localize Boolean display to 是/否 in Chinese only.</summary>
+  internal sealed class SettingsBoolValueConverter : TypeConverter
+  {
+    private readonly TypeConverter original;
+    internal SettingsBoolValueConverter(TypeConverter original) => this.original = original;
+
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? type) =>
+      type == typeof(string) || original.CanConvertTo(context, type);
+
+    public override bool CanConvertFrom(ITypeDescriptorContext? context, Type type) =>
+      type == typeof(string) || original.CanConvertFrom(context, type);
+
+    public override object? ConvertTo(ITypeDescriptorContext? context,
+      CultureInfo? culture, object? value, Type destinationType)
+    {
+      if (destinationType == typeof(string) && value is bool flag &&
+          SettingsLanguage.Current == UiLanguage.SimplifiedChinese)
+        return flag ? "是" : "否";
+      return original.ConvertTo(context, culture, value, destinationType);
+    }
+
+    public override object? ConvertFrom(ITypeDescriptorContext? context,
+      CultureInfo? culture, object value)
+    {
+      if (value is string label)
+      {
+        if (label == "是") return true;
+        if (label == "否") return false;
+      }
+      return original.ConvertFrom(context, culture, value);
+    }
+
+    public override bool GetStandardValuesSupported(ITypeDescriptorContext? context) =>
+      original.GetStandardValuesSupported(context);
+    public override bool GetStandardValuesExclusive(ITypeDescriptorContext? context) =>
+      original.GetStandardValuesExclusive(context);
+    public override StandardValuesCollection? GetStandardValues(ITypeDescriptorContext? context) =>
+      original.GetStandardValues(context);
+    public override bool IsValid(ITypeDescriptorContext? context, object? value) =>
+      original.IsValid(context, value);
+  }
+
   /// <summary>
   /// PropertyGrid-only localized enum display. Delegates unknown and English
   /// strings to each original enum converter so existing labels remain usable.
