@@ -5,6 +5,22 @@ namespace SkyRoof
 {
   internal static class Program
   {
+    // SystemAware remains the stable/Wine-compatible default. Windows
+    // operators can test true multi-monitor behavior without rebuilding.
+    internal static HighDpiMode SelectDpiMode(string[] arguments, string? preference)
+    {
+      bool perMonitor = arguments.Contains("--per-monitor-dpi",
+          StringComparer.OrdinalIgnoreCase) ||
+        string.Equals(preference, "PerMonitorV2",
+          StringComparison.OrdinalIgnoreCase);
+      bool system = arguments.Contains("--system-dpi",
+          StringComparer.OrdinalIgnoreCase) ||
+        string.Equals(preference, "SystemAware",
+          StringComparison.OrdinalIgnoreCase);
+      return perMonitor && !system ? HighDpiMode.PerMonitorV2 :
+        HighDpiMode.SystemAware;
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -28,7 +44,8 @@ namespace SkyRoof
         try
         {
           ExceptionLogger.Initialize();
-          Application.SetHighDpiMode(HighDpiMode.SystemAware); // compatibility with Wine 9
+          Application.SetHighDpiMode(SelectDpiMode(
+            args, Environment.GetEnvironmentVariable("SKYROOF_DPI_MODE")));
           Theme.Initialize(); // must run before any window is created
           ApplicationConfiguration.Initialize();
           Application.Run(new MainForm());

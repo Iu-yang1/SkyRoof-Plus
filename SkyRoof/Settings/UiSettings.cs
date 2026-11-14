@@ -91,9 +91,11 @@ namespace SkyRoof
       if (MainWindowSize.Width > 0 && MainWindowSize.Height > 0)
       {
         form.StartPosition = FormStartPosition.Manual;
-        form.Bounds = new Rectangle(
+        var requested = new Rectangle(
           MainWindowLocation,
           ScaleWindowSizeForDpi(MainWindowSize, MainWindowDpi, form.DeviceDpi));
+        form.Bounds = UiMonitorPlacement.KeepWindowVisible(requested,
+          Screen.AllScreens.Select(screen => screen.WorkingArea).ToArray());
       }
     }
 
