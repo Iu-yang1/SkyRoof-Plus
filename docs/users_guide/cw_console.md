@@ -36,8 +36,10 @@ Remote Utility process. A dedicated playback endpoint is recommended when you
 want only RS-BA1 receiver audio.
 
 Changing the source or changing the actual audio-device ID starts a new CW
-timeline. Tracks and transcript state from the previous device are discarded so
-two sources cannot be mixed into one lane history.
+timeline. The live decoder starts a fresh timeline on the new source, while the V2
+operator slot display preserves previously decoded text in a separately
+labelled section until the operator clears that slot. The old audio is never
+fed into the new decoder.
 
 CW receive is disabled by default. Use **Start** in the panel after selecting
 the intended source.
@@ -46,7 +48,7 @@ As a practical rule: use **IC-9700 USB AF input** only for direct USB AF from
 the radio; use **RS-BA1 playback loopback** for an RS-BA1/LAN receive workflow.
 The status line shows the concrete Windows endpoint that is currently open.
 
-## CW Skimmer V1 horizontal workspace
+## CW Skimmer V2 horizontal workspace
 
 The CW Console is organized around a **wide left AF spectrum and waterfall,
 right-side Pileup messages, a compact selected-lane RX readout, and a permanent
@@ -60,20 +62,22 @@ part of the main window.
   spectrum frame adds a time column at the **right**; history scrolls **right
   to left** as in CW Skimmer. H/T lane markers are horizontal frequency lines.
   Drag the splitter to change the spectrum/message ratio.
-- **Right:** eight stable, vertically scrollable Pileup cards. Each shows
-  Lane ID, AF Hz, SNR and state above a **word-wrapped, selectable and
-  independently scrollable transcript**; provisional text is colored
-  separately. Long CW messages can be read without clipping, and each
-  card retains a Copy button. A card stays in its numbered slot through short QSB/Hold
+- **Right:** eight fixed Pileup cards, with local scrolling only for small dock windows.
+  Each shows slot index, H/T identity, AF Hz, **peak-over-local-floor** (not
+  a calibrated SNR), tracking state and an ellipsized text preview. Select a
+  card to read its full scrollable transcript in Selected Lane. Each card
+  has **Copy**, **Clear**, and **HOLD/RELEASE** actions. A card stays in its numbered slot through short QSB/Hold
   and frequency crossings. Click a card or waterfall marker to select the
   same lane in both places.
 - **Immediately above CW TX:** a compact **CW RX — Selected Lane** GroupBox
   using the same styling as the transmit area. Clicking a Pileup card or a
   waterfall lane marker updates its slot number, stable H/T identity, AF Hz,
-  SNR and Active/Hold/Ambiguous/Grace state. The full selected receive text
+  local spectral peak and Active/Hold/Ambiguous/Grace state. The full selected receive text
   wraps and scrolls in a read-only field; uncommitted characters are colored
   separately. **Copy RX** copies the raw transcript without formatting.
-  If the lane disappears or the audio timeline resets, stale text is cleared.
+  Text does **not** clear when the carrier disappears, its AF frequency moves,
+  a slot is reused or the audio timeline resets. Use the slot's **Clear** to
+  erase only that slot's displayed RX text; CW History is preserved.
 - **Bottom:** Send (automatic preflight), prominent STOP, one-line keyer composer,
   verified WPM set/readback, and F1-F8 macro keys. Action/macro lines remain
   individually horizontally scrollable in narrower windows.
@@ -83,13 +87,30 @@ cannot send CW, adjust a TX VFO or override the satellite interlock. It
 updates from the existing 250-ms UI snapshot rather than starting a new
 decoder or FFT worker.
 
-**AF navigation:** use the **vertical scrollbar on the right of the waterfall**
+**AF navigation:** use **Reset View** to restore full-range pan/zoom, or the **vertical scrollbar on the right of the waterfall**
 to pan the visible frequency range up/down and Zoom for 1-8x magnification.
 Ctrl+mouse-wheel zooms and ordinary mouse-wheel pans the **vertical AF axis**.
 The horizontal waterfall movement is **time history**, not radio tuning.
 All navigation is **display only** and never alters frequency tuning, raw PCM,
 DeepCW inference, tracking, or TX safety interlocks. HamNoise remains
 optional display-only processing.
+
+
+### CW Console V2 operator workflow
+
+- Slot **Clear** only removes the displayed RX text for that numbered slot.
+  It does not reset the decoder, erase the CW History archive, change CAT state
+  or start/stop transmission. New characters decoded after Clear appear normally.
+- Slot **HOLD** pins the current H/T identity to that slot while tracking
+  continues (including frequency drift); **RELEASE** allows ordinary recycling.
+  HOLD is not a transmit or frequency lock.
+- When a new station takes over a slot, existing text stays in a labelled
+  retained section, separated from the new decoder snapshot. Old tentative
+  suffixes are marked as unconfirmed.
+- **Use Call** in Selected Lane inserts a candidate extracted from committed
+  text into the TX composer. It does not send automatically.
+- Pileup selection and **Reset View** are visual-only. The existing
+  F1–F8 / Shift+F1–F8, Send/STOP, BK-IN and SkyCAT lease semantics do not change.
 
 ## Install the DeepCW model
 
