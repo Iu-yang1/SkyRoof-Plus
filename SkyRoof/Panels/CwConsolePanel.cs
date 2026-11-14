@@ -85,6 +85,10 @@ namespace SkyRoof
         new();
     private readonly CwConsoleLaneSlotMap laneSlots =
       new(maxSlots: 8);
+    private readonly CwConsoleSlotTextMemory slotTextMemory = new();
+    private IReadOnlyList<CwConsoleSlotDisplay> displayedSlots =
+      Array.Empty<CwConsoleSlotDisplay>();
+    private int? selectedSlotIndex;
 
     private long displayGeneration = -1;
     private CwConsoleLaneIdentity? selectedIdentity;
@@ -565,8 +569,8 @@ namespace SkyRoof
       left.Controls.Add(controls, 0, 1);
 
       WorkSplit.Panel1.Controls.Add(left);
-      PileupList.LaneSelected +=
-        PileupList_LaneSelected;
+      PileupList.SlotSelected += PileupList_SlotSelected;
+      PileupList.SlotCleared += PileupList_SlotCleared;
       WorkSplit.Panel2.Controls.Add(PileupList);
 
       Shown += (_, _) =>
@@ -1008,41 +1012,62 @@ namespace SkyRoof
         textByLane = new(transcripts);
       }
 
-      IReadOnlyList<CwConsoleLaneSlot> slots =
+      IReadOnlyList<CwConsoleLaneSlot> liveSlots =
         laneSlots.Update(tracks.Where(track =>
           track.KeyingStatus != CwKeyingStatus.Candidate),
           DateTime.UtcNow);
+      displayedSlots = slotTextMemory.Update(liveSlots, textByLane);
 
-      if (!slots.Any(slot =>
-        slot.Identity.HasValue &&
-        slot.Identity == selectedIdentity))
+      if (selectedSlotIndex is null)
       {
-        selectedIdentity = slots
-          .FirstOrDefault(slot => slot.Present &&
-            slot.Identity.HasValue).Identity;
+        int selected = -1;
+        if (selectedIdentity is CwConsoleLaneIdentity identity)
+          selected = displayedSlots.ToList().FindIndex(x =>
+            x.Slot.Identity == identity);
+        if (selected < 0)
+          selected = displayedSlots.ToList().FindIndex(x => x.Slot.Present);
+        if (selected >= 0)
+          selectedSlotIndex = selected;
       }
 
-      PileupList.UpdateLanes(
-        slots, textByLane, selectedIdentity);
-
-      // One RX-only readout follows the selected stable H/T identity,
-      // regardless of whether it was selected from a card or waterfall.
-      // Do not route decoded text to the keyer or change any RF VFO.
-      CwConsoleLaneSlot? selectedSlot = null;
-      CwTranscriptSnapshot? selectedTranscript = null;
-      foreach (CwConsoleLaneSlot slot in slots)
+      CwConsoleSlotDisplay? chosen = null;
+      if (selectedSlotIndex is int selectedIndex &&
+          selectedIndex >= 0 && selectedIndex < displayedSlots.Count)
       {
-        if (!slot.Identity.HasValue ||
-            slot.Identity != selectedIdentity)
-          continue;
-
-        selectedSlot = slot;
-        textByLane.TryGetValue(
-          slot.Identity.Value, out selectedTranscript);
-        break;
+        chosen = displayedSlots[selectedIndex];
+        selectedIdentity = chosen.Value.Slot.Identity;
       }
-      SelectedRxView.UpdateLane(
-        selectedSlot, selectedTranscript);
+      else
+      {
+        selectedIdentity = null;
+      }
+
+      PileupList.UpdateLanes(displayedSlots, selectedIdentity);
+      // A slot's text is independent from its current carrier. Grace,
+      // expiry and reuse retain prior output until that slot's Clear.
+      if (chosen is CwConsoleSlotDisplay display)
+        SelectedRxView.UpdateLane(display.Slot, display.Transcript);
+      else
+        SelectedRxView.UpdateLane(null, null);
+    }
+
+    private void PileupList_SlotSelected(int index)
+    {
+      selectedSlotIndex = index;
+      if (index >= 0 && index < displayedSlots.Count &&
+          displayedSlots[index].Slot.Identity is CwConsoleLaneIdentity id)
+      {
+        PileupList_LaneSelected(id);
+        return;
+      }
+      RefreshPileupCards();
+      RefreshWaterfallSelection();
+    }
+
+    private void PileupList_SlotCleared(int index)
+    {
+      slotTextMemory.Clear(index);
+      RefreshPileupCards();
     }
 
     private void PileupList_LaneSelected(
@@ -1099,6 +1124,9 @@ namespace SkyRoof
       CwWaterfallLaneClickedEventArgs e)
     {
       selectedIdentity = e.Identity;
+      int matchingIndex = displayedSlots.ToList().FindIndex(x =>
+        x.Slot.Identity == e.Identity);
+      selectedSlotIndex = matchingIndex >= 0 ? matchingIndex : null;
       RefreshPileupCards();
       RefreshWaterfallSelection();
     }
@@ -1975,6 +2003,8 @@ namespace SkyRoof
         ctx.CwAudio.Ingress.SamplesAccepted -= Ingress_SamplesAccepted;
       WaterfallView.LaneClicked -=
         WaterfallView_LaneClicked;
+      PileupList.SlotSelected -= PileupList_SlotSelected;
+      PileupList.SlotCleared -= PileupList_SlotCleared;
       // The background display worker may still be inside native HamNoise.
       // Dispose FFTW plans only after its last calculation has completed.
       DisplaySession.Dispose();
