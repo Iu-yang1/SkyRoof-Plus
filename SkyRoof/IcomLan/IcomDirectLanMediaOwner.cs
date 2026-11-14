@@ -12,6 +12,7 @@ namespace SkyRoof
     private readonly Context ctx;
     private IcomLanSpectrumCapture? capture;
     private IcomDirectLanAudioDevices? devices;
+    private IcomDirectLanSettings? appliedOptions;
     private Task priorAudioShutdown = Task.CompletedTask;
     private IcomMeterSnapshot meters = new();
     private readonly object meterSync = new();
@@ -62,6 +63,7 @@ namespace SkyRoof
       current.MeterReceived += OnMeter;
       devices = localAudio;
       capture = current;
+      appliedOptions = audio;
       try
       {
         localAudio.Start();
@@ -72,6 +74,7 @@ namespace SkyRoof
       {
         capture = null;
         devices = null;
+        appliedOptions = null;
         current.AudioFrameReceived -= OnAudioFrame;
         current.MeterReceived -= OnMeter;
         localAudio.Dispose();
@@ -90,12 +93,47 @@ namespace SkyRoof
         meters = meters.With(reading, DateTime.UtcNow);
     }
 
+    internal void ApplyCurrentSettings(bool restartWindowsEndpoints)
+    {
+      IcomDirectLanSettings? original = appliedOptions;
+      IcomLanSpectrumCapture? current = capture;
+      if (original == null || current == null) return;
+
+      // SettingsDialog replaces the whole Settings object when Apply/OK is
+      // clicked; existing session and endpoint workers own the prior root.
+      // Swap nested options in that root so live microphone gain, AGC,
+      // retransmit and meter policies actually observe the new values.
+      IcomDirectLanSettings updated = ctx.Settings.IcomDirectLan;
+      original.Receive = updated.Receive;
+      original.Transmit = updated.Transmit;
+      original.Meters = updated.Meters;
+      original.RetransmitAudio = updated.RetransmitAudio;
+
+      if (!restartWindowsEndpoints)
+      {
+        devices?.UpdateSpeakerVolume();
+        return;
+      }
+
+      IcomDirectLanAudioDevices? old = devices;
+      devices = null;
+      old?.Dispose();
+      priorAudioShutdown = old?.EndpointShutdown ?? priorAudioShutdown;
+      var replacement = new IcomDirectLanAudioDevices(
+        original, current,
+        (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame),
+        priorAudioShutdown);
+      devices = replacement;
+      replacement.Start();
+    }
+
     internal void Stop()
     {
       IcomLanSpectrumCapture? oldCapture = capture;
       IcomDirectLanAudioDevices? oldDevices = devices;
       capture = null;
       devices = null;
+      appliedOptions = null;
       if (oldCapture == null) return;
       oldCapture.AudioFrameReceived -= OnAudioFrame;
       oldCapture.MeterReceived -= OnMeter;
