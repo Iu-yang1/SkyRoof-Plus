@@ -12,6 +12,7 @@ namespace SkyRoof
     private readonly Context ctx;
     private IcomLanSpectrumCapture? capture;
     private IcomDirectLanAudioDevices? devices;
+    private Task priorAudioShutdown = Task.CompletedTask;
     private IcomMeterSnapshot meters = new();
     private readonly object meterSync = new();
 
@@ -55,7 +56,8 @@ namespace SkyRoof
           ctx.IcomLanSpectrumPanel?.HasRecentExternalMeterReadback == true);
       var localAudio = new IcomDirectLanAudioDevices(
         audio, current,
-        (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame));
+        (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame),
+        priorAudioShutdown);
       current.AudioFrameReceived += OnAudioFrame;
       current.MeterReceived += OnMeter;
       devices = localAudio;
@@ -73,6 +75,7 @@ namespace SkyRoof
         current.AudioFrameReceived -= OnAudioFrame;
         current.MeterReceived -= OnMeter;
         localAudio.Dispose();
+        priorAudioShutdown = localAudio.EndpointShutdown;
         current.Dispose();
         throw;
       }
@@ -101,6 +104,7 @@ namespace SkyRoof
       // Direct LAN login transactions for this radio.
       oldCapture.Dispose();
       oldDevices?.Dispose();
+      priorAudioShutdown = oldDevices?.EndpointShutdown ?? priorAudioShutdown;
       lock (meterSync) meters = new IcomMeterSnapshot();
       ctx.IfAf?.NetworkIfDisconnected();
     }
