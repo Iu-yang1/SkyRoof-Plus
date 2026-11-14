@@ -27,6 +27,10 @@ namespace SkyRoof
     private bool toolbarScaling;
     private readonly ToolStripMenuItem toolbarScaleMenu = new("UI Scale");
     private float lastToolbarScale = 1f;
+    private readonly ToolStripMenuItem dockScaleMenu = new("Dock & Popup Scale");
+    private readonly Dictionary<DockContent, UniformControlScale> dockScalers = new();
+    private UniformControlScale? genericRotatorPopupScale;
+    private UniformControlScale? yaesuRotatorPopupScale;
 
     private readonly EmbeddedSkyCatHost EmbeddedSkyCat = new();
     private readonly ToolStripStatusLabel[] ifAfStageLeds = new ToolStripStatusLabel[4];
@@ -195,8 +199,17 @@ namespace SkyRoof
       ctx.PttHotkey = new PttHotkeyController(ctx);
 
       ConfigureToolbarScaleMenu();
+      ConfigureDockScaleMenu();
       toolbarScale = new UniformControlScale(Toolbar);
-      FormClosed += (_, _) => toolbarScale?.Dispose();
+      FormClosed += (_, _) =>
+      {
+        toolbarScale?.Dispose();
+        genericRotatorPopupScale?.Dispose();
+        yaesuRotatorPopupScale?.Dispose();
+        foreach (var scaler in dockScalers.Values) scaler.Dispose();
+        dockScalers.Clear();
+      };
+      ApplyRotatorPopupScale();
       UpdateSatellitePhotoVisibility();
     }
 
@@ -542,6 +555,77 @@ namespace SkyRoof
         ctx.Settings.SaveToFile();
       else
         Environment.Exit(1); // unable to proceed without user details, terminate app
+    }
+
+    private void ConfigureDockScaleMenu()
+    {
+      foreach (int value in new[] { 75, 85, 100, 110, 125 })
+      {
+        int percent = value;
+        var option = new ToolStripMenuItem($"{percent}%") { Tag = percent };
+        option.Click += (_, _) =>
+        {
+          ctx.Settings.Ui.DockScalePercent = percent;
+          foreach (var panel in dockScalers.Keys.ToArray())
+            if (!panel.IsDisposed) ApplyDockScale(panel);
+          ApplyRotatorPopupScale();
+          ctx.Settings.SaveToFile();
+        };
+        dockScaleMenu.DropDownItems.Add(option);
+      }
+      dockScaleMenu.DropDownOpening += (_, _) =>
+      {
+        foreach (ToolStripMenuItem option in dockScaleMenu.DropDownItems)
+          option.Checked = option.Tag is int percent &&
+            percent == ctx.Settings.Ui.DockScalePercent;
+      };
+      toolsToolStripMenuItem.DropDownItems.Add(dockScaleMenu);
+    }
+
+    private void ApplyRotatorPopupScale()
+    {
+      float factor = Math.Clamp(ctx.Settings.Ui.DockScalePercent, 75, 125) / 100f;
+      if (Math.Abs(factor - 1f) < .001f &&
+          genericRotatorPopupScale == null && yaesuRotatorPopupScale == null)
+        return;
+      if (RotatorControlCard != null)
+      {
+        genericRotatorPopupScale ??= new UniformControlScale(RotatorControlCard);
+        genericRotatorPopupScale.Apply(factor);
+      }
+      if (YaesuG5500ControlCard != null)
+      {
+        yaesuRotatorPopupScale ??= new UniformControlScale(YaesuG5500ControlCard);
+        yaesuRotatorPopupScale.Apply(factor);
+      }
+    }
+
+    private void RegisterDockScale(DockContent panel)
+    {
+      panel.Shown += (_, _) => ApplyDockScale(panel);
+      panel.FormClosed += (_, _) =>
+      {
+        if (dockScalers.Remove(panel, out var scaler))
+          scaler.Dispose();
+      };
+    }
+
+    private void ApplyDockScale(DockContent panel)
+    {
+      if (panel.IsDisposed) return;
+      float factor = Math.Clamp(ctx.Settings.Ui.DockScalePercent, 75, 125) / 100f;
+      if (!dockScalers.TryGetValue(panel, out var scaler))
+      {
+        if (Math.Abs(factor - 1f) < .001f) return;
+        scaler = new UniformControlScale(panel, scaleRootBounds: false);
+        dockScalers.Add(panel, scaler);
+      }
+      scaler.Apply(factor);
+      var minimum = scaler.OriginalMinimumSize;
+      panel.MinimumSize = new Size(UniformControlScale.Pixel(minimum.Width, factor),
+        UniformControlScale.Pixel(minimum.Height, factor));
+      if (panel is PassesPanel passes) passes.UpdateDpiPresentation(factor);
+      if (panel is SkyViewPanel sky) sky.UpdateDpiPresentation(factor);
     }
 
     private void Toolbar_Resize(object sender, EventArgs e)
@@ -2214,6 +2298,7 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     public void ShowFloatingPanel(DockContent panel)
     {
+      RegisterDockScale(panel);
       var rect = panel.Bounds;
       rect.Offset(
         ctx.MainForm.Location.X + (ctx.MainForm.Width - panel.Width) / 2,
@@ -2225,34 +2310,32 @@ namespace SkyRoof
 
     public IDockContent? MakeDockContentFromPersistString(string persistString)
     {
-      switch (persistString)
+      DockContent? panel = persistString switch
       {
-        case "SkyRoof.GroupViewPanel": return new GroupViewPanel(ctx);
-        case "SkyRoof.SatelliteDetailsPanel": return new SatelliteDetailsPanel(ctx);
-        case "SkyRoof.TransmittersPanel": return new TransmittersPanel(ctx);
-        case "SkyRoof.PassesPanel": return new PassesPanel(ctx);
-        case "SkyRoof.TimelinePanel": return new TimelinePanel(ctx);
-        case "SkyRoof.SkyViewPanel": return new SkyViewPanel(ctx);
-        case "SkyRoof.EarthViewPanel": return new EarthViewPanel(ctx);
-        case "SkyRoof.FrequencyControlPanel": return new FrequencyControlPanel(ctx);
-        case "SkyRoof.IcomLanSpectrumPanel": return new IcomLanSpectrumPanel(ctx);
-        case "SkyRoof.OnvifCameraPanel": return new OnvifCameraPanel(ctx);
-        case "SkyRoof.WaterfallPanel": return new WaterfallPanel(ctx);
-        case "SkyRoof.QsoEntryPanel": return new QsoEntryPanel(ctx);
-        case "SkyRoof.Ft4ConsolePanel": return new Ft4ConsolePanel(ctx);
-        case "SkyRoof.CwConsolePanel": return new CwConsolePanel(ctx);
-        case "SkyRoof.SstvConsolePanel": return new SstvConsolePanel(ctx);
-        case "SkyRoof.RecorderPanel": return new RecorderPanel(ctx);
-        case "SkyRoof.QsoSchedulerPanel": return new QsoSchedulerPanel(ctx);
-        case "SkyRoof.TelemetryPanel": return new TelemetryPanel(ctx);
-        case "SkyRoof.AutoSelectionPanel": return new AutoSelectionPanel(ctx);
-
-        default: return null;
-      }
+        "SkyRoof.GroupViewPanel" => new GroupViewPanel(ctx),
+        "SkyRoof.SatelliteDetailsPanel" => new SatelliteDetailsPanel(ctx),
+        "SkyRoof.TransmittersPanel" => new TransmittersPanel(ctx),
+        "SkyRoof.PassesPanel" => new PassesPanel(ctx),
+        "SkyRoof.TimelinePanel" => new TimelinePanel(ctx),
+        "SkyRoof.SkyViewPanel" => new SkyViewPanel(ctx),
+        "SkyRoof.EarthViewPanel" => new EarthViewPanel(ctx),
+        "SkyRoof.FrequencyControlPanel" => new FrequencyControlPanel(ctx),
+        "SkyRoof.IcomLanSpectrumPanel" => new IcomLanSpectrumPanel(ctx),
+        "SkyRoof.OnvifCameraPanel" => new OnvifCameraPanel(ctx),
+        "SkyRoof.WaterfallPanel" => new WaterfallPanel(ctx),
+        "SkyRoof.QsoEntryPanel" => new QsoEntryPanel(ctx),
+        "SkyRoof.Ft4ConsolePanel" => new Ft4ConsolePanel(ctx),
+        "SkyRoof.CwConsolePanel" => new CwConsolePanel(ctx),
+        "SkyRoof.SstvConsolePanel" => new SstvConsolePanel(ctx),
+        "SkyRoof.RecorderPanel" => new RecorderPanel(ctx),
+        "SkyRoof.QsoSchedulerPanel" => new QsoSchedulerPanel(ctx),
+        "SkyRoof.TelemetryPanel" => new TelemetryPanel(ctx),
+        "SkyRoof.AutoSelectionPanel" => new AutoSelectionPanel(ctx),
+        _ => null
+      };
+      if (panel != null) RegisterDockScale(panel);
+      return panel;
     }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                       timer
