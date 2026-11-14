@@ -1688,16 +1688,8 @@ namespace SkyRoof
       capture.StatusChanged -= Capture_StatusChanged;
       capture.AudioFrameReceived -= Capture_AudioFrameReceived;
       capture.MeterReceived -= Capture_MeterReceived;
-      bool preserveAudio = capture.IsDirectLan && !terminateDirectLanMedia &&
-        IcomDirectLanMediaOwner.PreserveAudioOnScopeStop(
-          IcomLanSpectrumSource.DirectLan, ctx.Settings.IcomDirectLan);
-      if (capture.IsDirectLan)
-      {
-        if (!preserveAudio)
-          ctx.DirectLanMediaOwner?.Stop();
-      }
-      else
-        capture.Dispose();
+      bool preserveAudio = ReleaseSpectrumCaptureMedia(
+        capture, terminateDirectLanMedia);
       if (SkyCatScopeControl != null)
       {
         SkyCatScopeControl.ReadbackReceived -= CatControl_IcomScopeReadbackReceived;
@@ -1759,6 +1751,21 @@ namespace SkyRoof
         ? "频谱显示已停止；Direct LAN 接收/发射音频会话保持连接。"
         : "频谱采集已停止。";
       StatsLabel.Text = "未连接 · 0.0 帧/s · 控制未同步";
+    }
+
+    private bool ReleaseSpectrumCaptureMedia(
+      IcomLanSpectrumCapture capture, bool terminateDirectLanMedia)
+    {
+      bool keepAudio = capture.IsDirectLan && !terminateDirectLanMedia &&
+        IcomDirectLanMediaOwner.PreserveAudioOnScopeStop(
+          IcomLanSpectrumSource.DirectLan, ctx.Settings.IcomDirectLan);
+      if (capture.IsDirectLan)
+      {
+        if (!keepAudio) ctx.DirectLanMediaOwner?.Stop();
+      }
+      else
+        capture.Dispose();
+      return keepAudio;
     }
 
     private void RefreshSelectedScopeSnapshot()
