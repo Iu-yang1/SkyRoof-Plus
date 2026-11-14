@@ -235,6 +235,15 @@ namespace SkyRoof
     internal static bool IsNestedSettingsModel(Type type) =>
       type.Name is nameof(AosAnnouncement) or nameof(PositionAnnouncement)
         or "Ft4BackgroundColors" or "TransverterBand" or "RotatorParkWaypoint";
+
+    internal static string CategoryFor(string source, UiLanguage language) =>
+      language == UiLanguage.SimplifiedChinese
+        ? Category(source) ?? OrbitSettingsLocalization.Category(source, language)
+        : source;
+
+    internal static TypeConverter ConverterFor(Type type, TypeConverter original) =>
+      type == typeof(bool) ? new SettingsBoolValueConverter(original) :
+      HasEnum(type) ? new SettingsEnumValueConverter(type, original) : original;
   }
 
   /// <summary>Localize Boolean display to 是/否 in Chinese only.</summary>
