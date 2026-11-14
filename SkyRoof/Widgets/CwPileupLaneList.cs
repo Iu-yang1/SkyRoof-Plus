@@ -120,6 +120,7 @@ namespace SkyRoof
     private CwConsoleLaneIdentity? identity;
     private string copyText = string.Empty;
     private bool cardSelected;
+    private bool cardHovered;
     private readonly ToolTip tip = new();
     private readonly Label title = new()
     {
@@ -167,6 +168,8 @@ namespace SkyRoof
       DoubleBuffered = true;
       ResizeRedraw = true;
       Cursor = Cursors.Hand;
+      TabStop = true;
+      SetStyle(ControlStyles.Selectable, true);
 
       var layout = new TableLayoutPanel
       {
@@ -195,6 +198,20 @@ namespace SkyRoof
       Click += (_, _) => SelectCard();
       title.Click += (_, _) => SelectCard();
       preview.Click += (_, _) => SelectCard();
+      title.MouseEnter += (_, _) => SetHovered(true);
+      preview.MouseEnter += (_, _) => SetHovered(true);
+      title.MouseLeave += (_, _) => SetHovered(false);
+      preview.MouseLeave += (_, _) => SetHovered(false);
+      GotFocus += (_, _) => Invalidate();
+      LostFocus += (_, _) => Invalidate();
+      KeyDown += (_, e) =>
+      {
+        if (e.KeyCode is Keys.Enter or Keys.Space)
+        {
+          SelectCard();
+          e.Handled = true;
+        }
+      };
       copy.Click += (_, _) =>
       {
         if (copyText.Length > 0)
@@ -285,9 +302,18 @@ namespace SkyRoof
       outline.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
       outline.CloseFigure();
       e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-      using var pen = new Pen(cardSelected ? CwConsolePalette.Accent : CwConsolePalette.Border,
-        cardSelected ? 1.5f : 1f);
+      bool emphasized = cardSelected || Focused || cardHovered;
+      using var pen = new Pen(emphasized ? CwConsolePalette.Accent : CwConsolePalette.Border,
+        emphasized ? 1.5f : 1f);
       e.Graphics.DrawPath(pen, outline);
+    }
+
+    private void SetHovered(bool value)
+    {
+      if (cardHovered == value)
+        return;
+      cardHovered = value;
+      Invalidate();
     }
 
     private void SelectCard()
