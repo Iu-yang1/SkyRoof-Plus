@@ -2194,17 +2194,10 @@ namespace SkyRoof
       {
         int preference = Math.Clamp(ctx.Settings.Ui.ToolbarScalePercent, 75, 125);
         float preferred = preference / 100f;
-        int available = Math.Max(1, Toolbar.ClientSize.Width - 12);
-        int fullWidth = toolbarScale.RequiredWidth();
-        int noPhotoWidth = toolbarScale.RequiredWidth(
-          SatellitePhotoWidget, SatellitePhotoSeparator);
-        // Preserve the existing topology. The satellite photo is the only
-        // optional widget; all primary controls scale with a common factor.
-        float withPhoto = Math.Min(preferred, available / (float)fullWidth);
-        bool showPhoto = withPhoto >= 0.72f;
-        float factor = showPhoto ? withPhoto :
-          Math.Min(preferred, available / (float)noPhotoWidth);
-        factor = Math.Clamp(factor, .25f, 1.5f);
+        var (factor, showPhoto) = UniformControlScale.FitToolbar(
+          Toolbar.ClientSize.Width, toolbarScale.RequiredWidth(),
+          toolbarScale.RequiredWidth(
+            SatellitePhotoWidget, SatellitePhotoSeparator), preferred);
         SatellitePhotoWidget.Visible = showPhoto;
         SatellitePhotoSeparator.Visible = showPhoto;
         toolbarScale.Apply(factor);
