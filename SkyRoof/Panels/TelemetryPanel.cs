@@ -599,9 +599,13 @@ namespace SkyRoof
       audioReceiver ??= new TelemetryAudioReceiveSession();
       audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
+      // Do not let queued packets from the former IQ/IF/AF endpoint get
+      // attributed to the new source or merged with its decoder timeline.
+      Decoder?.Purge();
       try
       {
         audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf);
+        UpdateTxStatus();
       }
       catch (Exception ex)
       {
