@@ -33,6 +33,7 @@ namespace SkyRoof
     private Task? endpointInitialization;
     private Task endpointShutdown = Task.CompletedTask;
     internal Task EndpointShutdown => endpointShutdown;
+    internal Task EndpointInitialization => endpointInitialization ?? Task.CompletedTask;
     private long queuedRx;
     private long renderedRx;
     internal string Status { get; private set; } = "Audio endpoints not started";
