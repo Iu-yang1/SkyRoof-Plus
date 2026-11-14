@@ -90,6 +90,45 @@ namespace VE3NEA.Dsp.Tests
       memory.Update(slots, texts)[0].Transcript!.Text.Should().Be(" 73");
     }
 
+    [Theory]
+    [InlineData("CQ DE BG5JSU", "BG5JSU")]
+    [InlineData("K1ABC 599", "K1ABC")]
+    [InlineData("CQ CQ", null)]
+    [InlineData("5NN 73", null)]
+    public void ConfirmedCallsign_IsExplicitAndDoesNotInferFromReports(
+      string text, string? expected)
+    {
+      CwConfirmedCallsign.LastCandidate(text).Should().Be(expected);
+    }
+
+    [Fact]
+    public void TimelineResetKeepsTextAndPreventsReusedAssociationIdJoiningIt()
+    {
+      var memory = new CwConsoleSlotTextMemory(1);
+      var old = Track(1, 101, 500);
+      var oldSlots = new[]
+      {
+        new CwConsoleLaneSlot(0, CwConsolePresentation.Identity(old), old, true)
+      };
+      var texts = new Dictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot>
+      {
+        [CwConsolePresentation.Identity(old)] = Message(old, "FIRST", "", 1)
+      };
+      memory.Update(oldSlots, texts);
+      memory.NewTimeline();
+      memory.Get(0)!.Text.Should().Contain("FIRST");
+
+      var next = Track(9, 101, 1500);
+      texts[CwConsolePresentation.Identity(next)] =
+        Message(next, "SECOND", "", 3);
+      var shown = memory.Update(new[]
+      {
+        new CwConsoleLaneSlot(0, CwConsolePresentation.Identity(next), next, true)
+      }, texts)[0].Transcript!;
+      shown.Text.Should().Contain("FIRST").And.Contain("SECOND");
+      shown.CommittedText.Should().Contain("retained");
+    }
+
     private static CwSignalTrack Track(int id, int hint, double hz) =>
       new(
         Id: id,
