@@ -347,7 +347,7 @@ namespace SkyRoof
           t.Namespace != null && t.Namespace.StartsWith("SkyRoof", StringComparison.Ordinal) &&
           (t == typeof(Settings) || t == typeof(AfcSettings) ||
            t.Name.EndsWith("Settings", StringComparison.Ordinal) ||
-           t == typeof(AosAnnouncement) || t == typeof(PositionAnnouncement)))
+           SettingsChineseSupplement.IsNestedSettingsModel(t)))
         .ToArray();
       foreach (Type type in types)
         TypeDescriptor.AddProvider(
