@@ -193,6 +193,30 @@ public sealed class SettingsChineseSupplementTests
   }
 
   [Fact]
+  public void BooleanValuesAreLocalizedAndStillRoundTrip()
+  {
+    UiLanguage previous = SettingsLanguage.Current;
+    try
+    {
+      var settings = new Settings();
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+      var value = Property(settings.Telemetry, "ArchiveToFile").Converter;
+      Assert.Equal("是", value.ConvertToString(true));
+      Assert.Equal("否", value.ConvertToString(false));
+      Assert.Equal(true, value.ConvertFrom("是"));
+      Assert.Equal(false, value.ConvertFrom("否"));
+      Assert.Equal(true, value.ConvertFrom("True"));
+      SettingsLanguage.Set(UiLanguage.English);
+      Assert.Equal("True", value.ConvertToString(true));
+      Assert.Equal("False", value.ConvertToString(false));
+      Assert.Equal(false, value.ConvertFrom("False"));
+      settings.Telemetry.ArchiveToFile = true;
+      Assert.Contains("\"ArchiveToFile\":true", JsonConvert.SerializeObject(settings));
+    }
+    finally { SettingsLanguage.Set(previous); }
+  }
+
+  [Fact]
   public void SettingLanguageChangesOnlyPresentationNotJsonOrEnumOrdinal()
   {
     UiLanguage old = SettingsLanguage.Current;
