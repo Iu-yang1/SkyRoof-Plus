@@ -418,14 +418,12 @@ namespace SkyRoof
         this.source = source;
 
       public override string DisplayName => DisplayFor(source);
-      public override string Category =>
-        SettingsChineseSupplement.CategoryFor(source.Category, Current);
+      public override string Category => SettingsChineseSupplement.CategoryFor(source.Category, Current);
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
       public override Type PropertyType => source.PropertyType;
-      public override TypeConverter Converter =>
-        SettingsChineseSupplement.ConverterFor(source.PropertyType, source.Converter);
+      public override TypeConverter Converter => SettingsChineseSupplement.ConverterFor(source.PropertyType, source.Converter);
       public override object? GetEditor(Type editorBaseType) => source.GetEditor(editorBaseType);
       public override bool CanResetValue(object component) => source.CanResetValue(component);
       public override object? GetValue(object? component) => source.GetValue(component);
