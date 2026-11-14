@@ -215,6 +215,45 @@ namespace SkyRoof
       UpdateSatellitePhotoVisibility();
     }
 
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+      // Cancel any held rotator direction through the existing Closed/STOP
+      // callback before changing the physical size of its hit targets.
+      RotatorControlPopup?.Close(ToolStripDropDownCloseReason.AppClicked);
+      YaesuG5500ControlPopup?.Close(ToolStripDropDownCloseReason.AppClicked);
+      toolbarScaling = true;
+      try
+      {
+        toolbarScale?.Apply(1f);
+        foreach (var scaler in dockScalers.Values) scaler.Apply(1f);
+        genericRotatorPopupScale?.Apply(1f);
+        yaesuRotatorPopupScale?.Apply(1f);
+        base.OnDpiChanged(e);
+      }
+      finally { toolbarScaling = false; }
+
+      if (IsHandleCreated && !IsDisposed && !Disposing)
+        BeginInvoke((Action)RebasePresentationAfterDpiChanged);
+    }
+
+    private void RebasePresentationAfterDpiChanged()
+    {
+      if (IsDisposed || Disposing) return;
+      var previousToolbar = toolbarScale;
+      toolbarScale = new UniformControlScale(Toolbar);
+      previousToolbar?.Dispose();
+      foreach (var scaler in dockScalers.Values) scaler.Dispose();
+      dockScalers.Clear();
+      foreach (var panel in registeredDockPanels.ToArray())
+        if (!panel.IsDisposed) ApplyDockScale(panel);
+      genericRotatorPopupScale?.Dispose();
+      yaesuRotatorPopupScale?.Dispose();
+      genericRotatorPopupScale = null;
+      yaesuRotatorPopupScale = null;
+      ApplyRotatorPopupScale();
+      UpdateSatellitePhotoVisibility();
+    }
+
     private void MainForm_Load(object sender, EventArgs e)
     {
       // The message pump must reach its first paint before Orekit/IKVM,
