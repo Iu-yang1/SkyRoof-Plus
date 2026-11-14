@@ -64,6 +64,7 @@ namespace SkyRoof
     }
     private TelemetryDecocder? Decoder;
     private TelemetryAudioReceiveSession? audioReceiver;
+    private string? audioReceiverError;
     private SatnogsUploader? SatnogsUploader;
     private TelemetryRegistry? TelemetryRegistry;
     // the most recently added tree node: either the pass node itself (before it has any leaves) or its
@@ -613,10 +614,12 @@ namespace SkyRoof
       try
       {
         audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf);
+        audioReceiverError = null;
         UpdateTxStatus();
       }
       catch (Exception ex)
       {
+        audioReceiverError = ex.Message;
         Serilog.Log.Warning(ex, "Telemetry audio source configuration failed");
         StatusLabel.Text = "Telemetry RX: " + ex.Message;
         StatusLabel.ForeColor = Color.DarkOrange;
@@ -3117,7 +3120,13 @@ namespace SkyRoof
       else UpdateStatusLabel($"ready to decode{DescribeBranches()}", SystemColors.ControlText);
       if (ctx.Settings.Telemetry.InputSource != TelemetryReceiveSource.SdrIq &&
           audioReceiver != null)
-        StatusLabel.Text += " | RX: " + audioReceiver.Status;
+      {
+        StatusLabel.Text += audioReceiverError == null
+          ? " | RX: " + audioReceiver.Status
+          : " | RX ERROR: " + audioReceiverError;
+        if (audioReceiverError != null)
+          StatusLabel.ForeColor = Color.DarkOrange;
+      }
     }
 
     // Name what is actually unsupported about the SELECTED transmitter instead of blaming the telemetry
