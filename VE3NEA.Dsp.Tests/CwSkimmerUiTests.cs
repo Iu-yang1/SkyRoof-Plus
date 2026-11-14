@@ -86,7 +86,7 @@ namespace VE3NEA.Dsp.Tests
       view.UpdateLane(slot, Transcript(1, 77, "CQ ", "TEST"));
       view.TranscriptControl.Select(3, 1);
       view.TranscriptControl.SelectionColor.Should().Be(
-        System.Drawing.Color.FromArgb(155, 93, 32));
+        CwConsolePalette.Provisional);
 
       // Same combined characters; only their committed status changes.
       view.UpdateLane(slot, Transcript(1, 77, "CQ TEST", ""));
@@ -94,7 +94,7 @@ namespace VE3NEA.Dsp.Tests
       // RichEdit normalizes named system colors to their concrete RGB
       // value (for example WindowText becomes Black on CI hosts).
       view.TranscriptControl.SelectionColor.ToArgb().Should().Be(
-        System.Drawing.SystemColors.WindowText.ToArgb());
+        CwConsolePalette.Text.ToArgb());
     }
 
     [Fact]
@@ -206,6 +206,25 @@ namespace VE3NEA.Dsp.Tests
       int darkLeft = PeakBrightness(180, 230);
       brightRight.Should().BeGreaterThan(darkLeft + 60,
         "the newest 40 time columns must appear at the right side");
+    }
+
+    [Fact]
+    public void V2PileupSelection_IsPurelyVisualAndPreservesIdentity()
+    {
+      using var card = new CwPileupLaneCard(0);
+      CwSignalTrack track = Track(1, 72, 710);
+      CwConsoleLaneIdentity identity = CwConsolePresentation.Identity(track);
+      var slot = new CwConsoleLaneSlot(0, identity, track, true);
+
+      card.UpdateLane(slot, Transcript(1, 72, "CQ", " DE"), identity);
+      card.IsSelected.Should().BeTrue();
+      card.BackColor.Should().Be(CwConsolePalette.Selected);
+      card.CopyText.Should().Be("CQ DE");
+
+      card.UpdateLane(slot, Transcript(1, 72, "CQ", " DE"), null);
+      card.IsSelected.Should().BeFalse();
+      card.BackColor.Should().Be(CwConsolePalette.Card);
+      card.CopyText.Should().Be("CQ DE");
     }
 
     [Fact]
