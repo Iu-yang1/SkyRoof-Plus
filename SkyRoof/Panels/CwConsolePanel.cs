@@ -29,8 +29,7 @@ namespace SkyRoof
     private readonly Label WorkerStatusLabel = new();
     private readonly Label HeaderTxStatusLabel = new();
 
-    private readonly CwAudioWaterfallAnalyzer WaterfallAnalyzer;
-    private readonly CwAudioWaterfallAnalyzer SpectrumAnalyzer;
+    private readonly CwDisplaySession DisplaySession;
     private readonly CwAudioWaterfallView WaterfallView =
       new(spectrumBins: 512);
     private long waterfallGeneration = -1;
@@ -39,7 +38,6 @@ namespace SkyRoof
     private long lastQueuedGeneration = -1;
     private CwDenoiseMode lastQueuedMode = CwDenoiseMode.Bypass;
     private long staleDisplayFrames;
-    private readonly CwDisplayFrameProcessor DisplayFrames;
 
     private readonly CwPileupLaneList PileupList = new();
     private readonly CwSelectedLaneView SelectedRxView = new();
@@ -115,26 +113,11 @@ namespace SkyRoof
       double displayMaxHz =
         scanner?.MaxFrequencyHz ?? 2000;
 
-      // CW Skimmer-style split display: the spectrum gets a long FFT for
-      // frequency resolution while the waterfall gets a short FFT and fast
-      // line rate so dots/dashes remain visually recognizable.
-      WaterfallAnalyzer =
-        new CwAudioWaterfallAnalyzer(
-          sampleRate: displayRate,
-          fftSize: 2048,
-          minFrequencyHz: displayMinHz,
-          maxFrequencyHz: displayMaxHz,
-          outputBins: 512);
-      SpectrumAnalyzer =
-        new CwAudioWaterfallAnalyzer(
-          sampleRate: displayRate,
-          fftSize: 8192,
-          minFrequencyHz: displayMinHz,
-          maxFrequencyHz: displayMaxHz,
-          outputBins: 512);
-      DisplayFrames = new CwDisplayFrameProcessor(
-        WaterfallAnalyzer, SpectrumAnalyzer);
-      DisplayFrames.FrameReady += DisplayFrames_FrameReady;
+      // The display session independently owns both FFTs and HamNoise;
+      // the UI only consumes completed immutable frame snapshots.
+      DisplaySession = new CwDisplaySession(
+        displayRate, displayMinHz, displayMaxHz);
+      DisplaySession.FrameReady += DisplayFrames_FrameReady;
       if (ctx.CwAudio != null)
         ctx.CwAudio.Ingress.SamplesAccepted += Ingress_SamplesAccepted;
 
@@ -1081,8 +1064,8 @@ namespace SkyRoof
           (track.FrequencyHz < WaterfallView.VisibleMinimumHz ||
            track.FrequencyHz > WaterfallView.VisibleMaximumHz))
       {
-        double fullMin = SpectrumAnalyzer.MinFrequencyHz;
-        double fullMax = SpectrumAnalyzer.MaxFrequencyHz;
+        double fullMin = DisplaySession.MinimumFrequencyHz;
+        double fullMax = DisplaySession.MaximumFrequencyHz;
         double span = fullMax - fullMin;
         double visible = span / WaterfallView.ViewportZoom;
         double room = span - visible;
@@ -1150,7 +1133,7 @@ namespace SkyRoof
       // the WinForms UI thread, and never enqueue a backlog of old frames.
       try
       {
-        if (DisplayFrames.TryTake(out CwDisplayFrameResult result))
+        if (DisplaySession.TryTake(out CwDisplayFrameResult result))
         {
           if (result.TimelineGeneration == waterfallGeneration &&
               result.DenoiseMode == mode &&
@@ -1202,16 +1185,13 @@ namespace SkyRoof
       }
 
       CwAudioHub hub = audio.Ingress.FrontEnd.Audio;
-      double seconds = Math.Max(
-        0.20,
-        SpectrumAnalyzer.FftSize /
-          (double)SpectrumAnalyzer.SampleRate + 0.02);
+      double seconds = DisplaySession.RequiredAudioSeconds;
 
       if (!audio.Ingress.Enabled)
         return;
-      if (DisplayFrames.Busy)
+      if (DisplaySession.Busy)
       {
-        DisplayFrames.RecordBusyTick();
+        DisplaySession.RecordBusyTick();
         return;
       }
       if (!hub.TrySnapshot(seconds, out CwAudioSnapshot snapshot) ||
@@ -1221,7 +1201,7 @@ namespace SkyRoof
       // Never schedule the same PCM end twice, including after a stale
       // result was rejected. Prevents duplicate columns during audio
       // callback gaps and avoids unnecessary background FFT work.
-      if (DisplayFrames.TryQueue(snapshot, waterfallGeneration, mode))
+      if (DisplaySession.TryQueue(snapshot, waterfallGeneration, mode))
         lastQueuedWaterfallSampleIndex = snapshot.EndSampleIndex;
     }
 
@@ -1990,14 +1970,14 @@ namespace SkyRoof
       WaterfallTimer.Stop();
       WaterfallTimer.Tick -=
         WaterfallTimer_Tick;
-      DisplayFrames.FrameReady -= DisplayFrames_FrameReady;
+      DisplaySession.FrameReady -= DisplayFrames_FrameReady;
       if (ctx.CwAudio != null)
         ctx.CwAudio.Ingress.SamplesAccepted -= Ingress_SamplesAccepted;
       WaterfallView.LaneClicked -=
         WaterfallView_LaneClicked;
       // The background display worker may still be inside native HamNoise.
       // Dispose FFTW plans only after its last calculation has completed.
-      DisplayFrames.Dispose();
+      DisplaySession.Dispose();
 
       modelInstallStop?.Cancel();
 
