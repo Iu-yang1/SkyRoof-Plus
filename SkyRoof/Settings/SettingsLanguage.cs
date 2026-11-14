@@ -360,10 +360,9 @@ namespace SkyRoof
           Current == UiLanguage.English &&
           AfcEnglish.TryGetValue(item.Name, out string? en)) return en;
       if (Current == UiLanguage.English) return item.DisplayName;
-      if (SettingsChineseSupplement.Name(item.DisplayName) is string extra) return extra;
       if (Chinese.TryGetValue(item.DisplayName, out string? zh)) return zh;
       if (Chinese.TryGetValue(item.Name, out zh)) return zh;
-      return item.DisplayName;
+      return SettingsChineseSupplement.Name(item.DisplayName) ?? item.DisplayName;
     }
 
     private static string DescriptionFor(PropertyDescriptor item)
