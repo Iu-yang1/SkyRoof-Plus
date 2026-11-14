@@ -43,6 +43,26 @@ namespace SkyRoof
       Margin = new Padding(3, 0, 1, 0)
     };
 
+    private readonly Button useCall = new()
+    {
+      Text = "Use Call",
+      Dock = DockStyle.Fill,
+      AutoSize = true,
+      AutoSizeMode = AutoSizeMode.GrowAndShrink,
+      MinimumSize = new Size(76, 25),
+      Margin = new Padding(3, 0, 1, 0)
+    };
+
+    private string? confirmedCall;
+    internal event Action<string>? UseCallsignRequested;
+    internal Button UseCallButton => useCall;
+
+    internal void SetConfirmedCallsign(string? callsign)
+    {
+      confirmedCall = callsign;
+      useCall.Enabled = callsign != null;
+    }
+
     private CwConsoleLaneIdentity? currentIdentity;
     private string copyText = string.Empty;
     private int committedLength;
@@ -73,18 +93,30 @@ namespace SkyRoof
       copy.FlatAppearance.BorderColor = CwConsolePalette.Border;
       copy.BackColor = CwConsolePalette.Surface;
       copy.ForeColor = CwConsolePalette.Text;
+      useCall.FlatStyle = FlatStyle.Flat;
+      useCall.FlatAppearance.BorderColor = CwConsolePalette.Border;
+      useCall.BackColor = CwConsolePalette.Surface;
+      useCall.ForeColor = CwConsolePalette.Text;
+      useCall.Enabled = false;
+      useCall.Click += (_, _) =>
+      {
+        if (confirmedCall != null)
+          UseCallsignRequested?.Invoke(confirmedCall);
+      };
 
       var layout = new TableLayoutPanel
       {
         Dock = DockStyle.Fill,
         AutoSize = true,
         AutoSizeMode = AutoSizeMode.GrowAndShrink,
-        ColumnCount = 2,
+        ColumnCount = 3,
         RowCount = 2,
         Margin = new Padding(0)
       };
       layout.ColumnStyles.Add(
         new ColumnStyle(SizeType.Percent, 100));
+      layout.ColumnStyles.Add(
+        new ColumnStyle(SizeType.AutoSize));
       layout.ColumnStyles.Add(
         new ColumnStyle(SizeType.AutoSize));
       layout.RowStyles.Add(
@@ -94,8 +126,9 @@ namespace SkyRoof
 
       layout.Controls.Add(status, 0, 0);
       layout.Controls.Add(copy, 1, 0);
+      layout.Controls.Add(useCall, 2, 0);
       layout.Controls.Add(transcript, 0, 1);
-      layout.SetColumnSpan(transcript, 2);
+      layout.SetColumnSpan(transcript, 3);
       Controls.Add(layout);
 
       copy.Click += (_, _) =>
@@ -128,6 +161,7 @@ namespace SkyRoof
         committedLength = 0;
         provisionalLength = 0;
         copy.Enabled = false;
+        SetConfirmedCallsign(null);
         if (changed || transcript.Text != "Select a lane to see CW text.")
         {
           transcript.Text = "Select a lane to see CW text.";
