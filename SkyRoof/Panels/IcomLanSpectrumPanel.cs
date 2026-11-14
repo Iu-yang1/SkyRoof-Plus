@@ -67,16 +67,18 @@ namespace SkyRoof
 
     private IcomLanSpectrumCapture? Capture;
     private IcomLanSpectrumCapture? NativeLanAssistCapture;
-    private IcomDirectLanAudioDevices? DirectLanAudioDevices;
     private readonly object meterStateSync = new();
     private IcomMeterSnapshot meterState = new();
     private DateTime NextCatMeterPollUtc = DateTime.MinValue;
     private int CatMeterPollIndex;
     private long LastCatMeterReadbackTicks;
     internal IcomDirectLanTxAudioStatus TxAudioStatus =>
-      Capture?.TxAudioStatus ??
+      Capture?.TxAudioStatus ?? ctx.DirectLanMediaOwner?.TxAudioStatus ??
         new IcomDirectLanTxAudioStatus(
           false, ctx.Settings.IcomDirectLan.Transmit.Enabled, 0, -120, 0);
+    internal bool HasRecentExternalMeterReadback =>
+      DateTime.UtcNow.Ticks - Interlocked.Read(ref LastCatMeterReadbackTicks) <
+      TimeSpan.FromSeconds(3).Ticks;
     internal IcomMeterSnapshot MeterSnapshot
     {
       get { lock (meterStateSync) return meterState; }
@@ -1571,42 +1573,26 @@ namespace SkyRoof
         return;
       }
 
-      var capture = new IcomLanSpectrumCapture(
-        settings.RadioAddress,
-        settings.SerialPort,
-        useSkyCatStream: UsingSkyCatScopeSource,
-        skyCatScopePort: settings.SkyCatScopePort,
-        autoDiscoverCivPort: false,
-        useDirectLan: UsingDirectLanSource,
-        directLanControlPort: settings.DirectLanControlPort,
-        directLanUsername: settings.DirectLanUsername,
-        directLanPassword: settings.DirectLanPassword,
-        directLanClientName: settings.DirectLanClientName,
-        radioModel: settings.RadioModel,
-        directLanFastSweep: settings.DirectLanFastSweep,
-        directLanAudioSettings: ctx.Settings.IcomDirectLan,
-        directLanPttActive: () =>
-          ctx.CatControl.Tx?.Ptt == true ||
-          ctx.CatControl.Rx?.Ptt == true,
-        directLanExternalMeterReadback: () =>
-          ctx.CatControl.HasIcomMeterReadbackBackend &&
-          DateTime.UtcNow.Ticks - Interlocked.Read(ref LastCatMeterReadbackTicks) <
-            TimeSpan.FromSeconds(3).Ticks);
+      // The authenticated Direct LAN media session lives in Context.
+      // Visual START/STOP reattaches its scope events without logging out
+      // the radio or reopening Windows audio endpoints.
+      IcomLanSpectrumCapture capture = UsingDirectLanSource
+        ? (ctx.DirectLanMediaOwner ??= new IcomDirectLanMediaOwner(ctx)).GetOrStart()
+        : new IcomLanSpectrumCapture(
+            settings.RadioAddress,
+            settings.SerialPort,
+            useSkyCatStream: UsingSkyCatScopeSource,
+            skyCatScopePort: settings.SkyCatScopePort,
+            autoDiscoverCivPort: false,
+            radioModel: settings.RadioModel);
 
       capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
       capture.StatusChanged += Capture_StatusChanged;
-      capture.AudioFrameReceived += Capture_AudioFrameReceived;
+      if (!capture.IsDirectLan)
+        capture.AudioFrameReceived += Capture_AudioFrameReceived;
       capture.MeterReceived += Capture_MeterReceived;
 
       Capture = capture;
-      if (UsingDirectLanSource)
-      {
-        DirectLanAudioDevices = new IcomDirectLanAudioDevices(
-          ctx.Settings.IcomDirectLan, capture,
-          (sampleRate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame));
-        DirectLanAudioDevices.Start();
-      }
-
       // SkyCAT can receive serial-style multi-division 27 00 frames from the
       // Remote Utility path. Observe the RS-BA1 LAN C1 transport independently
       // and prefer current combined LAN sweeps when they are actually present;
@@ -1683,7 +1669,7 @@ namespace SkyRoof
         RequestInitialScopeReadbackIfNeeded();
     }
 
-    private void StopCapture()
+    private void StopCapture(bool terminateDirectLanMedia = false)
     {
       IcomLanSpectrumCapture? capture = Capture;
       if (capture == null) return;
@@ -1702,9 +1688,16 @@ namespace SkyRoof
       capture.StatusChanged -= Capture_StatusChanged;
       capture.AudioFrameReceived -= Capture_AudioFrameReceived;
       capture.MeterReceived -= Capture_MeterReceived;
-      DirectLanAudioDevices?.Dispose();
-      DirectLanAudioDevices = null;
-      capture.Dispose();
+      bool preserveAudio = capture.IsDirectLan && !terminateDirectLanMedia &&
+        IcomDirectLanMediaOwner.PreserveAudioOnScopeStop(
+          IcomLanSpectrumSource.DirectLan, ctx.Settings.IcomDirectLan);
+      if (capture.IsDirectLan)
+      {
+        if (!preserveAudio)
+          ctx.DirectLanMediaOwner?.Stop();
+      }
+      else
+        capture.Dispose();
       if (SkyCatScopeControl != null)
       {
         SkyCatScopeControl.ReadbackReceived -= CatControl_IcomScopeReadbackReceived;
@@ -1717,7 +1710,8 @@ namespace SkyRoof
       NextCatMeterPollUtc = DateTime.MinValue;
       CatMeterPollIndex = 0;
       ctx.MainForm.UpdateIcomDirectLanMeterBar();
-      ctx.IfAf?.NetworkIfDisconnected();
+      if (!preserveAudio)
+        ctx.IfAf?.NetworkIfDisconnected();
 
       // A stopped capture is a complete acquisition-session boundary. Cancel
       // unsent scope-only CAT writes, but leave ordinary RX/TX/PTT CAT state
@@ -1761,7 +1755,9 @@ namespace SkyRoof
       RefreshScopeGeometryUi();
 
       StartStopBtn.Text = "START";
-      StatusLabel.Text = "频谱采集已停止。";
+      StatusLabel.Text = preserveAudio
+        ? "频谱显示已停止；Direct LAN 接收/发射音频会话保持连接。"
+        : "频谱采集已停止。";
       StatsLabel.Text = "未连接 · 0.0 帧/s · 控制未同步";
     }
 
@@ -1785,12 +1781,9 @@ namespace SkyRoof
     private void Capture_AudioFrameReceived(
       int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame)
     {
-      // The bounded audio worker owns both IF processing and local speaker
-      // rendering. Never run either on the UDP transport callback.
-      if (DirectLanAudioDevices != null)
-        DirectLanAudioDevices.AcceptReceiveAudio(sampleRate, frame);
-      else
-        ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
+      // Non-Direct LAN capture fallback. Direct LAN audio is owned by
+      // Context and remains active when the spectrum panel is closed.
+      ctx.IfAf?.AcceptNetworkIfAudio(sampleRate, frame);
     }
 
     private void Capture_MeterReceived(IcomMeterReading reading)
@@ -3523,14 +3516,20 @@ namespace SkyRoof
       }
 
       bool restart = Capture != null;
-
+      bool retainedAudio = ctx.DirectLanMediaOwner?.IsActive == true;
       if (restart)
-        StopCapture();
+        StopCapture(terminateDirectLanMedia: true);
+      else if (retainedAudio)
+        ctx.DirectLanMediaOwner?.Stop();
 
       LoadSettingsToUi();
 
       if (restart)
         StartCapture();
+      else if (retainedAudio && UsingDirectLanSource &&
+               IcomDirectLanMediaOwner.PreserveAudioOnScopeStop(
+                 IcomLanSpectrumSource.DirectLan, ctx.Settings.IcomDirectLan))
+        ctx.DirectLanMediaOwner?.GetOrStart();
     }
 
     private void IcomLanSpectrumPanel_FormClosing(object? sender, FormClosingEventArgs e)
