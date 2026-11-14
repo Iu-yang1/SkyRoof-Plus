@@ -27,6 +27,7 @@ namespace SkyRoof
     private readonly Label InputStatusLabel = new();
     private readonly Label ModelStatusLabel = new();
     private readonly Label WorkerStatusLabel = new();
+    private readonly Label HeaderTxStatusLabel = new();
 
     private readonly CwAudioWaterfallAnalyzer WaterfallAnalyzer;
     private readonly CwAudioWaterfallAnalyzer SpectrumAnalyzer;
@@ -61,6 +62,7 @@ namespace SkyRoof
       .ToArray();
     private readonly ToolTip MacroToolTip =
       new();
+    private readonly ToolTip ControlToolTip = new();
     private bool sendRequestInProgress;
     private CancellationTokenSource? sendRequestStop;
     private bool statusPollInProgress;
@@ -283,9 +285,20 @@ namespace SkyRoof
 
     private void BuildUi()
     {
-      var root =
-        CreateSkimmerRootLayout();
+      var root = CreateSkimmerRootLayout();
+      root.BackColor = CwConsolePalette.Surface;
+      root.Controls.Add(BuildTopToolbar(), 0, 0);
+      root.Controls.Add(BuildStatusBar(), 0, 1);
 
+      ConfigureSkimmerWorkspace();
+      root.Controls.Add(WorkSplit, 0, 2);
+      root.Controls.Add(SelectedRxView, 0, 3);
+      root.Controls.Add(BuildTransmitPanel(), 0, 4);
+      Controls.Add(root);
+    }
+
+    private Control BuildTopToolbar()
+    {
       var toolbar =
         new FlowLayoutPanel
         {
@@ -308,7 +321,7 @@ namespace SkyRoof
 
       DecoderModeBtn.AutoSize=true;
       DecoderModeBtn.Click+=DecoderModeBtn_Click;
-      new ToolTip().SetToolTip(DecoderModeBtn,
+      ControlToolTip.SetToolTip(DecoderModeBtn,
         "Switch the entire CW receive engine while keeping audio and radio connected. "+
         "DeepCW uses ONNX/CTC; New CW uses the built-in offline tracking, "+
         "multi-tone separation and Morse HSMM. RX never transmits.");
@@ -329,8 +342,7 @@ namespace SkyRoof
               CwAudioSourceController
                 .SourceDisplayName(source);
         };
-      var sourceTip = new ToolTip();
-      sourceTip.SetToolTip(
+      ControlToolTip.SetToolTip(
         SourceBox,
         "Choose the signal path here; choose the concrete Windows endpoint in Settings > CW Console.\r\n\r\n" +
         "IC-9700 USB AF input = Windows recording endpoint such as Microphone (USB Audio CODEC). The radio's USB AF/IF Output must be AF, not IF.\r\n" +
@@ -400,11 +412,11 @@ namespace SkyRoof
       toolbar.Controls.Add(
         InstallModelBtn);
 
-      root.Controls.Add(
-        toolbar,
-        0,
-        0);
+      return toolbar;
+    }
 
+    private Control BuildStatusBar()
+    {
       var statusPanel =
         new FlowLayoutPanel
         {
@@ -445,17 +457,12 @@ namespace SkyRoof
       statusPanel.Controls.Add(
         WorkerStatusLabel);
 
-      root.Controls.Add(
-        statusPanel,
-        0,
-        1);
+      HeaderTxStatusLabel.AutoSize = true;
+      HeaderTxStatusLabel.Margin = new Padding(12, 4, 8, 4);
+      HeaderTxStatusLabel.ForeColor = CwConsolePalette.Text;
+      statusPanel.Controls.Add(HeaderTxStatusLabel);
 
-      ConfigureSkimmerWorkspace();
-      root.Controls.Add(WorkSplit, 0, 2);
-      root.Controls.Add(SelectedRxView, 0, 3);
-      root.Controls.Add(BuildTransmitPanel(), 0, 4);
-
-      Controls.Add(root);
+      return statusPanel;
     }
 
     internal static TableLayoutPanel CreateSkimmerRootLayout()
@@ -483,7 +490,10 @@ namespace SkyRoof
       WorkSplit.Dock = DockStyle.Fill;
       WorkSplit.Orientation = Orientation.Vertical;
       WorkSplit.SplitterWidth = 7;
-      WorkSplit.BorderStyle = BorderStyle.FixedSingle;
+      WorkSplit.BorderStyle = BorderStyle.None;
+      WorkSplit.BackColor = CwConsolePalette.Surface;
+      WorkSplit.Panel1.BackColor = CwConsolePalette.Surface;
+      WorkSplit.Panel2.BackColor = CwConsolePalette.Surface;
       // Docked/narrow consoles may be smaller than the combined preferred
       // pane widths, so don't set hard minimums that make WinForms throw.
       WorkSplit.Panel1MinSize = 0;
@@ -568,7 +578,7 @@ namespace SkyRoof
       {
         if (WorkSplit.ClientSize.Width > 0)
           WorkSplit.SplitterDistance = Math.Clamp(
-            (int)(WorkSplit.ClientSize.Width * 0.68),
+            (int)(WorkSplit.ClientSize.Width * 0.65),
             1,
             Math.Max(1, WorkSplit.ClientSize.Width - 8));
       };
@@ -603,8 +613,10 @@ namespace SkyRoof
         AutoSizeMode = AutoSizeMode.GrowAndShrink,
         MinimumSize = new Size(0, 145),
         Text = "CW TX — IC-9700 / SkyCAT",
+        BackColor = CwConsolePalette.Card,
+        ForeColor = CwConsolePalette.Text,
         Margin = new Padding(0, 2, 0, 0),
-        Padding = new Padding(5)
+        Padding = new Padding(7)
       };
       var layout = new TableLayoutPanel
       {
@@ -636,6 +648,8 @@ namespace SkyRoof
       TxTextBox.MaxLength = CwMessageTiming.MaxCharacters;
       TxTextBox.Font = new Font(
         FontFamily.GenericMonospace, 10.5f);
+      TxTextBox.BackColor = CwConsolePalette.Card;
+      TxTextBox.ForeColor = CwConsolePalette.Text;
       TxTextBox.TextChanged +=
         (_, _) => RefreshTransmitUi();
       layout.Controls.Add(TxTextBox, 0, 1);
@@ -650,12 +664,16 @@ namespace SkyRoof
 
       SendTxBtn.Text = "Send";
       SendTxBtn.AutoSize = true;
+      SendTxBtn.FlatStyle = FlatStyle.Flat;
+      SendTxBtn.FlatAppearance.BorderColor = CwConsolePalette.Border;
+      SendTxBtn.BackColor = CwConsolePalette.Selected;
+      SendTxBtn.ForeColor = CwConsolePalette.Text;
       SendTxBtn.Click += SendTxBtn_Click;
       actions.Controls.Add(SendTxBtn);
 
       StopTxBtn.Text = "STOP";
       StopTxBtn.AutoSize = true;
-      StopTxBtn.BackColor = Color.Firebrick;
+      StopTxBtn.BackColor = CwConsolePalette.Danger;
       StopTxBtn.ForeColor = Color.White;
       StopTxBtn.UseVisualStyleBackColor = false;
       StopTxBtn.Click += StopTxBtn_Click;
@@ -678,6 +696,8 @@ namespace SkyRoof
       actions.Controls.Add(KeySpeedBox);
       SetKeySpeedBtn.Text = "Set WPM";
       SetKeySpeedBtn.AutoSize = true;
+      SetKeySpeedBtn.FlatStyle = FlatStyle.Flat;
+      SetKeySpeedBtn.FlatAppearance.BorderColor = CwConsolePalette.Border;
       SetKeySpeedBtn.Click += SetKeySpeedBtn_Click;
       actions.Controls.Add(SetKeySpeedBtn);
       layout.Controls.Add(actions, 0, 2);
@@ -695,6 +715,10 @@ namespace SkyRoof
         int index = i;
         button.AutoSize = false;
         button.Size = new Size(62, 25);
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderColor = CwConsolePalette.Border;
+        button.BackColor = CwConsolePalette.Surface;
+        button.ForeColor = CwConsolePalette.Text;
         button.Tag = index;
         button.Click += (_, _) =>
           LoadMacroIntoComposer(index);
@@ -1360,6 +1384,19 @@ namespace SkyRoof
     {
       CwTransmitController? tx =
         ctx.CwTransmit;
+      string topStatus = tx == null
+        ? "TX unavailable"
+        : tx.State.Sending
+          ? "TX SENDING"
+          : sendRequestInProgress
+            ? "TX preflight"
+            : tx.State.Armed
+              ? "TX ready"
+              : "TX idle";
+      if (HeaderTxStatusLabel.Text != topStatus)
+        HeaderTxStatusLabel.Text = topStatus;
+      HeaderTxStatusLabel.ForeColor = tx?.State.Sending == true
+        ? CwConsolePalette.Danger : CwConsolePalette.Text;
       Text = "CW Console [RX / TX]";
       ctx.MainForm.UpdateCwConsoleMenuText();
 
@@ -1925,6 +1962,8 @@ namespace SkyRoof
         return;
       }
       Serilog.Log.Information("CW console closing: teardown begins");
+      MacroToolTip.Dispose();
+      ControlToolTip.Dispose();
       UiTimer.Stop();
       UiTimer.Tick -=
         UiTimer_Tick;
