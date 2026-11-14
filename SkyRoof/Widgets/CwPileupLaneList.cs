@@ -246,6 +246,8 @@ namespace SkyRoof
         string emptyTitle = $"{Index + 1}  —";
         if (title.Text != emptyTitle)
           title.Text = emptyTitle;
+        title.ForeColor = CwConsolePalette.SubtleText;
+        preview.ForeColor = CwConsolePalette.SubtleText;
         preview.Text = string.Empty;
         copyText = string.Empty;
         copy.Enabled = false;
