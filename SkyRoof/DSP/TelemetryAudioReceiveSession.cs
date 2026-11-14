@@ -50,9 +50,10 @@ namespace SkyRoof
     public Complex32[] Convert(ReadOnlySpan<float> input)
     {
       var result = new Complex32[input.Length];
-      for (int i = 0; i < input.Length; i++)
+      int i = 0;
+      foreach (float sample in input)
       {
-        history[next] = float.IsFinite(input[i]) ? input[i] : 0;
+        history[next] = float.IsFinite(sample) ? sample : 0;
         int delayed = next - Delay;
         if (delayed < 0) delayed += Taps;
         double real = history[delayed];
@@ -65,7 +66,7 @@ namespace SkyRoof
         }
         if (++next == Taps) next = 0;
         double c = Math.Cos(phase), sin = Math.Sin(phase);
-        result[i] = new Complex32(
+        result[i++] = new Complex32(
           (float)(real * c + imaginary * sin),
           (float)(imaginary * c - real * sin));
         phase -= omega;
