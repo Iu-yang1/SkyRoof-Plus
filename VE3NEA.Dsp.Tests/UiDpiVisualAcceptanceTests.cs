@@ -59,6 +59,11 @@ public sealed class UiDpiVisualAcceptanceTests
     });
     Assert.Equal(buttons.Length, actions);
     Assert.False(root.AutoScroll);
+    var caption = root.Controls.OfType<Label>().Single();
+    int rendered = TextRenderer.MeasureText(caption.Text, caption.Font,
+      Size.Empty, TextFormatFlags.SingleLine).Width;
+    Assert.True(rendered <= caption.ClientSize.Width,
+      $"Caption clipped in {name}, {width}px, simulated {dpiPercent}%");
     Assert.All(root.Controls.OfType<FlowLayoutPanel>(), p =>
     {
       Assert.False(p.WrapContents);
