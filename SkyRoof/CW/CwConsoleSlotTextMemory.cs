@@ -50,7 +50,14 @@ namespace SkyRoof.CW
           if (transcripts.TryGetValue(id, out CwTranscriptSnapshot? latest) &&
               (state.Latest == null ||
                latest.LastWindowEndUtc >= state.Latest.LastWindowEndUtc))
+          {
+            if (state.Latest is CwTranscriptSnapshot previous &&
+                latest.LastWindowEndUtc > previous.LastWindowEndUtc &&
+                (latest.Text.Length == 0 && previous.Text.Length > 0 ||
+                 latest.CommittedText.Length < previous.CommittedText.Length))
+              StartNewIdentity(state, id);
             state.Latest = latest;
+          }
         }
 
         CwTranscriptSnapshot? visible = Snapshot(state);
