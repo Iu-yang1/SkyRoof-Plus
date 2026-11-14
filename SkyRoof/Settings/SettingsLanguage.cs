@@ -418,18 +418,14 @@ namespace SkyRoof
         this.source = source;
 
       public override string DisplayName => DisplayFor(source);
-      public override string Category => Current == UiLanguage.SimplifiedChinese
-        ? SettingsChineseSupplement.Category(source.Category) ??
-          OrbitSettingsLocalization.Category(source.Category, Current)
-        : source.Category;
+      public override string Category =>
+        SettingsChineseSupplement.CategoryFor(source.Category, Current);
       public override string Description => DescriptionFor(source);
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
       public override Type PropertyType => source.PropertyType;
-      public override TypeConverter Converter => source.PropertyType == typeof(bool)
-        ? new SettingsBoolValueConverter(source.Converter)
-        : SettingsChineseSupplement.HasEnum(source.PropertyType)
-          ? new SettingsEnumValueConverter(source.PropertyType, source.Converter) : source.Converter;
+      public override TypeConverter Converter =>
+        SettingsChineseSupplement.ConverterFor(source.PropertyType, source.Converter);
       public override object? GetEditor(Type editorBaseType) => source.GetEditor(editorBaseType);
       public override bool CanResetValue(object component) => source.CanResetValue(component);
       public override object? GetValue(object? component) => source.GetValue(component);
