@@ -41,7 +41,9 @@ namespace SkyRoof
         int lag = i - Delay;
         if (lag == 0 || (lag & 1) == 0) continue;
         double window = 0.54 - 0.46 * Math.Cos(2 * Math.PI * i / (Taps - 1));
-        hilbert[i] = 2.0 * window / (Math.PI * lag);
+        // The ring reads newest -> oldest. With this lag convention the
+        // analytic positive-frequency quadrature requires the opposite sign.
+        hilbert[i] = -2.0 * window / (Math.PI * lag);
       }
     }
 
