@@ -1,4 +1,5 @@
 using SkyRoof.CW;
+using System.Drawing.Drawing2D;
 
 namespace SkyRoof
 {
@@ -47,6 +48,10 @@ namespace SkyRoof
     {
       Dock = DockStyle.Fill;
       MinimumSize = new Size(160, 120);
+      BackColor = CwConsolePalette.Surface;
+      scrolling.BackColor = CwConsolePalette.Surface;
+      header.BackColor = CwConsolePalette.Surface;
+      header.ForeColor = CwConsolePalette.Text;
       laneTable.ColumnStyles.Add(
         new ColumnStyle(SizeType.Percent, 100));
       foreach (var card in cards)
@@ -92,8 +97,10 @@ namespace SkyRoof
       IReadOnlyDictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot> transcripts,
       CwConsoleLaneIdentity? selected)
     {
-      header.Text="CW verified · "+slots.Count(slot =>
-        slot.Present && slot.Track.HasValue)+"/8";
+      string headerText = "CW verified · " + slots.Count(slot =>
+        slot.Present && slot.Track.HasValue) + "/8";
+      if (header.Text != headerText)
+        header.Text = headerText;
       foreach (CwConsoleLaneSlot slot in slots)
       {
         if (slot.Index < 0 || slot.Index >= cards.Length)
@@ -112,6 +119,7 @@ namespace SkyRoof
     internal int Index { get; }
     private CwConsoleLaneIdentity? identity;
     private string copyText = string.Empty;
+    private bool cardSelected;
     private readonly ToolTip tip = new();
     private readonly Label title = new()
     {
@@ -144,15 +152,20 @@ namespace SkyRoof
 
     internal event Action<CwConsoleLaneIdentity>? Selected;
     internal string CopyText => copyText;
+    internal bool IsSelected => cardSelected;
     internal string PreviewText => preview.Text;
 
     internal CwPileupLaneCard(int index)
     {
       Index = index;
       Dock = DockStyle.Fill;
-      Margin = new Padding(1);
-      Padding = new Padding(1);
-      BorderStyle = BorderStyle.FixedSingle;
+      Margin = new Padding(2, 1, 2, 1);
+      Padding = new Padding(2);
+      BorderStyle = BorderStyle.None;
+      BackColor = CwConsolePalette.Card;
+      ForeColor = CwConsolePalette.Text;
+      DoubleBuffered = true;
+      ResizeRedraw = true;
       Cursor = Cursors.Hand;
 
       var layout = new TableLayoutPanel
@@ -161,7 +174,8 @@ namespace SkyRoof
         ColumnCount = 2,
         RowCount = 2,
         Margin = new Padding(0),
-        Padding = new Padding(0)
+        Padding = new Padding(5, 1, 3, 1),
+        BackColor = CwConsolePalette.Card
       };
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
       // Keep DPI-aware Copy sizing; fixed 49px would clip its text.
@@ -173,6 +187,10 @@ namespace SkyRoof
       layout.SetRowSpan(copy, 2);
       layout.Controls.Add(preview, 0, 1);
       Controls.Add(layout);
+      copy.FlatStyle = FlatStyle.Flat;
+      copy.FlatAppearance.BorderSize = 0;
+      copy.BackColor = CwConsolePalette.Surface;
+      copy.ForeColor = CwConsolePalette.Text;
 
       Click += (_, _) => SelectCard();
       title.Click += (_, _) => SelectCard();
@@ -193,15 +211,24 @@ namespace SkyRoof
     {
       identity = slot.Identity;
       bool isSelected = identity.HasValue && identity == selected;
-      BackColor = isSelected
-        ? Color.FromArgb(216, 239, 247)
-        : SystemColors.Window;
-      title.BackColor = BackColor;
-      preview.BackColor = BackColor;
+      Color background = isSelected
+        ? CwConsolePalette.Selected
+        : CwConsolePalette.Card;
+      if (cardSelected != isSelected || BackColor != background)
+      {
+        cardSelected = isSelected;
+        BackColor = background;
+        title.BackColor = background;
+        preview.BackColor = background;
+        Controls[0].BackColor = background;
+        Invalidate();
+      }
 
       if (slot.Track is not CwSignalTrack track)
       {
-        title.Text = $"{Index + 1}  —";
+        string emptyTitle = $"{Index + 1}  —";
+        if (title.Text != emptyTitle)
+          title.Text = emptyTitle;
         preview.Text = string.Empty;
         copyText = string.Empty;
         copy.Enabled = false;
@@ -216,10 +243,12 @@ namespace SkyRoof
       string peak=slot.Present && track.Active
         ? $"peak {track.SnrDb:F0}dB"
         : "peak — (stale)";
-      title.Text = $"{Index + 1}  {CwConsolePresentation.LaneLabel(track)} " +
+      string titleText = $"{Index + 1}  {CwConsolePresentation.LaneLabel(track)} " +
         $"{track.FrequencyHz:F0} Hz · {peak} · {state}";
-      title.ForeColor = !slot.Present ? SystemColors.GrayText :
-        track.Ambiguous ? Color.DarkOrange : SystemColors.ControlText;
+      if (title.Text != titleText)
+        title.Text = titleText;
+      title.ForeColor = !slot.Present ? CwConsolePalette.SubtleText :
+        track.Ambiguous ? CwConsolePalette.Warning : CwConsolePalette.Text;
       preview.ForeColor = title.ForeColor;
       tip.SetToolTip(title,
         $"{title.Text} · drift {track.DriftHzPerSecond:+0.0;-0.0;0.0} Hz/s");
@@ -234,8 +263,31 @@ namespace SkyRoof
         : "(listening)";
       if (preview.Text != shown)
         preview.Text = shown;
+      if (provisional.Length > 0)
+        preview.ForeColor = CwConsolePalette.Provisional;
       tip.SetToolTip(preview, shown);
       copy.Enabled = copyText.Length > 0;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+      base.OnPaint(e);
+      Rectangle bounds = Rectangle.Inflate(ClientRectangle, -1, -1);
+      if (bounds.Width < 10 || bounds.Height < 10)
+        return;
+
+      int radius = Math.Min(8, Math.Min(bounds.Width, bounds.Height) / 2);
+      int diameter = radius * 2;
+      using var outline = new GraphicsPath();
+      outline.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+      outline.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+      outline.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+      outline.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+      outline.CloseFigure();
+      e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+      using var pen = new Pen(cardSelected ? CwConsolePalette.Accent : CwConsolePalette.Border,
+        cardSelected ? 1.5f : 1f);
+      e.Graphics.DrawPath(pen, outline);
     }
 
     private void SelectCard()
