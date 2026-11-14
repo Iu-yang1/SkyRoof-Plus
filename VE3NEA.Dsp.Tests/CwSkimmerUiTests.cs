@@ -283,10 +283,13 @@ namespace VE3NEA.Dsp.Tests
       var layout = card.Controls.OfType<TableLayoutPanel>().Single();
       layout.ColumnStyles[1].SizeType.Should().Be(
         SizeType.AutoSize);
-      var button = layout.Controls.OfType<Button>().Single();
-      button.Text.Should().Be("Copy");
-      button.AutoSize.Should().BeTrue();
-      button.MinimumSize.Width.Should().BeGreaterThan(65);
+      var buttons = layout.Controls.OfType<Button>().ToArray();
+      buttons.Select(b => b.Text).Should().BeEquivalentTo("Copy", "Clear");
+      var copy = buttons.Single(b => b.Text == "Copy");
+      copy.AutoSize.Should().BeTrue();
+      copy.MinimumSize.Width.Should().BeGreaterThan(65);
+      layout.ColumnStyles[2].SizeType.Should().Be(SizeType.AutoSize);
+      card.ClearButton.Text.Should().Be("Clear");
     }
 
     [Fact]
@@ -311,8 +314,7 @@ namespace VE3NEA.Dsp.Tests
       card.PreviewText.Should().Contain("BG5JSU");
       card.PreviewText.Should().Contain("AGN");
       card.Controls.OfType<TableLayoutPanel>().Single()
-        .Controls.OfType<Button>().Single()
-        .Enabled.Should().BeTrue();
+        .Controls.OfType<Button>().Should().OnlyContain(b => b.Enabled);
 
       // The existing Selected RX pane is the single source for
       // full multiline, scrollable transcript presentation.
