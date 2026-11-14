@@ -1,3 +1,19 @@
+# SkyRoof Fork v.1.74 / SkyRoof Fork 1.74 UI 适配版本说明
+
+## v1.74 UI P1–P4 — 2026-11-14
+
+- P1：工具栏、频率条、卫星选择与旋转器控件和字体使用固定基线同比例缩放；UI Scale 可选 75/85/100/110/125%。
+- P2：Dock 窗口与 G-5500/RC-3040S 右键控制卡片同步缩放；不重排 Dock，不新增滚动条，保持原设备控制回调。
+- P3：多显示器拔插后的窗口恢复与负坐标保留；SystemAware 为默认值，PerMonitorV2 为显式可选测试模式。
+- P4：WinForms 模拟渲染与交互测试覆盖浅色/深色主题、96/120/144/192 DPI、Sky View、Satellite Passes、Icom Spectrum、CW Skimmer、ROTATOR STOP 等。
+- 代码：PR #209、#210、#211、#212；验收报告：`docs/architecture/ui-dpi-acceptance-20261114.zh-CN.md`。
+- 测试：xUnit、Windows 编译、Orekit/IKVM 运行时、aislop 与 CI 的模拟截图；暂无真实双显示器、Wine、IC-9700 或旋转器实机验收，不将 PerMonitorV2 默认启用。
+- 本版发布为独立 v.1.74 标签，不覆盖既有 v.1.73 Release。
+
+**English:** v1.74 completes the P1–P4 uniform no-reflow UI/DPI adaptation, dock/popup scaling, multi-monitor recovery with optional PMv2, and synthetic Windows CI screenshot/interaction coverage. Physical monitor and transceiver/rotator tests remain unverified.
+
+---
+
 # SkyRoof Fork v.1.73 / SkyRoof Fork 1.73 版本说明
 
 ## v1.73 原位重构 / In-place performance rebuild (2026-11-13)
