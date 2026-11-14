@@ -568,6 +568,14 @@ namespace SkyRoof
           (1000 - AfPanBar.Value) / 1000.0,
           (double)AfZoomBox.Value);
       controls.Controls.Add(AfZoomBox);
+      var resetView = new Button
+      {
+        Text = "Reset View",
+        AutoSize = true,
+        Margin = new Padding(8, 2, 0, 0)
+      };
+      resetView.Click += (_, _) => WaterfallView.SetViewport(0, 1);
+      controls.Controls.Add(resetView);
       left.Controls.Add(controls, 0, 1);
 
       WorkSplit.Panel1.Controls.Add(left);
