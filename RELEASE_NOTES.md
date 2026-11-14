@@ -1,3 +1,22 @@
+# SkyRoof-Plus v.1.74
+
+## SkyRoof Plus v1.74 — 2026-11-14 UI 适配 P1–P4
+
+本次为全新版本，保留 v.1.73 安装包及此前轨道、CAT、PTT、Rotator 协议代码不变。P1–P4 源代码合并提交记录分别见 PR #209、#210、#211、#212。
+
+- **P1 顶部工具栏：** 以系统 DPI 已适配的 WinForms 控件树作为几何快照基线，提供 `Tools → UI Scale` 75/85/100/110/125% 设置；频率、增益、卫星选择、云台及按钮按比例统一缩放，避免累积漂移。窗口狭窄时按同一倍率缩小，不采用按钮自动重排。
+- **P2 Dock 与弹出窗口：** `Tools → Dock & Popup Scale` 独立保存比例；沿用既有 DockPanelSuite 位置、窗口结构与 XML，不添加滚动条或自动换行；同步 Satellite Passes 自绘行高与轨迹线宽、Sky View 标签字体、RC-3040S / G-5500 右键操作面板。
+- **P3 多屏与 DPI：** 热插拔或屏幕移除后将不可见窗口恢复到有效工作区，保留合法负坐标与跨屏窗口。保留 SystemAware 默认值和 Wine 兼容性；可选 `--per-monitor-dpi` 或环境变量 `SKYROOF_DPI_MODE=PerMonitorV2` 试验动态 DPI，`--system-dpi` 可恢复默认行为。
+- **P4 模拟 UI 验收：** 1280/1920 px 顶部工具栏、G-5500 75/100/125% 面板、Satellite Passes、Sky View、Icom Spectrum、CW Skimmer 以及深/浅主题模拟渲染。检查按钮入口、字幕裁切、尺寸比例、缩放往返一致性、无自动换行和交互回调保持。
+- **测试证据：** Windows Compile Check、完整 xUnit、aislop 0.18.1、DocFX 和 Orekit/IKVM 安装运行时检查。模拟渲染截图归档在 GitHub Actions 的 `ui-dpi-layout-matrix`，并附文档 `docs/architecture/ui-dpi-acceptance-20261114.zh-CN.md`。
+- **验收边界：** 尚未进行 Windows 双显示器不同 DPI 的真实桌面与 Wine 实机检查，也未连接 IC-9700、G-5500 或 RC-3040S；不把模拟控件绘制当作真实 CAT/PTT/旋转器行为验证。PerMonitorV2 不默认开放，仍可自行选择使用。
+
+**English:** Versioned v1.74 release for uniform, no-reflow toolbar/Dock/popup scaling, monitor topology recovery, opt-in PerMonitorV2 and synthetic WinForms screenshot plus interaction regression fixtures. Previous v1.73 remains unchanged. SystemAware stays default. No real multi-monitor, Wine, or transceiver/rotator hardware test is claimed. The verified build and published SHA-256 are recorded by the v1.74 GitHub Release workflow.
+
+---
+
+## 历史版本 / Historical: v1.73
+
 # SkyRoof-Plus v.1.73
 
 SkyRoof Plus v1.73 — responsive satellite switching and manual Orekit ephemeris updates.  
@@ -83,17 +102,3 @@ Merged [PR #200](https://github.com/Iu-yang1/SkyRoof-Plus/pull/200) passed full 
 - 正式版维持 v.1.73，并采用现有 Release 身份、原标签提交、原资产 ID 与 SHA-256 的严格比对进行一次受控安装包替换。Windows 编译、xUnit、aislop 和 Orekit 运行时校验状态以本次 GitHub Actions 执行结果为准。尚未在用户 Windows 安装环境中复现操作过程。
 
 **English:** Fix the escaped decimal-digit regex in the Settings property-grid validation path, which rejected valid Maidenhead locators despite the high-precision geodetic converter already supporting them. The user-reported `OL79WQ96HJ` now has regression assertions for accepted input, its exact locator-cell center, reverse conversion and the actual orbit ground-station coordinate. Guard the replacement of the existing v.1.73 installer by tag and published SHA-256 identity; hardware/UI testing remains outstanding.
-
-
-## SkyRoof Plus v1.74 — 2026-11-14 UI 适配 P1–P4
-
-本次为全新版本，保留 v.1.73 安装包及此前轨道、CAT、PTT、Rotator 协议代码不变。P1–P4 源代码合并提交记录分别见 PR #209、#210、#211、#212。
-
-- **P1 顶部工具栏：** 以系统 DPI 已适配的 WinForms 控件树作为几何快照基线，提供 `Tools → UI Scale` 75/85/100/110/125% 设置；频率、增益、卫星选择、云台及按钮按比例统一缩放，避免累积漂移。窗口狭窄时按同一倍率缩小，不采用按钮自动重排。
-- **P2 Dock 与弹出窗口：** `Tools → Dock & Popup Scale` 独立保存比例；沿用既有 DockPanelSuite 位置、窗口结构与 XML，不添加滚动条或自动换行；同步 Satellite Passes 自绘行高与轨迹线宽、Sky View 标签字体、RC-3040S / G-5500 右键操作面板。
-- **P3 多屏与 DPI：** 热插拔或屏幕移除后将不可见窗口恢复到有效工作区，保留合法负坐标与跨屏窗口。保留 SystemAware 默认值和 Wine 兼容性；可选 `--per-monitor-dpi` 或环境变量 `SKYROOF_DPI_MODE=PerMonitorV2` 试验动态 DPI，`--system-dpi` 可恢复默认行为。
-- **P4 模拟 UI 验收：** 1280/1920 px 顶部工具栏、G-5500 75/100/125% 面板、Satellite Passes、Sky View、Icom Spectrum、CW Skimmer 以及深/浅主题模拟渲染。检查按钮入口、字幕裁切、尺寸比例、缩放往返一致性、无自动换行和交互回调保持。
-- **测试证据：** Windows Compile Check、完整 xUnit、aislop 0.18.1、DocFX 和 Orekit/IKVM 安装运行时检查。模拟渲染截图归档在 GitHub Actions 的 `ui-dpi-layout-matrix`，并附文档 `docs/architecture/ui-dpi-acceptance-20261114.zh-CN.md`。
-- **验收边界：** 尚未进行 Windows 双显示器不同 DPI 的真实桌面与 Wine 实机检查，也未连接 IC-9700、G-5500 或 RC-3040S；不把模拟控件绘制当作真实 CAT/PTT/旋转器行为验证。PerMonitorV2 不默认开放，仍可自行选择使用。
-
-**English:** Versioned v1.74 release for uniform, no-reflow toolbar/Dock/popup scaling, monitor topology recovery, opt-in PerMonitorV2 and synthetic WinForms screenshot plus interaction regression fixtures. Previous v1.73 remains unchanged. SystemAware stays default. No real multi-monitor, Wine, or transceiver/rotator hardware test is claimed. The verified build and published SHA-256 are recorded by the v1.74 GitHub Release workflow.
