@@ -28,20 +28,20 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Theory]
-    [InlineData("SkyRoof.IcomDirectLanMeterSettings.Enabled", IcomLanSettingsAction.Live)]
-    [InlineData("SkyRoof.IcomDirectLanMeterSettings.PollIntervalMs", IcomLanSettingsAction.Live)]
-    [InlineData("SkyRoof.IcomLanTxAgcSettings.TargetRmsDbfs", IcomLanSettingsAction.Live)]
-    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneGain", IcomLanSettingsAction.Live)]
-    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerVolume", IcomLanSettingsAction.Live)]
-    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneDeviceId", IcomLanSettingsAction.RestartWindowsEndpoints)]
-    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerDeviceId", IcomLanSettingsAction.RestartWindowsEndpoints)]
-    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.CaptureBufferMs", IcomLanSettingsAction.RestartWindowsEndpoints)]
-    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.SampleRate", IcomLanSettingsAction.RenegotiateMedia)]
-    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.JitterPrefillMs", IcomLanSettingsAction.RenegotiateMedia)]
-    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.Codec", IcomLanSettingsAction.RenegotiateMedia)]
+    [InlineData("SkyRoof.IcomDirectLanMeterSettings.Enabled", 1)]
+    [InlineData("SkyRoof.IcomDirectLanMeterSettings.PollIntervalMs", 1)]
+    [InlineData("SkyRoof.IcomLanTxAgcSettings.TargetRmsDbfs", 1)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneGain", 1)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerVolume", 1)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.MicrophoneDeviceId", 2)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.SpeakerDeviceId", 2)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.CaptureBufferMs", 2)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.SampleRate", 3)]
+    [InlineData("SkyRoof.IcomDirectLanTransmitSettings.JitterPrefillMs", 3)]
+    [InlineData("SkyRoof.IcomDirectLanReceiveSettings.Codec", 3)]
     public void LocalSettingsDoNotCauseUnnecessaryRadioMediaRenegotiation(
-      string field, IcomLanSettingsAction expected) =>
-      IcomLanSettingsChangePolicy.Classify([field]).Should().Be(expected);
+      string field, int expected) =>
+      ((int)IcomLanSettingsChangePolicy.Classify([field])).Should().Be(expected);
 
     [Fact]
     public void MostDisruptiveSettingWinsWhenApplyingSeveralAtOnce()
