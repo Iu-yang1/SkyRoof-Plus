@@ -426,8 +426,10 @@ namespace SkyRoof
       public override bool IsReadOnly => source.IsReadOnly;
       public override Type ComponentType => source.ComponentType;
       public override Type PropertyType => source.PropertyType;
-      public override TypeConverter Converter => SettingsChineseSupplement.HasEnum(source.PropertyType)
-        ? new SettingsEnumValueConverter(source.PropertyType, source.Converter) : source.Converter;
+      public override TypeConverter Converter => source.PropertyType == typeof(bool)
+        ? new SettingsBoolValueConverter(source.Converter)
+        : SettingsChineseSupplement.HasEnum(source.PropertyType)
+          ? new SettingsEnumValueConverter(source.PropertyType, source.Converter) : source.Converter;
       public override object? GetEditor(Type editorBaseType) => source.GetEditor(editorBaseType);
       public override bool CanResetValue(object component) => source.CanResetValue(component);
       public override object? GetValue(object? component) => source.GetValue(component);
