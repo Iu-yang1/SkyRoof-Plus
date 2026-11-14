@@ -41,6 +41,17 @@ namespace SkyRoof
           !excluded.Contains(s.Control))
         .Sum(s => s.Bounds.Width);
 
+    internal static (float Factor, bool ShowPhoto) FitToolbar(
+      int availableWidth, int fullWidth, int essentialWidth, float preferred)
+    {
+      int available = Math.Max(1, availableWidth - 12);
+      float withPhoto = Math.Min(preferred, available / (float)fullWidth);
+      bool showPhoto = withPhoto >= .72f;
+      float factor = showPhoto ? withPhoto :
+        Math.Min(preferred, available / (float)essentialWidth);
+      return (Math.Clamp(factor, .25f, 1.5f), showPhoto);
+    }
+
     internal static int Pixel(int value, float scale) =>
       (int)Math.Round(value * scale, MidpointRounding.AwayFromZero);
 
