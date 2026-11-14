@@ -46,6 +46,7 @@ namespace SkyRoof
     private static readonly Dictionary<string, string> Descriptions = new(StringComparer.Ordinal)
     {
       ["Settings.User"] = "设置呼号、梅登黑德网格定位和海拔高度，供日志、卫星和远端上传功能使用。",
+      ["Settings.Afc"] = "配置 12 kHz IF 的 FM/CW/SSB 自动频率控制，包括音源、频谱参考和频率修正策略。",
       ["Settings.Cat"] = "配置收发信机 CAT 控制、PTT 热键及内嵌 SkyCAT。",
       ["Settings.Waterfall"] = "设置 SDR 瀑布图显示质量及性能计数器。",
       ["Settings.Rotator"] = "配置旋转器连接、反馈、跟踪、运动参数和停靠位置。",
@@ -149,6 +150,7 @@ namespace SkyRoof
       ["OnvifCameraSettings.AutoConnect"] = "打开摄像头窗口时自动连接设备。",
       ["OnvifCameraSettings.AutoPlay"] = "打开摄像头窗口时自动开始视频播放。",
       ["OnvifCameraSettings.AutoReconnect"] = "摄像头连接中断时尝试重新连接。",
+      ["AfcSettings.FmReferenceCandidateHz"] = "点击 FM IF 频谱时选定的候选信号频率（Hz）；留空时允许在整个目标频带内搜索。",
       ["OrbitSourceSettings.Backend"] = "本地轨道计算引擎。当前推荐 Orekit，原 SGP.NET 路径已废弃。",
       ["OrbitSourceSettings.SatellitesUrl"] = "卫星列表数据库下载地址，默认 SatNOGS；留空时沿用本地缓存。",
       ["OrbitSourceSettings.TransmittersUrl"] = "卫星转发器数据库下载地址，默认 SatNOGS；留空时沿用本地缓存。",
