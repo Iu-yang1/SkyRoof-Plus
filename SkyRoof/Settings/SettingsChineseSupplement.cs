@@ -201,20 +201,24 @@ namespace SkyRoof
     };
 
     internal static string? Name(string label) =>
-      Names.TryGetValue(label, out string? translation) ? translation : null;
+      Names.TryGetValue(label, out string? translation) ? translation
+        : SettingsChineseWide.Name(label);
 
     internal static string? Category(string source) =>
       Categories.TryGetValue(source, out string? translation) ? translation : null;
 
     internal static string? Description(string key) =>
-      Descriptions.TryGetValue(key, out string? translation) ? translation : null;
+      Descriptions.TryGetValue(key, out string? translation) ? translation
+        : SettingsChineseWide.Description(key);
 
     internal static bool HasEnum(Type type) =>
-      type.IsEnum && Enums.ContainsKey(type.Name + "." + Enum.GetNames(type)[0]);
+      type.IsEnum && Enum.GetNames(type).Length > 0 &&
+      (Enums.ContainsKey(type.Name + "." + Enum.GetNames(type)[0]) ||
+       SettingsChineseWide.HasEnum(type));
 
     internal static string? EnumName(Type type, object value) =>
       Enums.TryGetValue(type.Name + "." + value, out string? translation)
-        ? translation : null;
+        ? translation : SettingsChineseWide.EnumName(type, value);
 
     internal static object? ParseEnum(Type type, string label)
     {
@@ -222,8 +226,12 @@ namespace SkyRoof
         if (Enums.TryGetValue(type.Name + "." + name, out string? zh) &&
             string.Equals(zh, label, StringComparison.Ordinal))
           return Enum.Parse(type, name);
-      return null;
+      return SettingsChineseWide.ParseEnum(type, label);
     }
+
+    internal static bool IsNestedSettingsModel(Type type) =>
+      type.Name is nameof(AosAnnouncement) or nameof(PositionAnnouncement)
+        or "Ft4BackgroundColors" or "TransverterBand" or "RotatorParkWaypoint";
   }
 
   /// <summary>
