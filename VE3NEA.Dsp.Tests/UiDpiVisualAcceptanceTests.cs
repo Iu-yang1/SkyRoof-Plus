@@ -53,8 +53,9 @@ public sealed class UiDpiVisualAcceptanceTests
     Assert.All(buttons, button =>
     {
       Assert.True(button.Visible);
-      Assert.True(button.Right <= button.Parent!.ClientSize.Width);
-      Assert.True(button.Bottom <= button.Parent.ClientSize.Height);
+      Assert.True(button.Parent is Control host &&
+        button.Right <= host.ClientSize.Width &&
+        button.Bottom <= host.ClientSize.Height);
       button.PerformClick();
     });
     Assert.Equal(buttons.Length, actions);
