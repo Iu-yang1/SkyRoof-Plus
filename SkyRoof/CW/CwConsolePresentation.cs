@@ -30,6 +30,7 @@ namespace SkyRoof.CW
     private readonly int maxSlots;
     private readonly TimeSpan releaseDelay;
     private readonly Dictionary<CwConsoleLaneIdentity, Entry> entries = new();
+    private readonly HashSet<int> heldSlots = new();
 
     internal CwConsoleLaneSlotMap(
       int maxSlots = 8,
@@ -80,7 +81,8 @@ namespace SkyRoof.CW
         entries.Values
           .Where(entry =>
             !entry.Present &&
-            nowUtc - entry.LastPresentUtc >= releaseDelay)
+            nowUtc - entry.LastPresentUtc >= releaseDelay &&
+            !heldSlots.Contains(entry.Slot))
           .Select(entry => entry.Identity)
           .ToArray();
       foreach (CwConsoleLaneIdentity identity in expired)
@@ -98,7 +100,7 @@ namespace SkyRoof.CW
         {
           Entry? recyclable =
             entries.Values
-              .Where(entry => !entry.Present)
+              .Where(entry => !entry.Present && !heldSlots.Contains(entry.Slot))
               .OrderBy(entry => entry.LastPresentUtc)
               .FirstOrDefault();
           if (recyclable != null)
@@ -141,7 +143,23 @@ namespace SkyRoof.CW
       return slots;
     }
 
-    internal void Reset() => entries.Clear();
+    internal void Hold(int index)
+    {
+      if (entries.Values.Any(entry => entry.Slot == index))
+        heldSlots.Add(index);
+    }
+
+    internal void Release(int index) => heldSlots.Remove(index);
+
+    internal bool IsHeld(int index) => heldSlots.Contains(index);
+
+    internal void ClearTracks()
+    {
+      entries.Clear();
+      heldSlots.Clear();
+    }
+
+    internal void Reset() => ClearTracks();
 
     private int FirstFreeSlot()
     {

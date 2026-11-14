@@ -32,7 +32,8 @@ Utility 进程。若希望只接收 RS-BA1 音频，建议给 Remote Utility 使
 播放端点。
 
 切换音频源，或者在同一种源中换到另一个设备 ID，都会开始新的 CW timeline；
-旧设备的 Track/Transcript 不会和新设备混在一起。
+新音源的接收工作线程从新 timeline 开始，不会混合旧 PCM/Track；V2 界面
+独立保留先前槽位的解码文字，并标注旧身份，直到操作员手动清空该槽位。
 
 CW 接收默认关闭。确认输入源后，在面板中按 **Start**。
 
@@ -40,7 +41,7 @@ CW 接收默认关闭。确认输入源后，在面板中按 **Start**。
 使用 **RS-BA1 / LAN 收音**时选 **RS-BA1 playback loopback**。状态行会显示
 当前真正打开的 Windows 设备名称。
 
-## CW Skimmer V1 横向工作区
+## CW Skimmer V2 横向工作区
 
 CW Console 使用 **左侧大频谱、右侧多路 Pileup 消息、底部选中 Lane 的 RX
 解码框与常驻 TX 工具条**。原七列表格已从主界面移除；新的 RX 详情框体积
@@ -53,16 +54,18 @@ CW Console 使用 **左侧大频谱、右侧多路 Pileup 消息、底部选中 
   **向左横向滚动**；H/T Lane 标记改成对应 AF 的水平线。
   拖动中央分隔条即可调整频谱和消息区的宽度。
 - **右侧**：8 个稳定编号的 Pileup 消息卡，支持纵向滚动。每卡显示
-  Lane 身份、AF Hz、SNR、状态，以及可**自动换行、选择和独立滚动**的
-  完整解码文本。临时 Provisional 后缀用单独颜色表示，长报文不再截断，
-  仍可用 Copy 复制全文。短暂 QSB、Hold 或载波
+  Lane 身份、AF Hz、**相对局部噪声底的 peak dB（不是校准 SNR）**、跟踪状态
+  和单行解码预览；完整文字在下方 Selected Lane 自动换行、滚动查看。
+  每个槽位提供 **Copy、Clear、HOLD/RELEASE** 操作。短暂 QSB、Hold 或载波
   交叉都不会让卡片按频率重新排序。点击消息卡或瀑布轨迹可以双向联动选中。
 - **CW TX 上方**：新增 **CW RX — Selected Lane**，复用 TX GroupBox
   的视觉样式。点击右侧 Pileup 卡片或频谱中的 Lane，即时显示对应
-  **Slot 编号、H/T 身份、AF 频率、SNR、Active/Hold/Ambiguous/Grace 状态**。
+  **Slot 编号、H/T 身份、AF 频率、peak、Active/Hold/Ambiguous/Grace 状态**。
   完整解码消息可自动换行、选中复制、独立滚动；未确认的 Provisional 字符
   与已经确认的 Committed 文本使用不同颜色。**Copy RX** 复制原始接收文字；
-  音频时间线重置、选中 Lane 消失后清除旧内容。
+  解码完毕、载波消失、AF 频率漂移、其他信号复用槽位或时间线重置都
+  **不会自动清空**旧内容；只在点击该槽位 **Clear** 后清空其显示文字，
+  原 CW History 不受影响。
 - **底部**：Send（自动发射预检）、红色 STOP、单行 CW 编辑框、
   WPM 设置与实际回读、F1–F8 宏按钮。窗口较窄时按钮行单独横向滚动。
 
@@ -70,11 +73,27 @@ CW Console 使用 **左侧大频谱、右侧多路 Pileup 消息、底部选中 
 VFO、开启 CW 拍发或绕过卫星发射联锁。信息复用已有的 250 ms UI 更新，
 不另起 FFT 或 DeepCW 解码任务。
 
-**竖直 AF 导航**：使用瀑布右侧的竖直滚动条上下平移可见频率范围，
+**竖直 AF 导航**：点击 **Reset View** 恢复完整范围的缩放和平移，
+或使用瀑布右侧的竖直滚动条上下平移可见频率范围，
 Zoom 设置 1–8 倍显示缩放；Ctrl+滚轮调整缩放，普通滚轮沿竖直 AF 轴平移。
 瀑布水平方向表示**时间历史向左滚动**，绝不是电台调谐操作。
 这些操作**只改变显示范围**，不调电台频率，不改原始 PCM、Ridge Scanner、
 DeepCW、卫星 Doppler 或 TX 安全联锁。HamNoise 也仍然只影响显示。
+
+
+### CW Console V2 操作说明
+
+- 每个槽位的 **Clear** 仅删除该编号槽位正在显示的 RX 文字，不重置
+  解码器、不删除 CW History、不控制电台，更不会启动或停止发射。
+  清空后的新解码字符仍会继续显示。
+- **HOLD** 固定该槽位的 H/T 轨迹身份；轨迹依旧跟随频率漂移。
+  **RELEASE** 解除身份占用，恢复正常回收，不会锁定电台频率。
+- 当另一台站接替原槽位时，先前消息作为标记了旧 H/T 身份的保留文本继续显示，
+  新消息另行追加；过去的暂定后缀明确标记为未确认。
+- Selected Lane 的 **Use Call** 只从确认文字中提取候选呼号，点击后填入
+  TX 编辑框，**绝不自动发送**。
+- 点击槽位或 **Reset View** 仅改变接收显示，F1–F8、Shift+F1–F8、
+  Send、STOP、BK-IN、SkyCAT 事务逻辑均保持不变。
 
 ## 安装 DeepCW 模型
 
