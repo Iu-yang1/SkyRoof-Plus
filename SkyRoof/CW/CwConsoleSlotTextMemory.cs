@@ -90,6 +90,16 @@ namespace SkyRoof.CW
     internal CwTranscriptSnapshot? Get(int index) =>
       Snapshot(states[index]);
 
+    internal string ConfirmedText(int index)
+    {
+      SlotState state = states[index];
+      CwTranscriptSnapshot? snapshot = state.Latest;
+      if (snapshot == null ||
+          state.HiddenCharacters >= snapshot.CommittedText.Length)
+        return string.Empty;
+      return snapshot.CommittedText[state.HiddenCharacters..];
+    }
+
     private static void StartNewIdentity(
       SlotState state, CwConsoleLaneIdentity next)
     {
