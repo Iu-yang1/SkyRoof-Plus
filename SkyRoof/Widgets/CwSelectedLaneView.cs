@@ -63,7 +63,16 @@ namespace SkyRoof
       AutoSizeMode = AutoSizeMode.GrowAndShrink;
       MinimumSize = new Size(0, 112);
       Margin = new Padding(0, 2, 0, 0);
-      Padding = new Padding(5);
+      Padding = new Padding(7);
+      BackColor = CwConsolePalette.Card;
+      ForeColor = CwConsolePalette.Text;
+      status.ForeColor = CwConsolePalette.SubtleText;
+      transcript.BackColor = CwConsolePalette.Card;
+      transcript.ForeColor = CwConsolePalette.Text;
+      copy.FlatStyle = FlatStyle.Flat;
+      copy.FlatAppearance.BorderColor = CwConsolePalette.Border;
+      copy.BackColor = CwConsolePalette.Surface;
+      copy.ForeColor = CwConsolePalette.Text;
 
       var layout = new TableLayoutPanel
       {
@@ -155,11 +164,11 @@ namespace SkyRoof
       {
         transcript.Text = shown;
         transcript.SelectAll();
-        transcript.SelectionColor = SystemColors.WindowText;
+        transcript.SelectionColor = CwConsolePalette.Text;
         if (provisional.Length > 0)
         {
           transcript.Select(committed.Length, provisional.Length);
-          transcript.SelectionColor = Color.FromArgb(155, 93, 32);
+          transcript.SelectionColor = CwConsolePalette.Provisional;
         }
         transcript.Select(transcript.TextLength, 0);
         transcript.ScrollToCaret();

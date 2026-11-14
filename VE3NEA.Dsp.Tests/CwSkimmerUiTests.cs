@@ -86,7 +86,7 @@ namespace VE3NEA.Dsp.Tests
       view.UpdateLane(slot, Transcript(1, 77, "CQ ", "TEST"));
       view.TranscriptControl.Select(3, 1);
       view.TranscriptControl.SelectionColor.Should().Be(
-        System.Drawing.Color.FromArgb(155, 93, 32));
+        CwConsolePalette.Provisional);
 
       // Same combined characters; only their committed status changes.
       view.UpdateLane(slot, Transcript(1, 77, "CQ TEST", ""));
@@ -94,7 +94,7 @@ namespace VE3NEA.Dsp.Tests
       // RichEdit normalizes named system colors to their concrete RGB
       // value (for example WindowText becomes Black on CI hosts).
       view.TranscriptControl.SelectionColor.ToArgb().Should().Be(
-        System.Drawing.SystemColors.WindowText.ToArgb());
+        CwConsolePalette.Text.ToArgb());
     }
 
     [Fact]
@@ -206,6 +206,74 @@ namespace VE3NEA.Dsp.Tests
       int darkLeft = PeakBrightness(180, 230);
       brightRight.Should().BeGreaterThan(darkLeft + 60,
         "the newest 40 time columns must appear at the right side");
+    }
+
+    [Fact]
+    public void V2PileupSelection_IsPurelyVisualAndPreservesIdentity()
+    {
+      using var card = new CwPileupLaneCard(0);
+      CwSignalTrack track = Track(1, 72, 710);
+      CwConsoleLaneIdentity identity = CwConsolePresentation.Identity(track);
+      var slot = new CwConsoleLaneSlot(0, identity, track, true);
+
+      card.UpdateLane(slot, Transcript(1, 72, "CQ", " DE"), identity);
+      card.IsSelected.Should().BeTrue();
+      card.BackColor.Should().Be(CwConsolePalette.Selected);
+      card.CopyText.Should().Be("CQ DE");
+
+      card.UpdateLane(slot, Transcript(1, 72, "CQ", " DE"), null);
+      card.IsSelected.Should().BeFalse();
+      card.BackColor.Should().Be(CwConsolePalette.Card);
+      card.CopyText.Should().Be("CQ DE");
+    }
+
+    [Theory]
+    [InlineData(100)]
+    [InlineData(125)]
+    [InlineData(150)]
+    [InlineData(200)]
+    public void V2EightLaneCards_RenderAtSimulatedViewportSizes(int percent)
+    {
+      // Viewport geometry fixture, not a physical multi-monitor DPI test.
+      float factor = percent / 100f;
+      using var pane = new CwPileupLaneList
+      {
+        Size = new System.Drawing.Size(
+          (int)(400 * factor),
+          (int)(360 * factor))
+      };
+      CwSignalTrack[] tracks = Enumerable.Range(0, 8)
+        .Select(i => Track(i + 1, i + 101, 480 + 120 * i))
+        .ToArray();
+      var slots = new CwConsoleLaneSlotMap(maxSlots: 8)
+        .Update(tracks, DateTime.UtcNow);
+      var transcripts = new Dictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot>();
+      foreach (CwSignalTrack track in tracks)
+        transcripts[CwConsolePresentation.Identity(track)] =
+          Transcript(track.Id, track.AssociationHintId, "CQ DE BG5JSU", " TEST");
+
+      pane.UpdateLanes(slots, transcripts,
+        CwConsolePresentation.Identity(tracks[0]));
+      pane.CreateControl();
+      pane.PerformLayout();
+      Panel scrolling = pane.Controls.OfType<Panel>().Single();
+      scrolling.PerformLayout();
+      TableLayoutPanel rows = scrolling.Controls.OfType<TableLayoutPanel>().Single();
+      rows.Controls.OfType<CwPileupLaneCard>().Should().HaveCount(8);
+      rows.Controls.OfType<CwPileupLaneCard>().Single(c => c.Index == 0)
+        .IsSelected.Should().BeTrue();
+
+      using var bitmap = new System.Drawing.Bitmap(pane.Width, pane.Height);
+      pane.DrawToBitmap(bitmap,
+        new System.Drawing.Rectangle(System.Drawing.Point.Empty, bitmap.Size));
+      string? directory = Environment.GetEnvironmentVariable(
+        "SKYROOF_UI_DPI_ARTIFACT_DIR");
+      if (!string.IsNullOrWhiteSpace(directory))
+      {
+        System.IO.Directory.CreateDirectory(directory);
+        bitmap.Save(System.IO.Path.Combine(directory,
+          $"cw-v2-pileup-viewport-{percent}.png"));
+      }
     }
 
     [Fact]
