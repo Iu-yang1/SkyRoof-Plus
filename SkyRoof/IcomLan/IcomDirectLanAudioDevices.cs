@@ -151,6 +151,13 @@ namespace SkyRoof
       }
     }
 
+    internal void UpdateSpeakerVolume()
+    {
+      lock (deviceSync)
+        if (speakers != null)
+          speakers.Volume = Math.Clamp(options.Receive.SpeakerVolume, 0, 100) / 100f;
+    }
+
     private void OnMicrophoneSamples(object? sender, DataEventArgs<float> args)
     {
       if (Volatile.Read(ref disposed) == 0 && args.Count > 0)
