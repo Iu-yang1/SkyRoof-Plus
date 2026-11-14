@@ -833,7 +833,10 @@ namespace SkyRoof
             s.StartsWith("SkyRoof.IcomDirectLanTransmitSettings.") ||
             s.StartsWith("SkyRoof.IcomDirectLanMeterSettings.")))
       {
-        ctx.IcomLanSpectrumPanel?.ApplySettings();
+        if (ctx.IcomLanSpectrumPanel != null)
+          ctx.IcomLanSpectrumPanel.ApplySettings();
+        else
+          ctx.DirectLanMediaOwner?.ReconfigureIfActive();
         ctx.MainForm.UpdateIcomDirectLanMeterBar();
       }
 
@@ -884,7 +887,12 @@ namespace SkyRoof
             true;
 
         if (transportChanged)
-          ctx.IcomLanSpectrumPanel?.ApplySettings();
+        {
+          if (ctx.IcomLanSpectrumPanel != null)
+            ctx.IcomLanSpectrumPanel.ApplySettings();
+          else
+            ctx.DirectLanMediaOwner?.ReconfigureIfActive();
+        }
         else if (controlChanged)
           ctx.IcomLanSpectrumPanel?.ApplyControlSettings();
         else
