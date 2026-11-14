@@ -23,6 +23,11 @@ namespace SkyRoof
     private ToolStripDropDown? YaesuG5500ControlPopup;
     private MouseButtons LastRotatorStatusMouseButton;
     private ToolStripProfessionalRenderer? ThemeRenderer;
+    private UniformControlScale? toolbarScale;
+    private bool toolbarScaling;
+    private readonly ToolStripMenuItem toolbarScaleMenu = new("UI Scale");
+    private float lastToolbarScale = 1f;
+
     private readonly EmbeddedSkyCatHost EmbeddedSkyCat = new();
     private readonly ToolStripStatusLabel[] ifAfStageLeds = new ToolStripStatusLabel[4];
     private readonly ToolStripStatusLabel[] ifAfStageLabels = new ToolStripStatusLabel[4];
@@ -189,6 +194,9 @@ namespace SkyRoof
       ctx.RotatorControl.ApplySettings();
       ctx.PttHotkey = new PttHotkeyController(ctx);
 
+      ConfigureToolbarScaleMenu();
+      toolbarScale = new UniformControlScale(Toolbar);
+      FormClosed += (_, _) => toolbarScale?.Dispose();
       UpdateSatellitePhotoVisibility();
     }
 
@@ -539,6 +547,31 @@ namespace SkyRoof
     private void Toolbar_Resize(object sender, EventArgs e)
     {
       UpdateSatellitePhotoVisibility();
+    }
+
+    private void ConfigureToolbarScaleMenu()
+    {
+      foreach (int value in new[] { 75, 85, 100, 110, 125 })
+      {
+        int percent = value;
+        var option = new ToolStripMenuItem($"{percent}%")
+        {
+          Tag = percent
+        };
+        option.Click += (_, _) =>
+        {
+          ctx.Settings.Ui.ToolbarScalePercent = percent;
+          UpdateSatellitePhotoVisibility();
+          ctx.Settings.SaveToFile();
+        };
+        toolbarScaleMenu.DropDownItems.Add(option);
+      }
+      toolbarScaleMenu.DropDownOpening += (_, _) =>
+      {
+        foreach (ToolStripMenuItem option in toolbarScaleMenu.DropDownItems)
+          option.Checked = (int)option.Tag! == ctx.Settings.Ui.ToolbarScalePercent;
+      };
+      toolsToolStripMenuItem.DropDownItems.Add(toolbarScaleMenu);
     }
 
 
@@ -2155,30 +2188,32 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     private void UpdateSatellitePhotoVisibility()
     {
-      if (SatellitePhotoWidget == null) return;
-
-      // show photo only if the toolbar can fit every widget; include the photo's own width
-      // unconditionally so the test answers "would it fit if shown", not "does it fit hidden"
-      int required =
-        panel2.Width +
-        SatellitePhotoWidget.Width +
-        SatelliteSelecionWidget.Width +
-        panel1.Width +
-        FrequencyWidget.Width +
-        panel3.Width +
-        GainWidget.Width +
-        panel7.Width +
-        RotatorWidget.Width +
-        PttHostPanel.Width +
-        panel5.Width +
-        ClockPanel.Width;
-
-      SatellitePhotoWidget.Visible = Toolbar.ClientSize.Width >= required + 10;
-      SatellitePhotoSeparator.Visible = SatellitePhotoWidget.Visible;
+      if (toolbarScale == null || toolbarScaling) return;
+      toolbarScaling = true;
+      try
+      {
+        int preference = Math.Clamp(ctx.Settings.Ui.ToolbarScalePercent, 75, 125);
+        float preferred = preference / 100f;
+        int available = Math.Max(1, Toolbar.ClientSize.Width - 12);
+        int fullWidth = toolbarScale.RequiredWidth();
+        int noPhotoWidth = toolbarScale.RequiredWidth(
+          SatellitePhotoWidget, SatellitePhotoSeparator);
+        // Preserve the existing topology. The satellite photo is the only
+        // optional widget; all primary controls scale with a common factor.
+        float withPhoto = Math.Min(preferred, available / (float)fullWidth);
+        bool showPhoto = withPhoto >= 0.72f;
+        float factor = showPhoto ? withPhoto :
+          Math.Min(preferred, available / (float)noPhotoWidth);
+        factor = Math.Clamp(factor, .25f, 1.5f);
+        SatellitePhotoWidget.Visible = showPhoto;
+        SatellitePhotoSeparator.Visible = showPhoto;
+        toolbarScale.Apply(factor);
+        lastToolbarScale = factor;
+      }
+      finally { toolbarScaling = false; }
     }
 
-
-
+    internal float ToolbarScaleFactor => lastToolbarScale;
 
     //----------------------------------------------------------------------------------------------
     //                                     docking
