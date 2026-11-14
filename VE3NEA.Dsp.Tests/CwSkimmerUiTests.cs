@@ -227,6 +227,55 @@ namespace VE3NEA.Dsp.Tests
       card.CopyText.Should().Be("CQ DE");
     }
 
+    [Theory]
+    [InlineData(100)]
+    [InlineData(125)]
+    [InlineData(150)]
+    [InlineData(200)]
+    public void V2EightLaneCards_RenderAtSimulatedViewportSizes(int percent)
+    {
+      // Viewport geometry fixture, not a physical multi-monitor DPI test.
+      float factor = percent / 100f;
+      using var pane = new CwPileupLaneList
+      {
+        Size = new System.Drawing.Size(
+          (int)(400 * factor),
+          (int)(360 * factor))
+      };
+      CwSignalTrack[] tracks = Enumerable.Range(0, 8)
+        .Select(i => Track(i + 1, i + 101, 480 + 120 * i))
+        .ToArray();
+      var slots = new CwConsoleLaneSlotMap(maxSlots: 8)
+        .Update(tracks, DateTime.UtcNow);
+      var transcripts = new Dictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot>();
+      foreach (CwSignalTrack track in tracks)
+        transcripts[CwConsolePresentation.Identity(track)] =
+          Transcript(track.Id, track.AssociationHintId, "CQ DE BG5JSU", " TEST");
+
+      pane.UpdateLanes(slots, transcripts,
+        CwConsolePresentation.Identity(tracks[0]));
+      pane.CreateControl();
+      pane.PerformLayout();
+      Panel scrolling = pane.Controls.OfType<Panel>().Single();
+      scrolling.PerformLayout();
+      TableLayoutPanel rows = scrolling.Controls.OfType<TableLayoutPanel>().Single();
+      rows.Controls.OfType<CwPileupLaneCard>().Should().HaveCount(8);
+      rows.Controls.OfType<CwPileupLaneCard>().Single(c => c.Index == 0)
+        .IsSelected.Should().BeTrue();
+
+      using var bitmap = new System.Drawing.Bitmap(pane.Width, pane.Height);
+      pane.DrawToBitmap(bitmap,
+        new System.Drawing.Rectangle(System.Drawing.Point.Empty, bitmap.Size));
+      string? directory = Environment.GetEnvironmentVariable(
+        "SKYROOF_UI_DPI_ARTIFACT_DIR");
+      if (!string.IsNullOrWhiteSpace(directory))
+      {
+        System.IO.Directory.CreateDirectory(directory);
+        bitmap.Save(System.IO.Path.Combine(directory,
+          $"cw-v2-pileup-viewport-{percent}.png"));
+      }
+    }
+
     [Fact]
     public void PileupCopyButton_AutoSizesForWindowsDpi()
     {
