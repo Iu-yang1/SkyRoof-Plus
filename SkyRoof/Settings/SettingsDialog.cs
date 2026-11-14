@@ -767,6 +767,9 @@ namespace SkyRoof
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.AudioSettings.")))
         ctx.MainForm.ApplyAudioSettings();
 
+      if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.TelemetrySettings.")))
+        ctx.TelemetryPanel?.ApplyAudioSettings();
+
       if (ChangedFields.Exists(s =>
             s.StartsWith("SkyRoof.CwConsoleSettings.")))
       {
