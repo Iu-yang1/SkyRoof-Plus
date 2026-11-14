@@ -41,9 +41,8 @@ namespace SkyRoof
         int lag = i - Delay;
         if (lag == 0 || (lag & 1) == 0) continue;
         double window = 0.54 - 0.46 * Math.Cos(2 * Math.PI * i / (Taps - 1));
-        // The ring reads newest -> oldest. With this lag convention the
-        // analytic positive-frequency quadrature requires the opposite sign.
-        hilbert[i] = -2.0 * window / (Math.PI * lag);
+        // Positive-frequency analytic representation: cos(wt) + j sin(wt).
+        hilbert[i] = 2.0 * window / (Math.PI * lag);
       }
     }
 
@@ -69,8 +68,10 @@ namespace SkyRoof
         result[i++] = new Complex32(
           (float)(real * c + imaginary * sin),
           (float)(imaginary * c - real * sin));
-        phase -= omega;
-        if (phase < -Math.PI) phase += 2 * Math.PI;
+        // The mixer below multiplies IQ by exp(-j*phase), so the
+        // NCO phase must INCREASE to translate positive carrier to DC.
+        phase += omega;
+        if (phase > Math.PI) phase -= 2 * Math.PI;
       }
       return result;
     }
