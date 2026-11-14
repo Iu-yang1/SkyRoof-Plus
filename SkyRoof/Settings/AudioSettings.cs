@@ -28,8 +28,8 @@ namespace SkyRoof
     [DefaultValue(RecordingAudioSource.Auto)]
     public RecordingAudioSource RecorderSource { get; set; } = RecordingAudioSource.Auto;
 
-    [DisplayName("Recorder USB AF Capture Device")]
-    [Description("Windows capture/recording endpoint for radio USB AF (normally Microphone / USB Audio CODEC).")]
+    [DisplayName("Recorder AF Capture Device (USB / VAC)")]
+    [Description("Windows capture endpoint for decoded AF: radio USB AF (Microphone / USB Audio CODEC) or virtual cable recording end (CABLE Output). This is not the 12-kHz IF input of the IF->AF demodulator.")]
     [TypeConverter(typeof(InputSoundcardNameConverter))]
     public string? RecorderCaptureDeviceId { get; set; } = Soundcard.GetPreferredSoundcardId(DataFlow.Capture, "USB Audio CODEC", "ICOM");
 
