@@ -12,6 +12,8 @@ namespace VE3NEA.Dsp.Tests
     [InlineData(1700, 1700)]
     [InlineData(1700, 2200)]
     [InlineData(12000, 13500)]
+    [InlineData(12000, 10500)]
+    [InlineData(1700, 1200)]
     public void RealIfAndAf_AreTranslatedToContinuousComplexBaseband(
       int centerHz, int testHz)
     {
