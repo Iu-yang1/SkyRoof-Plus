@@ -44,19 +44,33 @@ public sealed class SettingsChineseCoverageTests
       };
 
       var missing = new List<string>();
+      var untranslatedLabels = new List<string>();
+      var untranslatedCategories = new List<string>();
+      string[] technicalLabels = { "ALC", "SWR", "SNR", "F1", "F2", "F3", "F4",
+        "F5", "F6", "F7", "F8" };
       foreach (object model in models)
       {
         foreach (PropertyDescriptor property in TypeDescriptor.GetProperties(model))
         {
           if (!property.IsBrowsable) continue;
           string description = property.Description;
+          string key = model.GetType().Name + "." + property.Name;
           if (string.IsNullOrWhiteSpace(description) ||
               !description.Any(c => c >= 0x3400 && c <= 0x9fff))
-            missing.Add(model.GetType().Name + "." + property.Name);
+            missing.Add(key);
+          if (!property.DisplayName.Any(c => c >= 0x3400 && c <= 0x9fff) &&
+              !technicalLabels.Contains(property.DisplayName))
+            untranslatedLabels.Add(key + "=" + property.DisplayName);
+          if (!property.Category.Any(c => c >= 0x3400 && c <= 0x9fff))
+            untranslatedCategories.Add(key + "=" + property.Category);
         }
       }
       Assert.True(missing.Count == 0,
         "Untranslated visible settings help: " + string.Join(", ", missing));
+      Assert.True(untranslatedLabels.Count == 0,
+        "Untranslated settings labels: " + string.Join(", ", untranslatedLabels));
+      Assert.True(untranslatedCategories.Count == 0,
+        "Untranslated settings categories: " + string.Join(", ", untranslatedCategories));
     }
     finally { SettingsLanguage.Set(previous); }
   }
