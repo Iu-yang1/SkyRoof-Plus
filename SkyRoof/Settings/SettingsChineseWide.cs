@@ -170,6 +170,17 @@ namespace SkyRoof
 
     private static readonly Dictionary<string, string> Enums = new(StringComparer.Ordinal)
     {
+      ["AfcIfSource.WasapiCapture"] = "Windows 声卡采集 IF",
+      ["AfcIfSource.PlaybackLoopback"] = "远程播放回环 IF",
+      ["AfcSignalLossPolicy.HoldLast"] = "保留最后确认的 AFC 修正",
+      ["AfcSignalLossPolicy.GentleRelease"] = "静音后缓慢回归",
+      ["AfcControlMode.Off"] = "关闭 AFC",
+      ["AfcControlMode.Assist"] = "辅助监测",
+      ["AfcControlMode.Auto"] = "自动校正",
+      ["AfcAcquisitionPreset.Adaptive"] = "自适应",
+      ["AfcAcquisitionPreset.Fast"] = "快速捕获",
+      ["AfcAcquisitionPreset.Balanced"] = "均衡",
+      ["AfcAcquisitionPreset.Sensitive"] = "高灵敏度",
       ["Ft4AudioSource.SDR"] = "内部 SDR 音频",
       ["Ft4AudioSource.Soundcard"] = "Windows 声卡录音",
       ["CwReceiveAudioSource.SDR"] = "内部 SDR 音频",
