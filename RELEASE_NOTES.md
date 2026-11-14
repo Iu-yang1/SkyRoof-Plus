@@ -1,3 +1,32 @@
+# SkyRoof-Plus v.1.75
+
+## SkyRoof Plus v1.75 — 2026-11-14 CW、Direct LAN 音频会话与遥测音频迭代
+
+基于已发布的 v.1.74 进行独立版本升级；保留既有 v.1.74 Release/Tag/安装包，不做原位替换。本版本纳入截至本次版本更新前已合并至 master 的改动，包括 PR #222 和 #223。与轨道、CAT、PTT 和旋转器相关的既有控制协议不因本次发布而额外增加功能门禁。
+
+### 本次主要更新
+
+- **Direct LAN UDP TX 会话生命周期（PR #222）**：将已认证音频会话提升至应用 Context 生命周期，反复关闭或停止频谱显示不会意外释放仍启用的 RX/TX 音频。音频 UDP 握手失败后重新认证 Control/CI-V/Audio，避免出现仅频谱可用但音频永久失效的会话。同一电台的认证会话与旧/新 WASAPI 声卡端点按正确顺序关闭、重建。
+- **Direct LAN 设置热应用（PR #222）**：麦克风增益、TX AGC、计量表和扬声器音量可以运行时调整而不重登电台；更换本地音频设备只重新打开 WASAPI；涉及 TX/RX 流、采样率或 Codec 的配置才重新协商无线电媒体会话。
+- **LAN TX UDP 三色状态灯与诊断（PR #223）**：在底栏 S/PWR/ALC/SWR 表前显示与 CAT/IF→AF 风格一致的 TX UDP LED。绿色代表已完成音频握手且 TX UDP 流就绪，PTT OFF/没有 PCM 包时仍常绿；黄色代表正在连接或重连；红色代表未建立、已断开或 TX 流不可用。点击 LED 或 `LAN TX … pkts · MIC … dBFS` 文本可打开详细诊断窗口，查看发包、发送电平、PTT、MOD 输入读回等；关闭计量表不隐藏 TX 链路指示。
+- **CW Console V2 P0–P4**：改进八槽位 Pileup 消息与显示保留、逐槽清空、HOLD/RELEASE、Selected Lane、复制与呼号提取交互，以及横向 Skimmer 显示、独立渲染链和不同 DPI 下的合成 UI 验收。既有 CW TX/WPM/快捷宏链路保持。请注意 Tune RX、真实多台站录音 CER/WER 完整验证等不属于本次完成范围。
+- **IF→AF 解调音频录音与遥测多音源**：Recorder 可直接录制 IF→AF 解调后 48 kHz 单声道 PCM；Telemetry 可选择 SDR IQ、共享/独立 12 kHz IF、AF Capture、AF Loopback 和 IF→AF 解调后 AF 等音源。AF AFSK 的中心频率可配置；这不等于自动识别卫星帧协议。
+- **设置双语完整性**：补充音频、IF→AF、遥测、Icom LAN、CW、旋转器、频谱及其它设置的中文字段/说明和枚举显示；仅修改属性表显示层，不更改现有 JSON 配置键、串口/网络协议或设备 ID。
+
+### 发布验证与边界
+
+- Release 工作流采用 Windows x64 编译、xUnit、pinned aislop 质量门禁、Orekit/IKVM 独立冒烟、Inno Setup 打包、安装包依赖验证和 GitHub 附件 SHA-256 回读。**各项最终是否成功，以本版本对应 GitHub Actions 运行结果为准；启动构建不等于通过验收。**
+- 本次没有接入 IC-9700 进行 LAN MOD/ALC/PWR 实机调制测试，没有进行实机 CW 多目标解码录音统计或真实多显示器 DPI 测试。**绿色 TX UDP LED 只证明本地认证网络会话与 TX 音频流就绪，不证明电台已选择正确 MOD 输入，也不证明有射频调制输出。**
+- 签名与 Release 稳定/预发布分类由仓库既有 SignPath 检测及发布工作流决定；如缺少签名凭据，将按工作流发布未签名预发布版本并明确标识，绝不宣称存在有效 Authenticode 签名。
+
+### English summary
+
+v1.75 is a new version based on v1.74, not an in-place replacement. It includes persistent Direct LAN authenticated RX/TX audio across spectrum toggles, serial media-session recovery, live/local/radio settings-apply separation, and a TX UDP session indicator with click-to-open diagnostics. A green indicator means the UDP TX session is negotiated and ready even without PTT or PCM activity; it does not verify radio-side modulation or RF output. The update also incorporates CW Console V2 UI/slot improvements, direct IF-to-AF recording, selectable telemetry IF/AF sources, and broader bilingual settings coverage. Windows CI and installer validation are reported by the v1.75 release workflow; no IC-9700 RF or real multi-station CW hardware acceptance is claimed.
+
+---
+
+## 历史版本 / Historical: v1.74
+
 # SkyRoof-Plus v.1.74
 
 ## SkyRoof Plus v1.74 — 2026-11-14 UI 适配 P1–P4
