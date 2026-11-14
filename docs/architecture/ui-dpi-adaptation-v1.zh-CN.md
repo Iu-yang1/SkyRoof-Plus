@@ -55,6 +55,20 @@
 - 检查显示器热插拔、睡眠后恢复、改变主显示器、最大化后恢复、布局 XML 反序列化、主题切换和浮动窗口。
 - 核对 CAT/PTT、旋转器按住/松手、Track、CW 发送以及频谱正常更新，不让 UI 缩放改变控制状态机。
 
+#### P3 已实现（本次）
+
+- `UiMonitorPlacement.KeepWindowVisible`：窗体至少一半仍处在可见工作区时，保留跨屏大小和负坐标；原显示器移除或大部分窗口不可见时恢复到最近的可用工作区。
+- 兼容默认 DPI 模式仍为 `SystemAware`，可使用 `--per-monitor-dpi` 或环境变量 `SKYROOF_DPI_MODE=PerMonitorV2` 显式尝试动态高 DPI；`--system-dpi` 或 `SKYROOF_DPI_MODE=SystemAware` 恢复默认。
+- `MainForm.OnDpiChanged` 在 .NET 原生 DPI 处理前恢复已有缩放基线，变化后重建 Toolbar、Dock、旋转器弹出面板的缩放缓存。若旋转器方向轮处于按住状态，关闭弹窗仍走原有 STOP 回调。
+- 模拟测试包括窗口跨屏、负坐标、拔屏、工作区缩小、96/120/144/192 DPI 和模式选择。
+- **未完成的实机验证边界：** 还没有真实 Windows 多显示器和 Wine 配套测试，因此不默认启用 PerMonitorV2，也不把纯几何测试等同于硬件/系统级多屏截图验收。
+
+### P4 — UI 回归验收（下一阶段）
+
+- 整合统一比例缩放、屏幕 DPI 映射、Dock 与弹出卡片的 WinForms 模拟渲染截图矩阵。
+- 检查不重排、不新建滚动条、按钮文字未裁切、轨迹图像区域连续可用、操作命令与缩放无耦合。
+- 在独立 Windows CI 上执行完整 xUnit、aislop、文档校验与 Orekit/IKVM 运行时；保存截图及报告，明确无法替代实机多屏测试的边界。
+
 ## 本次验收边界
 
 P0 只修复主窗口恢复尺寸与屏幕 DPI 的历史不一致。它不是所有停靠窗口的整体缩放实现，也不能证明跨显示器 `PerMonitorV2` 已经可用。当前没有真实 Windows 多 DPI 截图和硬件控制验证；xUnit/CI 与模拟 UI 证明的是代码正确性及其覆盖范围，不替代实际多屏验收。
