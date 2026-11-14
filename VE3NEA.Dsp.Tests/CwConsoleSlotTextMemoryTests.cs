@@ -90,6 +90,28 @@ namespace VE3NEA.Dsp.Tests
       memory.Update(slots, texts)[0].Transcript!.Text.Should().Be(" 73");
     }
 
+    [Fact]
+    public void DecoderRestartDoesNotAutoClearPreviouslyDecodedMessage()
+    {
+      var memory = new CwConsoleSlotTextMemory(1);
+      var track = Track(3, 303, 900);
+      var slot = new[]
+      {
+        new CwConsoleLaneSlot(0, CwConsolePresentation.Identity(track), track, true)
+      };
+      var data = new Dictionary<CwConsoleLaneIdentity, CwTranscriptSnapshot>
+      {
+        [CwConsolePresentation.Identity(track)] = Message(track, "CQ TEST", "", 1)
+      };
+      memory.Update(slot, data);
+      data[CwConsolePresentation.Identity(track)] = Message(track, "", "", 2);
+      memory.Update(slot, data)[0].Transcript!.Text.Should().Contain("CQ TEST");
+
+      data[CwConsolePresentation.Identity(track)] = Message(track, "K1ABC", "", 3);
+      memory.Update(slot, data)[0].Transcript!.Text
+        .Should().Contain("CQ TEST").And.Contain("K1ABC");
+    }
+
     [Theory]
     [InlineData("CQ DE BG5JSU", "BG5JSU")]
     [InlineData("K1ABC 599", "K1ABC")]
