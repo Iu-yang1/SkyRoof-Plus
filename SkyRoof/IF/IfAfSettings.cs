@@ -167,7 +167,15 @@ namespace SkyRoof.IF
       get
       {
         var detected = IfAfSignedCableDiscovery.Detect();
-        return detected.Status;
+        if (SkyRoof.SettingsLanguage.Current == SkyRoof.UiLanguage.English)
+          return detected.Status;
+        if (detected.Ready)
+          return detected.Provider + " 的播放与录音端点已识别（驱动签名未经独立验证）";
+        if (detected.Status.StartsWith("Windows audio enumeration unavailable:",
+          StringComparison.Ordinal))
+          return "Windows 音频设备枚举不可用：" +
+            detected.Status["Windows audio enumeration unavailable:".Length..];
+        return "未找到唯一匹配的 VB-CABLE 或 VAC Lite 播放/录音端点；可安装厂商驱动，或使用手动虚拟声卡路由。";
       }
     }
 
@@ -175,8 +183,10 @@ namespace SkyRoof.IF
     [ReadOnly(true)]
     [JsonIgnore]
     public string VirtualCaptureDevice => IfAfSignedCableDiscovery.Detect() is var selected &&
-      selected.Ready ? selected.Provider + " (Windows recording endpoint)" :
-      "(No automatically paired recording endpoint)";
+      selected.Ready ? selected.Provider + SkyRoof.SettingsLanguage.Text(
+        "（Windows 录音端点）", " (Windows recording endpoint)") :
+      SkyRoof.SettingsLanguage.Text(
+        "未找到自动配对的录音端点", "(No automatically paired recording endpoint)");
 
     [DisplayName("Virtual audio render device")]
     [Description("Only for ExistingVirtualCable; choose the third-party cable playback end (e.g. CABLE Input). Never select any IC-9700 / IC-705 / IC-905 USB Audio CODEC transmit endpoint.")]
