@@ -768,6 +768,14 @@ namespace SkyRoof
         ctx.MainForm.ApplyAudioSettings();
 
       if (ChangedFields.Exists(s =>
+            s is "SkyRoof.TelemetrySettings.InputSource"
+              or "SkyRoof.TelemetrySettings.IfCaptureDeviceId"
+              or "SkyRoof.TelemetrySettings.AfCaptureDeviceId"
+              or "SkyRoof.TelemetrySettings.AfLoopbackDeviceId"
+              or "SkyRoof.TelemetrySettings.AfCenterHz"))
+        ctx.TelemetryPanel?.ApplyAudioSettings();
+
+      if (ChangedFields.Exists(s =>
             s.StartsWith("SkyRoof.CwConsoleSettings.")))
       {
         ctx.CwAudio?.ApplySettings();

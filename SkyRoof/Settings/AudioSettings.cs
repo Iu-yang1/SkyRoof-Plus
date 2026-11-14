@@ -9,7 +9,8 @@ namespace SkyRoof
     Auto,
     Sdr,
     WasapiCapture,
-    RsBa1Loopback
+    RsBa1Loopback,
+    IfAfDemodulated
   }
 
   public class AudioSettings
@@ -23,12 +24,12 @@ namespace SkyRoof
     public bool SpeakerEnabled = true;
 
     [DisplayName("Recorder Audio Source")]
-    [Description("Auto uses live SDR when enabled, otherwise the configured RS-BA1 playback endpoint; explicitly choose USB Capture or RS-BA1 Loopback when recording from an IC-9700.")]
+    [Description("Auto uses SDR when active, otherwise IF->AF demodulated PCM if running, then RS-BA1 playback. IF-AF Demodulated records direct 48-kHz post-DSP AF without reopening a soundcard.")]
     [DefaultValue(RecordingAudioSource.Auto)]
     public RecordingAudioSource RecorderSource { get; set; } = RecordingAudioSource.Auto;
 
-    [DisplayName("Recorder USB AF Capture Device")]
-    [Description("Windows capture/recording endpoint for radio USB AF (normally Microphone / USB Audio CODEC).")]
+    [DisplayName("Recorder AF Capture Device (USB / VAC)")]
+    [Description("Windows capture endpoint for decoded AF: radio USB AF (Microphone / USB Audio CODEC) or virtual cable recording end (CABLE Output). This is not the 12-kHz IF input of the IF->AF demodulator.")]
     [TypeConverter(typeof(InputSoundcardNameConverter))]
     public string? RecorderCaptureDeviceId { get; set; } = Soundcard.GetPreferredSoundcardId(DataFlow.Capture, "USB Audio CODEC", "ICOM");
 

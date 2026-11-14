@@ -4,6 +4,36 @@ These settings control the optional outputs of the built-in telemetry decoder us
 [Telemetry panel](telemetry_panel.md) — saving decoded frames to a file, sharing them over a KISS
 server, and uploading them to the SatNOGS database.
 
+## Telemetry receive audio input (12-kHz IF or AF)
+
+**Tools / Settings > Telemetry > Receive input** offers these sources:
+
+- **SdrIq** (default) — the original 48-kHz complex IQ stream from the SDR slicer;
+- **Shared12kIf** — reuses the raw real 12-kHz IF of the running IF→AF service
+  (USB capture or authenticated Icom LAN, without reopening the device);
+- **Capture12kIf** — reads a separate Windows recording endpoint carrying
+  real 12-kHz IF sampled at 48 kHz (normally the radio's USB Audio CODEC);
+- **CaptureAf** — reads a Windows recording endpoint carrying audio tones,
+  such as **CABLE Output** of VB-Audio Virtual Cable;
+- **LoopbackAf** — captures the mix of the selected Windows playback endpoint,
+  for example RS-BA1 speakers;
+- **IfAfDemodulatedAf** — consumes the 48-kHz AF already demodulated by SkyRoof
+  IF→AF, bypassing VAC and Windows loopback.
+
+The soundcard modes convert real PCM into *analytic complex IQ* (Hilbert FIR +
+frequency translation) before feeding the existing telemetry modem. **12-kHz
+IF is centered at 12000 Hz**, while an AF tone center can be configured under
+**AF tone center (Hz)**, 1700 Hz by default for 1200/2200-Hz AFSK.
+Modulation, baud and framing must still be set in the Telemetry signal
+parameters; an audio input does not automatically identify the protocol.
+
+**Important:** Discriminator-output 9600-bit/s FM audio is not equivalent
+to a 1700-Hz AFSK carrier. For direct FSK/GMSK use SDR IQ or raw 12-kHz IF;
+do not assume that generic AF input decodes all FM discriminator protocols.
+Actual real-device BER/PER measurements are not included in the simulated
+CI acceptance tests. Source switching discards queued samples from the
+previous input. Existing KISS/SatNOGS frame handling is unchanged.
+
 ## Decoder Settings
 
 ![Telemetry Settings](../images/telemetry_settings.png)

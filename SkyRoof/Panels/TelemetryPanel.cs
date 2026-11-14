@@ -63,6 +63,8 @@ namespace SkyRoof
       }
     }
     private TelemetryDecocder? Decoder;
+    private TelemetryAudioReceiveSession? audioReceiver;
+    private string? audioReceiverError;
     private SatnogsUploader? SatnogsUploader;
     private TelemetryRegistry? TelemetryRegistry;
     // the most recently added tree node: either the pass node itself (before it has any leaves) or its
@@ -590,6 +592,46 @@ namespace SkyRoof
       richTextBox1.MouseClick += richTextBox1_MouseClick;
 
       SetTransmitter();
+      ApplyAudioSettings();
+    }
+
+    internal void ApplyAudioSettings()
+    {
+      audioReceiver ??= new TelemetryAudioReceiveSession();
+      // Stop old PCM before disposing its associated modem and deframer.
+      // Purging the queue alone is insufficient: PLL/FIR/framer state from
+      // the previous device would still contaminate the new capture stream.
+      audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
+      audioReceiver.Stop();
+      if (Decoder is TelemetryDecocder previous)
+      {
+        Decoder = null;
+        CurrentDecode = null;
+        previous.Purge();
+        previous.Dispose();
+      }
+      audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
+      try
+      {
+        audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf);
+        audioReceiverError = null;
+        UpdateTxStatus();
+      }
+      catch (Exception ex)
+      {
+        audioReceiverError = ex.Message;
+        Serilog.Log.Warning(ex, "Telemetry audio source configuration failed");
+        StatusLabel.Text = "Telemetry RX: " + ex.Message;
+        StatusLabel.ForeColor = Color.DarkOrange;
+      }
+    }
+
+    private void AudioReceiver_IqAvailable(object? sender,
+      DataEventArgs<Complex32> args)
+    {
+      // This PCM has been translated to complex baseband exactly once.
+      // The SDR IQ route is deliberately separate to avoid duplicate frames.
+      Decoder?.StartProcessing(args);
     }
 
     private void TelemetryPanel_Shown(object? sender, EventArgs e)
@@ -614,6 +656,13 @@ namespace SkyRoof
       ctx.MainForm.TelemetryMNU.Checked = false;
       ctx.Settings.Telemetry.SplitterDistance = splitContainer1.SplitterDistance;
 
+      // Unsubscribe the live IF/AF/capture ingress before disposing the decoder.
+      if (audioReceiver != null)
+      {
+        audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
+        audioReceiver.Dispose();
+        audioReceiver = null;
+      }
       // stop and free the decode pipeline (joins its worker thread and releases native FFTW memory)
       Decoder?.Dispose();
       Decoder = null;
@@ -3069,6 +3118,15 @@ namespace SkyRoof
         UpdateStatusLabel(DescribeUnsupported(), Color.Red);
       else if (!Terrestrial && !SatAboveHorizon) UpdateStatusLabel("satellite below horizon", SystemColors.ControlText);
       else UpdateStatusLabel($"ready to decode{DescribeBranches()}", SystemColors.ControlText);
+      if (ctx.Settings.Telemetry.InputSource != TelemetryReceiveSource.SdrIq &&
+          audioReceiver != null)
+      {
+        StatusLabel.Text += audioReceiverError == null
+          ? " | RX: " + audioReceiver.Status
+          : " | RX ERROR: " + audioReceiverError;
+        if (audioReceiverError != null)
+          StatusLabel.ForeColor = Color.DarkOrange;
+      }
     }
 
     // Name what is actually unsupported about the SELECTED transmitter instead of blaming the telemetry
@@ -3128,7 +3186,8 @@ namespace SkyRoof
 
     internal void ProcessSamples(DataEventArgs<Complex32> e)
     {
-      Decoder?.StartProcessing(e);
+      if (ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
+        Decoder?.StartProcessing(e);
     }
 
     // a right-click does not select in a TreeView, but every context menu here — the tree's own, and the
