@@ -211,10 +211,12 @@ namespace SkyRoof
     };
 
     internal static string? Name(string key) =>
-      Names.TryGetValue(key, out string? value) ? value : null;
+      Names.TryGetValue(key, out string? value) ? value
+        : SettingsChineseHardware.Name(key);
 
     internal static string? Description(string key) =>
-      Descriptions.TryGetValue(key, out string? value) ? value : null;
+      Descriptions.TryGetValue(key, out string? value) ? value
+        : SettingsChineseHardware.Description(key);
 
     internal static bool HasEnum(Type type) =>
       type.IsEnum && Enum.GetNames(type).Length > 0 &&
