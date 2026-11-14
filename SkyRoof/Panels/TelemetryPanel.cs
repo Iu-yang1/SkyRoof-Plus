@@ -597,11 +597,19 @@ namespace SkyRoof
     internal void ApplyAudioSettings()
     {
       audioReceiver ??= new TelemetryAudioReceiveSession();
+      // Stop old PCM before disposing its associated modem and deframer.
+      // Purging the queue alone is insufficient: PLL/FIR/framer state from
+      // the previous device would still contaminate the new capture stream.
       audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
+      audioReceiver.Stop();
+      if (Decoder is TelemetryDecocder previous)
+      {
+        Decoder = null;
+        CurrentDecode = null;
+        previous.Purge();
+        previous.Dispose();
+      }
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
-      // Do not let queued packets from the former IQ/IF/AF endpoint get
-      // attributed to the new source or merged with its decoder timeline.
-      Decoder?.Purge();
       try
       {
         audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf);
