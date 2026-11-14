@@ -39,7 +39,7 @@ namespace SkyRoof
     private Context? ctx;
     private RotatorWidget? rotator;
     private bool updatingStepUi;
-    internal float PresentationScale { get; set; } = 1f;
+    internal float PresentationScale = 1f;
 
     internal RotatorControlCard()
     {
