@@ -38,6 +38,7 @@ namespace SkyRoof
     [DisplayName("Recorder I/Q Source")]
     [Description("SDR complex IQ, or 12-kHz real IF converted to 48-kHz complex baseband for two-channel float WAV.")]
     [DefaultValue(RecordingIqSource.Sdr)]
+    [TypeConverter(typeof(EnumDescriptionConverter))]
     public RecordingIqSource RecorderIqSource { get; set; } = RecordingIqSource.Sdr;
 
     [DisplayName("Recorder 12-kHz IF Capture Device")]

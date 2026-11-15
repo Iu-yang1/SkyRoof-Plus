@@ -42,6 +42,12 @@ namespace SkyRoof
       Soundcard.GetPreferredSoundcardId(DataFlow.Capture, "USB Audio CODEC", "ICOM");
 
     [Category("Receive input")]
+    [DisplayName("12 kHz IF capture channel")]
+    [Description("Select IF L/R channel; avoid mixing inverted stereo IF samples.")]
+    [DefaultValue(AudioChannelChoice.Left)]
+    public AudioChannelChoice IfCaptureChannel { get; set; } = AudioChannelChoice.Left;
+
+    [Category("Receive input")]
     [DisplayName("AF capture device")]
     [Description("Windows recording endpoint carrying decoded AF, e.g. CABLE Output or USB radio AF; 48-kHz mono PCM after OS resampling.")]
     [TypeConverter(typeof(InputSoundcardNameConverter))]

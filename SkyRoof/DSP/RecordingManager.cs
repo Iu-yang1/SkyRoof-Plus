@@ -110,7 +110,8 @@ namespace SkyRoof
           throw new InvalidOperationException("Select Recorder 12-kHz IF Capture Device or start IF->AF.");
         captureInput = new InputSoundcard<float>(
           id, SdrConst.AUDIO_SAMPLING_RATE,
-          captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600);
+          captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600,
+          channelChoice: ctx.Settings.IfAf.CaptureChannel);
         captureInput.SamplesAvailable += ExternalAudioSamplesAvailable;
         captureInput.Enabled = true;
         if (!captureInput.IsRunning)
@@ -186,7 +187,8 @@ namespace SkyRoof
           InputSource = ctx.IfAf?.IsRunning == true
             ? TelemetryReceiveSource.Shared12kIf : TelemetryReceiveSource.Capture12kIf,
           IfCaptureDeviceId = ctx.Settings.Audio.RecorderIfCaptureDeviceId ??
-            ctx.Settings.Telemetry.IfCaptureDeviceId
+            ctx.Settings.Telemetry.IfCaptureDeviceId,
+          IfCaptureChannel = ctx.Settings.IfAf.CaptureChannel
         }, ctx.IfAf);
         ifIqInput = input;
         recordingSourceStatus = "12-kHz IF -> complex I/Q, " + input.Status;
