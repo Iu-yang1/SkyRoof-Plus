@@ -726,4 +726,28 @@
   <data name="Park.Hint" xml:space="preserve"><value>点击“更新”保存当前路径点；点击“保存路径”写入全部路径点。</value></data>
   <data name="Park.Save" xml:space="preserve"><value>保存路径</value></data>
   <data name="Park.MinOne" xml:space="preserve"><value>请至少添加一个 PARK 停靠路径点。</value></data>
+  <data name="Dialog.SstvDenoiseDialog.Title" xml:space="preserve"><value>图像降噪</value></data>
+  <data name="SstvDenoise.TitleFor" xml:space="preserve"><value>图像降噪 — {0}</value></data>
+  <data name="SstvDenoise.Unfiltered" xml:space="preserve"><value>原始未滤波</value></data>
+  <data name="SstvDenoise.Wiener" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="SstvDenoise.Nlm" xml:space="preserve"><value>非局部均值（NLM）</value></data>
+  <data name="SstvDenoise.FilteredStatus" xml:space="preserve"><value>{0}，{1:0.00} 秒</value></data>
+  <data name="SstvDenoise.Failed" xml:space="preserve"><value>图像降噪失败</value></data>
+  <data name="Control.SstvDenoiseDialog.ApplyBtn" xml:space="preserve"><value>应用</value></data>
+  <data name="Control.SstvDenoiseDialog.SkipNoiseBandsCheckBox" xml:space="preserve"><value>跳过纯噪声条带</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmGroupBox" xml:space="preserve"><value>非局部均值（NLM）</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmTwoPassCheckBox" xml:space="preserve"><value>去除残留噪点</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmPatchLabel" xml:space="preserve"><value>邻域块尺寸</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmStrengthLabel" xml:space="preserve"><value>滤波强度</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerGroupBox" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerHeightLabel" xml:space="preserve"><value>窗口高度</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerWidthLabel" xml:space="preserve"><value>窗口宽度</value></data>
+  <data name="Control.SstvDenoiseDialog.AlgorithmGroupBox" xml:space="preserve"><value>降噪算法</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmRadio" xml:space="preserve"><value>非局部均值</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerRadio" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="Control.SstvDenoiseDialog.NoneRadio" xml:space="preserve"><value>不处理</value></data>
+  <data name="Control.SstvDenoiseDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.SstvDenoiseDialog.OkBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Waterfall.CallsignRequired" xml:space="preserve"><value>发送报告前请先在设置中填写本台呼号。</value></data>
+  <data name="Waterfall.CallsignNotSet" xml:space="preserve"><value>尚未设置呼号</value></data>
 </root>

@@ -97,6 +97,15 @@ public sealed class UiLocalizationResourceCoverageTests
     Assert.Equal("过境匹配 — {0}  #{1}", zh["QsoSchedule.Title"]);
     Assert.Equal("新增转发器 / 信标…", zh["Transmitter.New"]);
     Assert.Equal("Edit Local Entry...", en["Transmitter.Edit"]);
+    foreach (string key in new[] {
+      "Dialog.SstvDenoiseDialog.Title", "SstvDenoise.TitleFor",
+      "SstvDenoise.Failed", "Control.SstvDenoiseDialog.NlmGroupBox",
+      "Waterfall.CallsignRequired", "Waterfall.CallsignNotSet"
+    })
+    {
+      Assert.Contains(key, zh.Keys);
+      Assert.Contains(key, en.Keys);
+    }
   }
 
 
