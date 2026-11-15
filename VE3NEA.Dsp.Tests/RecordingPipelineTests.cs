@@ -93,6 +93,51 @@ public sealed class RecordingPipelineTests
     }
 
     [Fact]
+    public void RawIfSourceMustRemainLossless()
+    {
+        var recorder = new RecordingManager(new Context());
+        typeof(RecordingManager).GetField("activeAudioSource",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(recorder, RecordingAudioSource.IfRaw);
+        Assert.Throws<InvalidOperationException>(() =>
+            recorder.SaveRecording("unused.mp3", saveAsMp3: true));
+    }
+
+    [Fact]
+    public void RecorderIqWavRoundTripsComplexSamples()
+    {
+        var recorder = new RecordingManager(new Context());
+        var raw = new[] { new Complex32(0.1f, -0.3f), new Complex32(-0.4f, 0.2f) };
+        typeof(RecordingManager).GetField("iqBuffer",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(recorder, raw);
+        typeof(RecordingManager).GetField("samplesInBuffer",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(recorder, raw.Length);
+        string file = Path.Combine(Path.GetTempPath(),
+            "skyroof-if-iq-" + Guid.NewGuid().ToString("N") + ".iq.wav");
+        try
+        {
+            recorder.SaveRecording(file, saveAsMp3: false);
+            using (var reader = new WaveFileReader(file))
+            {
+                Assert.Equal(48000, reader.WaveFormat.SampleRate);
+                Assert.Equal(2, reader.WaveFormat.Channels);
+                Assert.Equal(raw.Length * 2 * sizeof(float), reader.Length);
+            }
+            var restored = new RecordingManager(new Context());
+            Assert.True(restored.LoadRecording(file));
+            Assert.Equal(raw.Length, restored.SamplesInBuffer);
+            Assert.Equal(raw, restored.IqBuffer![..restored.SamplesInBuffer]);
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file + ".json")) File.Delete(file + ".json");
+        }
+    }
+
+    [Fact]
     public void RecorderWavWritesOnlyActualFramesWithoutPadding()
     {
         var recorder = new RecordingManager(new Context());

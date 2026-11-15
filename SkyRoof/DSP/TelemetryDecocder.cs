@@ -48,13 +48,16 @@ namespace SkyRoof
       if (telemetry)
       {
         Pipeline = new StreamingPipeline(signalParams);
-        Images = ImageAssemblerFactory.Create(signalParams, noradId);
+        // HADES-SA voice/SSDV factories are NOT compatible with UNNE-1B.
+        Images = noradId == Unne1bDeframer.NoradId ? null :
+          ImageAssemblerFactory.Create(signalParams, noradId);
         // Unlike the image assembler this one binds a native library (codec2.dll) the moment it is built,
         // and throws if it is missing or unusable. That must not cost the pass its telemetry: voice is an
         // extra payload type on this downlink, so a broken install loses the audio and nothing else.
         try
         {
-          Voice = AudioAssemblerFactory.Create(signalParams, noradId);
+          Voice = noradId == Unne1bDeframer.NoradId ? null :
+            AudioAssemblerFactory.Create(signalParams, noradId);
         }
         catch (Exception e)
         {

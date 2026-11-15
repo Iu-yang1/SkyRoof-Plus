@@ -18,6 +18,13 @@ namespace SkyRoof
   {
     private readonly Dictionary<int, List<GrSatsInfo>> byNorad = new();
 
+    private sealed class TransportInfo
+    {
+      public string? Protocol;
+      public readonly List<string> DataRefs = new();
+      public readonly List<int> VirtualChannels = new();
+    }
+
     public static SatyamlDb? Load(string dir)
     {
       if (!Directory.Exists(dir)) return null;
@@ -32,10 +39,22 @@ namespace SkyRoof
     }
 
     /// <summary>Best transmitter match for a NORAD id, nearest to <paramref name="baud"/>.</summary>
-    public GrSatsInfo? Find(int norad, double? baud)
+    public GrSatsInfo? Find(int norad, double? baud, long? frequencyHz = null)
     {
-      if (!byNorad.TryGetValue(norad, out var list) || list.Count == 0) return null;
-      if (list.Count == 1) return list[0];
+      if (!byNorad.TryGetValue(norad, out var entries) || entries.Count == 0) return null;
+      // A NORAD ID may have multiple downlinks, including FM and digital.
+      // Never attach the sole digital SatYAML row to an unrelated frequency.
+      var list = entries;
+      if (frequencyHz.HasValue && entries.Any(t => t.frequency_hz.HasValue))
+      {
+        list = entries.Where(t => t.frequency_hz is long f &&
+          Math.Abs(f - frequencyHz.Value) <= 5000).ToList();
+        if (list.Count == 0) return null;
+      }
+      if (list.Count == 1)
+        return baud is not double requested || !list[0].baudrate.HasValue ||
+          Math.Abs(list[0].baudrate.Value - requested) <= Math.Max(1, requested * 0.02)
+          ? list[0] : null;
       if (baud is not double b) return null;
 
       var nearest = list
@@ -58,24 +77,34 @@ namespace SkyRoof
 
       // top-level "data:" map: anchor name -> telemetry decoder string
       var dataAnchors = new Dictionary<string, string>(StringComparer.Ordinal);
-      string? curAnchor = null;
+      var transports = new Dictionary<string, TransportInfo>(StringComparer.Ordinal);
+      string? curAnchor = null, transportAnchor = null, transportList = null;
 
-      bool inTx = false, inData = false;
-      bool inTxDataList = false, haveTx = false;
+      bool inTx = false, inData = false, inTransports = false;
+      bool inTxDataList = false, inTxTransportList = false, haveTx = false;
       string? curMod = null, curFraming = null, curTxName = null;
       string? curPrecoding = null, curRsBasis = null;
-      double? curBaud = null, curDev = null;
+      double? curBaud = null, curDev = null, curFreq = null;
       int? curFrameSize = null;
       string? curConvolutional = null, curScrambler = null;
       int? curRsInterleaving = null;
       var curDataRefs = new List<string>();
+      var curTransportRefs = new List<string>();
 
       void FlushTx()
       {
         if (haveTx)
+        {
+          TransportInfo? tr = curTransportRefs.Select(r => transports.GetValueOrDefault(r))
+            .FirstOrDefault(t => t != null);
+          foreach (var r in curTransportRefs)
+            if (transports.TryGetValue(r, out var t)) curDataRefs.AddRange(t.DataRefs);
           transmitters.Add(new GrSatsInfo
           {
             modulation = curMod,
+            frequency_hz = curFreq.HasValue ? (long)Math.Round(curFreq.Value) : null,
+            transport = tr?.Protocol,
+            virtual_channels = tr?.VirtualChannels.ToArray(),
             baudrate = curBaud,
             deviation = curDev,
             framing = curFraming,
@@ -87,14 +116,16 @@ namespace SkyRoof
             scrambler = curScrambler,
             telemetry = ResolveTelemetry(curDataRefs, dataAnchors, name, curTxName)
           });
+        }
         curMod = curFraming = curTxName = null;
         curPrecoding = curRsBasis = null;
-        curBaud = curDev = null;
+        curBaud = curDev = curFreq = null;
         curFrameSize = null;
         curConvolutional = curScrambler = null;
         curRsInterleaving = null;
         curDataRefs.Clear();
-        inTxDataList = haveTx = false;
+        curTransportRefs.Clear();
+        inTxDataList = inTxTransportList = haveTx = false;
       }
 
       foreach (var raw in File.ReadLines(path))
@@ -110,7 +141,8 @@ namespace SkyRoof
           FlushTx();
           inTx = trimmed == "transmitters:";
           inData = trimmed == "data:";
-          curAnchor = null;
+          inTransports = trimmed == "transports:";
+          curAnchor = transportAnchor = transportList = null;
           if (trimmed.StartsWith("norad:") && int.TryParse(After(trimmed), out int n)) norad = n;
           else if (trimmed.StartsWith("name:")) name = Unquote(After(trimmed));
           continue;
@@ -125,6 +157,33 @@ namespace SkyRoof
             int c = trimmed.IndexOf(':');
             if (c > 0 && trimmed[..c].Trim() == "telemetry")
               dataAnchors[curAnchor] = Unquote(trimmed[(c + 1)..].Trim());
+          }
+          continue;
+        }
+
+        if (inTransports)
+        {
+          if (indent == 2)
+          {
+            transportAnchor = ExtractAnchor(trimmed);
+            transportList = null;
+            if (transportAnchor != null) transports[transportAnchor] = new TransportInfo();
+          }
+          else if (indent >= 4 && transportAnchor != null &&
+            transports.TryGetValue(transportAnchor, out var transport))
+          {
+            if (trimmed == "data:" || trimmed == "virtual_channels:")
+              transportList = trimmed[..^1];
+            else if (trimmed.StartsWith("- "))
+            {
+              string value = trimmed[2..].Trim();
+              if (transportList == "data" && value.StartsWith("*"))
+                transport.DataRefs.Add(value[1..]);
+              else if (transportList == "virtual_channels" && int.TryParse(value, out int vc))
+                transport.VirtualChannels.Add(vc);
+            }
+            else if (trimmed.StartsWith("protocol:"))
+              transport.Protocol = Unquote(After(trimmed));
           }
           continue;
         }
@@ -145,11 +204,9 @@ namespace SkyRoof
         // data: list items ("- *anchor")
         if (trimmed.StartsWith('-'))
         {
-          if (inTxDataList)
-          {
-            string r = trimmed.TrimStart('-', ' ').TrimStart('*').Trim();
-            if (r.Length > 0) curDataRefs.Add(r);
-          }
+          string r = trimmed.TrimStart('-', ' ').TrimStart('*').Trim();
+          if (inTxDataList && r.Length > 0) curDataRefs.Add(r);
+          if (inTxTransportList && r.Length > 0) curTransportRefs.Add(r);
           continue;
         }
 
@@ -159,11 +216,15 @@ namespace SkyRoof
         string key = trimmed[..colon].Trim();
         string val = trimmed[(colon + 1)..].Trim();
 
-        if (key == "data" && val.Length == 0) { inTxDataList = true; continue; }
-        inTxDataList = false;
+        if (key == "data" && val.Length == 0)
+        { inTxDataList = true; inTxTransportList = false; continue; }
+        if (key == "transports" && val.Length == 0)
+        { inTxTransportList = true; inTxDataList = false; continue; }
+        inTxDataList = inTxTransportList = false;
 
         switch (key)
         {
+          case "frequency": curFreq = ParseNum(val); break;
           case "modulation": curMod = Unquote(val); break;
           case "framing": curFraming = Unquote(val); break;
           case "baudrate": curBaud = ParseNum(val); break;

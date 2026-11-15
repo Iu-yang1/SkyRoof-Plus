@@ -10,7 +10,14 @@ namespace SkyRoof
     Sdr,
     WasapiCapture,
     RsBa1Loopback,
-    IfAfDemodulated
+    IfAfDemodulated,
+    IfRaw
+  }
+
+  public enum RecordingIqSource
+  {
+    Sdr = 0,
+    If12k = 1
   }
 
   public class AudioSettings
@@ -27,6 +34,18 @@ namespace SkyRoof
     [Description("Auto uses SDR when active, otherwise IF->AF demodulated PCM if running, then RS-BA1 playback. IF-AF Demodulated records direct 48-kHz post-DSP AF without reopening a soundcard.")]
     [DefaultValue(RecordingAudioSource.Auto)]
     public RecordingAudioSource RecorderSource { get; set; } = RecordingAudioSource.Auto;
+
+    [DisplayName("Recorder I/Q Source")]
+    [Description("SDR complex IQ, or 12-kHz real IF converted to 48-kHz complex baseband for two-channel float WAV.")]
+    [DefaultValue(RecordingIqSource.Sdr)]
+    [TypeConverter(typeof(EnumDescriptionConverter))]
+    public RecordingIqSource RecorderIqSource { get; set; } = RecordingIqSource.Sdr;
+
+    [DisplayName("Recorder 12-kHz IF Capture Device")]
+    [Description("USB raw IF capture endpoint, used only when the shared IF->AF receiver is not running.")]
+    [TypeConverter(typeof(InputSoundcardNameConverter))]
+    public string? RecorderIfCaptureDeviceId { get; set; } =
+      Soundcard.GetPreferredSoundcardId(DataFlow.Capture, "USB Audio CODEC", "ICOM");
 
     [DisplayName("Recorder AF Capture Device (USB / VAC)")]
     [Description("Windows capture endpoint for decoded AF: radio USB AF (Microphone / USB Audio CODEC) or virtual cable recording end (CABLE Output). This is not the 12-kHz IF input of the IF->AF demodulator.")]

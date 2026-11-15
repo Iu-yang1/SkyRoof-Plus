@@ -213,6 +213,9 @@ namespace SkyRoof
     public double? deviation { get; set; }
     public string? framing { get; set; }
     public string? telemetry { get; set; }   // real decoder name; null for ax25/csp/none
+    public long? frequency_hz { get; set; }  // optional satyaml transmitter frequency, never inferred from NORAD
+    public string? transport { get; set; }   // TM short KISS / other upper-layer transport
+    public int[]? virtual_channels { get; set; }
     public string? precoding { get; set; }    // e.g. "differential" (authoritative differential-vs-coherent)
     public string? rs_basis { get; set; }     // Reed-Solomon field basis: "conventional" / "dual"
     public int? frame_size { get; set; }      // RS/CCSDS frame length in bytes (e.g. 223)

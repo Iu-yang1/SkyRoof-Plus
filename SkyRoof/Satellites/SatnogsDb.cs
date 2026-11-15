@@ -97,6 +97,16 @@ namespace SkyRoof
         ApplyCustomTransmitters(
           rebuild: true);
 
+        // Earlier cached Satellites.json records can retain a SatYAML digital
+        // profile on an unrelated FM transmitter. Re-resolve from the already
+        // downloaded YAML on startup, without requiring a new network update.
+        bool telemetryLayersChanged = false;
+        try { telemetryLayersChanged = ImportSatyaml(overwriteCached: true); }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Could not refresh cached satellite telemetry profiles");
+        }
+
         // the override file is live configuration, not a build-time artifact: apply it on every load so a
         // record saved from the Signal Params dialog takes effect at the next start without a database
         // import (discover_params_plan.md §6.2). ApplyTransmitterOverrides is idempotent, so re-applying
@@ -105,7 +115,7 @@ namespace SkyRoof
 
         loaded = SatelliteList.Count > 0;
 
-        if (orbitLayersChanged)
+        if (orbitLayersChanged || telemetryLayersChanged)
           SaveToFile();
       }
       catch (Exception ex)
@@ -717,28 +727,50 @@ namespace SkyRoof
         createMissingSatellites: false);
     }
 
-    // Match gr-satellites satyaml entries to transmitters by NORAD + nearest baud, attach gr_sats.
-    private void ImportSatyaml()
+    // Match satyaml entries to the matching transmitter frequency and baud.
+    // When loading existing cached satellite data, clear stale associations
+    // made by older, NORAD-only resolution rather than retaining wrong profiles.
+    private bool ImportSatyaml(bool overwriteCached = false)
     {
       string dir = Path.Combine(DownloadsFolder, "satyaml");
-      SatyamlDb? satyaml = SatyamlDb.Load(dir);
-      if (satyaml == null)
+      if (!Directory.Exists(dir) || !Directory.EnumerateFiles(dir, "*.yml").Any())
       {
         Log.Warning("satyaml folder not found; skipping gr-satellites enrichment");
-        return;
+        return false;
       }
+      SatyamlDb? satyaml = SatyamlDb.Load(dir);
+      if (satyaml == null) return false;
 
+      bool changed = false;
       int matched = 0;
       foreach (var sat in Satellites)
       {
         if (sat.norad_cat_id == null) continue;
         foreach (var tx in sat.Transmitters)
         {
-          GrSatsInfo? info = satyaml.Find(sat.norad_cat_id.Value, tx.baud);
-          if (info != null) { tx.gr_sats = info; matched++; }
+          GrSatsInfo? info = satyaml.Find(sat.norad_cat_id.Value, tx.baud, tx.downlink_low);
+          // Frequency + baud metadata must not silently turn an FM voice row
+          // into a digital BPSK decoder for the same spacecraft.
+          string declared = $"{tx.description} {tx.mode} {tx.DownlinkMode}";
+          bool voiceOnly = declared.Contains("FM voice", StringComparison.OrdinalIgnoreCase) ||
+            (string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) &&
+             !declared.Contains("FSK", StringComparison.OrdinalIgnoreCase) &&
+             !declared.Contains("PSK", StringComparison.OrdinalIgnoreCase));
+          if (voiceOnly && tx.baud == null) info = null;
+          if (overwriteCached)
+          {
+            // Compare the compact serializable descriptor, not object identity.
+            changed |= JsonConvert.SerializeObject(tx.gr_sats) !=
+              JsonConvert.SerializeObject(info);
+            tx.gr_sats = info;
+          }
+          else if (info != null) tx.gr_sats = info;
+          if (info != null) matched++;
         }
       }
-      Log.Information($"satyaml: enriched {matched} transmitters");
+      Log.Information("satyaml: enriched {Matched} transmitters; cache changed: {Changed}",
+        matched, changed);
+      return changed;
     }
 
     // Apply hand-curated GrSatsInfo overrides from Data\transmitters-override.json into the authoritative

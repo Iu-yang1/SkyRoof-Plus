@@ -91,8 +91,7 @@ namespace SkyRoof
   /// </summary>
   internal sealed class TelemetryAudioReceiveSession : IDisposable
   {
-    private readonly InputSoundcard<float> capture = new(
-      captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600);
+    private InputSoundcard<float>? capture;
     private readonly LoopbackInputSoundcard loopback = new();
     private IfAfService? sharedIf;
     private bool sharedIsAf;
@@ -111,7 +110,6 @@ namespace SkyRoof
 
     internal TelemetryAudioReceiveSession()
     {
-      capture.SamplesAvailable += OnSamples;
       loopback.SamplesAvailable += OnSamples;
     }
 
@@ -175,6 +173,13 @@ namespace SkyRoof
             break;
           case TelemetryReceiveSource.Capture12kIf:
           case TelemetryReceiveSource.CaptureAf:
+            capture = config.InputSource == TelemetryReceiveSource.Capture12kIf
+              ? new InputSoundcard<float>(
+                  captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600,
+                  channelChoice: config.IfCaptureChannel)
+              : new InputSoundcard<float>(
+                  captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600);
+            capture.SamplesAvailable += OnSamples;
             capture.SetDeviceId(device);
             capture.Enabled = true;
             if (!capture.IsRunning)
@@ -250,7 +255,13 @@ namespace SkyRoof
         else ifAf.RawIfAvailable -= OnSamples;
         sharedIf = null;
       }
-      capture.Enabled = false;
+      if (capture != null)
+      {
+        capture.SamplesAvailable -= OnSamples;
+        capture.Enabled = false;
+        capture.Dispose();
+        capture = null;
+      }
       loopback.Enabled = false;
       queue?.Writer.TryComplete();
       queue = null;
@@ -264,9 +275,7 @@ namespace SkyRoof
       if (disposed) return;
       Stop();
       disposed = true;
-      capture.SamplesAvailable -= OnSamples;
       loopback.SamplesAvailable -= OnSamples;
-      capture.Dispose();
       loopback.Dispose();
     }
   }
