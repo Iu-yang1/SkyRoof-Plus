@@ -108,4 +108,40 @@
   <data name="Control.AutoSelectionPanel.RecLabel" xml:space="preserve"><value>录制：</value></data>
   <data name="Ft4.TxOdd" xml:space="preserve"><value>TX 奇数时隙</value></data>
   <data name="Ft4.TxEven" xml:space="preserve"><value>TX 偶数时隙</value></data>
+  <data name="Recorder.Ready" xml:space="preserve"><value>就绪</value></data>
+  <data name="Recorder.AudioSource" xml:space="preserve"><value>音频来源</value></data>
+  <data name="Recorder.IqSource" xml:space="preserve"><value>I/Q 来源</value></data>
+  <data name="Recorder.SourceAuto" xml:space="preserve"><value>自动（优先 SDR，否则 RS-BA1 回放）</value></data>
+  <data name="Recorder.SourceSdr" xml:space="preserve"><value>SkyRoof SDR</value></data>
+  <data name="Recorder.SourceCapture" xml:space="preserve"><value>Windows AF 采集（USB / CABLE 输出）</value></data>
+  <data name="Recorder.SourceLoopback" xml:space="preserve"><value>RS-BA1 回放（WASAPI 回环）</value></data>
+  <data name="Recorder.SourceIfAf" xml:space="preserve"><value>IF→AF 解调 PCM（48 kHz）</value></data>
+  <data name="Recorder.SourceRawIf" xml:space="preserve"><value>原始 12 kHz IF（48 kHz .if.wav）</value></data>
+  <data name="Recorder.IqSdr" xml:space="preserve"><value>SkyRoof SDR I/Q</value></data>
+  <data name="Recorder.IqIf" xml:space="preserve"><value>12 kHz IF 转复数 I/Q（48 kHz .iq.wav）</value></data>
+  <data name="Recorder.RecordAudio" xml:space="preserve"><value>录制音频</value></data>
+  <data name="Recorder.RecordIq" xml:space="preserve"><value>录制 I/Q</value></data>
+  <data name="Recorder.SaveMp3" xml:space="preserve"><value>保存 .mp3</value></data>
+  <data name="Recorder.SaveWav" xml:space="preserve"><value>保存 .wav</value></data>
+  <data name="Recorder.StopRecording" xml:space="preserve"><value>停止录制</value></data>
+  <data name="Recorder.StartPlayback" xml:space="preserve"><value>开始回放</value></data>
+  <data name="Recorder.StopPlayback" xml:space="preserve"><value>停止回放</value></data>
+  <data name="Recorder.Audio" xml:space="preserve"><value>音频</value></data>
+  <data name="Recorder.Failed" xml:space="preserve"><value>录制失败：{0}</value></data>
+  <data name="Recorder.NoSamples" xml:space="preserve"><value>未收到来自 {0} 的采样，请检查音频来源和设备</value></data>
+  <data name="Recorder.SilentInput" xml:space="preserve"><value>输入静音或电平过低：{0}，请检查电台 AF、静噪和端点</value></data>
+  <data name="Recorder.Recording" xml:space="preserve"><value>正在录制{0} {1}</value></data>
+  <data name="Recorder.Empty" xml:space="preserve"><value>未录到音频/IQ 采样，输入来源：{0}</value></data>
+  <data name="Recorder.EmptyAudio" xml:space="preserve"><value>录音无有效声音，请核对 {0}</value></data>
+  <data name="Recorder.Stopped" xml:space="preserve"><value>录制已停止，时长：{0}（{1} 个采样）</value></data>
+  <data name="Recorder.BufferFull" xml:space="preserve"><value>录制已停止：缓冲区已满（30 分钟）</value></data>
+  <data name="Recorder.PlaybackStopped" xml:space="preserve"><value>回放已停止</value></data>
+  <data name="Recorder.Playing" xml:space="preserve"><value>正在回放{0} {1}/{2}（{3}%）</value></data>
+  <data name="Recorder.Loaded" xml:space="preserve"><value>已加载 {0}</value></data>
+  <data name="Recorder.Saving" xml:space="preserve"><value>正在保存 {0}…</value></data>
+  <data name="Recorder.Saved" xml:space="preserve"><value>已保存到 {0}</value></data>
+  <data name="Recorder.FilterMp3" xml:space="preserve"><value>MP3 文件 (*.mp3)|*.mp3|所有文件 (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIq" xml:space="preserve"><value>I/Q WAV 文件 (*.iq.wav)|*.iq.wav|WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIf" xml:space="preserve"><value>原始 IF WAV (*.if.wav)|*.if.wav|WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
+  <data name="Recorder.FilterWav" xml:space="preserve"><value>WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
 </root>

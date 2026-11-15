@@ -144,6 +144,7 @@ namespace SkyRoof
         panel.Text = title;
         panel.TabText = title;
         UiLocalizationService.ApplyStaticControls(panel);
+        if (panel is RecorderPanel recorder) recorder.RefreshLocalizedUi();
 
       });
     }

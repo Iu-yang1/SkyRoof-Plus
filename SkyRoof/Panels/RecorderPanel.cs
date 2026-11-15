@@ -22,6 +22,71 @@ namespace SkyRoof
     private readonly ToolStripMenuItem audioSourceMenu = new("Audio Source");
     private readonly ToolStripMenuItem iqSourceMenu = new("I/Q Source");
 
+    private string? lastStatusKey;
+    private object?[] lastStatusArgs = Array.Empty<object?>();
+
+    private void SetLocalizedStatus(string key, params object?[] args)
+    {
+      lastStatusKey = key;
+      lastStatusArgs = args;
+      StatusLabel.Text = UiLocalizationService.Format(key, args);
+    }
+
+    internal void RefreshLocalizedUi()
+    {
+      audioSourceMenu.Text = UiLocalizationService.Get("Recorder.AudioSource");
+      iqSourceMenu.Text = UiLocalizationService.Get("Recorder.IqSource");
+      foreach (ToolStripMenuItem item in audioSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
+        if (item.Tag is RecordingAudioSource source)
+          item.Text = UiLocalizationService.Get(source switch
+          {
+            RecordingAudioSource.Auto => "Recorder.SourceAuto",
+            RecordingAudioSource.Sdr => "Recorder.SourceSdr",
+            RecordingAudioSource.WasapiCapture => "Recorder.SourceCapture",
+            RecordingAudioSource.RsBa1Loopback => "Recorder.SourceLoopback",
+            RecordingAudioSource.IfAfDemodulated => "Recorder.SourceIfAf",
+            RecordingAudioSource.IfRaw => "Recorder.SourceRawIf",
+            _ => "Recorder.SourceAuto"
+          });
+      foreach (ToolStripMenuItem item in iqSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
+        if (item.Tag is RecordingIqSource source)
+          item.Text = UiLocalizationService.Get(source == RecordingIqSource.Sdr
+            ? "Recorder.IqSdr" : "Recorder.IqIf");
+      RecordAudioMNU.Text = UiLocalizationService.Get("Recorder.RecordAudio");
+      RecordIqMNU.Text = UiLocalizationService.Get("Recorder.RecordIq");
+      SaveMp3MNU.Text = UiLocalizationService.Get("Recorder.SaveMp3");
+      SaveWavMNU.Text = UiLocalizationService.Get("Recorder.SaveWav");
+      toolTip1.SetToolTip(RecordBtn, UiLocalizationService.Get(
+        recordingManager.IsRecording ? "Recorder.StopRecording" : "Recorder.RecordAudio"));
+      toolTip1.SetToolTip(PlaybackBtn, UiLocalizationService.Get(
+        recordingManager.IsPlayingBack ? "Recorder.StopPlayback" : "Recorder.StartPlayback"));
+      if (recordingManager.IsRecording) RefreshRecordingStatus();
+      else if (recordingManager.IsPlayingBack) UpdatePlaybackStatus();
+      else StatusLabel.Text = lastStatusKey == null
+        ? UiLocalizationService.Get("Recorder.Ready")
+        : UiLocalizationService.Format(lastStatusKey, lastStatusArgs);
+    }
+
+    private void RefreshRecordingStatus()
+    {
+      if (recordingManager.SamplesInBuffer == 0 &&
+          (DateTime.UtcNow - recordingManager.RecordingStartTime).TotalSeconds > 3)
+      {
+        SetLocalizedStatus("Recorder.NoSamples", recordingManager.RecordingSourceStatus);
+        return;
+      }
+      if (recordingManager.IsAudioSilent)
+      {
+        SetLocalizedStatus("Recorder.SilentInput", recordingManager.RecordingSourceStatus);
+        return;
+      }
+      TimeSpan elapsed = DateTime.UtcNow - recordingManager.RecordingStartTime;
+      SetLocalizedStatus("Recorder.Recording",
+        recordingManager.IsRecordingAudio
+          ? UiLocalizationService.Get("Recorder.Audio") : "I/Q",
+        elapsed.ToString(@"mm\:ss"));
+    }
+
     public RecordingEvents RecordingEvents => recordingManager.RecordingEvents;
     internal bool isPlayingBack => recordingManager?.IsPlayingBack == true;
 
@@ -257,14 +322,14 @@ namespace SkyRoof
       catch (Exception ex)
       {
         RecordBtn.BackColor = Color.Transparent;
-        StatusLabel.Text = "Recording failed: " + ex.Message;
+        SetLocalizedStatus("Recorder.Failed", ex.Message);
         Log.Warning(ex, "Recorder could not start {Kind} source", isAudio ? "AF" : "IQ");
         MessageBox.Show(this, ex.Message, "Recorder", MessageBoxButtons.OK,
           MessageBoxIcon.Warning);
         return;
       }
       RecordBtn.BackColor = Color.LightCoral;
-      StatusLabel.Text = recordingManager.GetRecordingStatus();
+      RefreshRecordingStatus();
       recordingTimer?.Start();
       RecordingStart = DateTime.Now;
       if (isAudio)
@@ -275,7 +340,7 @@ namespace SkyRoof
       SetSaveButtonsEnabled(false);
       LoadBtn.Enabled = false;
       PlaybackBtn.Enabled = false;
-      toolTip1.SetToolTip(RecordBtn, "Stop Recording");
+      toolTip1.SetToolTip(RecordBtn, UiLocalizationService.Get("Recorder.StopRecording"));
 
       WaveformWidget.Invalidate();
     }
@@ -287,11 +352,13 @@ namespace SkyRoof
       RecordBtn.BackColor = Color.Transparent;
       recordingTimer?.Stop();
 
-      StatusLabel.Text = !recordingManager.HasData
-        ? $"No audio/IQ samples recorded - input: {recordingManager.RecordingSourceStatus}"
-        : recordingManager.IsRecordingAudio && recordingManager.NonSilentAudioSamples == 0
-          ? $"Recording contains silence - verify {recordingManager.RecordingSourceStatus}"
-          : $"Recording stopped - Duration: {duration:mm\\:ss} ({recordingManager.SamplesInBuffer} samples)";
+      if (!recordingManager.HasData)
+        SetLocalizedStatus("Recorder.Empty", recordingManager.RecordingSourceStatus);
+      else if (recordingManager.IsRecordingAudio && recordingManager.NonSilentAudioSamples == 0)
+        SetLocalizedStatus("Recorder.EmptyAudio", recordingManager.RecordingSourceStatus);
+      else
+        SetLocalizedStatus("Recorder.Stopped", duration.ToString(@"mm\:ss"),
+          recordingManager.SamplesInBuffer);
       Log.Information($"Recording stopped - {recordingManager.SamplesInBuffer} samples recorded");
 
       // Enable Save button if we have data
@@ -301,7 +368,7 @@ namespace SkyRoof
       RecordMenuBtn.Enabled = true;
       LoadBtn.Enabled = true;
       PlaybackBtn.Enabled = recordingManager.HasData;
-      toolTip1.SetToolTip(RecordBtn, "Record Audio");
+      toolTip1.SetToolTip(RecordBtn, UiLocalizationService.Get("Recorder.RecordAudio"));
 
       WaveformWidget.Invalidate();
     }
@@ -315,7 +382,7 @@ namespace SkyRoof
     private void HandleBufferFull()
     {
       StopRecording();
-      StatusLabel.Text = "Recording stopped - Buffer full (30 min)";
+      SetLocalizedStatus("Recorder.BufferFull");
     }
 
 
@@ -335,7 +402,7 @@ namespace SkyRoof
       }
 
       PlaybackBtn.BackColor = Color.LightGreen;
-      toolTip1.SetToolTip(PlaybackBtn, "Stop Playback");
+      toolTip1.SetToolTip(PlaybackBtn, UiLocalizationService.Get("Recorder.StopPlayback"));
       UpdatePlaybackStatus();
       Log.Information("Starting playback");
 
@@ -357,8 +424,8 @@ namespace SkyRoof
       ctx.TelemetryPanel?.SetIqReplayActive(false);
 
       PlaybackBtn.BackColor = Color.Transparent;
-      toolTip1.SetToolTip(PlaybackBtn, "Start Playback");
-      StatusLabel.Text = "Playback stopped";
+      toolTip1.SetToolTip(PlaybackBtn, UiLocalizationService.Get("Recorder.StartPlayback"));
+      SetLocalizedStatus("Recorder.PlaybackStopped");
       Log.Information("Playback stopped");
 
       RecordBtn.Enabled = true;
@@ -385,7 +452,16 @@ namespace SkyRoof
 
     private void UpdatePlaybackStatus()
     {
-      StatusLabel.Text = recordingManager.GetPlaybackStatus();
+      TimeSpan elapsed = TimeSpan.FromSeconds(recordingManager.PlaybackPosition /
+        (double)SdrConst.AUDIO_SAMPLING_RATE);
+      TimeSpan total = TimeSpan.FromSeconds(recordingManager.SamplesInBuffer /
+        (double)SdrConst.AUDIO_SAMPLING_RATE);
+      int percent = recordingManager.SamplesInBuffer == 0 ? 0 :
+        Math.Clamp((int)Math.Round(100.0 * recordingManager.PlaybackPosition /
+          recordingManager.SamplesInBuffer), 0, 100);
+      SetLocalizedStatus("Recorder.Playing",
+        recordingManager.IsRecordingAudio ? UiLocalizationService.Get("Recorder.Audio") : "I/Q",
+        elapsed.ToString(@"mm\:ss"), total.ToString(@"mm\:ss"), percent);
     }
 
     private void WaveformWidget_SeekRequested(object? sender, WaveformWidget.SeekRequestedEventArgs e)
@@ -435,7 +511,7 @@ namespace SkyRoof
       SetSaveButtonsEnabled(hasData);
       PlaybackBtn.Enabled = hasData;
 
-      StatusLabel.Text = $"Loaded {Path.GetFileName(filename)}";
+      SetLocalizedStatus("Recorder.Loaded", Path.GetFileName(filename));
       Log.Information($"Recording loaded from {filename}");
       WaveformWidget.Invalidate();
     }
@@ -448,13 +524,9 @@ namespace SkyRoof
         recordingManager.ActiveAudioSource == RecordingAudioSource.IfRaw;
 
       using var dialog = new SaveFileDialog();
-      dialog.Filter = isMp3
-        ? "MP3 Files (*.mp3)|*.mp3|All Files (*.*)|*.*"
-        : isIqWav
-          ? "I/Q WAV Files (*.iq.wav)|*.iq.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*"
-          : isIfWav
-            ? "Raw IF WAV Files (*.if.wav)|*.if.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*"
-            : "WAV Files (*.wav)|*.wav|All Files (*.*)|*.*";
+      dialog.Filter = UiLocalizationService.Get(isMp3 ? "Recorder.FilterMp3"
+        : isIqWav ? "Recorder.FilterIq"
+        : isIfWav ? "Recorder.FilterIf" : "Recorder.FilterWav");
       dialog.DefaultExt = isIqWav ? "iq.wav" : isIfWav ? "if.wav" : ext;
       dialog.InitialDirectory = GetRecordingsPath();
       dialog.FileName = BuildRecordingFileName(ext, isIqWav);
@@ -468,10 +540,10 @@ namespace SkyRoof
       SetSaveButtonsEnabled(false);
       try
       {
-        StatusLabel.Text = $"Saving {Path.GetFileName(fileName)}...";
+        SetLocalizedStatus("Recorder.Saving", Path.GetFileName(fileName));
         await recordingManager.SaveRecordingAsync(fileName, isMp3);
         if (!IsDisposed)
-          StatusLabel.Text = $"Saved to {Path.GetFileName(fileName)}";
+          SetLocalizedStatus("Recorder.Saved", Path.GetFileName(fileName));
         Log.Information("Recording saved to {File}", fileName);
       }
       catch (Exception ex)
@@ -537,12 +609,7 @@ namespace SkyRoof
       if (!recordingManager.IsRecording) return;
 
       RememberRecordingEvents();
-      StatusLabel.Text = recordingManager.SamplesInBuffer == 0 &&
-                         (DateTime.UtcNow - recordingManager.RecordingStartTime).TotalSeconds > 3
-        ? $"No samples from {recordingManager.RecordingSourceStatus} - check Recorder audio source/device"
-        : recordingManager.IsAudioSilent
-          ? $"Input is silent/quiet: {recordingManager.RecordingSourceStatus} - check radio AF, squelch and audio endpoint"
-          : recordingManager.GetRecordingStatus();
+      RefreshRecordingStatus();
       WaveformWidget.Invalidate();
     }
 

@@ -108,4 +108,40 @@
   <data name="Control.AutoSelectionPanel.RecLabel" xml:space="preserve"><value>Rec:</value></data>
   <data name="Ft4.TxOdd" xml:space="preserve"><value>TX Odd</value></data>
   <data name="Ft4.TxEven" xml:space="preserve"><value>TX Even</value></data>
+  <data name="Recorder.Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Recorder.AudioSource" xml:space="preserve"><value>Audio Source</value></data>
+  <data name="Recorder.IqSource" xml:space="preserve"><value>I/Q Source</value></data>
+  <data name="Recorder.SourceAuto" xml:space="preserve"><value>Auto (SDR if running, else RS-BA1 playback)</value></data>
+  <data name="Recorder.SourceSdr" xml:space="preserve"><value>SkyRoof SDR</value></data>
+  <data name="Recorder.SourceCapture" xml:space="preserve"><value>Windows AF capture (USB / CABLE Output)</value></data>
+  <data name="Recorder.SourceLoopback" xml:space="preserve"><value>RS-BA1 playback (WASAPI loopback)</value></data>
+  <data name="Recorder.SourceIfAf" xml:space="preserve"><value>IF -&gt; AF decoded PCM (direct, 48 kHz)</value></data>
+  <data name="Recorder.SourceRawIf" xml:space="preserve"><value>Raw 12-kHz IF (48-kHz .if.wav)</value></data>
+  <data name="Recorder.IqSdr" xml:space="preserve"><value>SkyRoof SDR I/Q</value></data>
+  <data name="Recorder.IqIf" xml:space="preserve"><value>12-kHz IF -&gt; complex I/Q (48-kHz .iq.wav)</value></data>
+  <data name="Recorder.RecordAudio" xml:space="preserve"><value>Record Audio</value></data>
+  <data name="Recorder.RecordIq" xml:space="preserve"><value>Record I/Q</value></data>
+  <data name="Recorder.SaveMp3" xml:space="preserve"><value>Save .mp3</value></data>
+  <data name="Recorder.SaveWav" xml:space="preserve"><value>Save .wav</value></data>
+  <data name="Recorder.StopRecording" xml:space="preserve"><value>Stop Recording</value></data>
+  <data name="Recorder.StartPlayback" xml:space="preserve"><value>Start Playback</value></data>
+  <data name="Recorder.StopPlayback" xml:space="preserve"><value>Stop Playback</value></data>
+  <data name="Recorder.Audio" xml:space="preserve"><value>Audio</value></data>
+  <data name="Recorder.Failed" xml:space="preserve"><value>Recording failed: {0}</value></data>
+  <data name="Recorder.NoSamples" xml:space="preserve"><value>No samples from {0}; check audio source/device</value></data>
+  <data name="Recorder.SilentInput" xml:space="preserve"><value>Input silent/quiet: {0}; check radio AF, squelch and endpoint</value></data>
+  <data name="Recorder.Recording" xml:space="preserve"><value>Recording {0} {1}</value></data>
+  <data name="Recorder.Empty" xml:space="preserve"><value>No audio/IQ samples recorded - input: {0}</value></data>
+  <data name="Recorder.EmptyAudio" xml:space="preserve"><value>Recording contains silence - verify {0}</value></data>
+  <data name="Recorder.Stopped" xml:space="preserve"><value>Recording stopped - Duration: {0} ({1} samples)</value></data>
+  <data name="Recorder.BufferFull" xml:space="preserve"><value>Recording stopped - Buffer full (30 min)</value></data>
+  <data name="Recorder.PlaybackStopped" xml:space="preserve"><value>Playback stopped</value></data>
+  <data name="Recorder.Playing" xml:space="preserve"><value>Playing {0} {1} of {2} ({3}%)</value></data>
+  <data name="Recorder.Loaded" xml:space="preserve"><value>Loaded {0}</value></data>
+  <data name="Recorder.Saving" xml:space="preserve"><value>Saving {0}…</value></data>
+  <data name="Recorder.Saved" xml:space="preserve"><value>Saved to {0}</value></data>
+  <data name="Recorder.FilterMp3" xml:space="preserve"><value>MP3 Files (*.mp3)|*.mp3|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIq" xml:space="preserve"><value>I/Q WAV Files (*.iq.wav)|*.iq.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIf" xml:space="preserve"><value>Raw IF WAV Files (*.if.wav)|*.if.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterWav" xml:space="preserve"><value>WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
 </root>
