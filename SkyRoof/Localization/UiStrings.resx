@@ -627,4 +627,26 @@ Right-click downlink frequency to open AFC controls.</value></data>
   <data name="FrequencyWidget.SdrTransverterIf" xml:space="preserve"><value>SDR transverter IF: {0:F6} MHz</value></data>
   <data name="FrequencyWidget.ClickForManualEntry" xml:space="preserve"><value>Click for manual frequency entry</value></data>
   <data name="FrequencyWidget.NoCatToneCommand" xml:space="preserve"><value>This radio does not support CAT setting of this CTCSS tone.</value></data>
+  <data name="AutoSelection.TipToggle" xml:space="preserve"><value>Enable/disable automatic satellite selection for the current group.</value></data>
+  <data name="AutoSelection.TipEdit" xml:space="preserve"><value>Edit automatic pass selection for the current group.</value></data>
+  <data name="AutoSelection.TipTree" xml:space="preserve"><value>Check the passes to include in automatic selection.</value></data>
+  <data name="AutoSelection.TipMoveUp" xml:space="preserve"><value>Raise the selected satellite's priority.</value></data>
+  <data name="AutoSelection.TipMoveDown" xml:space="preserve"><value>Lower the selected satellite's priority.</value></data>
+  <data name="AutoSelection.TipTransmitter" xml:space="preserve"><value>Radio payload to tune when this satellite is selected.</value></data>
+  <data name="AutoSelection.TipRecord" xml:space="preserve"><value>Record each selected pass as audio or I/Q, or disable recording.</value></data>
+  <data name="AutoSelection.TipSelectAll" xml:space="preserve"><value>Select all passes in the current group.</value></data>
+  <data name="AutoSelection.TipClear" xml:space="preserve"><value>Deselect all passes in the current group.</value></data>
+  <data name="AutoSelection.TipTrack" xml:space="preserve"><value>Track the selected passes with the antenna rotator.</value></data>
+  <data name="AutoSelection.TipTrackDisabled" xml:space="preserve"><value>Rotator control is disabled in Settings; enable it to track automatically.</value></data>
+  <data name="AutoSelection.ClearConfirm" xml:space="preserve"><value>Clear the pass selection plan for the current group?</value></data>
+  <data name="AutoSelection.ScheduleTitle" xml:space="preserve"><value>Auto Selection</value></data>
+  <data name="PttKey.Title" xml:space="preserve"><value>Bind Physical PTT Key</value></data>
+  <data name="PttKey.Instructions" xml:space="preserve"><value>Press the keyboard key or USB foot-switch key for momentary PTT.
+Key down = TX, key up = RX.
+Current: {0}</value></data>
+  <data name="PttKey.None" xml:space="preserve"><value>None</value></data>
+  <data name="AmsatReport.Heard" xml:space="preserve"><value>Heard</value></data>
+  <data name="AmsatReport.TelemetryOnly" xml:space="preserve"><value>Telemetry Only</value></data>
+  <data name="AmsatReport.NotHeard" xml:space="preserve"><value>Not Heard</value></data>
+  <data name="AmsatReport.CrewActive" xml:space="preserve"><value>Crew Active</value></data>
 </root>
