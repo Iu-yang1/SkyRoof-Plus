@@ -439,6 +439,10 @@ namespace SkyRoof
       }
     }
 
+    private static bool IsDefaultLanguageHint(
+      string? text, string chinese, string english) =>
+      string.IsNullOrEmpty(text) || text == chinese || text == english;
+
     private void RefreshLanguageCaptions()
     {
       Text = SettingsLanguage.Text("设置", "Settings");
@@ -450,9 +454,16 @@ namespace SkyRoof
         cableRefresh.Text = SettingsLanguage.Text("重新检测音频端点", "Rescan audio endpoints");
       if (updateOrekitDataButton != null)
         updateOrekitDataButton.Text = SettingsLanguage.Text("更新 Orekit 星历", "Update Orekit Data");
-      if (orekitDataHint != null && string.IsNullOrEmpty(orekitDataHint.Text))
-        orekitDataHint.Text = SettingsLanguage.Text("IERS EOP / JPL DE430 数据", "IERS EOP / JPL DE430 data");
-      if (readIcomLanHint != null && string.IsNullOrEmpty(readIcomLanHint.Text))
+      // A default hint is localized with the UI; live progress/error text
+      // stays intact until the owning operation changes its state.
+      if (orekitDataHint != null &&
+          IsDefaultLanguageHint(orekitDataHint.Text,
+            "IERS EOP / JPL DE430 数据", "IERS EOP / JPL DE430 data"))
+        orekitDataHint.Text = SettingsLanguage.Text(
+          "IERS EOP / JPL DE430 数据", "IERS EOP / JPL DE430 data");
+      if (readIcomLanHint != null &&
+          IsDefaultLanguageHint(readIcomLanHint.Text,
+            "IC-9700 Direct LAN 参数", "IC-9700 Direct LAN settings"))
         readIcomLanHint.Text = SettingsLanguage.Text(
           "IC-9700 Direct LAN 参数", "IC-9700 Direct LAN settings");
       if (languageLabel != null)

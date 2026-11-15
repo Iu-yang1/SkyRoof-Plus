@@ -7,6 +7,7 @@ using Xunit;
 
 namespace VE3NEA.Dsp.Tests;
 
+[Collection("BilingualUiAcceptance")]
 public sealed class UiLocalizationResourceCoverageTests
 {
   private static readonly ResourceManager Resources =

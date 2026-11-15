@@ -1,0 +1,518 @@
+using System.Drawing;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Windows.Forms;
+using Control = System.Windows.Forms.Control;
+using MathNet.Numerics;
+using SkyRoof;
+using SkyRoof.SSTV;
+using VE3NEA.SkyTlm.Core;
+using Xunit;
+
+namespace VE3NEA.Dsp.Tests;
+
+/// <summary>
+/// Render the actual SSTV/Recorder/Rotator WinForms controls on the Windows
+/// test runner. Scale is emulated in-process; physical monitor DPI is not
+/// changed. This suite never accesses a real radio or audio endpoint.
+/// </summary>
+[CollectionDefinition("BilingualUiAcceptance", DisableParallelization = true)]
+public sealed class BilingualUiAcceptanceCollection { }
+
+[Collection("BilingualUiAcceptance")]
+public sealed class BilingualUiDpiAndSessionTests
+{
+  private static T Field<T>(object target, string name) =>
+    (T)(target.GetType().GetField(name,
+      BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(target)
+      ?? throw new InvalidOperationException($"Missing UI field: {name}"));
+
+  private static Context StubContext()
+  {
+    var context = (Context)RuntimeHelpers.GetUninitializedObject(typeof(Context));
+    context.Settings = new Settings();
+    return context;
+  }
+
+  private static void Sta(Action test)
+  {
+    Exception? error = null;
+    var thread = new Thread(() =>
+    {
+      try { test(); }
+      catch (Exception ex) { error = ex; }
+    });
+    thread.IsBackground = true;
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    Assert.True(thread.Join(TimeSpan.FromSeconds(35)),
+      "Bilingual UI rendering or session check timed out on STA");
+    if (error is not null) throw new Xunit.Sdk.XunitException(error.ToString());
+  }
+
+  [Theory]
+  [InlineData(100)]
+  [InlineData(125)]
+  [InlineData(150)]
+  [InlineData(200)]
+  public void ActualSstvViewsRenderBothLanguagesAndRetainOperatorState(int percent)
+  {
+    Sta(() =>
+    {
+      UiLanguage before = SettingsLanguage.Current;
+      try
+      {
+        var ctx = StubContext();
+        // The production panel constructs the real WinForms controls and
+        // its receive/transmit sessions; no device starts in this fixture.
+        using var panel = new SstvConsolePanel(ctx);
+        // A Form's native HWND cannot exceed the Windows CI work area,
+        // even when TopLevel=false. Move the real production TabControl
+        // into a pure Control canvas: the same widgets, without a Form cap.
+        var tabs = panel.Controls.OfType<TabControl>().Single();
+        panel.Controls.Remove(tabs);
+        using var host = new Panel { Size = new Size(980, 720) };
+        host.Controls.Add(tabs);
+        host.CreateControl();
+        tabs.CreateControl();
+        using var scaler = new UniformControlScale(host,
+          scaleRootBounds: false, maxScale: 2f);
+        UiLocalizationService.Bind(panel, panel.RefreshLocalizedUi);
+        var myCall = Field<TextBox>(panel, "myCallInput");
+        var theirCall = Field<TextBox>(panel, "theirCallInput");
+        var overlay = Field<TextBox>(panel, "overlayText");
+        var templates = Field<ComboBox>(panel, "templateBox");
+        var source = Field<ComboBox>(panel, "rxSourceBox");
+        var receiver = Field<object>(panel, "receiveSession");
+        var transmitter = Field<SstvTransmitSession>(panel, "transmitSession");
+        int sourceIndex = source.SelectedIndex;
+        int templateIndex = templates.SelectedIndex;
+        myCall.Text = "BG5JSU";
+        theirCall.Text = "HB9Q";
+        overlay.Text = "QSO {HISCALL}";
+        var baseSize = new Size(980, 720);
+        float ratio = percent / 100f;
+        Size target = new((int)(baseSize.Width * ratio),
+          (int)(baseSize.Height * ratio));
+        host.Size = target;
+        scaler.Apply(ratio);
+        Assert.Equal(target, host.Size);
+        Assert.Equal(target, tabs.Size);
+        foreach (UiLanguage language in new[]
+        {
+          UiLanguage.SimplifiedChinese, UiLanguage.English
+        })
+        {
+          UiLocalizationService.Apply(language);
+          Application.DoEvents();
+          string expected = language == UiLanguage.SimplifiedChinese
+            ? "接收 RX" : "Receive RX";
+          Assert.Equal(expected, tabs.TabPages[0].Text);
+          Assert.Equal(language == UiLanguage.SimplifiedChinese
+            ? "发送 TX" : "Transmit TX", tabs.TabPages[1].Text);
+
+          // Physical decoder/transmitter objects and operator choices must
+          // survive changes in text, even after control-scale layout.
+          Assert.Same(receiver, Field<object>(panel, "receiveSession"));
+          Assert.Same(transmitter, Field<SstvTransmitSession>(panel, "transmitSession"));
+          Assert.False(transmitter.IsSending);
+          Assert.Equal("BG5JSU", myCall.Text);
+          Assert.Equal("HB9Q", theirCall.Text);
+          Assert.Equal("QSO {HISCALL}", overlay.Text);
+          Assert.Equal(templateIndex, templates.SelectedIndex);
+          Assert.Equal(sourceIndex, source.SelectedIndex);
+          Assert.Equal(language == UiLanguage.English
+            ? "No TX audio device detected; you can still save the SSTV WAV."
+            : "未检测到发射声卡；仍可保存 SSTV WAV 音频",
+            Field<Label>(panel, "txStatus").Text);
+          for (int tab = 0; tab < 2; tab++)
+          {
+            tabs.SelectedIndex = tab;
+            host.PerformLayout();
+            tabs.PerformLayout();
+            Application.DoEvents();
+            Assert.False(host.AutoScroll);
+            Assert.Equal(target, tabs.Size);
+            using var image = new Bitmap(host.Width, host.Height);
+            host.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+            // Real content must be present: not just a blank DockContent
+            // surface, unlike earlier false-positive screenshot runs.
+            int nonBackground = 0;
+            Color basePixel = image.GetPixel(image.Width / 2, 4);
+            for (int y = 50; y < image.Height; y += 11)
+              for (int x = 15; x < image.Width - 15; x += 11)
+                if (image.GetPixel(x, y).ToArgb() != basePixel.ToArgb())
+                  nonBackground++;
+            Assert.True(nonBackground > 120,
+              $"Blank SSTV {language} {percent}% tab {tab} capture");
+            string? directory = Environment.GetEnvironmentVariable(
+              "SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+              Directory.CreateDirectory(directory);
+              image.Save(Path.Combine(directory,
+                $"sstv-{(language == UiLanguage.English ? "en" : "zh")}-{percent}-" +
+                $"{(tab == 0 ? "rx" : "tx")}.png"));
+            }
+          }
+        }
+      }
+      finally { UiLocalizationService.Apply(before); }
+    });
+  }
+
+  [Theory]
+  [InlineData(100)]
+  [InlineData(125)]
+  [InlineData(150)]
+  [InlineData(200)]
+  public void RealRecorderAndRotatorControlsPreserveSamplesAndManualInputs(int percent)
+  {
+    Sta(() =>
+    {
+      UiLanguage before = SettingsLanguage.Current;
+      try
+      {
+        var ctx = StubContext();
+        using var recorder = new RecorderPanel();
+        using var manager = new RecordingManager(ctx);
+        typeof(RecorderPanel).GetField("recordingManager",
+          BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(recorder, manager);
+        var iq = new[]
+        {
+          new Complex32(.25f, -.2f), new Complex32(-.5f, .4f)
+        };
+        typeof(RecordingManager).GetField("iqBuffer",
+          BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, iq);
+        typeof(RecordingManager).GetField("samplesInBuffer",
+          BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, iq.Length);
+        // Emulate an already-running SDR I/Q capture. The test does not
+        // activate a physical input or call the radio's recording startup.
+        typeof(RecordingManager).GetField("recordingStartTime",
+          BindingFlags.Instance | BindingFlags.NonPublic)!
+          .SetValue(manager, DateTime.UtcNow);
+        typeof(RecordingManager).GetProperty("IsRecording")!
+          .SetValue(manager, true);
+        UiLocalizationService.Bind(recorder, recorder.RefreshLocalizedUi);
+        using var rotator = new RotatorControlCard();
+        using var recorderHost = ReparentControlsToCanvas(recorder,
+          new Size(612, 172));
+        using var recorderScale = new UniformControlScale(recorderHost,
+          scaleRootBounds: false, maxScale: 2f);
+        using var rotatorScale = new UniformControlScale(rotator,
+          maxScale: 2f);
+        float ratio = percent / 100f;
+        recorderHost.Size = new Size((int)(612 * ratio), (int)(172 * ratio));
+        recorderScale.Apply(ratio);
+        rotatorScale.Apply(ratio);
+        Assert.Equal(new Size((int)(612 * ratio), (int)(172 * ratio)),
+          recorderHost.Size);
+        Assert.Equal(new Size(UniformControlScale.Pixel(318, ratio),
+          UniformControlScale.Pixel(386, ratio)), rotator.Size);
+        recorder.CreateControl();
+        rotator.CreateControl();
+        var az = Field<NumericUpDown>(rotator, "AzimuthSpinner");
+        var el = Field<NumericUpDown>(rotator, "ElevationSpinner");
+        var step = Field<NumericUpDown>(rotator, "StepSpinner");
+        // In production Attach() installs the configured mechanical
+        // azimuth/elevation limits; the no-device fixture sets equivalent
+        // numeric ranges before assigning a simulated pointing target.
+        az.Maximum = 450m;
+        el.Maximum = 180m;
+        az.Value = 120m;
+        el.Value = 45m;
+        step.Value = 2.5m;
+        var beforeIq = manager.IqBuffer;
+        int samples = manager.SamplesInBuffer;
+        int position = manager.PlaybackPosition;
+        foreach (UiLanguage language in new[]
+        {
+          UiLanguage.English, UiLanguage.SimplifiedChinese,
+          UiLanguage.English
+        })
+        {
+          UiLocalizationService.Apply(language);
+          Assert.Same(beforeIq, manager.IqBuffer);
+          Assert.Equal(samples, manager.SamplesInBuffer);
+          Assert.Equal(position, manager.PlaybackPosition);
+          Assert.False(manager.IsPlayingBack);
+          Assert.True(manager.IsRecording);
+          Assert.Equal(120m, az.Value);
+          Assert.Equal(45m, el.Value);
+          Assert.Equal(2.5m, step.Value);
+          Assert.Equal(language == UiLanguage.English
+            ? "Manual Rotator" : "手动旋转器",
+            rotator.Controls.OfType<Label>().First().Text);
+          var hint = Field<Label>(rotator, "ManualHintLabel");
+          var track = Field<Button>(rotator, "TrackButton");
+          Assert.True(hint.Bottom < track.Top,
+            "Rotator help overlaps the TRACK control");
+          foreach (string line in hint.Text.Split('\n',
+            StringSplitOptions.RemoveEmptyEntries))
+          {
+            int width = TextRenderer.MeasureText(line, hint.Font,
+              Size.Empty, TextFormatFlags.NoPadding).Width;
+            Assert.True(width <= hint.ClientSize.Width + 2,
+              $"Rotator help clipped at {percent}%: '{line}' {width}>{hint.ClientSize.Width}");
+          }
+          string shortName = language == UiLanguage.English ? "en" : "zh";
+          SaveControlCapture(recorderHost, $"recorder-{shortName}-{percent}.png");
+          SaveControlCapture(rotator, $"rotator-{shortName}-{percent}.png");
+        }
+      }
+      finally { UiLocalizationService.Apply(before); }
+    });
+  }
+
+  [Theory]
+  [InlineData(100)]
+  [InlineData(125)]
+  [InlineData(150)]
+  [InlineData(200)]
+  public void ActualSettingsToolbarsRenderBothLocalesWithoutEditingTheModel(int percent)
+  {
+    Sta(() =>
+    {
+      UiLanguage before = SettingsLanguage.Current;
+      try
+      {
+        using var dialog = new SettingsDialog();
+        var ctx = StubContext();
+        ctx.CatControl = new CatControl();
+        typeof(SettingsDialog).GetField("ctx",
+          BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(dialog, ctx);
+        var edited = new Settings();
+        var grid = Field<PropertyGrid>(dialog, "grid");
+        grid.SelectedObject = edited;
+        // Use the actual production toolbars, language selector and footer.
+        // Never CreateControl/DrawToBitmap/Refresh the native PropertyGrid on
+        // a headless Windows runner: it blocks indefinitely without a
+        // message-pumped desktop. PropertyGrid metadata is tested separately.
+        foreach (string name in new[]
+        {
+          "InstallLanguageSelector", "InstallSignedCableToolbar",
+          "InstallIcomLanToolbar"
+        })
+          typeof(SettingsDialog).GetMethod(name,
+            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(dialog, null);
+        var layout = (TableLayoutPanel)grid.Parent!;
+        layout.Controls.Remove(grid);
+
+        // Three real 37/40/37-pixel production toolbar rows + footer.
+        // Deliberately label this artifact "controls", not "full dialog".
+        using var host = ReparentControlsToCanvas(dialog, new Size(538, 160));
+        UiLocalizationService.Bind(dialog, () =>
+          typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
+            BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(dialog, null));
+
+        // Capture the real 100% control baseline BEFORE changing host size.
+        // Absolute TableLayoutPanel row heights are a separate layout metric
+        // and must be scaled along with the controls and their fonts.
+        using var scaler = new UniformControlScale(host,
+          scaleRootBounds: false, maxScale: 2f);
+        float ratio = percent / 100f;
+        foreach (RowStyle row in layout.RowStyles)
+          if (row.SizeType == SizeType.Absolute)
+            row.Height *= ratio;
+        host.Size = new Size((int)(538 * ratio), (int)(160 * ratio));
+        scaler.Apply(ratio);
+        host.PerformLayout();
+        layout.PerformLayout();
+        host.CreateControl();
+        var footer = Field<Panel>(dialog, "panel1");
+        foreach (UiLanguage language in new[]
+        {
+          UiLanguage.English, UiLanguage.SimplifiedChinese
+        })
+        {
+          UiLocalizationService.Apply(language);
+          Assert.Same(edited, grid.SelectedObject);
+          Assert.Equal(language == UiLanguage.English
+            ? "Settings" : "设置", dialog.Text);
+          var ok = Field<Button>(dialog, "okBtn");
+          var apply = Field<Button>(dialog, "applyBtn");
+          var cancel = Field<Button>(dialog, "cancelBtn");
+          Assert.Equal(language == UiLanguage.English ? "OK" : "确定", ok.Text);
+          Assert.Equal(language == UiLanguage.English ? "Apply" : "应用", apply.Text);
+          Assert.Equal(language == UiLanguage.English ? "Cancel" : "取消", cancel.Text);
+          Assert.Equal(language == UiLanguage.English
+            ? "IERS EOP / JPL DE430 data" : "IERS EOP / JPL DE430 数据",
+            Field<Label>(dialog, "orekitDataHint").Text);
+          foreach (Button button in new[] { ok, apply, cancel })
+          {
+            int needed = TextRenderer.MeasureText(button.Text, button.Font,
+              Size.Empty, TextFormatFlags.NoPadding).Width;
+            Assert.True(needed <= button.ClientSize.Width + 4,
+              $"Settings {language} {percent}% button '{button.Text}' clipped");
+          }
+          SaveSettingsToolbarCapture(host,
+            $"settings-controls-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
+          // Geometric proof complements the screenshot: a green paint
+          // result must not hide the footer or stack two toolbar rows.
+          var rows = layout.Controls.Cast<Control>()
+            .Where(control => control.Visible)
+            .OrderBy(control => control.Top).ToArray();
+          Assert.Equal(3, rows.Length);
+          for (int i = 1; i < rows.Length; i++)
+            Assert.True(rows[i - 1].Bottom <= rows[i].Top + 2,
+              $"Settings toolbar rows overlap at {percent}%");
+          Assert.True(rows[^1].Bottom <= footer.Top + 2,
+            $"Settings toolbar overlaps footer at {percent}%");
+          Assert.True(footer.Top >= 0 && footer.Bottom <= host.ClientSize.Height + 2,
+            $"Settings footer is outside the {percent}% simulation canvas");
+          Assert.All(new[] { ok, apply, cancel }, button =>
+            Assert.True(button.Visible && button.Bottom <= footer.ClientSize.Height + 2,
+              $"Settings command button invisible or clipped at {percent}%"));
+        }
+      }
+      finally { UiLocalizationService.Apply(before); }
+    });
+  }
+
+  private static Panel ReparentControlsToCanvas(Form source, Size size)
+  {
+    // Production controls, not substitute mock buttons or static drawings.
+    // No screen-bound Form is part of the canvas, so 200% is measurable.
+    var controls = source.Controls.Cast<Control>().ToArray();
+    var canvas = new Panel { Size = size, BackColor = source.BackColor };
+    source.SuspendLayout();
+    canvas.SuspendLayout();
+    foreach (Control control in controls)
+    {
+      source.Controls.Remove(control);
+      canvas.Controls.Add(control);
+    }
+    canvas.ResumeLayout(true);
+    source.ResumeLayout(false);
+    canvas.CreateControl();
+    foreach (Control control in controls) control.CreateControl();
+    return canvas;
+  }
+
+  private static void SaveSettingsToolbarCapture(Control root, string filename)
+  {
+    string? folder = Environment.GetEnvironmentVariable(
+      "SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
+    if (string.IsNullOrWhiteSpace(folder)) return;
+    Directory.CreateDirectory(folder);
+
+    root.CreateControl();
+    root.PerformLayout();
+    using var output = new Bitmap(root.Width, root.Height);
+    using (Graphics canvas = Graphics.FromImage(output))
+    {
+      canvas.Clear(root.BackColor);
+
+      // On headless GHA Windows runners, WinForms sometimes fails to include
+      // nested child HWNDs in parent DrawToBitmap. Compose *real* controls
+      // via each control's WM_PRINT-based DrawToBitmap instead of manually
+      // drawing strings or substituting fake UI.
+      void CaptureChildren(Control parent, Point origin)
+      {
+        foreach (Control child in parent.Controls)
+        {
+          if (!child.Visible || child.Width == 0 || child.Height == 0) continue;
+          child.CreateControl();
+          child.PerformLayout();
+          var at = new Point(origin.X + child.Left, origin.Y + child.Top);
+          using var layer = new Bitmap(child.Width, child.Height);
+          child.DrawToBitmap(layer, new Rectangle(Point.Empty, layer.Size));
+          canvas.DrawImageUnscaled(layer, at);
+          CaptureChildren(child, at);
+        }
+      }
+      CaptureChildren(root, Point.Empty);
+    }
+
+    Color baseline = output.GetPixel(output.Width - 5, output.Height - 5);
+    int painted = 0;
+    for (int y = 8; y < output.Height - 8; y += 4)
+      for (int x = 8; x < output.Width - 8; x += 4)
+      {
+        Color pixel = output.GetPixel(x, y);
+        if (Math.Abs(pixel.R - baseline.R) +
+            Math.Abs(pixel.G - baseline.G) +
+            Math.Abs(pixel.B - baseline.B) > 65)
+          painted++;
+      }
+    // Preserve even failing snapshots so the actual rendering defect can
+    // be inspected from the workflow artifact instead of inferred from a log.
+    output.Save(Path.Combine(folder, filename));
+    Assert.True(painted > 100,
+      $"Blank Settings controls at '{filename}': {painted} painted pixels");
+  }
+
+  private static void SaveControlCapture(Control control, string file)
+  {
+    string? directory = Environment.GetEnvironmentVariable(
+      "SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
+    if (string.IsNullOrWhiteSpace(directory)) return;
+    Directory.CreateDirectory(directory);
+    using var image = new Bitmap(control.Width, control.Height);
+    control.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+    image.Save(Path.Combine(directory, file));
+  }
+
+  [Fact]
+  public void LiveAo123KissDecoderKeepsPartialFrameAcrossLocaleChanges()
+  {
+    // The actual TM-short KISS transport holds per-VC packet state between
+    // transfer frames. A localization event must not clear its pending data.
+    UiLanguage before = SettingsLanguage.Current;
+    try
+    {
+      var decoder = new AsrtuTmShortKissTransport();
+      static Frame Transfer(params byte[] data)
+      {
+        byte[] frame = new byte[5 + data.Length];
+        Array.Copy(data, 0, frame, 5, data.Length);
+        return new Frame
+        {
+          Bytes = frame, Framing = Framing.CCSDS, CrcValid = true
+        };
+      }
+
+      Assert.Empty(decoder.Push(Transfer(0xC0, 0x00, 0x31)).ToArray());
+      UiLocalizationService.Apply(UiLanguage.English);
+      Assert.Empty(decoder.Push(Transfer(0x32)).ToArray());
+      UiLocalizationService.Apply(UiLanguage.SimplifiedChinese);
+      var frames = decoder.Push(Transfer(0x33, 0xC0)).ToArray();
+      Assert.Single(frames);
+      Assert.Equal(new byte[] { 0x00, 0x31, 0x32, 0x33 }, frames[0].Bytes);
+      Assert.Null(frames[0].CrcValid);
+    }
+    finally { UiLocalizationService.Apply(before); }
+  }
+
+  [Fact]
+  public void DecoderSampleStreamMatchesUninterruptedReferenceAcrossLocaleChanges()
+  {
+    // Deterministic IF IQ conversion uses the same real production DSP, but
+    // no connected telemetry device; this checks phase/history preservation.
+    UiLanguage before = SettingsLanguage.Current;
+    try
+    {
+      const int sampleRate = 48000;
+      var subject = new TelemetryRealAudioIqConverter(12000);
+      var reference = new TelemetryRealAudioIqConverter(12000);
+      for (int segment = 0; segment < 8; segment++)
+      {
+        float[] pcm = Enumerable.Range(0, 503).Select(i =>
+          (float)Math.Sin(2 * Math.PI * 13210 *
+            (segment * 503 + i) / sampleRate)).ToArray();
+        Complex32[] expected = reference.Convert(pcm);
+        UiLocalizationService.Apply(segment % 2 == 0
+          ? UiLanguage.SimplifiedChinese : UiLanguage.English);
+        Complex32[] actual = subject.Convert(pcm);
+        Assert.Equal(expected.Length, actual.Length);
+        for (int i = 0; i < actual.Length; i++)
+        {
+          Assert.Equal(expected[i].Real, actual[i].Real);
+          Assert.Equal(expected[i].Imaginary, actual[i].Imaginary);
+        }
+      }
+    }
+    finally { UiLocalizationService.Apply(before); }
+  }
+}

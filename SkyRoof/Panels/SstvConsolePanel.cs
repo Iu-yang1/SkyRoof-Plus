@@ -426,9 +426,59 @@ namespace SkyRoof
       txStopButton.Click += (_, _) => StopTransmit();
 
       PopulateTxOutputDevices();
+      ConfigureLiveLocalizedChoices();
       ReloadHistory();
       RefreshTxThumbnails();
       ReloadQsoLog();
+    }
+
+
+    private static string LocalizedChoice(object? value)
+    {
+      if (value is not string text) return value?.ToString() ?? "";
+      string? key = text switch
+      {
+        "声卡 AF" => "Sstv.SourceAf",
+        "RS-BA1 回环 AF" => "Sstv.SourceLoopbackAf",
+        "声卡 12 kHz IF" => "Sstv.SourceIf",
+        "回环 12 kHz IF" => "Sstv.SourceLoopbackIf",
+        "IF: 跟随下行" => "Sstv.IfFollow",
+        "自动识别 SSTV" => "Sstv.AutoDetect",
+        "经典呼号" => "Sstv.TemplateClassic",
+        "QSL 卡片" => "Sstv.TemplateQsl",
+        "卫星横幅" => "Sstv.TemplateSatellite",
+        "纯图片" => "Sstv.TemplatePlain",
+        "己方呼号" => "Sstv.TextLayerMy",
+        "对方呼号" => "Sstv.TextLayerTheir",
+        "自定义文字" => "Sstv.TextLayerCustom",
+        _ => null
+      };
+      return key == null ? text : UiLocalizationService.Get(key);
+    }
+
+    private void ConfigureLiveLocalizedChoices()
+    {
+      // DropDownList does not consistently repaint native string Items
+      // through ComboBox.Format in all WinForms rendering paths.
+      // Owner drawing keeps SelectedItem, index and custom templates intact
+      // while translating the collapsed selection AND open dropdown rows.
+      foreach (ComboBox box in new[]
+      {
+        rxSourceBox, rxIfDemodBox, rxModeBox, templateBox, textLayerBox
+      })
+      {
+        box.DrawMode = DrawMode.OwnerDrawFixed;
+        box.DrawItem += (_, e) =>
+        {
+          e.DrawBackground();
+          if (e.Index >= 0 && e.Index < box.Items.Count)
+            TextRenderer.DrawText(e.Graphics, LocalizedChoice(box.Items[e.Index]),
+              e.Font ?? box.Font, e.Bounds, e.ForeColor,
+              TextFormatFlags.VerticalCenter | TextFormatFlags.Left |
+              TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+          e.DrawFocusRectangle();
+        };
+      }
     }
 
     private (string Key, object?[] Args, string Text)? localizedRxStatus;
@@ -475,6 +525,7 @@ namespace SkyRoof
       rxIfDemodBox.Refresh();
       rxModeBox.Refresh();
       templateBox.Refresh();
+      textLayerBox.Refresh();
       if (localizedRxStatus is { } rx && rxStatus.Text == rx.Text)
         SetRxStatus(rx.Key, rx.Args);
       if (localizedTxStatus is { } tx && txStatus.Text == tx.Text)
@@ -1147,9 +1198,8 @@ namespace SkyRoof
         // Never choose Windows' default speaker as the TX audio route.
         // The operator must deliberately select the radio's own AF endpoint.
         txOutputBox.SelectedIndex = -1;
-        txStatus.Text = txOutputBox.Items.Count > 0
-          ? "请选择实际连接电台的发射声卡；不会自动使用系统默认扬声器。"
-          : "未检测到发射声卡；仍可保存 SSTV WAV 音频";
+        SetTxStatus(txOutputBox.Items.Count > 0
+          ? "Sstv.StatusChooseTxDevice" : "Sstv.StatusNoTxDevice");
       }
       catch (Exception ex)
       {
