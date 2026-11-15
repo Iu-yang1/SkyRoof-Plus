@@ -78,7 +78,8 @@ public sealed class BilingualUiDpiAndSessionTests
         host.CreateControl();
         panel.Show();
         Application.DoEvents();
-        using var scaler = new UniformControlScale(panel, scaleRootBounds: false);
+        using var scaler = new UniformControlScale(panel,
+          scaleRootBounds: false, maxScale: 2f);
         UiLocalizationService.Bind(panel, panel.RefreshLocalizedUi);
         var tabs = panel.Controls.OfType<TabControl>().Single();
         var myCall = Field<TextBox>(panel, "myCallInput");
@@ -196,13 +197,24 @@ public sealed class BilingualUiDpiAndSessionTests
           .SetValue(manager, true);
         UiLocalizationService.Bind(recorder, recorder.RefreshLocalizedUi);
         using var rotator = new RotatorControlCard();
+        using var recorderHost = new Panel { Size = new Size(612, 172) };
+        recorder.TopLevel = false;
+        recorder.FormBorderStyle = FormBorderStyle.None;
+        recorder.Dock = DockStyle.Fill;
+        recorderHost.Controls.Add(recorder);
+        recorderHost.CreateControl();
+        recorder.Show();
         using var recorderScale = new UniformControlScale(recorder,
-          scaleRootBounds: false);
-        using var rotatorScale = new UniformControlScale(rotator);
+          scaleRootBounds: false, maxScale: 2f);
+        using var rotatorScale = new UniformControlScale(rotator,
+          maxScale: 2f);
         float ratio = percent / 100f;
-        recorder.Size = new Size((int)(612 * ratio), (int)(172 * ratio));
+        recorderHost.Size = new Size((int)(612 * ratio), (int)(172 * ratio));
         recorderScale.Apply(ratio);
         rotatorScale.Apply(ratio);
+        Assert.Equal(recorderHost.Size, recorder.Size);
+        Assert.Equal(new Size((int)Math.Round(318 * ratio),
+          (int)Math.Round(386 * ratio)), rotator.Size);
         recorder.CreateControl();
         rotator.CreateControl();
         var az = Field<NumericUpDown>(rotator, "AzimuthSpinner");
@@ -259,17 +271,36 @@ public sealed class BilingualUiDpiAndSessionTests
       try
       {
         using var dialog = new SettingsDialog();
+        var ctx = StubContext();
+        ctx.CatControl = new CatControl();
+        typeof(SettingsDialog).GetField("ctx",
+          BindingFlags.Instance | BindingFlags.NonPublic)!
+          .SetValue(dialog, ctx);
         var settings = new Settings();
         var grid = Field<PropertyGrid>(dialog, "grid");
         grid.SelectedObject = settings;
+        // The normal constructor adds the interface-language selector after
+        // it has a Context. Reproduce that UI only, without starting devices.
+        typeof(SettingsDialog).GetMethod("InstallLanguageSelector",
+          BindingFlags.Instance | BindingFlags.NonPublic)!
+          .Invoke(dialog, null);
+        using var host = new Panel { Size = new Size(538, 860) };
+        dialog.TopLevel = false;
+        dialog.FormBorderStyle = FormBorderStyle.None;
+        dialog.Dock = DockStyle.Fill;
+        host.Controls.Add(dialog);
+        host.CreateControl();
+        dialog.Show();
         UiLocalizationService.Bind(dialog, () =>
           typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
             BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(dialog, null));
-        using var scaler = new UniformControlScale(dialog, scaleRootBounds: false);
+        using var scaler = new UniformControlScale(dialog,
+          scaleRootBounds: false, maxScale: 2f);
         float ratio = percent / 100f;
-        dialog.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
+        host.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
         scaler.Apply(ratio);
+        Assert.Equal(host.Size, dialog.Size);
         dialog.CreateControl();
         grid.CreateControl();
         foreach (UiLanguage language in new[]

@@ -12,12 +12,17 @@ namespace SkyRoof
       Padding Padding, Padding Margin, Size Minimum, Size Maximum, Font Font);
     private readonly Snapshot[] snapshots;
     private readonly bool scaleRootBounds;
+    // Production remains clamped at 1.5; the WinForms DPI simulator opts
+    // into 2.0 solely to exercise 200% layout and typography.
+    private readonly float maxScale;
     private readonly Dictionary<string, Font> fonts = new();
     private float current = 1f;
 
-    internal UniformControlScale(Control root, bool scaleRootBounds = true)
+    internal UniformControlScale(Control root, bool scaleRootBounds = true,
+      float maxScale = 1.5f)
     {
       this.scaleRootBounds = scaleRootBounds;
+      this.maxScale = maxScale;
       var controls = new List<Control>();
       static void Visit(Control control, List<Control> list)
       {
@@ -82,7 +87,7 @@ namespace SkyRoof
 
     internal void Apply(float scale)
     {
-      scale = Math.Clamp(scale, .25f, 1.5f);
+      scale = Math.Clamp(scale, .25f, maxScale);
       if (Math.Abs(scale - current) < .005f) return;
       foreach (var item in snapshots) item.Control.SuspendLayout();
       try
