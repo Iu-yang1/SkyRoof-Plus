@@ -43,6 +43,25 @@ namespace VE3NEA.Dsp.Tests
       string field, int expected) =>
       ((int)IcomLanSettingsChangePolicy.Classify([field])).Should().Be(expected);
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void ExistingTxGrantIsRequiredForLocalTxEnableToggle(
+      bool txGrantReady, bool expected)
+    {
+      IcomLanSettingsChangePolicy.CanToggleTxLocally(
+        ["SkyRoof.IcomDirectLanTransmitSettings.Enabled"], txGrantReady)
+        .Should().Be(expected);
+      IcomLanSettingsChangePolicy.CanToggleTxLocally(
+        [
+          "SkyRoof.IcomDirectLanTransmitSettings.Enabled",
+          "SkyRoof.IcomDirectLanTransmitSettings.SampleRate"
+        ], txGrantReady).Should().BeFalse();
+      IcomLanSettingsChangePolicy.CanToggleTxLocally(
+        ["SkyRoof.IcomDirectLanReceiveSettings.Enabled"], txGrantReady)
+        .Should().BeFalse();
+    }
+
     [Fact]
     public void MostDisruptiveSettingWinsWhenApplyingSeveralAtOnce()
     {
