@@ -270,7 +270,7 @@ public sealed class BilingualUiDpiAndSessionTests
   [InlineData(125)]
   [InlineData(150)]
   [InlineData(200)]
-  public void ActualSettingsDialogRendersBothLocalesWithoutLosingEditedModel(int percent)
+  public void ActualSettingsToolbarsRenderBothLocalesWithoutEditingTheModel(int percent)
   {
     Sta(() =>
     {
@@ -281,60 +281,61 @@ public sealed class BilingualUiDpiAndSessionTests
         var ctx = StubContext();
         ctx.CatControl = new CatControl();
         typeof(SettingsDialog).GetField("ctx",
-          BindingFlags.Instance | BindingFlags.NonPublic)!
-          .SetValue(dialog, ctx);
-        var settings = new Settings();
+          BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(dialog, ctx);
+        var edited = new Settings();
         var grid = Field<PropertyGrid>(dialog, "grid");
-        grid.SelectedObject = settings;
-        // The normal constructor adds the interface-language selector after
-        // it has a Context. Reproduce that UI only, without starting devices.
-        typeof(SettingsDialog).GetMethod("InstallLanguageSelector",
-          BindingFlags.Instance | BindingFlags.NonPublic)!
-          .Invoke(dialog, null);
-        using var host = ReparentControlsToCanvas(dialog, new Size(538, 860));
+        grid.SelectedObject = edited;
+        // Use the actual production toolbars, language selector and footer.
+        // Never CreateControl/DrawToBitmap/Refresh the native PropertyGrid on
+        // a headless Windows runner: it blocks indefinitely without a
+        // message-pumped desktop. PropertyGrid metadata is tested separately.
+        foreach (string name in new[]
+        {
+          "InstallLanguageSelector", "InstallSignedCableToolbar",
+          "InstallIcomLanToolbar"
+        })
+          typeof(SettingsDialog).GetMethod(name,
+            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(dialog, null);
+        var layout = (TableLayoutPanel)grid.Parent!;
+        layout.Controls.Remove(grid);
+
+        // Three real 37/40/37-pixel production toolbar rows + footer.
+        // Deliberately label this artifact "controls", not "full dialog".
+        using var host = ReparentControlsToCanvas(dialog, new Size(538, 160));
         UiLocalizationService.Bind(dialog, () =>
           typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
-            BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(dialog, null));
-        // The PropertyGrid is a native composite that provides its own DPI
-        // scaling. Applying a generic recursive bounds scaler to its
-        // internal controls can deadlock on the headless Windows runner.
-        // Exclude the grid from the visual-chrome scaler and adjust its
-        // font and enclosing table layout explicitly instead.
-        var layout = (TableLayoutPanel)grid.Parent!;
-        int gridRow = layout.GetRow(grid);
-        layout.Controls.Remove(grid);
+            BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(dialog, null));
+
+        float ratio = percent / 100f;
+        host.Size = new Size((int)(538 * ratio), (int)(160 * ratio));
         using var scaler = new UniformControlScale(host,
           scaleRootBounds: false, maxScale: 2f);
-        layout.Controls.Add(grid, 0, gridRow);
-        grid.Dock = DockStyle.Fill;
-        float ratio = percent / 100f;
-        host.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
-        foreach (RowStyle row in layout.RowStyles)
-          if (row.SizeType == SizeType.Absolute)
-            row.Height = row.Height * ratio;
         scaler.Apply(ratio);
-        using var scaledGridFont = new Font(grid.Font.FontFamily,
-          grid.Font.SizeInPoints * ratio, grid.Font.Style);
-        grid.Font = scaledGridFont;
-        Assert.Equal(new Size((int)(538 * ratio), (int)(860 * ratio)),
-          host.Size);
-        dialog.CreateControl();
-        grid.CreateControl();
+        host.CreateControl();
         foreach (UiLanguage language in new[]
         {
           UiLanguage.English, UiLanguage.SimplifiedChinese
         })
         {
           UiLocalizationService.Apply(language);
-          grid.Refresh();
-          Assert.Same(settings, grid.SelectedObject);
+          Assert.Same(edited, grid.SelectedObject);
           Assert.Equal(language == UiLanguage.English
             ? "Settings" : "设置", dialog.Text);
-          Assert.Equal(language == UiLanguage.English
-            ? "OK" : "确定", Field<Button>(dialog, "okBtn").Text);
+          var ok = Field<Button>(dialog, "okBtn");
+          var apply = Field<Button>(dialog, "applyBtn");
+          var cancel = Field<Button>(dialog, "cancelBtn");
+          Assert.Equal(language == UiLanguage.English ? "OK" : "确定", ok.Text);
+          Assert.Equal(language == UiLanguage.English ? "Apply" : "应用", apply.Text);
+          Assert.Equal(language == UiLanguage.English ? "Cancel" : "取消", cancel.Text);
+          foreach (Button button in new[] { ok, apply, cancel })
+          {
+            int needed = TextRenderer.MeasureText(button.Text, button.Font,
+              Size.Empty, TextFormatFlags.NoPadding).Width;
+            Assert.True(needed <= button.ClientSize.Width + 4,
+              $"Settings {language} {percent}% button '{button.Text}' clipped");
+          }
           SaveControlCapture(host,
-            $"settings-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
+            $"settings-controls-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
         }
       }
       finally { UiLocalizationService.Apply(before); }
@@ -369,7 +370,7 @@ public sealed class BilingualUiDpiAndSessionTests
     Directory.CreateDirectory(directory);
     using var image = new Bitmap(control.Width, control.Height);
     control.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
-    if (file.StartsWith("settings-", StringComparison.Ordinal))
+    if (file.StartsWith("settings-controls-", StringComparison.Ordinal))
     {
       // A blank Settings screenshot used to pass because a Form's chrome
       // painted successfully while its PropertyGrid never painted.
@@ -385,7 +386,7 @@ public sealed class BilingualUiDpiAndSessionTests
             contentPixels++;
         }
       Assert.True(contentPixels > 250,
-        $"Blank Settings/PropertyGrid capture at '{file}': {contentPixels} painted pixels");
+        $"Blank Settings toolbar capture at '{file}': {contentPixels} painted pixels");
     }
     image.Save(Path.Combine(directory, file));
   }
