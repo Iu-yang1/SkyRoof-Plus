@@ -38,10 +38,10 @@ namespace SkyRoof
 
       if (path?.Optimizer?.BestPaths == null)
       {
-        Text = "Optimized Rotator Paths";
+        Text = UiLocalizationService.Get("PathOptimizer.NoPaths");
         return;
       }
-      Text = $"Optimized Rotator Paths for {path.Satellite!.name}";
+      Text = UiLocalizationService.Format("PathOptimizer.ForSatellite", path.Satellite!.name);
 
       var currentDirection = path.Optimizer.CurrentDirection;
       var bestPaths = path.Optimizer.BestPaths;
