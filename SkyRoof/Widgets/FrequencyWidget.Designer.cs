@@ -188,7 +188,7 @@
       // 
       label1.AutoSize = true;
       label1.Font = new Font("Microsoft Sans Serif", 14F, FontStyle.Bold);
-      label1.Location = new Point(342, 1);
+      label1.Location = new Point(342, 5);
       label1.Name = "label1";
       label1.Size = new Size(21, 24);
       label1.TabIndex = 37;
@@ -277,9 +277,9 @@
       // UplinkLabel
       // 
       UplinkLabel.AutoEllipsis = true;
-      UplinkLabel.Location = new Point(360, 10);
+      UplinkLabel.Location = new Point(364, 12);
       UplinkLabel.Name = "UplinkLabel";
-      UplinkLabel.Size = new Size(62, 15);
+      UplinkLabel.Size = new Size(70, 15);
       UplinkLabel.TabIndex = 32;
       UplinkLabel.Text = "No Uplink";
       // 
@@ -344,7 +344,7 @@
       // 
       // DownlinkLabel
       // 
-      DownlinkLabel.Location = new Point(25, 12);
+      DownlinkLabel.Location = new Point(29, 12);
       DownlinkLabel.Name = "DownlinkLabel";
       DownlinkLabel.Size = new Size(73, 15);
       DownlinkLabel.TabIndex = 26;
