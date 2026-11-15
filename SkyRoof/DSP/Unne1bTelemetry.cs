@@ -129,7 +129,7 @@ namespace SkyRoof
       if (type == 12 && bytes.Length >= 62)
       {
         yield return ("Spacecraft address", ReadBits(bytes, 40, 16).ToString());
-        yield return ("TLE epoch (raw)", ReadBits(bytes, 136, 32).ToString());
+        yield return ("TLE epoch (raw)", ReadBits(bytes, 120, 32).ToString());
         yield return ("Latitude (raw)", ReadBits(bytes, 440, 16).ToString());
         yield return ("Longitude (raw)", ReadBits(bytes, 456, 16).ToString());
         yield return ("Altitude (raw)", ReadBits(bytes, 472, 16).ToString());
@@ -173,7 +173,7 @@ namespace SkyRoof
     private static string Temperature(byte value) => value switch
     {
       0 => "<= -40 °C",
-      >= 254 and <= 254 => ">= 87 °C",
+      254 => ">= 87 °C",
       255 => "Sensor error",
       _ => (value * 0.5 - 40).ToString("0.0") + " °C"
     };
