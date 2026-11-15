@@ -23,6 +23,7 @@ public sealed class QsoSchedulerManualSearchTests
       try { test(); }
       catch (Exception ex) { error = ex; }
     });
+    thread.IsBackground = true;
     thread.SetApartmentState(ApartmentState.STA);
     thread.Start();
     Assert.True(thread.Join(TimeSpan.FromSeconds(15)), "Pass matching UI test timed out");
@@ -112,39 +113,68 @@ public sealed class QsoSchedulerManualSearchTests
       UiLanguage previous = SettingsLanguage.Current;
       try
       {
-        using var panel = new QsoSchedulerPanel();
-        using var scale = new UniformControlScale(panel, maxScale: 2f);
-        scale.Apply(percent / 100f);
-        panel.CreateControl();
-        var progress = Field<ProgressBar>(panel, "CalculationProgress");
-        var button = Field<Button>(panel, "CalculateButton");
-        var start = Field<DateTimePicker>(panel, "StartUtcPicker");
-        var end = Field<DateTimePicker>(panel, "EndUtcPicker");
-        var status = Field<Label>(panel, "StatusLabel");
-
+        // A DockContent Form can return a completely blank DrawToBitmap on
+        // headless Windows runners. Render its ACTUAL toolbar controls on a
+        // plain canvas and reject blank captures instead.
         foreach (var language in new[] { UiLanguage.English, UiLanguage.SimplifiedChinese })
         {
           UiLocalizationService.Apply(language);
+          using var panel = new QsoSchedulerPanel();
           UiLocalizationService.ApplyStaticControls(panel);
           panel.RefreshLocalizedUi();
+
+          using var scale = new UniformControlScale(panel, maxScale: 2f);
+          float ratio = percent / 100f;
+          scale.Apply(ratio);
+          var progress = Field<ProgressBar>(panel, "CalculationProgress");
+          var button = Field<Button>(panel, "CalculateButton");
+          var start = Field<DateTimePicker>(panel, "StartUtcPicker");
+          var end = Field<DateTimePicker>(panel, "EndUtcPicker");
+          var status = Field<Label>(panel, "StatusLabel");
+
           Assert.Equal(UiLocalizationService.Get("QsoScheduler.Calculate"), button.Text);
           Assert.False(panel.IsPredictionRunning);
           Assert.True(start.Right < end.Left);
           Assert.True(progress.Right < status.Left);
           Assert.False(progress.Visible);
 
+          using var host = new Panel
+          {
+            Size = new Size(panel.Width, (int)(100 * ratio)),
+            BackColor = panel.BackColor
+          };
+          foreach (Control control in panel.Controls.Cast<Control>().ToArray())
+          {
+            if (control.Name is "dockPanel1" or "PredictionList") continue;
+            panel.Controls.Remove(control);
+            host.Controls.Add(control);
+          }
+          host.CreateControl();
+          foreach (Control child in host.Controls) child.CreateControl();
+
           string? output = Environment.GetEnvironmentVariable("SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
           if (!string.IsNullOrWhiteSpace(output))
           {
             Directory.CreateDirectory(output);
-            using var bitmap = new Bitmap(panel.Width, panel.Height);
-            panel.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
-            bitmap.Save(Path.Combine(output,
-              $"pass-match-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png"));
+            using var bitmap = new Bitmap(host.Width, host.Height);
+            host.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+            string file = Path.Combine(output,
+              $"pass-match-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
+            bitmap.Save(file);
+
+            Color background = bitmap.GetPixel(bitmap.Width - 2, bitmap.Height - 2);
+            int painted = 0;
+            for (int y = 4; y < bitmap.Height - 4; y += 4)
+              for (int x = 4; x < bitmap.Width - 4; x += 4)
+                if (bitmap.GetPixel(x, y).ToArgb() != background.ToArgb())
+                  painted++;
+            Assert.True(painted > 100,
+              $"Blank pass-matching toolbar capture: {file} ({painted} pixels)");
           }
         }
       }
       finally { UiLocalizationService.Apply(previous); }
     });
   }
+
 }
