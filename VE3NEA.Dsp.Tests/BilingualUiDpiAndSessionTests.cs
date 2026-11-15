@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Forms;
+using Control = System.Windows.Forms.Control;
 using MathNet.Numerics;
 using SkyRoof;
 using SkyRoof.SSTV;
