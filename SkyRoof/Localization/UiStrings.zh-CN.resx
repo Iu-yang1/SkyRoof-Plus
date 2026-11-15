@@ -253,8 +253,8 @@
   <data name="Sstv.FieldTemplate" xml:space="preserve"><value>模板</value></data>
   <data name="Sstv.FieldMy" xml:space="preserve"><value>本台</value></data>
   <data name="Sstv.FieldHis" xml:space="preserve"><value>对方</value></data>
-  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>发出 RST</value></data>
-  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>收到 RST</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>发出 RSV</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>收到 RSV</value></data>
   <data name="Sstv.FieldName" xml:space="preserve"><value>姓名</value></data>
   <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
   <data name="Sstv.FieldNotes" xml:space="preserve"><value>备注</value></data>
