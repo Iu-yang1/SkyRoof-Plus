@@ -457,4 +457,15 @@
 松开 = STOP
 
 中心 = STOP</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>重命名</value></data>
+  <data name="Menu.SatelliteGroupsForm.DeleteMNU2" xml:space="preserve"><value>删除</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU2" xml:space="preserve"><value>详情…</value></data>
+  <data name="Menu.SatelliteGroupsForm.ClearGroupMNU" xml:space="preserve"><value>清空分组</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameSatMNU" xml:space="preserve"><value>重命名</value></data>
+  <data name="Menu.SatelliteGroupsForm.AddToGroupMNU" xml:space="preserve"><value>添加到分组</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU" xml:space="preserve"><value>卫星详情…</value></data>
+  <data name="Menu.SatelliteGroupsForm.toolStripMenuItem1" xml:space="preserve"><value>复制 NORAD 编号</value></data>
+  <data name="SignalParams.TriAuto" xml:space="preserve"><value>自动</value></data>
+  <data name="SignalParams.TriOn" xml:space="preserve"><value>开</value></data>
+  <data name="SignalParams.TriOff" xml:space="preserve"><value>关</value></data>
 </root>

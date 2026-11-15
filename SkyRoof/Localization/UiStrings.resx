@@ -457,4 +457,15 @@ clear TRACK first.</value></data>
 Release = STOP
 
 Center = STOP</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>Rename</value></data>
+  <data name="Menu.SatelliteGroupsForm.DeleteMNU2" xml:space="preserve"><value>Delete</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU2" xml:space="preserve"><value>Details...</value></data>
+  <data name="Menu.SatelliteGroupsForm.ClearGroupMNU" xml:space="preserve"><value>Clear Group</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameSatMNU" xml:space="preserve"><value>Rename</value></data>
+  <data name="Menu.SatelliteGroupsForm.AddToGroupMNU" xml:space="preserve"><value>Add to Group</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU" xml:space="preserve"><value>Satellite Details...</value></data>
+  <data name="Menu.SatelliteGroupsForm.toolStripMenuItem1" xml:space="preserve"><value>Copy NORAD ID</value></data>
+  <data name="SignalParams.TriAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="SignalParams.TriOn" xml:space="preserve"><value>On</value></data>
+  <data name="SignalParams.TriOff" xml:space="preserve"><value>Off</value></data>
 </root>

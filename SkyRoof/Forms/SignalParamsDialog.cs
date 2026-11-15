@@ -105,9 +105,26 @@ namespace SkyRoof
     public SignalParamsDialog()
     {
       InitializeComponent();
+      foreach (ComboBox box in new[] { ManchesterCombo, DifferentialCombo })
+      {
+        box.FormattingEnabled = true;
+        box.Format += (_, e) =>
+        {
+          if (e.ListItem is not string text) return;
+          e.Value = text switch
+          {
+            "Auto" => UiLocalizationService.Get("SignalParams.TriAuto"),
+            "On" => UiLocalizationService.Get("SignalParams.TriOn"),
+            "Off" => UiLocalizationService.Get("SignalParams.TriOff"),
+            _ => text
+          };
+        };
+      }
       UiLocalizationService.Bind(this, () =>
       {
         UiLocalizationService.ApplyStaticControls(this);
+        ManchesterCombo.Refresh();
+        DifferentialCombo.Refresh();
         DiscoverBtn.Text = UiLocalizationService.Get(Discovering
           ? "Common.Stop" : "SignalParams.Discover");
       });
