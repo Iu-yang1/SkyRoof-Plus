@@ -1,3 +1,18 @@
+# SkyRoof Fork v.1.78 / SkyRoof Plus 1.78 专业术语优化
+
+## v1.78 — 2026-11-15
+
+- 将卫星发射机列表专业表述为“转发器与信标”，保留 Transmitter/Transceiver/Transponder 的分类语义差别。
+- 将 QSO Scheduler 改为“过境匹配”，新译共同可见窗口的时间、最大仰角和详情视图；不把可见性等同转发器实际可用。
+- 统一旋转器跟踪、频谱 REF/VBW、CW WPM、SSTV RST、Recorder 音频/IQ 术语，修正日志州/省字段。
+- 中英文资源补齐过境匹配和自定义转发器/信标编辑交互；不修改电台、轨道、遥测、旋转器行为。
+- 中英文资源键一致性与术语专门测试由 CI 验证；发布构建、哈希与未签名披露以对应 Release 工作流为准。
+- 详细变更与术语依据：[RELEASE_NOTES.md](RELEASE_NOTES.md)。
+
+**English:** v1.78 improves precise Chinese ham-radio terminology and covers remaining pass-matching and transponder/beacon editor interactions. Existing CAT/PTT, rotator, SDR and DSP behavior is unchanged.
+
+---
+
 # SkyRoof Fork v.1.77 / SkyRoof Plus 1.77 中文资源安装修复
 
 ## v1.77 — 2026-11-15
