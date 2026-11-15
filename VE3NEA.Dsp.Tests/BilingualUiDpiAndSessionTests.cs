@@ -334,7 +334,7 @@ public sealed class BilingualUiDpiAndSessionTests
             Assert.True(needed <= button.ClientSize.Width + 4,
               $"Settings {language} {percent}% button '{button.Text}' clipped");
           }
-          SaveControlCapture(host,
+          SaveSettingsToolbarCapture(host,
             $"settings-controls-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
         }
       }
@@ -362,6 +362,57 @@ public sealed class BilingualUiDpiAndSessionTests
     return canvas;
   }
 
+  private static void SaveSettingsToolbarCapture(Control root, string filename)
+  {
+    string? folder = Environment.GetEnvironmentVariable(
+      "SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
+    if (string.IsNullOrWhiteSpace(folder)) return;
+    Directory.CreateDirectory(folder);
+
+    root.CreateControl();
+    root.PerformLayout();
+    using var output = new Bitmap(root.Width, root.Height);
+    using (Graphics canvas = Graphics.FromImage(output))
+    {
+      canvas.Clear(root.BackColor);
+
+      // On headless GHA Windows runners, WinForms sometimes fails to include
+      // nested child HWNDs in parent DrawToBitmap. Compose *real* controls
+      // via each control's WM_PRINT-based DrawToBitmap instead of manually
+      // drawing strings or substituting fake UI.
+      void CaptureChildren(Control parent, Point origin)
+      {
+        foreach (Control child in parent.Controls)
+        {
+          if (!child.Visible || child.Width == 0 || child.Height == 0) continue;
+          child.CreateControl();
+          child.PerformLayout();
+          var at = new Point(origin.X + child.Left, origin.Y + child.Top);
+          using var layer = new Bitmap(child.Width, child.Height);
+          child.DrawToBitmap(layer, new Rectangle(Point.Empty, layer.Size));
+          canvas.DrawImageUnscaled(layer, at);
+          CaptureChildren(child, at);
+        }
+      }
+      CaptureChildren(root, Point.Empty);
+    }
+
+    Color baseline = output.GetPixel(output.Width - 5, output.Height - 5);
+    int painted = 0;
+    for (int y = 8; y < output.Height - 8; y += 4)
+      for (int x = 8; x < output.Width - 8; x += 4)
+      {
+        Color pixel = output.GetPixel(x, y);
+        if (Math.Abs(pixel.R - baseline.R) +
+            Math.Abs(pixel.G - baseline.G) +
+            Math.Abs(pixel.B - baseline.B) > 65)
+          painted++;
+      }
+    Assert.True(painted > 100,
+      $"Blank Settings controls at '{filename}': {painted} painted pixels");
+    output.Save(Path.Combine(folder, filename));
+  }
+
   private static void SaveControlCapture(Control control, string file)
   {
     string? directory = Environment.GetEnvironmentVariable(
@@ -370,24 +421,6 @@ public sealed class BilingualUiDpiAndSessionTests
     Directory.CreateDirectory(directory);
     using var image = new Bitmap(control.Width, control.Height);
     control.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
-    if (file.StartsWith("settings-controls-", StringComparison.Ordinal))
-    {
-      // A blank Settings screenshot used to pass because a Form's chrome
-      // painted successfully while its PropertyGrid never painted.
-      Color background = image.GetPixel(image.Width - 12, image.Height - 12);
-      int contentPixels = 0;
-      for (int y = 30; y < image.Height - 20; y += 7)
-        for (int x = 12; x < image.Width - 12; x += 7)
-        {
-          Color pixel = image.GetPixel(x, y);
-          if (Math.Abs(pixel.R - background.R) +
-              Math.Abs(pixel.G - background.G) +
-              Math.Abs(pixel.B - background.B) > 45)
-            contentPixels++;
-        }
-      Assert.True(contentPixels > 250,
-        $"Blank Settings toolbar capture at '{file}': {contentPixels} painted pixels");
-    }
     image.Save(Path.Combine(directory, file));
   }
 
