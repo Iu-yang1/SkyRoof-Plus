@@ -253,8 +253,8 @@
   <data name="Sstv.FieldTemplate" xml:space="preserve"><value>Template</value></data>
   <data name="Sstv.FieldMy" xml:space="preserve"><value>MY</value></data>
   <data name="Sstv.FieldHis" xml:space="preserve"><value>HIS</value></data>
-  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RST TX</value></data>
-  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RST RX</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RSV TX</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RSV RX</value></data>
   <data name="Sstv.FieldName" xml:space="preserve"><value>Name</value></data>
   <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
   <data name="Sstv.FieldNotes" xml:space="preserve"><value>Notes</value></data>
