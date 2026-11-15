@@ -3197,8 +3197,8 @@ namespace SkyRoof
           audioReceiver != null)
       {
         StatusLabel.Text += audioReceiverError == null
-          ? " | RX: " + audioReceiver.Status
-          : " | RX ERROR: " + audioReceiverError;
+          ? UiLocalizationService.Format("Telemetry.AudioRxStatus", audioReceiver.Status)
+          : UiLocalizationService.Format("Telemetry.AudioRxError", audioReceiverError);
         if (audioReceiverError != null)
           StatusLabel.ForeColor = Color.DarkOrange;
       }
@@ -3215,6 +3215,7 @@ namespace SkyRoof
       SaveVoiceMNU.Text = UiLocalizationService.Get("Telemetry.SaveAs");
       OpenVoiceMNU.Text = UiLocalizationService.Get("Telemetry.OpenVoice");
       ClearAllMNU.Text = UiLocalizationService.Get("Telemetry.ClearAll");
+      CombineImageMNU.Text = UiLocalizationService.Get("Telemetry.CombineImage");
       if (Terrestrial) SatNameLabel.Text = UiLocalizationService.Get("Telemetry.Terrestrial");
       // The currently running receiver and the text of past decoded frames
       // are deliberately left untouched; only live status captions change.
