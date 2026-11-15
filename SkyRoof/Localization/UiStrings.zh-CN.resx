@@ -623,4 +623,8 @@
   <data name="AutoSelection.TooltipToggle" xml:space="preserve"><value>开启或关闭当前分组的自动卫星选择</value></data>
   <data name="AutoSelection.TooltipEdit" xml:space="preserve"><value>编辑当前分组的过境自动选择计划</value></data>
   <data name="AutoSelection.StoppedOnClose" xml:space="preserve"><value>自动卫星选择面板已关闭，自动选择已停止。</value></data>
+  <data name="FrequencyWidget.XitOffset" xml:space="preserve"><value>XIT 频偏：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.SdrTransverterIf" xml:space="preserve"><value>SDR 变频器中频：{0:F6} MHz</value></data>
+  <data name="FrequencyWidget.ClickForManualEntry" xml:space="preserve"><value>单击可手动输入频率</value></data>
+  <data name="FrequencyWidget.NoCatToneCommand" xml:space="preserve"><value>电台不支持通过 CAT 设置该 CTCSS 亚音频率。</value></data>
 </root>
