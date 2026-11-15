@@ -654,4 +654,55 @@
   <data name="Menu.AutoSelectionConfigForm.Select10Mnu" xml:space="preserve"><value>选择最大仰角超过 10° 的过境</value></data>
   <data name="Menu.AutoSelectionConfigForm.Select15Mnu" xml:space="preserve"><value>选择最大仰角超过 15° 的过境</value></data>
   <data name="Menu.AutoSelectionConfigForm.Select20Mnu" xml:space="preserve"><value>选择最大仰角超过 20° 的过境</value></data>
+  <data name="Onvif.LiveVideo" xml:space="preserve"><value>实时画面</value></data>
+  <data name="Onvif.NotConnected" xml:space="preserve"><value>未连接</value></data>
+  <data name="Onvif.OpenSettings" xml:space="preserve"><value>打开设置</value></data>
+  <data name="Onvif.Play" xml:space="preserve"><value>播放</value></data>
+  <data name="Onvif.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Onvif.Reconnect" xml:space="preserve"><value>重新连接</value></data>
+  <data name="Onvif.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="Onvif.NoCamera" xml:space="preserve"><value>未配置摄像头</value></data>
+  <data name="Onvif.Connecting" xml:space="preserve"><value>正在连接…</value></data>
+  <data name="Onvif.NoStream" xml:space="preserve"><value>无视频流</value></data>
+  <data name="Onvif.Offline" xml:space="preserve"><value>离线</value></data>
+  <data name="Onvif.Stopped" xml:space="preserve"><value>已停止。</value></data>
+  <data name="Onvif.Configure" xml:space="preserve"><value>请先配置 ONVIF 摄像头。</value></data>
+  <data name="Onvif.Saved" xml:space="preserve"><value>已保存摄像头设置，点击“播放”连接。</value></data>
+  <data name="Onvif.Ready" xml:space="preserve"><value>摄像头已就绪。</value></data>
+  <data name="Onvif.ConnectingCamera" xml:space="preserve"><value>正在连接摄像头…</value></data>
+  <data name="Onvif.StartHardware" xml:space="preserve"><value>正在启动硬件解码视频…</value></data>
+  <data name="Onvif.LiveHardware" xml:space="preserve"><value>实时视频 · D3D11VA 硬件解码</value></data>
+  <data name="Onvif.HardwareUnavailable" xml:space="preserve"><value>硬件解码器不可用，请尝试其他视频配置文件。</value></data>
+  <data name="Onvif.Interrupted" xml:space="preserve"><value>视频连接已中断。</value></data>
+  <data name="Onvif.MpvMissing" xml:space="preserve"><value>找不到 mpv.exe，请在设置中指定播放器路径。</value></data>
+  <data name="Onvif.D3dUnavailable" xml:space="preserve"><value>该视频流不支持 D3D11VA，请选择其他配置文件。</value></data>
+  <data name="Onvif.Failed" xml:space="preserve"><value>无法连接，请检查 ONVIF 地址、用户名、密码及视频流。</value></data>
+  <data name="Onvif.SettingsTitle" xml:space="preserve"><value>ONVIF 摄像头设置</value></data>
+  <data name="Onvif.SetName" xml:space="preserve"><value>摄像头名称</value></data>
+  <data name="Onvif.SetDevice" xml:space="preserve"><value>设备</value></data>
+  <data name="Onvif.SetService" xml:space="preserve"><value>设备服务地址</value></data>
+  <data name="Onvif.SetUsername" xml:space="preserve"><value>用户名</value></data>
+  <data name="Onvif.SetPassword" xml:space="preserve"><value>密码</value></data>
+  <data name="Onvif.SetVideoProfile" xml:space="preserve"><value>视频配置文件</value></data>
+  <data name="Onvif.SetPlayer" xml:space="preserve"><value>播放器</value></data>
+  <data name="Onvif.SetPlayback" xml:space="preserve"><value>播放选项</value></data>
+  <data name="Onvif.SetStatus" xml:space="preserve"><value>状态</value></data>
+  <data name="Onvif.SetDiscover" xml:space="preserve"><value>搜索设备</value></data>
+  <data name="Onvif.SetProfiles" xml:space="preserve"><value>获取配置文件</value></data>
+  <data name="Onvif.SetBrowse" xml:space="preserve"><value>浏览…</value></data>
+  <data name="Onvif.SetAutoConnect" xml:space="preserve"><value>打开窗口时连接</value></data>
+  <data name="Onvif.SetAutoPlay" xml:space="preserve"><value>自动开始播放</value></data>
+  <data name="Onvif.SetAutoReconnect" xml:space="preserve"><value>播放中断后自动重连</value></data>
+  <data name="Onvif.SetMedia2" xml:space="preserve"><value>优先 ONVIF Media2（失败时回退 Media1）</value></data>
+  <data name="Onvif.SetHint" xml:space="preserve"><value>选择摄像头或填写 ONVIF Device Service 地址。</value></data>
+  <data name="Onvif.SetCancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="Onvif.SetConnectionFailed" xml:space="preserve"><value>连接失败，请检查摄像头地址、访问权限及认证信息。</value></data>
+  <data name="Onvif.SetDiscovering" xml:space="preserve"><value>正在通过可用 IPv4 网络适配器搜索 ONVIF 设备…</value></data>
+  <data name="Onvif.SetFound" xml:space="preserve"><value>在 {1} 个网络适配器上发现 {0} 个 ONVIF 端点。</value></data>
+  <data name="Onvif.SetNotFound" xml:space="preserve"><value>未收到 ONVIF 响应（适配器 {0} 个，UDP 数据包 {1} 个）。请检查 UDP 3702/防火墙，或输入 HTTP Device Service 地址（不是 RTSP 554 端口）。</value></data>
+  <data name="Onvif.SetQueryProfiles" xml:space="preserve"><value>正在查询 Media1 / Media2 视频配置文件…</value></data>
+  <data name="Onvif.SetProfileCount" xml:space="preserve"><value>找到 {0} 个 ONVIF 视频配置文件，请选择默认视频流。</value></data>
+  <data name="Onvif.SetSelectMpv" xml:space="preserve"><value>选择 mpv.exe 播放器</value></data>
+  <data name="Onvif.SetMpvFilter" xml:space="preserve"><value>mpv 播放器 (mpv.exe)|mpv.exe|可执行文件 (*.exe)|*.exe</value></data>
+  <data name="Onvif.SetInvalidAddress" xml:space="preserve"><value>ONVIF 地址无效</value></data>
 </root>
