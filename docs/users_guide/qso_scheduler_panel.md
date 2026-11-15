@@ -17,9 +17,34 @@ Click on **View / QSO Scheduler** to open the panel:
 Your own grid square and altitude are taken from the user details in the
 [Settings Window](settings_window.md). The DX station is assumed to be at sea level.
 
+## Choose a Time Range and Start a Search
+
+1. Set **Start (UTC)** and **End (UTC)** in the two date/time fields. Both
+   are explicitly interpreted as **UTC**, regardless of the Windows system
+   time zone. The defaults are the current UTC minute and 14 days later.
+2. After selecting a satellite and entering a valid DX grid, press
+   **Start calculation**. Entering or editing a grid **never runs an orbit
+   prediction automatically**.
+3. The progress bar reports the local-station pass calculation, DX-station
+   pass calculation, then overlap/path calculations. The orbital propagation
+   and sky-path sampling execute on a background worker, not on the WinForms
+   rendering thread.
+4. During a search, the button becomes **Cancel**. Cancelling, changing
+   the satellite/grid/date range, or refreshing orbit/site information
+   cancels the active search; the new inputs are not calculated until the
+   operator explicitly starts another search.
+5. On completion, the list is published all at once and the progress bar
+   remains at 100% until the inputs change. If no common windows exist, the
+   result count is zero. Windows shorter than 30 seconds are excluded.
+
+Cancellation is checked between each pass-prediction stage and during overlap
+sampling. A single native orbit-engine call already in progress may finish
+before cancellation is observed, but the interface remains responsive and
+its obsolete result is never published.
+
 ## Reading the Prediction List
 
-Each item in the list represents one common visibility window for the next 14 days, sorted by start time:
+Each item in the list represents one common visibility window within the **selected UTC time range**, sorted by start time:
 
 - **Satellite name** is highlighted in light yellow for VHF downlinks and light cyan for UHF downlinks;
 - **Orbit number** follows the satellite name;
