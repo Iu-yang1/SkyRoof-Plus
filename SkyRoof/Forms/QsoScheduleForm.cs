@@ -31,7 +31,8 @@ namespace SkyRoof
 
       Utils.SetDoubleBuffered(ChartsPanel, true);
 
-      Text = $"QSO Schedule  -  {overlap.Satellite.name}  #{overlap.OrbitNumber}";
+      Text = UiLocalizationService.Format("QsoSchedule.Title",
+        overlap.Satellite.name, overlap.OrbitNumber);
       SetupDetails();
     }
 
@@ -44,26 +45,34 @@ namespace SkyRoof
     private void SetupDetails()
     {
       var sb = new StringBuilder();
-      sb.AppendLine($"Satellite:  {overlap.Satellite.name}     Orbit:  #{overlap.OrbitNumber}" +
-        (overlap.Geostationary ? "   (Geostationary)" : ""));
+      sb.AppendLine(UiLocalizationService.Format("QsoSchedule.Info",
+        overlap.Satellite.name, overlap.OrbitNumber,
+        overlap.Geostationary ? UiLocalizationService.Get("QsoSchedule.GeoSuffix") : ""));
 
       var localStart = overlap.CommonStart.ToLocalTime();
       var localEnd = overlap.CommonEnd.ToLocalTime();
-      sb.AppendLine($"Common segment (local):   {localStart:yyyy-MM-dd  HH:mm:ss}  to  {localEnd:HH:mm:ss}");
-      sb.AppendLine($"Common segment (UTC):     {overlap.CommonStart:yyyy-MM-dd  HH:mm:ss}  to  {overlap.CommonEnd:HH:mm:ss}");
+      sb.AppendLine(UiLocalizationService.Format("QsoSchedule.LocalWindow", localStart, localEnd));
+      sb.AppendLine(UiLocalizationService.Format("QsoSchedule.UtcWindow",
+        overlap.CommonStart, overlap.CommonEnd));
 
       var duration = overlap.CommonEnd - overlap.CommonStart;
-      sb.AppendLine($"Duration:  {Utils.TimespanToString(duration, false)}");
+      sb.AppendLine(UiLocalizationService.Format("QsoSchedule.Duration",
+        Utils.TimespanToString(duration, false)));
 
       var now = DateTime.UtcNow;
       string wait;
-      if (overlap.CommonStart > now) wait = $"Starts in  {Utils.TimespanToString(overlap.CommonStart - now)}";
-      else if (overlap.CommonEnd > now) wait = $"In progress, ends in  {Utils.TimespanToString(overlap.CommonEnd - now)}";
-      else wait = "Ended.";
+      if (overlap.CommonStart > now)
+        wait = UiLocalizationService.Format("QsoSchedule.StartsIn",
+          Utils.TimespanToString(overlap.CommonStart - now));
+      else if (overlap.CommonEnd > now)
+        wait = UiLocalizationService.Format("QsoSchedule.EndsIn",
+          Utils.TimespanToString(overlap.CommonEnd - now));
+      else wait = UiLocalizationService.Get("QsoSchedule.Ended");
       sb.AppendLine(wait);
 
-      sb.Append($"Max elevation -  Me ({overlap.MySquare}):  {overlap.MyMaxElevation:F0}°     " +
-        $"DX ({overlap.DxSquare}):  {overlap.DxMaxElevation:F0}°");
+      sb.Append(UiLocalizationService.Format("QsoSchedule.MaxElevation",
+        overlap.MySquare, overlap.MyMaxElevation,
+        overlap.DxSquare, overlap.DxMaxElevation));
 
       DetailsLabel.Text = sb.ToString();
     }
