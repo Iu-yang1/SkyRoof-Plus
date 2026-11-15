@@ -33,7 +33,6 @@ namespace SkyRoof
     // the satellite whose details are shown in the right-hand pane, or null when a leaf is selected
     private SatnogsDbSatellite? currentSat;
 
-
     public AutoSelectionConfigForm(Context ctx)
     {
       InitializeComponent();
@@ -67,9 +66,6 @@ namespace SkyRoof
       LoadSchedule();
       UpdateDetails();
     }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                        load
@@ -161,9 +157,6 @@ namespace SkyRoof
       return list;
     }
 
-
-
-
     //----------------------------------------------------------------------------------------------
     //                                     tree checkboxes
     //----------------------------------------------------------------------------------------------
@@ -208,9 +201,6 @@ namespace SkyRoof
         : checkedCount == total ? Checked
         : Indeterminate;
     }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                   satellite details
@@ -257,9 +247,6 @@ namespace SkyRoof
         satEdits[currentSat.sat_id].TransmitterUuid = tx.uuid;
     }
 
-
-
-
     //----------------------------------------------------------------------------------------------
     //                                   priority reorder
     //----------------------------------------------------------------------------------------------
@@ -291,9 +278,6 @@ namespace SkyRoof
       RotationTree.SelectedNode = node;
     }
 
-
-
-
     //----------------------------------------------------------------------------------------------
     //                              overlap mode and record mode
     //----------------------------------------------------------------------------------------------
@@ -316,9 +300,6 @@ namespace SkyRoof
     {
       return RecordCombo.SelectedIndex < 0 ? RecordMode.Off : (RecordMode)RecordCombo.SelectedIndex;
     }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                        save
@@ -406,9 +387,6 @@ namespace SkyRoof
 
       DialogResult = DialogResult.OK;
     }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //                                  select above menu

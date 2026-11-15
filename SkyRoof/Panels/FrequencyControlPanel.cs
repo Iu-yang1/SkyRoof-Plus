@@ -57,10 +57,10 @@ namespace SkyRoof
       foreach (GroupBox group in new[] { DownlinkGroup, UplinkGroup })
         if (group.Controls.OfType<TableLayoutPanel>().FirstOrDefault() is { } layout)
         {
-          layout.GetControlFromPosition(0, 1)!.Text =
-            UiLocalizationService.Get("FrequencyControl.DatabaseReference");
-          layout.GetControlFromPosition(0, 2)!.Text =
-            UiLocalizationService.Get("FrequencyControl.SavedCorrection");
+          if (layout.GetControlFromPosition(0, 1) is Control dbCaption)
+            dbCaption.Text = UiLocalizationService.Get("FrequencyControl.DatabaseReference");
+          if (layout.GetControlFromPosition(0, 2) is Control correctionCaption)
+            correctionCaption.Text = UiLocalizationService.Get("FrequencyControl.SavedCorrection");
         }
       DownlinkEditBtn.Text = UplinkEditBtn.Text =
         UiLocalizationService.Get("FrequencyControl.EditBase");
@@ -69,10 +69,10 @@ namespace SkyRoof
       TuningGroup.Text = UiLocalizationService.Get("FrequencyControl.Tuning");
       if (TuningGroup.Controls.OfType<TableLayoutPanel>().FirstOrDefault() is { } tuning)
       {
-        tuning.GetControlFromPosition(0, 0)!.Text =
-          UiLocalizationService.Get("FrequencyControl.DownlinkNoDoppler");
-        tuning.GetControlFromPosition(1, 0)!.Text =
-          UiLocalizationService.Get("FrequencyControl.UplinkNoDoppler");
+        if (tuning.GetControlFromPosition(0, 0) is Control rxCaption)
+          rxCaption.Text = UiLocalizationService.Get("FrequencyControl.DownlinkNoDoppler");
+        if (tuning.GetControlFromPosition(1, 0) is Control txCaption)
+          txCaption.Text = UiLocalizationService.Get("FrequencyControl.UplinkNoDoppler");
       }
       BackToBaseBtn.Text = UiLocalizationService.Get("FrequencyControl.ResetBase");
       TuningHelpLabel.Text = UiLocalizationService.Get("FrequencyControl.Help");

@@ -41,7 +41,7 @@ namespace SkyRoof
         Text = UiLocalizationService.Get("PathOptimizer.NoPaths");
         return;
       }
-      Text = UiLocalizationService.Format("PathOptimizer.ForSatellite", path.Satellite!.name);
+      Text = UiLocalizationService.Format("PathOptimizer.ForSatellite", path.Satellite?.name ?? "—");
 
       var currentDirection = path.Optimizer.CurrentDirection;
       var bestPaths = path.Optimizer.BestPaths;
