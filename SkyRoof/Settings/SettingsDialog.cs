@@ -845,7 +845,16 @@ namespace SkyRoof
         IcomLanSettingsChangePolicy.Classify(ChangedFields);
       if (lanAudioChange != IcomLanSettingsAction.None)
       {
-        if (lanAudioChange == IcomLanSettingsAction.RenegotiateMedia)
+        if (lanAudioChange == IcomLanSettingsAction.RenegotiateMedia &&
+            IcomLanSettingsChangePolicy.CanToggleTxLocally(
+              ChangedFields, ctx.DirectLanMediaOwner?.Capture?.IsTxUdpReady == true))
+        {
+          // Only the Windows mic capture endpoint changes. The radio's
+          // previously negotiated TX grant, CAT and spectrum stay live.
+          ctx.DirectLanMediaOwner?.ApplyCurrentSettings(
+            restartWindowsEndpoints: true);
+        }
+        else if (lanAudioChange == IcomLanSettingsAction.RenegotiateMedia)
         {
           if (ctx.IcomLanSpectrumPanel != null)
             ctx.IcomLanSpectrumPanel.ApplySettings();
