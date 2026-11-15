@@ -138,7 +138,7 @@ namespace SkyRoof
       if (type == 14 && bytes.Length >= 36)
       {
         byte variable = bytes[5];
-        yield return ("Time series variable", variable switch
+        string variableName = variable switch
         {
           0 => "Peak signal",
           1 => "Mean noise",
@@ -147,7 +147,8 @@ namespace SkyRoof
           4 => "Panel A temperature",
           5 => "Panel average temperature",
           _ => variable.ToString()
-        });
+        };
+        yield return ("Time series variable", variableName);
         byte[] samples = bytes.AsSpan(6, 30).ToArray();
         yield return ("Time series", "30 samples at 3-minute interval");
         yield return ("First / latest samples", samples[0] + " / " + samples[^1]);
