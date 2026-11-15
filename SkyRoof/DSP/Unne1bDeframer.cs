@@ -39,7 +39,7 @@ namespace SkyRoof
 
         // Binary FSK polarity depends on the discriminator/mark convention.
         bool normal = window == SyncWord;
-        bool inverted = window == (ushort)~SyncWord;
+        bool inverted = window == unchecked((ushort)~SyncWord);
         if (!normal && !inverted) continue;
 
         int dataStart = i + 1;
