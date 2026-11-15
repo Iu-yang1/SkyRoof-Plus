@@ -3,11 +3,11 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.75: Direct LAN audio resilience, CW Console V2, IF/AF telemetry and TX UDP diagnostics. -->
+  <!-- SkyRoof Plus v1.76: AO-123/UNNE-1B telemetry, IF/IQ Recorder and bilingual workspaces. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <!-- v1.75-lan-tx-cw-ifaf-20261114: normal versioned release, not an in-place replacement. -->
-    <Version>1.75</Version>
+    <!-- v1.76-telemetry-i18n-20261115: independent release; preserve v.1.75. -->
+    <Version>1.76</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

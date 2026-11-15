@@ -1,3 +1,29 @@
+# SkyRoof Fork v.1.76 / SkyRoof Plus 1.76 遥测与双语迭代
+
+## v1.76 — 2026-11-15
+
+- AO-123 TM-short KISS 分帧重组；UNNE-1B Type-C GENESIS 同步、CRC、工程遥测；修复 SatYAML 下行关联、TLE epoch 偏移及 RF 帧上传语义。
+- Recorder 新增原始 IF、IF 派生 IQ 录制与 IQ WAV 遥测回放，隔离实时 SDR 流与回放流。
+- English / 简体中文运行时切换主要页面，不重新建立 CAT/PTT 或 GS-232 会话。
+- Windows CI 新增双语模拟 100/125/150/200% DPI 的真实控件 40 张截图以及虚拟通信会话保持验证；修复 Settings/Recorder 空白截图误判。
+- 代码：PR #224、#225、#226；发布：PR #227；详细说明：`RELEASE_NOTES.md`。
+- 验证：合并前 1609/1609 xUnit 通过，合并后的 master Compile Check 和 aislop 通过。版本化安装包必须在 Release 工作流中进一步验证；不声称已进行 IC-9700、实际云台、物理 DPI 或 Settings PropertyGrid 的原生绘图测试。
+- 签名：缺少 SignPath 时安装包为未签名（NotSigned）正式版，必须通过 Release 附件 SHA-256 校验。
+
+**English:** v1.76 adds AO-123/UNNE-1B engineering telemetry, IF/IQ recording and telemetry replay, bilingual live WinForms UI switching and simulation-based DPI/session continuity tests. Actual radio/rotator and physical-monitor DPI tests remain outstanding. If SignPath is unavailable, the installer is explicitly unsigned, with SHA-256 verified by release CI.
+
+---
+
+# SkyRoof Fork v.1.75 / SkyRoof Plus 1.75 LAN TX / CW / Audio
+
+## v1.75 — 2026-11-14
+
+- 持久化 Direct LAN UDP TX/RX 音频会话，配置热应用、握手失败恢复；TX UDP LED 与音频诊断入口。
+- CW Console V2 改进八槽位、资源生命周期与 Skimmer UI；增加 IF→AF 录音、遥测多音源以及设置项中文化。
+- 详见 `RELEASE_NOTES.md` 历史版本；保留独立 `v.1.75` 标签和安装包。
+
+---
+
 # SkyRoof Fork v.1.74 / SkyRoof Fork 1.74 UI 适配版本说明
 
 ## v1.74 UI P1–P4 — 2026-11-14

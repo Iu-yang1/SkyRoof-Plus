@@ -304,8 +304,8 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_TOKEN)) {
             "SIGNPATH_AVAILABLE=false" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73')) {
-              Write-Host "::warning::User-authorized stable v.1.71/v.1.72/v.1.73 release may ship unsigned; installer SHA-256 verification remains mandatory."
+            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76')) {
+              Write-Host "::warning::User-authorized stable v.1.71/v.1.72/v.1.73/v.1.76 release may ship unsigned; installer SHA-256 verification remains mandatory."
             } else {
               Write-Host "::warning::No SignPath token configured; release will be an unsigned pre-release."
             }
@@ -358,8 +358,8 @@ jobs:
             throw "SignPath is configured but installer signature is not valid: $($signature.Status)"
           }
           if ($env:SIGNPATH_AVAILABLE -ne 'true') {
-            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73')) {
-              Write-Host "::warning::Publishing user-authorized unsigned stable v.1.71/v.1.72/v.1.73; Authenticode status is clearly disclosed."
+            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76')) {
+              Write-Host "::warning::Publishing user-authorized unsigned stable v.1.71/v.1.72/v.1.73/v.1.76; Authenticode status is clearly disclosed."
             } else {
               Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
             }
@@ -383,9 +383,9 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
-          # Owner-authorized stable versions v.1.71, startup hotfix v.1.72 and responsive-UI release v.1.73.
+          # User-authorized unsigned stable versions v.1.71-v.1.73 and current v.1.76. Signatures and SHA-256 are reported.
           # Other unsigned releases remain prereleases by default.
-          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' }}
+          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' && steps.get_version.outputs.version != '1.76' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
           overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' }}
           fail_on_unmatched_files: true
@@ -487,7 +487,7 @@ jobs:
           if ($asset.Count -ne 1) { throw "Release asset $name missing or duplicated" }
           $expectedPrerelease = $env:REPLACE_V169 -ne 'true' -and
              $env:SIGNPATH_AVAILABLE -ne 'true' -and
-             "${{ steps.get_version.outputs.version }}" -notin @('1.71', '1.72', '1.73')
+             "${{ steps.get_version.outputs.version }}" -notin @('1.71', '1.72', '1.73', '1.76')
           if ($release.isPrerelease -ne $expectedPrerelease) {
             throw "Release prerelease setting does not match signing capability"
           }

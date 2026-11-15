@@ -1,3 +1,31 @@
+# SkyRoof-Plus v.1.76
+
+## SkyRoof Plus v1.76 — 2026-11-15 遥测、IF/IQ 录音回放与中英双语实时切换
+
+本版本基于 `v.1.75` 以来已合并到 `master` 的代码，是新的独立迭代 Release。原 `v.1.75` 标签及安装包保留，不原位覆盖。
+
+### 更新内容
+
+- **AO-123 / UNNE-1B 遥测（PR #224）**：改进 SatYAML 发射机资料与具体下行频率的关联，支持 AO-123 TM-short KISS 分包重组；增加 UNNE-1B Type-C GENESIS 同步、CRC 与工程遥测字段解析，并修正 TLE epoch 偏移和其他解析问题。重组的 KISS 数据不再误当作原始 RF 帧上传。
+- **Recorder IF/IQ（PR #224）**：录制原始 IF 或 IF 派生的复数 IQ，保留选择的 IF 通道；IQ WAV 回放可接入遥测处理链，实时 SDR 输入和回放输入分离并正确重置解调状态。原有 IF→AF PCM 录音继续可用。
+- **运行时双语（PR #225）**：以统一语言资源支持简体中文与 English 实时切换，覆盖主要工作台、设置、遥测、SSTV、Recorder、CW、频谱和旋转器控件；语言切换不需要重连电台和旋转器，不改变现有配置键或 CAT/PTT 协议。
+- **模拟视觉及会话回归（PR #226）**：Windows CI 使用真实 WinForms 控件生成 **40 张**双语言截图，覆盖模拟 100%、125%、150%、200% DPI；修复 Settings / Recorder 的空白截图误判和 Orekit 英文默认提示残留中文。使用虚拟 CAT/PTT、GS-232、KISS 传输、IF/IQ、Recorder、SSTV 验证语言切换前后会话与数据保持。
+
+### 测试、发布与已知限制
+
+- PR #226 同一验收提交的 Windows CI 成功：**1609 项 xUnit 通过、0 失败、0 跳过**；合并后 `master` 的 Compile Check、pinned aislop Quality Gate 全部成功。新发布安装包的 Build and Release 工作流仍须独立通过 xUnit、Orekit/IKVM 冒烟、Inno Setup、运行时依赖、远端 SHA-256 回读；最终状态以该次运行记录为准。
+- DPI 截图采用模拟缩放而非物理显示器 DPI；无桌面 CI 未完成 Settings 原生 PropertyGrid 本体绘图验收，资源和对象验证已与截图测试分离；未入选截图矩阵的页面仍需人工视觉验收。
+- CAT/PTT、GS-232、遥测、IF/IQ、录音、SSTV 均属虚拟会话或软件模拟验证，**不等于 IC-9700、真实旋转器、声卡和无线电链路的实机验证**。
+- **签名声明：** 仓库没有 SignPath 凭据时将发布 Authenticode **NotSigned** 安装包；基于本次迭代发布授权标记为正式 Release，并验证远端安装包 SHA-256。不得将其描述为已签名安装包。
+
+### English summary
+
+v1.76 is a separate release after v1.75, preserving its existing tag and installer. Updates include AO-123 TM-short KISS and UNNE-1B GENESIS engineering telemetry, raw IF / derived complex-IQ recording and IQ WAV telemetry replay, and live English/Simplified Chinese switching across major WinForms workspaces. The acceptance suite captures 40 real-control screenshots at four **simulated** DPI scales and exercises virtual CAT/PTT, GS-232, telemetry/IF-IQ, Recorder and SSTV state preservation. The merged master passed Compile Check and pinned aislop; the release installer is subject to its own Windows CI and SHA-256 readback. Native PropertyGrid rendering, real physical DPI and connected hardware tests remain outside this acceptance. Without SignPath, the Windows installer is unsigned (NotSigned).
+
+---
+
+## 历史版本 / Historical: v1.75
+
 # SkyRoof-Plus v.1.75
 
 ## SkyRoof Plus v1.75 — 2026-11-14 CW、Direct LAN 音频会话与遥测音频迭代
