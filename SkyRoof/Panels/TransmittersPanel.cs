@@ -13,10 +13,9 @@ namespace SkyRoof
     // shared, so we don't leak a GDI font handle per item on every rebuild
     private Font? BoldFont;
     private readonly ContextMenuStrip TransmitterMenu = new();
-    private readonly ToolStripMenuItem DeleteTransmitterMNU =
-      new("Delete Transmitter");
-    private readonly ToolStripMenuItem EditTransmitterMNU =
-      new("Edit Transmitter...");
+    private readonly ToolStripMenuItem AddTransmitterMNU = new();
+    private readonly ToolStripMenuItem DeleteTransmitterMNU = new();
+    private readonly ToolStripMenuItem EditTransmitterMNU = new();
     private SatnogsDbTransmitter? ContextTransmitter;
 
     public TransmittersPanel()
@@ -48,6 +47,16 @@ namespace SkyRoof
       SatNameLabel.Text = sat.name;
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      // Keep satellite data and the current selection; this is presentation-only.
+      if (listView1.Groups.Count != 0)
+        listView1.Groups[0].Header = UiLocalizationService.Get("Transmitter.LocalGroup");
+      AddTransmitterMNU.Text = UiLocalizationService.Get("Transmitter.New");
+      UpdateContextMenuState();
+      listView1.Invalidate();
+    }
+
     public void ShowSelectedTransmitter()
     {
       foreach (ListViewItem item in listView1.Items)
@@ -69,7 +78,7 @@ namespace SkyRoof
       listView1.BeginUpdate();
       listView1.Items.Clear();
       listView1.Groups.Clear();
-      listView1.Groups.Add(new ListViewGroup("Local"));
+      listView1.Groups.Add(new ListViewGroup(UiLocalizationService.Get("Transmitter.LocalGroup")));
       listView1.Groups.Add(new ListViewGroup("SatNOGS"));
       listView1.Groups.Add(new ListViewGroup("JE9PEL"));
 
@@ -136,10 +145,8 @@ namespace SkyRoof
 
     private void BuildContextMenu()
     {
-      var add =
-        new ToolStripMenuItem(
-          "New Transmitter...");
-      add.Click += (_, _) =>
+      AddTransmitterMNU.Text = UiLocalizationService.Get("Transmitter.New");
+      AddTransmitterMNU.Click += (_, _) =>
         CreateLocalTransmitter();
 
       DeleteTransmitterMNU.Click += (_, _) =>
@@ -149,7 +156,7 @@ namespace SkyRoof
 
       TransmitterMenu.Items.AddRange(
         [
-          add,
+          AddTransmitterMNU,
           new ToolStripSeparator(),
           EditTransmitterMNU,
           DeleteTransmitterMNU
@@ -184,14 +191,14 @@ namespace SkyRoof
         GetSelectedLocalTransmitter();
 
       EditTransmitterMNU.Enabled = tx != null;
-      EditTransmitterMNU.Text =
-        tx == null ? "Edit Transmitter..." : $"Edit {tx.description}...";
+      EditTransmitterMNU.Text = tx == null
+        ? UiLocalizationService.Get("Transmitter.Edit")
+        : UiLocalizationService.Format("Transmitter.EditNamed", tx.description);
       DeleteTransmitterMNU.Enabled =
         tx != null;
-      DeleteTransmitterMNU.Text =
-        tx == null
-          ? "Delete Transmitter"
-          : $"Delete {tx.description}";
+      DeleteTransmitterMNU.Text = tx == null
+        ? UiLocalizationService.Get("Transmitter.Delete")
+        : UiLocalizationService.Format("Transmitter.DeleteNamed", tx.description);
     }
 
     private SatnogsDbTransmitter? GetSelectedLocalTransmitter()
@@ -252,8 +259,9 @@ namespace SkyRoof
       {
         Log.Error(ex, "Unable to edit local transmitter.");
         MessageBox.Show(this,
-          $"Unable to edit the transmitter.\n\n{ex.Message}",
-          "Edit Local Transmitter", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          UiLocalizationService.Format("Transmitter.ErrorEdit", ex.Message),
+          UiLocalizationService.Get("Transmitter.Edit"),
+          MessageBoxButtons.OK, MessageBoxIcon.Error);
       }
     }
 
@@ -277,17 +285,17 @@ namespace SkyRoof
           tx.uplink_low,
           tx.uplink_high);
 
-      string details =
-        $"Name: {tx.description}\n" +
-        $"Downlink: {(string.IsNullOrWhiteSpace(downlink) ? "—" : downlink)}\n" +
-        $"Uplink: {(string.IsNullOrWhiteSpace(uplink) ? "—" : uplink)}\n" +
-        $"Mode: {(string.IsNullOrWhiteSpace(tx.DownlinkMode) ? tx.mode : tx.DownlinkMode)}";
+      string details = UiLocalizationService.Format("Transmitter.Details",
+        tx.description,
+        string.IsNullOrWhiteSpace(downlink) ? "—" : downlink,
+        string.IsNullOrWhiteSpace(uplink) ? "—" : uplink,
+        string.IsNullOrWhiteSpace(tx.DownlinkMode) ? tx.mode : tx.DownlinkMode);
 
       DialogResult rc =
         MessageBox.Show(
           this,
-          $"Delete this local transmitter?\n\n{details}\n\nThis cannot be undone.",
-          "Delete Local Transmitter",
+          UiLocalizationService.Format("Transmitter.DeleteConfirm", details),
+          UiLocalizationService.Get("Transmitter.Delete"),
           MessageBoxButtons.YesNo,
           MessageBoxIcon.Warning,
           MessageBoxDefaultButton.Button2);
@@ -305,8 +313,8 @@ namespace SkyRoof
         {
           MessageBox.Show(
             this,
-            "The local transmitter could not be found in the saved local data.",
-            "Delete Local Transmitter",
+            UiLocalizationService.Get("Transmitter.NotFound"),
+            UiLocalizationService.Get("Transmitter.Delete"),
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
           return;
@@ -329,8 +337,8 @@ namespace SkyRoof
 
         MessageBox.Show(
           this,
-          $"Unable to delete the transmitter.\n\n{ex.Message}",
-          "Delete Local Transmitter",
+          UiLocalizationService.Format("Transmitter.ErrorDelete", ex.Message),
+          UiLocalizationService.Get("Transmitter.Delete"),
           MessageBoxButtons.OK,
           MessageBoxIcon.Error);
       }
@@ -382,8 +390,8 @@ namespace SkyRoof
 
         MessageBox.Show(
           this,
-          $"Unable to save the transmitter.\n\n{ex.Message}",
-          "New Transmitter",
+          UiLocalizationService.Format("Transmitter.ErrorNew", ex.Message),
+          UiLocalizationService.Get("Transmitter.New"),
           MessageBoxButtons.OK,
           MessageBoxIcon.Error);
       }
