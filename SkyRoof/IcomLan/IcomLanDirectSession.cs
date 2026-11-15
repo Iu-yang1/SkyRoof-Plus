@@ -690,61 +690,67 @@ namespace SkyRoof
       }
       finally
       {
-        AudioTxReady = false;
-        AudioLinkConnected = false;
-        AudioTxNegotiationComplete = false;
-        IsStreaming = false;
-        // Even an incomplete media grant must release every stream that
-        // finished its handshake. CI-V close alone is NOT a UDP disconnect.
-        // Each radio slot uses its own session IDs; send the protocol's
-        // packet type 0x0005 before disposing the sockets.
-        if (AudioRemoteSid != 0)
-          await TryDisconnectStreamAsync(
-            audio, AudioLocalSid, AudioRemoteSid, audioStream: true);
-        if (CivRemoteSid != 0)
-          await TryDisconnectStreamAsync(
-            civ, CivLocalSid, CivRemoteSid, audioStream: false);
+        await CloseAuthenticatedSessionAsync(control, civ, audio);
+      }
+    }
 
-        if (IsAuthenticated)
+    private async Task CloseAuthenticatedSessionAsync(
+      UdpClient control, UdpClient civ, UdpClient audio)
+    {
+      AudioTxReady = false;
+      AudioLinkConnected = false;
+      AudioTxNegotiationComplete = false;
+      IsStreaming = false;
+      // Even an incomplete media grant must release every stream that
+      // finished its handshake. CI-V close alone is NOT a UDP disconnect.
+      // Each radio slot uses its own session IDs; send the protocol's
+      // packet type 0x0005 before disposing the sockets.
+      if (AudioRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          audio, AudioLocalSid, AudioRemoteSid, audioStream: true);
+      if (CivRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          civ, CivLocalSid, CivRemoteSid, audioStream: false);
+
+      if (IsAuthenticated)
+      {
+        byte[] logoutAuthId = AuthId.ToArray();
+        try
         {
-          byte[] logoutAuthId = AuthId.ToArray();
+          ushort sequence = await SendAuthAsync(
+            control, 0x01, CancellationToken.None);
           try
           {
-            ushort sequence = await SendAuthAsync(
-              control, 0x01, CancellationToken.None);
-            try
-            {
-              byte[] reply = await ReceiveMatchingAsync(
-                control,
-                packet => IsMatchingAuthReply(
-                  packet, ControlLocalSid, ControlRemoteSid,
-                  0x01, sequence, logoutAuthId),
-                TimeSpan.FromMilliseconds(400), CancellationToken.None,
-                "logout");
-              uint result = BinaryPrimitives.ReadUInt32LittleEndian(
-                reply.AsSpan(0x30, 4));
-              if (result == 0)
-                Log.Information("Direct Icom LAN token logout acknowledged by radio");
-              else
-                Log.Warning("Direct Icom LAN token logout returned {Code:X8}", result);
-            }
-            catch (TimeoutException)
-            {
-              Log.Warning(
-                "Direct Icom LAN token logout unconfirmed (400ms); sending control disconnect");
-            }
+            byte[] reply = await ReceiveMatchingAsync(
+              control,
+              packet => IsMatchingAuthReply(
+                packet, ControlLocalSid, ControlRemoteSid,
+                0x01, sequence, logoutAuthId),
+              TimeSpan.FromMilliseconds(400), CancellationToken.None,
+              "logout");
+            uint result = BinaryPrimitives.ReadUInt32LittleEndian(
+              reply.AsSpan(0x30, 4));
+            if (result == 0)
+              Log.Information("Direct Icom LAN token logout acknowledged by radio");
+            else
+              Log.Warning("Direct Icom LAN token logout returned {Code:X8}", result);
           }
-          catch (Exception ex)
+          catch (TimeoutException)
           {
-            Log.Warning(ex, "Direct Icom LAN token logout could not be sent");
+            Log.Warning(
+              "Direct Icom LAN token logout unconfirmed (400ms); sending control disconnect");
           }
-          IsAuthenticated = false;
         }
-
-        if (ControlRemoteSid != 0)
-          await TryDisconnectStreamAsync(
-            control, ControlLocalSid, ControlRemoteSid, audioStream: false);
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Direct Icom LAN token logout could not be sent");
+        }
+        IsAuthenticated = false;
       }
+
+      if (ControlRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          control, ControlLocalSid, ControlRemoteSid, audioStream: false);
     }
 
     internal static byte[] BuildDisconnectPacket(
