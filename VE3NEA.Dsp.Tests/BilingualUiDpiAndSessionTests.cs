@@ -173,6 +173,13 @@ public sealed class BilingualUiDpiAndSessionTests
           BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, iq);
         typeof(RecordingManager).GetField("samplesInBuffer",
           BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, iq.Length);
+        // Emulate an already-running SDR I/Q capture. The test does not
+        // activate a physical input or call the radio's recording startup.
+        typeof(RecordingManager).GetField("recordingStartTime",
+          BindingFlags.Instance | BindingFlags.NonPublic)!
+          .SetValue(manager, DateTime.UtcNow);
+        typeof(RecordingManager).GetProperty("IsRecording")!
+          .SetValue(manager, true);
         UiLocalizationService.Bind(recorder, recorder.RefreshLocalizedUi);
         using var rotator = new RotatorControlCard();
         using var recorderScale = new UniformControlScale(recorder,
@@ -204,7 +211,7 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal(samples, manager.SamplesInBuffer);
           Assert.Equal(position, manager.PlaybackPosition);
           Assert.False(manager.IsPlayingBack);
-          Assert.False(manager.IsRecording);
+          Assert.True(manager.IsRecording);
           Assert.Equal(120m, az.Value);
           Assert.Equal(45m, el.Value);
           Assert.Equal(2.5m, step.Value);
