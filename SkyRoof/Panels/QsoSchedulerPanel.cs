@@ -218,6 +218,7 @@ namespace SkyRoof
       Items.Clear();
       PredictionList.VirtualListSize = 0;
       PredictionList.Invalidate();
+      CalculationProgress.Visible = predictionCancellation != null;
       RefreshActionState();
     }
 
@@ -262,6 +263,7 @@ namespace SkyRoof
     private async Task RunPredictionAsync(PredictionRequest request,
       CancellationTokenSource cancellation)
     {
+      bool completed = false;
       try
       {
         // Progress<T> captures the WinForms synchronization context. No
@@ -286,6 +288,7 @@ namespace SkyRoof
         PredictionList.VirtualListSize = Items.Count;
         PredictionList.Invalidate();
         CalculationProgress.Value = 100;
+        completed = true;
         SetStatus("QsoScheduler.Completed", Items.Count);
       }
       catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -307,7 +310,9 @@ namespace SkyRoof
           predictionCancellation = null;
           if (!IsDisposed && !Disposing)
           {
-            CalculationProgress.Visible = false;
+            // Preserve the finished 100% bar until the operator edits
+            // the search; cancelled and failed tasks remove it.
+            CalculationProgress.Visible = completed;
             RefreshActionState();
           }
         }
