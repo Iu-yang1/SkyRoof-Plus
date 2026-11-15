@@ -99,6 +99,13 @@ namespace SkyRoof
       popup.ShowDialog(this);
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      // The list is owner-drawn: changing static labels is not enough to
+      // repaint localized time ranges and elevation summaries.
+      PredictionList.Invalidate();
+    }
+
     public void SetSatelliteList()
     {
       SatelliteComboBox.Items.Clear();
@@ -273,15 +280,18 @@ namespace SkyRoof
       e.Graphics.DrawString(text, PredictionList.Font, SystemBrushes.WindowText, rect);
 
       // start/end time for the common segment
-      text = overlap.Geostationary ? "Geostationary" :
-        $"{ClockWidget.FromUtc(overlap.CommonStart):yyyy-MM-dd  HH:mm:ss}  to  " +
-        $"{ClockWidget.FromUtc(overlap.CommonEnd):HH:mm:ss} {ClockWidget.Suffix}";
+      text = overlap.Geostationary
+        ? UiLocalizationService.Get("QsoScheduler.Geostationary")
+        : UiLocalizationService.Format("QsoScheduler.TimeRange",
+          ClockWidget.FromUtc(overlap.CommonStart),
+          ClockWidget.FromUtc(overlap.CommonEnd), ClockWidget.Suffix);
       size = e.Graphics.MeasureString(text, PredictionList.Font);
       rect = new RectangleF(e.Bounds.X, e.Bounds.Y + e.Bounds.Height - size.Height - 2, size.Width, size.Height);
       e.Graphics.DrawString(text, PredictionList.Font, SystemBrushes.WindowText, rect);
 
       // duration of common segment + max elevation per station
-      string elevText = $"Me: {overlap.MyMaxElevation:F0}°, DX: {overlap.DxMaxElevation:F0}°";
+      string elevText = UiLocalizationService.Format("QsoScheduler.Elevations",
+        overlap.MyMaxElevation, overlap.DxMaxElevation);
       text = overlap.Geostationary ?
         elevText : $"{Utils.TimespanToString(overlap.CommonEnd - overlap.CommonStart, false)}   {elevText}";
       size = e.Graphics.MeasureString(text, PredictionList.Font);
@@ -289,7 +299,9 @@ namespace SkyRoof
       e.Graphics.DrawString(text, PredictionList.Font, SystemBrushes.WindowText, rect);
 
       // wait time to start of common segment
-      text = now ? "Now" : $"in {Utils.TimespanToString(overlap.CommonStart - DateTime.UtcNow)}";
+      text = now ? UiLocalizationService.Get("QsoScheduler.Now")
+        : UiLocalizationService.Format("QsoScheduler.In",
+          Utils.TimespanToString(overlap.CommonStart - DateTime.UtcNow));
       brush = now ? Theme.NowBrush : SystemBrushes.WindowText;
       size = e.Graphics.MeasureString(text, BoldFont);
       rect = new RectangleF(e.Bounds.X + w - size.Width, e.Bounds.Y, size.Width, size.Height);
