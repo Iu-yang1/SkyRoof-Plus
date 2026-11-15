@@ -61,7 +61,7 @@ namespace VE3NEA.Dsp.Tests
           var tabs = panel.Controls.OfType<TabControl>().Single();
           Assert.True(panel.Visible);
           Assert.True(tabs.Visible);
-          Assert.Equal(new[] { "接收 RX", "发送 TX",
+          Assert.Equal(new[] { "接收 RX", "发射 TX",
               "图库 / 历史", "通联日志" },
             tabs.TabPages.Cast<TabPage>().Select(x => x.Text).ToArray());
           Assert.Equal(43, Field<ComboBox>(panel, "modeBox").Items.Count);
