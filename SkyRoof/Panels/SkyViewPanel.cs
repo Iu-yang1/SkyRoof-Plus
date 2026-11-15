@@ -60,6 +60,15 @@ namespace SkyRoof
       Utils.SetDoubleBuffered(RadioButtonsPanel, true);
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      OrbitRadioBtn.Text = Pass == null
+        ? UiLocalizationService.Get("SkyView.SelectedOrbit")
+        : UiLocalizationService.Format("SkyView.OrbitNumber",
+            Pass.OrbitNumber, Pass.Satellite.name);
+      DrawPanel.Invalidate();
+    }
+
     internal void UpdateDpiPresentation(float factor)
     {
       // The selected orbit label and satellite labels use dedicated fonts
@@ -108,7 +117,8 @@ namespace SkyRoof
       if (pass == null) return;
 
       Pass = pass;
-      OrbitRadioBtn.Text = $"Orbit #{Pass.OrbitNumber} of {Pass.Satellite.name}";
+      OrbitRadioBtn.Text = UiLocalizationService.Format("SkyView.OrbitNumber",
+        Pass.OrbitNumber, Pass.Satellite.name);
       OrbitRadioBtn.Enabled = true;
 
       if (ctx.SatelliteSelector.GroupSatellites.Contains(pass.Satellite) &&
@@ -125,7 +135,7 @@ namespace SkyRoof
     {
       Pass = null;
       OrbitRadioBtn.Enabled = false;
-      OrbitRadioBtn.Text = "Selected Orbit";
+      OrbitRadioBtn.Text = UiLocalizationService.Get("SkyView.SelectedOrbit");
       RealTimeRadioBtn.Checked = true;
       SetLabels();
       DrawPanel.Invalidate();
