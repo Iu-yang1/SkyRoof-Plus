@@ -790,4 +790,25 @@ Manual locked
 Clear TRACK first</value></data>
   <data name="Yaesu.ParkingHint" xml:space="preserve"><value>PARK ACTIVE
 STOP cancels</value></data>
+  <data name="Sstv.DialogDecodeWavError" xml:space="preserve"><value>Cannot decode SSTV recording</value></data>
+  <data name="Sstv.AdifFilter" xml:space="preserve"><value>ADIF QSO log|*.adi</value></data>
+  <data name="Sstv.DialogAdifError" xml:space="preserve"><value>Cannot export ADIF</value></data>
+  <data name="Sstv.SelectTxRequirements" xml:space="preserve"><value>Select a picture, TX mode and TX audio device first.</value></data>
+  <data name="Sstv.SelectRxDevice" xml:space="preserve"><value>Select an RX audio device.</value></data>
+  <data name="Sstv.DialogRxStartError" xml:space="preserve"><value>Cannot start SSTV reception</value></data>
+  <data name="Sstv.SelectManualRxMode" xml:space="preserve"><value>Choose a specific receive mode before starting manually.</value></data>
+  <data name="Sstv.StartRxFirst" xml:space="preserve"><value>Start the RX soundcard first.</value></data>
+  <data name="Sstv.DeleteTemplateConfirm" xml:space="preserve"><value>Delete custom template “{0}”?</value></data>
+  <data name="Sstv.DeleteTemplateTitle" xml:space="preserve"><value>Delete SSTV template</value></data>
+  <data name="Sstv.NeedImage" xml:space="preserve"><value>Open or paste a picture first.</value></data>
+  <data name="Sstv.SaveAudioTitle" xml:space="preserve"><value>Save SSTV audio</value></data>
+  <data name="Sstv.WavFilter" xml:space="preserve"><value>WAV audio file|*.wav</value></data>
+  <data name="Sstv.ImportImageError" xml:space="preserve"><value>Import image failed</value></data>
+  <data name="Sstv.SelectHistoryExport" xml:space="preserve"><value>Select an image in the gallery to export.</value></data>
+  <data name="Sstv.ExportImageTitle" xml:space="preserve"><value>Export gallery image</value></data>
+  <data name="Sstv.PngFilter" xml:space="preserve"><value>PNG image|*.png</value></data>
+  <data name="Sstv.ExportImageError" xml:space="preserve"><value>Export image failed</value></data>
+  <data name="Sstv.SelectHistoryDelete" xml:space="preserve"><value>Select an image in the gallery to delete.</value></data>
+  <data name="Sstv.DeleteImageConfirm" xml:space="preserve"><value>Delete gallery image “{0}”?</value></data>
+  <data name="Sstv.DeleteImageTitle" xml:space="preserve"><value>Delete SSTV image</value></data>
 </root>

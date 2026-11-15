@@ -954,7 +954,7 @@ namespace SkyRoof
       }
       using var dialog = new OpenFileDialog
       {
-        Filter = "WAV 音频文件|*.wav",
+        Filter = UiLocalizationService.Get("Sstv.WavFilter"),
         Title = "打开 SSTV 录音"
       };
       if (dialog.ShowDialog(this) != DialogResult.OK) return;
@@ -1046,7 +1046,7 @@ namespace SkyRoof
       catch (Exception ex)
       {
         if (!closed)
-          MessageBox.Show(this, ex.Message, "无法解析 SSTV 录音",
+          MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Sstv.DialogDecodeWavError"),
             MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
       finally
@@ -1165,7 +1165,7 @@ namespace SkyRoof
     {
       using var save = new SaveFileDialog
       {
-        Filter = "ADIF 通联日志|*.adi",
+        Filter = UiLocalizationService.Get("Sstv.AdifFilter"),
         FileName = $"SSTV_{DateTime.Now:yyyyMMdd}.adi"
       };
       if (save.ShowDialog(this) != DialogResult.OK) return;
@@ -1177,7 +1177,7 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        MessageBox.Show(this, ex.Message, "无法导出 ADIF",
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Sstv.DialogAdifError"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
@@ -1249,7 +1249,7 @@ namespace SkyRoof
           modeBox.SelectedItem is not SstvTxModeProfile spec)
       {
         if (!transmitSession.IsSending)
-          MessageBox.Show(this, "请先选择图片、发送模式及发射声卡。", "SSTV",
+          MessageBox.Show(this, UiLocalizationService.Get("Sstv.SelectTxRequirements"), "SSTV",
             MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
@@ -1371,7 +1371,7 @@ namespace SkyRoof
       }
       if (rxDeviceBox.SelectedItem is not DeviceEntry device)
       {
-        MessageBox.Show(this, "请选择接收音频设备。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.SelectRxDevice"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
@@ -1405,7 +1405,7 @@ namespace SkyRoof
       catch (Exception ex)
       {
         receiveSession.Stop();
-        MessageBox.Show(this, ex.Message, "无法启动接收",
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Sstv.DialogRxStartError"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
@@ -1414,13 +1414,13 @@ namespace SkyRoof
     {
       if (rxModeBox.SelectedItem is not SstvTxModeProfile mode)
       {
-        MessageBox.Show(this, "请先在接收模式中选定具体模式。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.SelectManualRxMode"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
       if (!receiveSession.IsRunning)
       {
-        MessageBox.Show(this, "请先启动接收声卡。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.StartRxFirst"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
@@ -1794,8 +1794,8 @@ namespace SkyRoof
         SetTxStatus("Sstv.StatusCannotDeleteBuiltin");
         return;
       }
-      if (MessageBox.Show(this, $"删除自定义模板“{selected.Name}”？",
-        "删除 SSTV 模板", MessageBoxButtons.YesNo,
+      if (MessageBox.Show(this, UiLocalizationService.Format("Sstv.DeleteTemplateConfirm", selected.Name),
+        UiLocalizationService.Get("Sstv.DeleteTemplateTitle"), MessageBoxButtons.YesNo,
         MessageBoxIcon.Question) != DialogResult.Yes) return;
       try
       {
@@ -2182,14 +2182,14 @@ namespace SkyRoof
       if (txPicture.Image is not Bitmap preview ||
           modeBox.SelectedItem is not SstvTxModeProfile spec)
       {
-        MessageBox.Show(this, "请先打开或粘贴图片。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.NeedImage"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
       using var save = new SaveFileDialog
       {
-        Title = "保存 SSTV 音频",
-        Filter = "WAV 音频文件|*.wav",
+        Title = UiLocalizationService.Get("Sstv.SaveAudioTitle"),
+        Filter = UiLocalizationService.Get("Sstv.WavFilter"),
         FileName = $"SSTV_{spec.Name.Replace(' ', '_')}_{DateTime.Now:yyyyMMdd_HHmmss}.wav"
       };
       if (save.ShowDialog(this) != DialogResult.OK) return;
@@ -2241,7 +2241,7 @@ namespace SkyRoof
       if (rxPicture.Image == null) return;
       using var save = new SaveFileDialog
       {
-        Filter = "PNG 图片|*.png",
+        Filter = UiLocalizationService.Get("Sstv.PngFilter"),
         FileName = $"SSTV_{DateTime.Now:yyyyMMdd_HHmmss}.png"
       };
       if (save.ShowDialog(this) != DialogResult.OK) return;
@@ -2301,7 +2301,7 @@ namespace SkyRoof
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException or System.Runtime.InteropServices.ExternalException)
       {
-        MessageBox.Show(this, ex.Message, "导入图片失败",
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Sstv.ImportImageError"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
@@ -2310,14 +2310,14 @@ namespace SkyRoof
     {
       if (archiveList.SelectedItem is not HistoryImage item)
       {
-        MessageBox.Show(this, "请在图库中选中要导出的图片。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.SelectHistoryExport"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
       using var dialog = new SaveFileDialog
       {
-        Title = "导出图库图片",
-        Filter = "PNG 图片|*.png",
+        Title = UiLocalizationService.Get("Sstv.ExportImageTitle"),
+        Filter = UiLocalizationService.Get("Sstv.PngFilter"),
         FileName = Path.GetFileName(item.Path),
         AddExtension = true, DefaultExt = "png"
       };
@@ -2330,7 +2330,7 @@ namespace SkyRoof
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException)
       {
-        MessageBox.Show(this, ex.Message, "导出图片失败",
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Sstv.ExportImageError"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }
@@ -2339,12 +2339,12 @@ namespace SkyRoof
     {
       if (archiveList.SelectedItem is not HistoryImage item)
       {
-        MessageBox.Show(this, "请在图库中选中要删除的图片。", "SSTV",
+        MessageBox.Show(this, UiLocalizationService.Get("Sstv.SelectHistoryDelete"), "SSTV",
           MessageBoxButtons.OK, MessageBoxIcon.Information);
         return;
       }
-      if (MessageBox.Show(this, $"确定删除图库图片“{Path.GetFileName(item.Path)}”？",
-        "删除 SSTV 图片", MessageBoxButtons.YesNo,
+      if (MessageBox.Show(this, UiLocalizationService.Format("Sstv.DeleteImageConfirm", Path.GetFileName(item.Path)),
+        UiLocalizationService.Get("Sstv.DeleteImageTitle"), MessageBoxButtons.YesNo,
         MessageBoxIcon.Question, MessageBoxDefaultButton.Button2)
           != DialogResult.Yes) return;
       try

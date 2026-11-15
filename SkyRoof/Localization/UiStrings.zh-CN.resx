@@ -790,4 +790,25 @@
 先关闭跟踪</value></data>
   <data name="Yaesu.ParkingHint" xml:space="preserve"><value>正在停靠
 按停止取消</value></data>
+  <data name="Sstv.DialogDecodeWavError" xml:space="preserve"><value>无法解析 SSTV 录音</value></data>
+  <data name="Sstv.AdifFilter" xml:space="preserve"><value>ADIF 通联日志|*.adi</value></data>
+  <data name="Sstv.DialogAdifError" xml:space="preserve"><value>无法导出 ADIF</value></data>
+  <data name="Sstv.SelectTxRequirements" xml:space="preserve"><value>请先选择图片、发送模式及发射声卡。</value></data>
+  <data name="Sstv.SelectRxDevice" xml:space="preserve"><value>请选择接收音频设备。</value></data>
+  <data name="Sstv.DialogRxStartError" xml:space="preserve"><value>无法启动 SSTV 接收</value></data>
+  <data name="Sstv.SelectManualRxMode" xml:space="preserve"><value>请先在接收模式中选定具体模式。</value></data>
+  <data name="Sstv.StartRxFirst" xml:space="preserve"><value>请先启动接收声卡。</value></data>
+  <data name="Sstv.DeleteTemplateConfirm" xml:space="preserve"><value>删除自定义模板“{0}”？</value></data>
+  <data name="Sstv.DeleteTemplateTitle" xml:space="preserve"><value>删除 SSTV 模板</value></data>
+  <data name="Sstv.NeedImage" xml:space="preserve"><value>请先打开或粘贴图片。</value></data>
+  <data name="Sstv.SaveAudioTitle" xml:space="preserve"><value>保存 SSTV 音频</value></data>
+  <data name="Sstv.WavFilter" xml:space="preserve"><value>WAV 音频文件|*.wav</value></data>
+  <data name="Sstv.ImportImageError" xml:space="preserve"><value>导入图片失败</value></data>
+  <data name="Sstv.SelectHistoryExport" xml:space="preserve"><value>请在图库中选中要导出的图片。</value></data>
+  <data name="Sstv.ExportImageTitle" xml:space="preserve"><value>导出图库图片</value></data>
+  <data name="Sstv.PngFilter" xml:space="preserve"><value>PNG 图片|*.png</value></data>
+  <data name="Sstv.ExportImageError" xml:space="preserve"><value>导出图片失败</value></data>
+  <data name="Sstv.SelectHistoryDelete" xml:space="preserve"><value>请在图库中选中要删除的图片。</value></data>
+  <data name="Sstv.DeleteImageConfirm" xml:space="preserve"><value>确定删除图库图片“{0}”？</value></data>
+  <data name="Sstv.DeleteImageTitle" xml:space="preserve"><value>删除 SSTV 图片</value></data>
 </root>

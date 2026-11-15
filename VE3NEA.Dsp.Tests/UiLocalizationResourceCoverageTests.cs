@@ -97,6 +97,8 @@ public sealed class UiLocalizationResourceCoverageTests
     Assert.Equal("过境匹配 — {0}  #{1}", zh["QsoSchedule.Title"]);
     Assert.Equal("新增转发器 / 信标…", zh["Transmitter.New"]);
     Assert.Equal("Edit Local Entry...", en["Transmitter.Edit"]);
+    Assert.Equal("删除自定义模板“{0}”？", zh["Sstv.DeleteTemplateConfirm"]);
+    Assert.Equal("Delete gallery image “{0}”?", en["Sstv.DeleteImageConfirm"]);
     Assert.Equal("位置反馈异常", zh["Yaesu.PositionFault"]);
     Assert.Equal("GS-232A/B 接口 · AZ 0–450° / EL 0–180°",
       zh["Yaesu.Interface"]);
