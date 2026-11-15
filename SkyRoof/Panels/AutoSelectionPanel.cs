@@ -14,6 +14,7 @@ namespace SkyRoof
 
     // set while UpdateStatus writes control state, so the resulting events do not fight the user
     private bool updating;
+    private readonly VE3NEA.ToolTipEx tips = new();
 
     //----------------------------------------------------------------------------------------------
     //                                        startup
@@ -33,10 +34,15 @@ namespace SkyRoof
       ctx.AutoSelectionPanel = this;
       ctx.MainForm.AutoSelectionMNU.Checked = true;
 
-      var tips = new VE3NEA.ToolTipEx();
-      tips.SetToolTip(EnableCheck, "Turn automatic satellite selection on or off for the current group");
-      tips.SetToolTip(EditBtn, "Edit the schedule of passes for the current group");
+      RefreshLocalizedUi();
+    }
 
+    internal void RefreshLocalizedUi()
+    {
+      tips.SetToolTip(EnableCheck,
+        UiLocalizationService.Get("AutoSelection.TipToggle"));
+      tips.SetToolTip(EditBtn,
+        UiLocalizationService.Get("AutoSelection.TipEdit"));
       UpdateStatus();
     }
 
@@ -52,8 +58,8 @@ namespace SkyRoof
       ctx.MainForm.AutoSelectionMNU.Checked = false;
 
       if (wasEnabled)
-        MessageBox.Show(ctx.MainForm, "Auto-selection stopped because the Auto Selection panel was closed.",
-          "Auto Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(ctx.MainForm, UiLocalizationService.Get("AutoSelection.StoppedOnClose"),
+          UiLocalizationService.Get("AutoSelection.ScheduleTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
 

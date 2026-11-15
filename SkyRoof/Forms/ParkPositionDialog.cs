@@ -25,7 +25,7 @@ namespace SkyRoof
         : new List<RotatorParkWaypoint> {
             new() { Azimuth = settings.ParkAzimuth, Elevation = settings.ParkElevation } };
 
-      Text = "PARK Waypoints";
+      Text = UiLocalizationService.Get("Park.Title");
       FormBorderStyle = FormBorderStyle.FixedDialog;
       // Center over the main SkyRoof window rather than at the mouse cursor.
       StartPosition = FormStartPosition.CenterParent;
@@ -38,8 +38,7 @@ namespace SkyRoof
       Controls.Add(new Label {
         Location = new Point(12, 10),
         Size = new Size(462, 36),
-        Text = "PARK follows the ordered waypoints. The next move starts only after " +
-               "the rotator confirms arrival. STOP cancels the route."
+        Text = UiLocalizationService.Get("Park.Description")
       });
 
       RouteList.Location = new Point(12, 52);
@@ -49,7 +48,7 @@ namespace SkyRoof
 
       Controls.Add(new Label {
         Location = new Point(284, 55), Size = new Size(190, 20),
-        Text = "Selected waypoint coordinates"
+        Text = UiLocalizationService.Get("Park.Coordinates")
       });
       Controls.Add(new Label {
         Location = new Point(284, 85), Size = new Size(34, 23), Text = "AZ"
@@ -69,23 +68,22 @@ namespace SkyRoof
       ElevationSpinner.Size = new Size(128, 24);
       Controls.Add(ElevationSpinner);
 
-      AddButton("Update", 284, 149, 80, (_, _) => UpdateSelected());
-      AddButton("Add After", 370, 149, 94, (_, _) => AddWaypoint());
-      AddButton("Remove", 284, 185, 80, (_, _) => RemoveSelected());
-      AddButton("↑ Up", 370, 185, 94, (_, _) => MoveWaypoint(-1));
-      AddButton("Use Current", 284, 221, 180, (_, _) => UseCurrent())
+      AddButton(UiLocalizationService.Get("Park.Update"), 284, 149, 80, (_, _) => UpdateSelected());
+      AddButton(UiLocalizationService.Get("Park.AddAfter"), 370, 149, 94, (_, _) => AddWaypoint());
+      AddButton(UiLocalizationService.Get("Park.Remove"), 284, 185, 80, (_, _) => RemoveSelected());
+      AddButton(UiLocalizationService.Get("Park.Up"), 370, 185, 94, (_, _) => MoveWaypoint(-1));
+      AddButton(UiLocalizationService.Get("Park.UseCurrent"), 284, 221, 180, (_, _) => UseCurrent())
         .Enabled = actualBearing != null;
-      AddButton("↓ Down", 370, 260, 94, (_, _) => MoveWaypoint(1));
+      AddButton(UiLocalizationService.Get("Park.Down"), 370, 260, 94, (_, _) => MoveWaypoint(1));
 
       Controls.Add(new Label {
         Location = new Point(12, 265),
         Size = new Size(258, 38),
-        Text = "Use Update to save edited AZ/EL into the selected row; " +
-               "Save persists the entire route."
+        Text = UiLocalizationService.Get("Park.Hint")
       });
 
-      Button save = AddButton("Save Route", 284, 302, 90, (_, _) => SaveRoute());
-      Button cancel = AddButton("Cancel", 382, 302, 82,
+      Button save = AddButton(UiLocalizationService.Get("Park.Save"), 284, 302, 90, (_, _) => SaveRoute());
+      Button cancel = AddButton(UiLocalizationService.Get("Common.Cancel"), 382, 302, 82,
         (_, _) => { DialogResult = DialogResult.Cancel; Close(); });
       CancelButton = cancel;
       AcceptButton = save;
@@ -225,8 +223,8 @@ namespace SkyRoof
       if (waypoints.Count == 0)
       {
         MessageBox.Show(this,
-          "Add at least one PARK waypoint.",
-          "PARK Waypoints", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+          UiLocalizationService.Get("Park.MinOne"),
+          UiLocalizationService.Get("Park.Title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return;
       }
 

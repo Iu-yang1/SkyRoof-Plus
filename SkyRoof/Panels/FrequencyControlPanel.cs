@@ -48,9 +48,40 @@ namespace SkyRoof
       RefreshFromRadioLink();
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      // Update presentation only. Retain the frequency ruler, saved corrections
+      // and CAT session; RefreshFromRadioLink does not send radio commands.
+      DownlinkGroup.Text = UiLocalizationService.Get("FrequencyControl.DownlinkBase");
+      UplinkGroup.Text = UiLocalizationService.Get("FrequencyControl.UplinkBase");
+      foreach (GroupBox group in new[] { DownlinkGroup, UplinkGroup })
+        if (group.Controls.OfType<TableLayoutPanel>().FirstOrDefault() is { } layout)
+        {
+          if (layout.GetControlFromPosition(0, 1) is Control dbCaption)
+            dbCaption.Text = UiLocalizationService.Get("FrequencyControl.DatabaseReference");
+          if (layout.GetControlFromPosition(0, 2) is Control correctionCaption)
+            correctionCaption.Text = UiLocalizationService.Get("FrequencyControl.SavedCorrection");
+        }
+      DownlinkEditBtn.Text = UplinkEditBtn.Text =
+        UiLocalizationService.Get("FrequencyControl.EditBase");
+      DownlinkResetBtn.Text = UplinkResetBtn.Text =
+        UiLocalizationService.Get("FrequencyControl.ResetDatabase");
+      TuningGroup.Text = UiLocalizationService.Get("FrequencyControl.Tuning");
+      if (TuningGroup.Controls.OfType<TableLayoutPanel>().FirstOrDefault() is { } tuning)
+      {
+        if (tuning.GetControlFromPosition(0, 0) is Control rxCaption)
+          rxCaption.Text = UiLocalizationService.Get("FrequencyControl.DownlinkNoDoppler");
+        if (tuning.GetControlFromPosition(1, 0) is Control txCaption)
+          txCaption.Text = UiLocalizationService.Get("FrequencyControl.UplinkNoDoppler");
+      }
+      BackToBaseBtn.Text = UiLocalizationService.Get("FrequencyControl.ResetBase");
+      TuningHelpLabel.Text = UiLocalizationService.Get("FrequencyControl.Help");
+      if (ctx != null) RefreshFromRadioLink();
+    }
+
     private void InitializeUi()
     {
-      Text = "Frequency Control";
+      Text = UiLocalizationService.Get("FrequencyControl.Title");
       Name = "FrequencyControlPanel";
       ClientSize = new Size(760, 430);
       MinimumSize = new Size(580, 380);
@@ -72,7 +103,7 @@ namespace SkyRoof
       SelectionLabel.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
       SelectionLabel.TextAlign = ContentAlignment.MiddleLeft;
       SelectionLabel.AutoEllipsis = true;
-      SelectionLabel.Text = "Frequency Control";
+      SelectionLabel.Text = UiLocalizationService.Get("FrequencyControl.Title");
       root.Controls.Add(SelectionLabel, 0, 0);
 
       var baseLayout = new TableLayoutPanel
@@ -89,14 +120,14 @@ namespace SkyRoof
       root.Controls.Add(baseLayout, 0, 1);
 
       ConfigureBaseGroup(
-        DownlinkGroup, "Downlink Base",
+        DownlinkGroup, UiLocalizationService.Get("FrequencyControl.DownlinkBase"),
         DownlinkBaseValue, DownlinkDatabaseValue, DownlinkCorrectionValue,
         DownlinkEditBtn, DownlinkResetBtn,
         (_, _) => EditBaseFrequency(false),
         (_, _) => ResetBaseFrequency(false));
 
       ConfigureBaseGroup(
-        UplinkGroup, "Uplink Base",
+        UplinkGroup, UiLocalizationService.Get("FrequencyControl.UplinkBase"),
         UplinkBaseValue, UplinkDatabaseValue, UplinkCorrectionValue,
         UplinkEditBtn, UplinkResetBtn,
         (_, _) => EditBaseFrequency(true),
@@ -153,12 +184,12 @@ namespace SkyRoof
       layout.SetColumnSpan(baseValue, 2);
       layout.Controls.Add(baseValue, 0, 0);
 
-      var dbCaption = MakeCaptionLabel("Database reference");
+      var dbCaption = MakeCaptionLabel(UiLocalizationService.Get("FrequencyControl.DatabaseReference"));
       layout.Controls.Add(dbCaption, 0, 1);
       ConfigureValueLabel(databaseValue);
       layout.Controls.Add(databaseValue, 1, 1);
 
-      var correctionCaption = MakeCaptionLabel("Saved correction");
+      var correctionCaption = MakeCaptionLabel(UiLocalizationService.Get("FrequencyControl.SavedCorrection"));
       layout.Controls.Add(correctionCaption, 0, 2);
       ConfigureValueLabel(correctionValue);
       layout.Controls.Add(correctionValue, 1, 2);
@@ -171,10 +202,10 @@ namespace SkyRoof
         WrapContents = false,
         Margin = new Padding(0, 7, 0, 0)
       };
-      editBtn.Text = "Edit Base...";
+      editBtn.Text = UiLocalizationService.Get("FrequencyControl.EditBase");
       editBtn.AutoSize = true;
       editBtn.Click += editHandler;
-      resetBtn.Text = "Reset to Database";
+      resetBtn.Text = UiLocalizationService.Get("FrequencyControl.ResetDatabase");
       resetBtn.AutoSize = true;
       resetBtn.Click += resetHandler;
       buttons.Controls.Add(editBtn);
@@ -207,7 +238,7 @@ namespace SkyRoof
 
     private void ConfigureTuningGroup()
     {
-      TuningGroup.Text = "Tuning";
+      TuningGroup.Text = UiLocalizationService.Get("FrequencyControl.Tuning");
       TuningGroup.Dock = DockStyle.Fill;
       TuningGroup.Margin = new Padding(4);
 
@@ -237,7 +268,7 @@ namespace SkyRoof
       {
         Dock = DockStyle.Fill,
         AutoSize = true,
-        Text = "Downlink · no Doppler",
+        Text = UiLocalizationService.Get("FrequencyControl.DownlinkNoDoppler"),
         TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = SystemColors.GrayText,
         Font = new Font("Segoe UI", 9F),
@@ -248,7 +279,7 @@ namespace SkyRoof
       {
         Dock = DockStyle.Fill,
         AutoSize = true,
-        Text = "Uplink · no Doppler",
+        Text = UiLocalizationService.Get("FrequencyControl.UplinkNoDoppler"),
         TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = SystemColors.GrayText,
         Font = new Font("Segoe UI", 9F),
@@ -281,7 +312,7 @@ namespace SkyRoof
       TuningModeLabel.Margin = new Padding(0, 0, 6, 0);
       statusLayout.Controls.Add(TuningModeLabel, 0, 0);
 
-      BackToBaseBtn.Text = "Reset to Base";
+      BackToBaseBtn.Text = UiLocalizationService.Get("FrequencyControl.ResetBase");
       BackToBaseBtn.AutoSize = true;
       BackToBaseBtn.Anchor = AnchorStyles.Right;
       BackToBaseBtn.Margin = new Padding(6, 0, 0, 0);
@@ -300,7 +331,7 @@ namespace SkyRoof
 
       TuningHelpLabel.AutoSize = true;
       TuningHelpLabel.Text =
-        "Drag horizontally or use the mouse wheel. Ctrl = RIT; Alt + wheel = 500 Hz step.";
+        UiLocalizationService.Get("FrequencyControl.Help");
       TuningHelpLabel.ForeColor = SystemColors.GrayText;
       TuningHelpLabel.Margin = new Padding(3, 5, 0, 0);
       layout.SetColumnSpan(TuningHelpLabel, 2);
@@ -376,15 +407,15 @@ namespace SkyRoof
 
       if (satellite)
       {
-        string satelliteName = link.Sat?.name ?? "Satellite";
+        string satelliteName = link.Sat?.name ?? UiLocalizationService.Get("Control.QsoSchedulerPanel.label1");
         string transmitterName = string.IsNullOrWhiteSpace(link.Tx?.description)
-          ? "Selected transmitter"
+          ? UiLocalizationService.Get("FrequencyControl.SelectedTransmitter")
           : link.Tx.description;
         SelectionLabel.Text = $"{satelliteName} — {transmitterName}";
       }
       else
         SelectionLabel.Text =
-          "Terrestrial tuning — select a satellite transmitter to edit saved Base frequencies";
+          UiLocalizationService.Get("FrequencyControl.TerrestrialPlaceholder");
 
       DownlinkGroup.Enabled =
         satellite &&
@@ -406,7 +437,7 @@ namespace SkyRoof
         }
         else
         {
-          DownlinkBaseValue.Text = "No Downlink";
+          DownlinkBaseValue.Text = UiLocalizationService.Get("FrequencyControl.NoDownlink");
           DownlinkDatabaseValue.Text = "—";
           DownlinkCorrectionValue.Text = "—";
         }
@@ -419,7 +450,7 @@ namespace SkyRoof
         }
         else
         {
-          UplinkBaseValue.Text = "No Uplink";
+          UplinkBaseValue.Text = UiLocalizationService.Get("FrequencyControl.NoUplink");
           UplinkDatabaseValue.Text = "—";
           UplinkCorrectionValue.Text = "—";
         }
@@ -454,7 +485,7 @@ namespace SkyRoof
       }
       else
       {
-        NoDopplerDownlinkValue.Text = "No Downlink";
+        NoDopplerDownlinkValue.Text = UiLocalizationService.Get("FrequencyControl.NoDownlink");
         NoDopplerDownlinkValue.ForeColor = Color.Gray;
       }
 
@@ -465,7 +496,7 @@ namespace SkyRoof
       }
       else
       {
-        NoDopplerUplinkValue.Text = "No Uplink";
+        NoDopplerUplinkValue.Text = UiLocalizationService.Get("FrequencyControl.NoUplink");
         NoDopplerUplinkValue.ForeColor = Color.Gray;
       }
 
@@ -481,20 +512,23 @@ namespace SkyRoof
         link.DownlinkFrequencyWithoutDoppler);
 
       if (!link.HasDownlink)
-        TuningModeLabel.Text = "No downlink — RX tuning unchanged";
+        TuningModeLabel.Text = UiLocalizationService.Get("FrequencyControl.NoDownlinkTuning");
       else if (link.RitEnabled)
         TuningModeLabel.Text = $"RIT: {link.RitOffset:+0;-0;0} Hz";
       else if (link.IsTerrestrial)
-        TuningModeLabel.Text = "Terrestrial frequency";
+        TuningModeLabel.Text = UiLocalizationService.Get("FrequencyControl.TerrestrialFrequency");
       else if (link.IsTransponder)
       {
-        string direction = link.Tx?.invert == true ? "inverting" : "non-inverting";
+        string direction = UiLocalizationService.Get(link.Tx?.invert == true
+          ? "FrequencyControl.Inverting" : "FrequencyControl.NonInverting");
         TuningModeLabel.Text =
-          $"Transponder offset: {link.TransponderOffset:n0} Hz · {direction}";
+          UiLocalizationService.Format("FrequencyControl.TransponderOffset",
+            link.TransponderOffset, direction);
       }
       else
         TuningModeLabel.Text =
-          $"Manual correction: {link.DownlinkManualCorrection:+0;-0;0} Hz";
+          UiLocalizationService.Format("FrequencyControl.ManualCorrection",
+            link.DownlinkManualCorrection);
     }
 
     private static Color GetFrequencyColor(double frequency, bool bright)
@@ -516,7 +550,8 @@ namespace SkyRoof
       FrequencyDialog.Location = Cursor.Position;
       FrequencyDialog.SetInitialFrequency(
         frequency,
-        uplink ? "Edit Uplink Base Frequency" : "Edit Downlink Base Frequency");
+        UiLocalizationService.Get(uplink
+          ? "FrequencyControl.EditUplinkBase" : "FrequencyControl.EditDownlinkBase"));
 
       FrequencyDialog.ShowDialog(this);
       if (FrequencyDialog.EnteredFrequency <= 0) return;

@@ -494,8 +494,9 @@ namespace SkyRoof
     {
       if (string.IsNullOrEmpty(ctx.Settings.User.Call))
       {
-        MessageBox.Show("Please set your callsign in Settings before sending a report.",
-          "Callsign not set", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        MessageBox.Show(UiLocalizationService.Get("Waterfall.CallsignRequired"),
+          UiLocalizationService.Get("Waterfall.CallsignNotSet"),
+          MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return;
       }
 

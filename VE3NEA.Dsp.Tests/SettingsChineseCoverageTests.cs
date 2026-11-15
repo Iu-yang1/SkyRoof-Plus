@@ -8,6 +8,7 @@ using Xunit;
 namespace VE3NEA.Dsp.Tests;
 
 /// <summary>Audits the user-visible PropertyGrid metadata of the settings tree.</summary>
+[Collection("BilingualUiAcceptance")]
 public sealed class SettingsChineseCoverageTests
 {
   [Fact]

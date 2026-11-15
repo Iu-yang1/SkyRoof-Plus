@@ -133,6 +133,13 @@ namespace SkyRoof
       uiChineseMenu.Checked = UiLocalizationService.Current == UiLanguage.SimplifiedChinese;
       uiEnglishMenu.Checked = UiLocalizationService.Current == UiLanguage.English;
       UpdateCwConsoleMenuText();
+      // Embedded toolbar UserControls are not DockContent; they need their own
+      // explicit static-control translation after the language changes.
+      UiLocalizationService.ApplyStaticControls(SatelliteSelecionWidget);
+      UiLocalizationService.ApplyStaticControls(FrequencyWidget);
+      UiLocalizationService.ApplyStaticControls(GainWidget);
+      UiLocalizationService.ApplyStaticControls(RotatorWidget);
+      FrequencyWidget.RefreshLocalizedUi();
     }
 
     private void RegisterPanelLocalization(DockContent panel)
@@ -149,9 +156,15 @@ namespace SkyRoof
         if (panel is SstvConsolePanel sstv) sstv.RefreshLocalizedUi();
         if (panel is IcomLanSpectrumPanel spectrum) spectrum.RefreshLocalizedUi();
         if (panel is TelemetryPanel telemetry) telemetry.RefreshLocalizedUi();
-        if (panel is AutoSelectionPanel autoSelection) autoSelection.UpdateStatus();
+        if (panel is AutoSelectionPanel autoSelection) autoSelection.RefreshLocalizedUi();
         if (panel is Ft4ConsolePanel ft4Panel) ft4Panel.RefreshLocalizedUi();
-
+        if (panel is QsoSchedulerPanel scheduler) scheduler.RefreshLocalizedUi();
+        if (panel is TransmittersPanel transmitters) transmitters.RefreshLocalizedUi();
+        if (panel is FrequencyControlPanel frequency) frequency.RefreshLocalizedUi();
+        if (panel is GroupViewPanel group) group.RefreshLocalizedUi();
+        if (panel is SkyViewPanel sky) sky.RefreshLocalizedUi();
+        if (panel is SatelliteDetailsPanel satellite) satellite.RefreshLocalizedUi();
+        if (panel is OnvifCameraPanel camera) camera.RefreshLocalizedUi();
       });
     }
   }

@@ -16,6 +16,7 @@ namespace VE3NEA.Dsp.Tests
   /// Runs on an STA just like the user's Windows application and never
   /// connects to CAT/PTT or opens a blocking device-selection dialog.
   /// </summary>
+[Collection("BilingualUiAcceptance")]
   public sealed class SstvOperatorUiSmokeTests
   {
     private static T Field<T>(object target, string name)
@@ -50,8 +51,10 @@ namespace VE3NEA.Dsp.Tests
       Exception? failure = null;
       var thread = new Thread(() =>
       {
+        UiLanguage previous = SettingsLanguage.Current;
         try
         {
+          UiLocalizationService.Apply(UiLanguage.SimplifiedChinese);
           using var ctx = new UiFixture();
           var panel = ctx.Panel;
           panel.Size = new Size(980, 720);
@@ -61,7 +64,7 @@ namespace VE3NEA.Dsp.Tests
           var tabs = panel.Controls.OfType<TabControl>().Single();
           Assert.True(panel.Visible);
           Assert.True(tabs.Visible);
-          Assert.Equal(new[] { "接收 RX", "发送 TX",
+          Assert.Equal(new[] { "接收 RX", "发射 TX",
               "图库 / 历史", "通联日志" },
             tabs.TabPages.Cast<TabPage>().Select(x => x.Text).ToArray());
           Assert.Equal(43, Field<ComboBox>(panel, "modeBox").Items.Count);
@@ -279,6 +282,7 @@ namespace VE3NEA.Dsp.Tests
             Field<Label>(panel, "txStatus").Text);
         }
         catch (Exception ex) { failure = ex; }
+        finally { UiLocalizationService.Apply(previous); }
       });
       thread.IsBackground = true;
       thread.SetApartmentState(ApartmentState.STA);

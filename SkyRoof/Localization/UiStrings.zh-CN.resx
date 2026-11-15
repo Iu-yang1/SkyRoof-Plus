@@ -9,7 +9,7 @@
   <data name="Menu.View" xml:space="preserve"><value>视图(&amp;V)</value></data>
   <data name="Menu.Group" xml:space="preserve"><value>卫星分组(&amp;G)</value></data>
   <data name="Menu.SatelliteDetails" xml:space="preserve"><value>卫星详情(&amp;D)</value></data>
-  <data name="Menu.Transmitters" xml:space="preserve"><value>卫星发射机(&amp;T)</value></data>
+  <data name="Menu.Transmitters" xml:space="preserve"><value>卫星转发器与信标(&amp;T)</value></data>
   <data name="Menu.SatellitePasses" xml:space="preserve"><value>卫星过境(&amp;P)</value></data>
   <data name="Menu.Waterfall" xml:space="preserve"><value>宽带瀑布图(&amp;W)</value></data>
   <data name="Menu.FrequencyControl" xml:space="preserve"><value>频率控制(&amp;F)</value></data>
@@ -22,8 +22,8 @@
   <data name="Menu.CwConsole" xml:space="preserve"><value>CW 控制台（收发）(&amp;C)</value></data>
   <data name="Menu.CwConsoleHelp" xml:space="preserve"><value>CW 手动发射不依赖卫星转发器选择；发送时检查 SkyCAT 与电台键控状态。</value></data>
   <data name="Menu.SstvConsole" xml:space="preserve"><value>SSTV 收发</value></data>
-  <data name="Menu.Recorder" xml:space="preserve"><value>录音机(&amp;R)</value></data>
-  <data name="Menu.QsoScheduler" xml:space="preserve"><value>通联预约(&amp;S)</value></data>
+  <data name="Menu.Recorder" xml:space="preserve"><value>音频与 I/Q 录制(&amp;R)</value></data>
+  <data name="Menu.QsoScheduler" xml:space="preserve"><value>过境匹配(&amp;S)</value></data>
   <data name="Menu.Telemetry" xml:space="preserve"><value>卫星遥测(&amp;T)</value></data>
   <data name="Menu.AutoSelection" xml:space="preserve"><value>自动选择(&amp;A)</value></data>
   <data name="Menu.ResetLayout" xml:space="preserve"><value>重置窗口布局(&amp;L)</value></data>
@@ -39,9 +39,9 @@
   <data name="Menu.ToolbarScale" xml:space="preserve"><value>界面缩放</value></data>
   <data name="Menu.DockScale" xml:space="preserve"><value>停靠与弹窗缩放</value></data>
   <data name="Menu.DownloadSatelliteData" xml:space="preserve"><value>下载全部卫星数据(&amp;D)</value></data>
-  <data name="Menu.DownloadOrbitElements" xml:space="preserve"><value>下载轨道根数(&amp;O)</value></data>
+  <data name="Menu.DownloadOrbitElements" xml:space="preserve"><value>更新轨道根数(&amp;O)</value></data>
   <data name="Menu.DownloadAmsatStatuses" xml:space="preserve"><value>下载 AMSAT 状态(&amp;A)</value></data>
-  <data name="Menu.LoadOrbitFile" xml:space="preserve"><value>从文件加载轨道根数(&amp;F)…</value></data>
+  <data name="Menu.LoadOrbitFile" xml:space="preserve"><value>从文件导入轨道根数(&amp;F)…</value></data>
   <data name="Menu.Help" xml:space="preserve"><value>帮助(&amp;H)</value></data>
   <data name="Menu.OnlineHelp" xml:space="preserve"><value>在线帮助(&amp;O)…</value></data>
   <data name="Menu.SupportGroup" xml:space="preserve"><value>支持社区(&amp;S)…</value></data>
@@ -49,7 +49,7 @@
   <data name="Menu.About" xml:space="preserve"><value>关于(&amp;A)…</value></data>
   <data name="Panel.Groups" xml:space="preserve"><value>卫星分组</value></data>
   <data name="Panel.SatelliteDetails" xml:space="preserve"><value>卫星详情</value></data>
-  <data name="Panel.Transmitters" xml:space="preserve"><value>卫星发射机</value></data>
+  <data name="Panel.Transmitters" xml:space="preserve"><value>转发器与信标</value></data>
   <data name="Panel.Passes" xml:space="preserve"><value>卫星过境</value></data>
   <data name="Panel.Timeline" xml:space="preserve"><value>时间轴</value></data>
   <data name="Panel.SkyView" xml:space="preserve"><value>天空视图</value></data>
@@ -62,8 +62,8 @@
   <data name="Panel.Ft4Console" xml:space="preserve"><value>FT4 控制台</value></data>
   <data name="Panel.CwConsole" xml:space="preserve"><value>CW 控制台［收发］</value></data>
   <data name="Panel.SstvConsole" xml:space="preserve"><value>SSTV</value></data>
-  <data name="Panel.Recorder" xml:space="preserve"><value>录音机</value></data>
-  <data name="Panel.QsoScheduler" xml:space="preserve"><value>通联预约</value></data>
+  <data name="Panel.Recorder" xml:space="preserve"><value>音频与 I/Q 录制</value></data>
+  <data name="Panel.QsoScheduler" xml:space="preserve"><value>过境匹配</value></data>
   <data name="Panel.Telemetry" xml:space="preserve"><value>卫星遥测</value></data>
   <data name="Panel.AutoSelection" xml:space="preserve"><value>自动选择</value></data>
   <data name="Common.Start" xml:space="preserve"><value>开始</value></data>
@@ -88,7 +88,7 @@
   <data name="Control.QsoEntryPanel.label12" xml:space="preserve"><value>卫星</value></data>
   <data name="Control.QsoEntryPanel.label13" xml:space="preserve"><value>呼号</value></data>
   <data name="Control.QsoEntryPanel.label14" xml:space="preserve"><value>网格</value></data>
-  <data name="Control.QsoEntryPanel.label1" xml:space="preserve"><value>州</value></data>
+  <data name="Control.QsoEntryPanel.label1" xml:space="preserve"><value>州 / 省</value></data>
   <data name="Control.QsoEntryPanel.label15" xml:space="preserve"><value>发出</value></data>
   <data name="Control.QsoEntryPanel.label16" xml:space="preserve"><value>收到</value></data>
   <data name="Control.QsoEntryPanel.label17" xml:space="preserve"><value>姓名</value></data>
@@ -98,7 +98,7 @@
   <data name="Control.PassesPanel.CurrentSatBtn" xml:space="preserve"><value>当前卫星</value></data>
   <data name="Control.PassesPanel.GroupBtn" xml:space="preserve"><value>分组</value></data>
   <data name="Control.PassesPanel.AllBtn" xml:space="preserve"><value>全部 VHF/UHF</value></data>
-  <data name="Column.TransmittersPanel.columnHeader1" xml:space="preserve"><value>发射机</value></data>
+  <data name="Column.TransmittersPanel.columnHeader1" xml:space="preserve"><value>转发器 / 信标</value></data>
   <data name="Column.TransmittersPanel.columnHeader3" xml:space="preserve"><value>下行</value></data>
   <data name="Column.TransmittersPanel.columnHeader2" xml:space="preserve"><value>上行</value></data>
   <data name="Column.TransmittersPanel.columnHeader4" xml:space="preserve"><value>模式</value></data>
@@ -111,7 +111,7 @@
   <data name="Recorder.Ready" xml:space="preserve"><value>就绪</value></data>
   <data name="Recorder.AudioSource" xml:space="preserve"><value>音频来源</value></data>
   <data name="Recorder.IqSource" xml:space="preserve"><value>I/Q 来源</value></data>
-  <data name="Recorder.SourceAuto" xml:space="preserve"><value>自动（优先 SDR，否则 RS-BA1 回放）</value></data>
+  <data name="Recorder.SourceAuto" xml:space="preserve"><value>自动（优先 SDR，否则 RS-BA1 音频回环）</value></data>
   <data name="Recorder.SourceSdr" xml:space="preserve"><value>SkyRoof SDR</value></data>
   <data name="Recorder.SourceCapture" xml:space="preserve"><value>Windows AF 采集（USB / CABLE 输出）</value></data>
   <data name="Recorder.SourceLoopback" xml:space="preserve"><value>RS-BA1 回放（WASAPI 回环）</value></data>
@@ -163,9 +163,9 @@
   <data name="Telemetry.ClearAll" xml:space="preserve"><value>全部清除</value></data>
   <data name="Telemetry.Terrestrial" xml:space="preserve"><value>地面信号</value></data>
   <data name="AutoSelection.Toggle" xml:space="preserve"><value>自动选择：{0}</value></data>
-  <data name="AutoSelection.Active" xml:space="preserve"><value>当前：{0} · {1} 后离开视野</value></data>
+  <data name="AutoSelection.Active" xml:space="preserve"><value>当前：{0} · LOS 剩余 {1}</value></data>
   <data name="AutoSelection.ActiveNone" xml:space="preserve"><value>当前：无</value></data>
-  <data name="AutoSelection.Next" xml:space="preserve"><value>下一项：{0} · {1} 后</value></data>
+  <data name="AutoSelection.Next" xml:space="preserve"><value>下一项：{0} · 还有 {1}</value></data>
   <data name="AutoSelection.NextNone" xml:space="preserve"><value>下一项：无</value></data>
   <data name="AutoSelection.Recording" xml:space="preserve"><value>录制：{0} ● {1}</value></data>
   <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>录制：关闭</value></data>
@@ -175,8 +175,8 @@
   <data name="Cw.History" xml:space="preserve"><value>CW 历史记录…</value></data>
   <data name="Cw.HistoryTitle" xml:space="preserve"><value>CW 接收历史（已确认 · UTC）</value></data>
   <data name="Cw.Send" xml:space="preserve"><value>发送</value></data>
-  <data name="Cw.SetWpm" xml:space="preserve"><value>设置 WPM</value></data>
-  <data name="Cw.TxDisarmed" xml:space="preserve"><value>TX：未准备</value></data>
+  <data name="Cw.SetWpm" xml:space="preserve"><value>设置键速（WPM）</value></data>
+  <data name="Cw.TxDisarmed" xml:space="preserve"><value>TX：未使能</value></data>
   <data name="Cw.StartRx" xml:space="preserve"><value>开始 RX</value></data>
   <data name="Cw.StopRx" xml:space="preserve"><value>停止 RX</value></data>
   <data name="Cw.InputUnavailable" xml:space="preserve"><value>输入：不可用</value></data>
@@ -190,7 +190,7 @@
   <data name="Cw.DecodingSuffix" xml:space="preserve"><value> · 解码中</value></data>
   <data name="Cw.TxUnavailable" xml:space="preserve"><value>TX 不可用</value></data>
   <data name="Cw.TxSending" xml:space="preserve"><value>TX 发射中</value></data>
-  <data name="Cw.TxPreflight" xml:space="preserve"><value>TX 发送检查中</value></data>
+  <data name="Cw.TxPreflight" xml:space="preserve"><value>TX 发射前检查</value></data>
   <data name="Cw.TxReady" xml:space="preserve"><value>TX：就绪</value></data>
   <data name="Cw.TxIdle" xml:space="preserve"><value>TX 空闲</value></data>
   <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX：控制器不可用</value></data>
@@ -205,13 +205,13 @@
   <data name="Spectrum.TipScopeBand" xml:space="preserve"><value>选择自动/主接收机/副接收机。只读来源仍可本地切换。</value></data>
   <data name="Spectrum.TipScopeMode" xml:space="preserve"><value>电台频谱模式：CENTER / FIXED / SCROLL。需要可写 CAT 控制通道。</value></data>
   <data name="Spectrum.TipSpanEdge" xml:space="preserve"><value>设置频谱跨度或固定边界预设；依当前模式自动切换。</value></data>
-  <data name="Spectrum.TipReference" xml:space="preserve"><value>向 IC-9700 写入频谱 REF 参考等级，须等待真实读回确认。</value></data>
+  <data name="Spectrum.TipReference" xml:space="preserve"><value>设置 IC-9700 频谱 REF 参考电平；必须以电台读回值确认。</value></data>
   <data name="Spectrum.TipSweep" xml:space="preserve"><value>电台扫描速度；此项可能修改无线电设备状态。</value></data>
-  <data name="Spectrum.TipVbw" xml:space="preserve"><value>电台视频带宽，需可写 CAT 通道。</value></data>
+  <data name="Spectrum.TipVbw" xml:space="preserve"><value>调整频谱视频带宽（VBW）；需要可写 CAT 控制链路。</value></data>
   <data name="Spectrum.TipHold" xml:space="preserve"><value>冻结本地频谱与瀑布图；释放时重新读取电台设置。</value></data>
   <data name="Spectrum.TipPeak" xml:space="preserve"><value>本地峰值保持；右键可清除峰值历史。</value></data>
   <data name="Spectrum.TipWaterfall" xml:space="preserve"><value>显示或隐藏本地瀑布图。</value></data>
-  <data name="Spectrum.TipAverage" xml:space="preserve"><value>仅对本地频谱曲线进行完整 Sweep 平均；瀑布图不平均。</value></data>
+  <data name="Spectrum.TipAverage" xml:space="preserve"><value>仅对本地频谱曲线按完整扫频帧求平均；瀑布图不参与平均。</value></data>
   <data name="Spectrum.TipSmooth" xml:space="preserve"><value>仅对频谱/峰值曲线进行频率方向平滑。</value></data>
   <data name="Spectrum.TipZoom" xml:space="preserve"><value>本地频谱缩放，不修改无线电 SPAN。</value></data>
   <data name="Spectrum.TipReadback" xml:space="preserve"><value>从 IC-9700 读取频谱设置，不将本地值当作已确认写入。</value></data>
@@ -251,10 +251,10 @@
   <data name="Sstv.HeadingAudio" xml:space="preserve"><value>音频与识别</value></data>
   <data name="Sstv.FieldMode" xml:space="preserve"><value>模式</value></data>
   <data name="Sstv.FieldTemplate" xml:space="preserve"><value>模板</value></data>
-  <data name="Sstv.FieldMy" xml:space="preserve"><value>MY</value></data>
-  <data name="Sstv.FieldHis" xml:space="preserve"><value>HIS</value></data>
-  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RSV TX</value></data>
-  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RSV RX</value></data>
+  <data name="Sstv.FieldMy" xml:space="preserve"><value>本台</value></data>
+  <data name="Sstv.FieldHis" xml:space="preserve"><value>对方</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>发出 RSV</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>收到 RSV</value></data>
   <data name="Sstv.FieldName" xml:space="preserve"><value>姓名</value></data>
   <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
   <data name="Sstv.FieldNotes" xml:space="preserve"><value>备注</value></data>
@@ -265,7 +265,7 @@
   <data name="Sstv.FieldVariable" xml:space="preserve"><value>变量</value></data>
   <data name="Sstv.FieldSoundcard" xml:space="preserve"><value>声卡</value></data>
   <data name="Sstv.TabRx" xml:space="preserve"><value>接收 RX</value></data>
-  <data name="Sstv.TabTx" xml:space="preserve"><value>发送 TX</value></data>
+  <data name="Sstv.TabTx" xml:space="preserve"><value>发射 TX</value></data>
   <data name="Sstv.TabHistory" xml:space="preserve"><value>图库 / 历史</value></data>
   <data name="Sstv.TabQso" xml:space="preserve"><value>通联日志</value></data>
   <data name="Sstv.Transmit" xml:space="preserve"><value>发射图片</value></data>
@@ -326,7 +326,7 @@
   <data name="Control.SatelliteGroupsForm.NonHamCheckbox" xml:space="preserve"><value>非业余无线电</value></data>
   <data name="Control.SatelliteGroupsForm.label4" xml:space="preserve"><value>波段：</value></data>
   <data name="Control.SatelliteGroupsForm.OtherBandsCheckbox" xml:space="preserve"><value>其他</value></data>
-  <data name="Control.SatelliteGroupsForm.label6" xml:space="preserve"><value>无线电：</value></data>
+  <data name="Control.SatelliteGroupsForm.label6" xml:space="preserve"><value>载荷类型：</value></data>
   <data name="Control.SatelliteGroupsForm.TransponderCheckbox" xml:space="preserve"><value>转发器</value></data>
   <data name="Control.SatelliteGroupsForm.TransceiverCheckbox" xml:space="preserve"><value>收发信机</value></data>
   <data name="Control.SatelliteGroupsForm.TransmitterCheckbox" xml:space="preserve"><value>发射机</value></data>
@@ -339,14 +339,14 @@
   <data name="Column.SatelliteGroupsForm.columnHeader3" xml:space="preserve"><value>发射日期</value></data>
   <data name="Column.SatelliteGroupsForm.columnHeader4" xml:space="preserve"><value>服务</value></data>
   <data name="Control.SignalParamsDialog.ModulationLabel" xml:space="preserve"><value>调制方式</value></data>
-  <data name="Control.SignalParamsDialog.FramingLabel" xml:space="preserve"><value>帧结构</value></data>
+  <data name="Control.SignalParamsDialog.FramingLabel" xml:space="preserve"><value>成帧方式</value></data>
   <data name="Control.SignalParamsDialog.BaudLabel" xml:space="preserve"><value>波特率</value></data>
   <data name="Control.SignalParamsDialog.DeviationLabel" xml:space="preserve"><value>频偏 (Hz)</value></data>
   <data name="Control.SignalParamsDialog.AfCarrierLabel" xml:space="preserve"><value>音频载波 (Hz)</value></data>
   <data name="Control.SignalParamsDialog.ManchesterLabel" xml:space="preserve"><value>曼彻斯特编码</value></data>
   <data name="Control.SignalParamsDialog.DifferentialLabel" xml:space="preserve"><value>差分预编码</value></data>
   <data name="Control.SignalParamsDialog.TelemetryFormatLabel" xml:space="preserve"><value>遥测格式</value></data>
-  <data name="Control.SignalParamsDialog.SaveOverrideBtn" xml:space="preserve"><value>保存为覆盖参数</value></data>
+  <data name="Control.SignalParamsDialog.SaveOverrideBtn" xml:space="preserve"><value>保存自定义参数</value></data>
   <data name="Control.SignalParamsDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
   <data name="Control.SignalParamsDialog.OkBtn" xml:space="preserve"><value>确定</value></data>
   <data name="Control.SdrDevicesDialog.okBtn" xml:space="preserve"><value>确定</value></data>
@@ -356,9 +356,9 @@
   <data name="Control.AutoSelectionConfigForm.MoveUpBtn" xml:space="preserve"><value>上移</value></data>
   <data name="Control.AutoSelectionConfigForm.MoveDownBtn" xml:space="preserve"><value>下移</value></data>
   <data name="Control.AutoSelectionConfigForm.SatGroupBox" xml:space="preserve"><value>卫星</value></data>
-  <data name="Control.AutoSelectionConfigForm.TxLabel" xml:space="preserve"><value>发射机：</value></data>
-  <data name="Control.AutoSelectionConfigForm.ModeGroupBox" xml:space="preserve"><value>重叠过境</value></data>
-  <data name="Control.AutoSelectionConfigForm.FinishCurrentRadio" xml:space="preserve"><value>完成当前过境</value></data>
+  <data name="Control.AutoSelectionConfigForm.TxLabel" xml:space="preserve"><value>转发器/信标：</value></data>
+  <data name="Control.AutoSelectionConfigForm.ModeGroupBox" xml:space="preserve"><value>过境重叠处理</value></data>
+  <data name="Control.AutoSelectionConfigForm.FinishCurrentRadio" xml:space="preserve"><value>当前过境结束后切换</value></data>
   <data name="Control.AutoSelectionConfigForm.HighestElevationRadio" xml:space="preserve"><value>最高仰角</value></data>
   <data name="Control.AutoSelectionConfigForm.PriorityRadio" xml:space="preserve"><value>优先级</value></data>
   <data name="Control.AutoSelectionConfigForm.RecLabel" xml:space="preserve"><value>录制所选过境：</value></data>
@@ -387,7 +387,7 @@
   <data name="Sstv.StatusAnalyzingProgress" xml:space="preserve"><value>正在解析 SSTV 录音 · {0}</value></data>
   <data name="Sstv.StatusWaveDone" xml:space="preserve"><value>录音解析已完成</value></data>
   <data name="Sstv.StatusWaveStopped" xml:space="preserve"><value>录音解析已停止</value></data>
-  <data name="Sstv.StatusRecordedFsk" xml:space="preserve"><value>录音中的台站标识：{0}（请核对）</value></data>
+  <data name="Sstv.StatusRecordedFsk" xml:space="preserve"><value>从录音识别到的 FSK 台站标识：{0}（请核对）</value></data>
   <data name="Sstv.StatusNoAudioDevice" xml:space="preserve"><value>未检测到接收声卡；可使用“导入 WAV”解码录音</value></data>
   <data name="Sstv.StatusAudioUnavailable" xml:space="preserve"><value>接收声卡不可用，请检查 Windows 音频设备</value></data>
   <data name="Sstv.StatusRxStopped" xml:space="preserve"><value>接收已停止</value></data>
@@ -419,18 +419,18 @@
   <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>已删除模板：{0}</value></data>
   <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>接收完成 · {0}</value></data>
   <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>正在接收 · {0}</value></data>
-  <data name="Rotator.Title" xml:space="preserve"><value>手动旋转器</value></data>
+  <data name="Rotator.Title" xml:space="preserve"><value>旋转器手动控制</value></data>
   <data name="Rotator.TrackStep" xml:space="preserve"><value>跟踪步进</value></data>
   <data name="Rotator.Footer" xml:space="preserve"><value>右键单击旋转器状态打开此面板。</value></data>
-  <data name="Rotator.StepTip" xml:space="preserve"><value>自动卫星跟踪的步进大小；手动长按为连续运动。</value></data>
+  <data name="Rotator.StepTip" xml:space="preserve"><value>自动卫星跟踪的位置步进量；按住方向键时连续旋转。</value></data>
   <data name="Rotator.ParkTip" xml:space="preserve"><value>左键：沿 PARK 路径停靠；右键：编辑停靠路径点。</value></data>
   <data name="Rotator.Antenna" xml:space="preserve"><value>天线</value></data>
   <data name="Rotator.Command" xml:space="preserve"><value>指令</value></data>
   <data name="Rotator.Satellite" xml:space="preserve"><value>卫星</value></data>
   <data name="Rotator.Disabled" xml:space="preserve"><value>已禁用</value></data>
-  <data name="Rotator.LiveTrack" xml:space="preserve"><value>实时追踪</value></data>
+  <data name="Rotator.LiveTrack" xml:space="preserve"><value>实时跟踪</value></data>
   <data name="Rotator.SafetyLock" xml:space="preserve"><value>安全锁定</value></data>
-  <data name="Rotator.PositionFault" xml:space="preserve"><value>角度异常</value></data>
+  <data name="Rotator.PositionFault" xml:space="preserve"><value>位置反馈异常</value></data>
   <data name="Rotator.Connected" xml:space="preserve"><value>已连接</value></data>
   <data name="Rotator.Connecting" xml:space="preserve"><value>连接中</value></data>
   <data name="Rotator.ParkActive" xml:space="preserve"><value>正在 PARK
@@ -448,7 +448,7 @@
   <data name="Rotator.PrePosition" xml:space="preserve"><value>预定位
 手动操作将先
 取消 TRACK。</value></data>
-  <data name="Rotator.ManualHint" xml:space="preserve"><value>长按：转动
+  <data name="Rotator.ManualHint" xml:space="preserve"><value>按住：连续转动
 松开：STOP
 中心：STOP</value></data>
   <data name="Menu.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>重命名</value></data>
@@ -469,4 +469,346 @@
   <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>自定义文字</value></data>
   <data name="Sstv.StatusChooseTxDevice" xml:space="preserve"><value>请选择实际连接电台的发射声卡；不会自动使用系统默认扬声器。</value></data>
   <data name="Sstv.StatusNoTxDevice" xml:space="preserve"><value>未检测到发射声卡；仍可保存 SSTV WAV 音频</value></data>
+  <data name="Control.QsoSchedulerPanel.label1" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.QsoSchedulerPanel.label2" xml:space="preserve"><value>对方台网格定位</value></data>
+  <data name="QsoScheduler.Geostationary" xml:space="preserve"><value>地球静止轨道</value></data>
+  <data name="QsoScheduler.TimeRange" xml:space="preserve"><value>{0:yyyy-MM-dd  HH:mm:ss} 至 {1:HH:mm:ss} {2}</value></data>
+  <data name="QsoScheduler.Elevations" xml:space="preserve"><value>本台 {0:F0}°，DX {1:F0}°</value></data>
+  <data name="QsoScheduler.Now" xml:space="preserve"><value>共同可见</value></data>
+  <data name="QsoScheduler.In" xml:space="preserve"><value>还有 {0}</value></data>
+  <data name="QsoSchedule.Title" xml:space="preserve"><value>过境匹配 — {0}  #{1}</value></data>
+  <data name="QsoSchedule.Info" xml:space="preserve"><value>卫星：{0}   轨道圈次：#{1}{2}</value></data>
+  <data name="QsoSchedule.GeoSuffix" xml:space="preserve"><value>（地球静止轨道）</value></data>
+  <data name="QsoSchedule.LocalWindow" xml:space="preserve"><value>共同可见窗口（本地时间）：{0:yyyy-MM-dd HH:mm:ss} 至 {1:HH:mm:ss}</value></data>
+  <data name="QsoSchedule.UtcWindow" xml:space="preserve"><value>共同可见窗口（UTC）：{0:yyyy-MM-dd HH:mm:ss} 至 {1:HH:mm:ss}</value></data>
+  <data name="QsoSchedule.Duration" xml:space="preserve"><value>窗口时长：{0}</value></data>
+  <data name="QsoSchedule.StartsIn" xml:space="preserve"><value>距离窗口开始还有 {0}</value></data>
+  <data name="QsoSchedule.EndsIn" xml:space="preserve"><value>共同可见窗口进行中，剩余 {0}</value></data>
+  <data name="QsoSchedule.Ended" xml:space="preserve"><value>共同可见窗口已结束。</value></data>
+  <data name="QsoSchedule.MaxElevation" xml:space="preserve"><value>最大仰角 — 本台（{0}）：{1:F0}°；DX（{2}）：{3:F0}°</value></data>
+  <data name="Transmitter.LocalGroup" xml:space="preserve"><value>本地自定义</value></data>
+  <data name="Transmitter.New" xml:space="preserve"><value>新增转发器 / 信标…</value></data>
+  <data name="Transmitter.Edit" xml:space="preserve"><value>编辑本地条目…</value></data>
+  <data name="Transmitter.EditNamed" xml:space="preserve"><value>编辑 {0}…</value></data>
+  <data name="Transmitter.Delete" xml:space="preserve"><value>删除本地条目</value></data>
+  <data name="Transmitter.DeleteNamed" xml:space="preserve"><value>删除 {0}</value></data>
+  <data name="Transmitter.NewTitle" xml:space="preserve"><value>新增卫星转发器 / 信标 — {0}</value></data>
+  <data name="Transmitter.EditTitle" xml:space="preserve"><value>编辑本地卫星条目 — {0}</value></data>
+  <data name="Transmitter.NewHint" xml:space="preserve"><value>新建本地通信条目。单向信号可只填写上行或下行频率。</value></data>
+  <data name="Transmitter.EditHint" xml:space="preserve"><value>编辑本地条目；UUID 和已有频率修正值保持不变。</value></data>
+  <data name="Transmitter.Name" xml:space="preserve"><value>名称</value></data>
+  <data name="Transmitter.Downlink" xml:space="preserve"><value>下行 (MHz)</value></data>
+  <data name="Transmitter.Uplink" xml:space="preserve"><value>上行 (MHz)</value></data>
+  <data name="Transmitter.Mode" xml:space="preserve"><value>模式</value></data>
+  <data name="Transmitter.Placeholder" xml:space="preserve"><value>例如：线性转发器 / 遥测信标</value></data>
+  <data name="Transmitter.Optional" xml:space="preserve"><value>选填</value></data>
+  <data name="Transmitter.Examples" xml:space="preserve"><value>示例：
+145.900000
+435.250000</value></data>
+  <data name="Transmitter.Details" xml:space="preserve"><value>名称：{0}
+下行：{1}
+上行：{2}
+模式：{3}</value></data>
+  <data name="Transmitter.DeleteConfirm" xml:space="preserve"><value>确定删除此本地条目？
+
+{0}
+
+此操作无法撤销。</value></data>
+  <data name="Transmitter.NotFound" xml:space="preserve"><value>保存的数据中未找到该本地条目。</value></data>
+  <data name="Transmitter.ErrorEdit" xml:space="preserve"><value>无法编辑本地条目。
+
+{0}</value></data>
+  <data name="Transmitter.ErrorDelete" xml:space="preserve"><value>无法删除本地条目。
+
+{0}</value></data>
+  <data name="Transmitter.ErrorNew" xml:space="preserve"><value>无法保存本地条目。
+
+{0}</value></data>
+  <data name="Transmitter.EnterName" xml:space="preserve"><value>请输入卫星通信条目名称。</value></data>
+  <data name="Transmitter.InvalidFrequency" xml:space="preserve"><value>请以 MHz 为单位输入频率，例如 145.900000 或 435.250000。
+不使用的链路方向可留空。</value></data>
+  <data name="Transmitter.MissingFrequency" xml:space="preserve"><value>至少填写一个下行或上行频率。</value></data>
+  <data name="Control.FrequencyWidget.label3" xml:space="preserve"><value>多普勒</value></data>
+  <data name="Control.FrequencyWidget.label4" xml:space="preserve"><value>手动</value></data>
+  <data name="Control.FrequencyWidget.label5" xml:space="preserve"><value>手动</value></data>
+  <data name="Control.FrequencyWidget.label6" xml:space="preserve"><value>多普勒</value></data>
+  <data name="Control.FrequencyWidget.RxAfcCheckbox" xml:space="preserve"><value>RX AFC</value></data>
+  <data name="Menu.FrequencyWidget.ShowNominalFrequencyMNU" xml:space="preserve"><value>显示标称频率</value></data>
+  <data name="Menu.FrequencyWidget.ShowCorrectedFrequencyMNU" xml:space="preserve"><value>显示补偿后频率</value></data>
+  <data name="Menu.FrequencyWidget.SendToneMnu" xml:space="preserve"><value>发射时发送亚音</value></data>
+  <data name="Menu.FrequencyWidget.CtcssEnabledMnu" xml:space="preserve"><value>启用 CTCSS</value></data>
+  <data name="Menu.FrequencyWidget.SendArmingToneMnu" xml:space="preserve"><value>立即发送激活音</value></data>
+  <data name="Control.GainWidget.label1" xml:space="preserve"><value>RF 增益</value></data>
+  <data name="Control.GainWidget.label2" xml:space="preserve"><value>AF 增益</value></data>
+  <data name="Control.RotatorWidget.label1" xml:space="preserve"><value>方位角</value></data>
+  <data name="Control.RotatorWidget.label2" xml:space="preserve"><value>仰角</value></data>
+  <data name="Control.RotatorWidget.TrackCheckbox" xml:space="preserve"><value>跟踪</value></data>
+  <data name="Control.SatelliteSelectorWidget.label1" xml:space="preserve"><value>分组</value></data>
+  <data name="Control.SatelliteSelectorWidget.label2" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.SatelliteSelectorWidget.label3" xml:space="preserve"><value>载荷</value></data>
+  <data name="FrequencyWidget.Terrestrial" xml:space="preserve"><value>地面信号</value></data>
+  <data name="FrequencyWidget.NoDownlink" xml:space="preserve"><value>无下行</value></data>
+  <data name="FrequencyWidget.NoUplink" xml:space="preserve"><value>无上行</value></data>
+  <data name="FrequencyWidget.Downlink" xml:space="preserve"><value>下行</value></data>
+  <data name="FrequencyWidget.Uplink" xml:space="preserve"><value>上行</value></data>
+  <data name="FrequencyWidget.StopTx" xml:space="preserve"><value>停止发射</value></data>
+  <data name="FrequencyWidget.Transmit" xml:space="preserve"><value>发射</value></data>
+  <data name="FrequencyWidget.TxHintNone" xml:space="preserve"><value>点击切换发射/接收。
+右键设置 CTCSS 亚音与实体 PTT 按键。</value></data>
+  <data name="FrequencyWidget.TxHintBound" xml:space="preserve"><value>点击切换发射/接收。
+{0}：按住发射，松开接收。
+右键设置 CTCSS 亚音与按键。</value></data>
+  <data name="FrequencyWidget.AfcMenu" xml:space="preserve"><value>FM / CW / SSB 自动频率校正…</value></data>
+  <data name="FrequencyWidget.AfcHint" xml:space="preserve"><value>启用仅接收端 AFC（使用设置中的 12 kHz IF 输入）。
+右键单击下行频率可打开 AFC 控制。</value></data>
+  <data name="FrequencyWidget.NoUplinkFrequency" xml:space="preserve"><value>无上行频率</value></data>
+  <data name="FrequencyWidget.NoDownlinkFrequency" xml:space="preserve"><value>无下行频率</value></data>
+  <data name="FrequencyWidget.NominalFrequency" xml:space="preserve"><value>标称频率：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.CorrectedFrequency" xml:space="preserve"><value>补偿后频率：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.TransponderOffset" xml:space="preserve"><value>转发器频率偏移：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.CatTransverterIf" xml:space="preserve"><value>CAT 变频器中频：{0:F6} MHz</value></data>
+  <data name="FrequencyWidget.RightClick" xml:space="preserve"><value>右键打开设置</value></data>
+  <data name="FrequencyWidget.BindPtt" xml:space="preserve"><value>绑定实体 PTT 按键…</value></data>
+  <data name="FrequencyWidget.ChangePtt" xml:space="preserve"><value>修改实体 PTT 按键（{0}）…</value></data>
+  <data name="FrequencyWidget.ClearPtt" xml:space="preserve"><value>清除实体 PTT 按键</value></data>
+  <data name="FrequencyWidget.SuppressPtt" xml:space="preserve"><value>屏蔽已绑定的按键</value></data>
+  <data name="FrequencyWidget.EnableCtcss" xml:space="preserve"><value>启用 CTCSS 亚音编码</value></data>
+  <data name="FrequencyWidget.CtcssTone" xml:space="preserve"><value>CTCSS 亚音频率</value></data>
+  <data name="FrequencyWidget.ArmingTone" xml:space="preserve"><value>立即发送激活音</value></data>
+  <data name="FrequencyControl.DownlinkBase" xml:space="preserve"><value>下行基准频率</value></data>
+  <data name="FrequencyControl.UplinkBase" xml:space="preserve"><value>上行基准频率</value></data>
+  <data name="FrequencyControl.DatabaseReference" xml:space="preserve"><value>数据库参考值</value></data>
+  <data name="FrequencyControl.SavedCorrection" xml:space="preserve"><value>已保存的修正量</value></data>
+  <data name="FrequencyControl.EditBase" xml:space="preserve"><value>编辑基准频率…</value></data>
+  <data name="FrequencyControl.ResetDatabase" xml:space="preserve"><value>恢复数据库值</value></data>
+  <data name="FrequencyControl.Tuning" xml:space="preserve"><value>频率微调</value></data>
+  <data name="FrequencyControl.DownlinkNoDoppler" xml:space="preserve"><value>下行 · 未补偿多普勒</value></data>
+  <data name="FrequencyControl.UplinkNoDoppler" xml:space="preserve"><value>上行 · 未补偿多普勒</value></data>
+  <data name="FrequencyControl.ResetBase" xml:space="preserve"><value>恢复基准频率</value></data>
+  <data name="FrequencyControl.Help" xml:space="preserve"><value>水平拖动或滚轮微调；Ctrl 调整 RIT；Alt + 滚轮步进 500 Hz。</value></data>
+  <data name="FrequencyControl.Title" xml:space="preserve"><value>频率控制</value></data>
+  <data name="FrequencyControl.SelectedTransmitter" xml:space="preserve"><value>已选择的转发器或信标</value></data>
+  <data name="FrequencyControl.TerrestrialPlaceholder" xml:space="preserve"><value>地面通信频率；选择卫星转发器或信标后可编辑基准频率</value></data>
+  <data name="FrequencyControl.NoDownlink" xml:space="preserve"><value>无下行</value></data>
+  <data name="FrequencyControl.NoUplink" xml:space="preserve"><value>无上行</value></data>
+  <data name="FrequencyControl.NoDownlinkTuning" xml:space="preserve"><value>无下行链路，接收调谐不变</value></data>
+  <data name="FrequencyControl.TerrestrialFrequency" xml:space="preserve"><value>地面通信频率</value></data>
+  <data name="FrequencyControl.TransponderOffset" xml:space="preserve"><value>转发器频率偏移：{0:n0} Hz · {1}</value></data>
+  <data name="FrequencyControl.Inverting" xml:space="preserve"><value>反相</value></data>
+  <data name="FrequencyControl.NonInverting" xml:space="preserve"><value>非反相</value></data>
+  <data name="FrequencyControl.ManualCorrection" xml:space="preserve"><value>手动修正：{0:+0;-0;0} Hz</value></data>
+  <data name="FrequencyControl.EditDownlinkBase" xml:space="preserve"><value>编辑下行基准频率</value></data>
+  <data name="FrequencyControl.EditUplinkBase" xml:space="preserve"><value>编辑上行基准频率</value></data>
+  <data name="Column.GroupViewPanel.columnHeader1" xml:space="preserve"><value>名称</value></data>
+  <data name="Column.GroupViewPanel.columnHeader2" xml:space="preserve"><value>NORAD 编号</value></data>
+  <data name="Column.GroupViewPanel.columnHeader3" xml:space="preserve"><value>下次过境</value></data>
+  <data name="Column.GroupViewPanel.columnHeader4" xml:space="preserve"><value>最大仰角</value></data>
+  <data name="Menu.GroupViewPanel.SatelliteDetailsMNU" xml:space="preserve"><value>卫星详情…</value></data>
+  <data name="GroupView.GroupName" xml:space="preserve"><value>卫星分组：{0}</value></data>
+  <data name="GroupView.Now" xml:space="preserve"><value>过境中</value></data>
+  <data name="GroupView.Unavailable" xml:space="preserve"><value>无</value></data>
+  <data name="Control.SkyViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>实时</value></data>
+  <data name="Control.SkyViewPanel.OrbitRadioBtn" xml:space="preserve"><value>选定轨道</value></data>
+  <data name="SkyView.SelectedOrbit" xml:space="preserve"><value>选定轨道</value></data>
+  <data name="SkyView.OrbitNumber" xml:space="preserve"><value>{1} · 第 {0} 圈轨道</value></data>
+  <data name="Control.EarthViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>实时</value></data>
+  <data name="Control.EarthViewPanel.PassRadioBtn" xml:space="preserve"><value>选定过境</value></data>
+  <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>网站</value></data>
+  <data name="Control.SatelliteDetailsPanel.ImageLabel" xml:space="preserve"><value>图片</value></data>
+  <data name="SatelliteDetails.Aka" xml:space="preserve"><value>别名：{0}</value></data>
+  <data name="Menu.WaterfallPanel.SelectTransmitterMNU" xml:space="preserve"><value>选择转发器或信标</value></data>
+  <data name="Menu.WaterfallPanel.AddToGroupMNU" xml:space="preserve"><value>添加到分组</value></data>
+  <data name="Menu.WaterfallPanel.ReportToAmsatMNU" xml:space="preserve"><value>向 AMSAT 报告…</value></data>
+  <data name="Menu.WaterfallPanel.satelliteDetailsToolStripMenuItem" xml:space="preserve"><value>卫星详情…</value></data>
+  <data name="AutoSelection.TooltipToggle" xml:space="preserve"><value>开启或关闭当前分组的自动卫星选择</value></data>
+  <data name="AutoSelection.TooltipEdit" xml:space="preserve"><value>编辑当前分组的过境自动选择计划</value></data>
+  <data name="AutoSelection.StoppedOnClose" xml:space="preserve"><value>自动卫星选择面板已关闭，自动选择已停止。</value></data>
+  <data name="FrequencyWidget.XitOffset" xml:space="preserve"><value>XIT 频偏：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.SdrTransverterIf" xml:space="preserve"><value>SDR 变频器中频：{0:F6} MHz</value></data>
+  <data name="FrequencyWidget.ClickForManualEntry" xml:space="preserve"><value>单击可手动输入频率</value></data>
+  <data name="FrequencyWidget.NoCatToneCommand" xml:space="preserve"><value>电台不支持通过 CAT 设置该 CTCSS 亚音频率。</value></data>
+  <data name="AutoSelection.TipToggle" xml:space="preserve"><value>开启或关闭当前分组的自动卫星选择。</value></data>
+  <data name="AutoSelection.TipEdit" xml:space="preserve"><value>编辑当前分组的过境自动选择计划。</value></data>
+  <data name="AutoSelection.TipTree" xml:space="preserve"><value>勾选需要加入自动选择计划的卫星过境。</value></data>
+  <data name="AutoSelection.TipMoveUp" xml:space="preserve"><value>提高所选卫星的优先级。</value></data>
+  <data name="AutoSelection.TipMoveDown" xml:space="preserve"><value>降低所选卫星的优先级。</value></data>
+  <data name="AutoSelection.TipTransmitter" xml:space="preserve"><value>选中该卫星过境时使用的转发器或信标。</value></data>
+  <data name="AutoSelection.TipRecord" xml:space="preserve"><value>为所选过境录制音频或 I/Q，或关闭录制。</value></data>
+  <data name="AutoSelection.TipSelectAll" xml:space="preserve"><value>选中当前分组的全部过境。</value></data>
+  <data name="AutoSelection.TipClear" xml:space="preserve"><value>取消当前分组的全部过境选择。</value></data>
+  <data name="AutoSelection.TipTrack" xml:space="preserve"><value>使用天线旋转器跟踪所选卫星过境。</value></data>
+  <data name="AutoSelection.TipTrackDisabled" xml:space="preserve"><value>设置中尚未启用旋转器；启用后才能自动跟踪。</value></data>
+  <data name="AutoSelection.ClearConfirm" xml:space="preserve"><value>确定清空当前分组的过境选择计划吗？</value></data>
+  <data name="AutoSelection.ScheduleTitle" xml:space="preserve"><value>自动卫星选择</value></data>
+  <data name="PttKey.Title" xml:space="preserve"><value>绑定实体 PTT 按键</value></data>
+  <data name="PttKey.Instructions" xml:space="preserve"><value>按下需要绑定的键盘键或 USB 脚踏开关按键。
+按住发射，松开接收。
+当前按键：{0}</value></data>
+  <data name="PttKey.None" xml:space="preserve"><value>未绑定</value></data>
+  <data name="AmsatReport.Heard" xml:space="preserve"><value>已收到信号</value></data>
+  <data name="AmsatReport.TelemetryOnly" xml:space="preserve"><value>仅接收到遥测</value></data>
+  <data name="AmsatReport.NotHeard" xml:space="preserve"><value>未收到信号</value></data>
+  <data name="AmsatReport.CrewActive" xml:space="preserve"><value>航天员正在通信</value></data>
+  <data name="Menu.AutoSelectionConfigForm.SelectAllMnu" xml:space="preserve"><value>全选过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select5Mnu" xml:space="preserve"><value>选择最大仰角超过 5° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select10Mnu" xml:space="preserve"><value>选择最大仰角超过 10° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select15Mnu" xml:space="preserve"><value>选择最大仰角超过 15° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select20Mnu" xml:space="preserve"><value>选择最大仰角超过 20° 的过境</value></data>
+  <data name="Onvif.LiveVideo" xml:space="preserve"><value>实时画面</value></data>
+  <data name="Onvif.NotConnected" xml:space="preserve"><value>未连接</value></data>
+  <data name="Onvif.OpenSettings" xml:space="preserve"><value>打开设置</value></data>
+  <data name="Onvif.Play" xml:space="preserve"><value>播放</value></data>
+  <data name="Onvif.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Onvif.Reconnect" xml:space="preserve"><value>重新连接</value></data>
+  <data name="Onvif.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="Onvif.NoCamera" xml:space="preserve"><value>未配置摄像头</value></data>
+  <data name="Onvif.Connecting" xml:space="preserve"><value>正在连接…</value></data>
+  <data name="Onvif.NoStream" xml:space="preserve"><value>无视频流</value></data>
+  <data name="Onvif.Offline" xml:space="preserve"><value>离线</value></data>
+  <data name="Onvif.Stopped" xml:space="preserve"><value>已停止。</value></data>
+  <data name="Onvif.Configure" xml:space="preserve"><value>请先配置 ONVIF 摄像头。</value></data>
+  <data name="Onvif.Saved" xml:space="preserve"><value>已保存摄像头设置，点击“播放”连接。</value></data>
+  <data name="Onvif.Ready" xml:space="preserve"><value>摄像头已就绪。</value></data>
+  <data name="Onvif.ConnectingCamera" xml:space="preserve"><value>正在连接摄像头…</value></data>
+  <data name="Onvif.StartHardware" xml:space="preserve"><value>正在启动硬件解码视频…</value></data>
+  <data name="Onvif.LiveHardware" xml:space="preserve"><value>实时视频 · D3D11VA 硬件解码</value></data>
+  <data name="Onvif.HardwareUnavailable" xml:space="preserve"><value>硬件解码器不可用，请尝试其他视频配置文件。</value></data>
+  <data name="Onvif.Interrupted" xml:space="preserve"><value>视频连接已中断。</value></data>
+  <data name="Onvif.MpvMissing" xml:space="preserve"><value>找不到 mpv.exe，请在设置中指定播放器路径。</value></data>
+  <data name="Onvif.D3dUnavailable" xml:space="preserve"><value>该视频流不支持 D3D11VA，请选择其他配置文件。</value></data>
+  <data name="Onvif.Failed" xml:space="preserve"><value>无法连接，请检查 ONVIF 地址、用户名、密码及视频流。</value></data>
+  <data name="Onvif.SettingsTitle" xml:space="preserve"><value>ONVIF 摄像头设置</value></data>
+  <data name="Onvif.SetName" xml:space="preserve"><value>摄像头名称</value></data>
+  <data name="Onvif.SetDevice" xml:space="preserve"><value>设备</value></data>
+  <data name="Onvif.SetService" xml:space="preserve"><value>设备服务地址</value></data>
+  <data name="Onvif.SetUsername" xml:space="preserve"><value>用户名</value></data>
+  <data name="Onvif.SetPassword" xml:space="preserve"><value>密码</value></data>
+  <data name="Onvif.SetVideoProfile" xml:space="preserve"><value>视频配置文件</value></data>
+  <data name="Onvif.SetPlayer" xml:space="preserve"><value>播放器</value></data>
+  <data name="Onvif.SetPlayback" xml:space="preserve"><value>播放选项</value></data>
+  <data name="Onvif.SetStatus" xml:space="preserve"><value>状态</value></data>
+  <data name="Onvif.SetDiscover" xml:space="preserve"><value>搜索设备</value></data>
+  <data name="Onvif.SetProfiles" xml:space="preserve"><value>获取配置文件</value></data>
+  <data name="Onvif.SetBrowse" xml:space="preserve"><value>浏览…</value></data>
+  <data name="Onvif.SetAutoConnect" xml:space="preserve"><value>打开窗口时连接</value></data>
+  <data name="Onvif.SetAutoPlay" xml:space="preserve"><value>自动开始播放</value></data>
+  <data name="Onvif.SetAutoReconnect" xml:space="preserve"><value>播放中断后自动重连</value></data>
+  <data name="Onvif.SetMedia2" xml:space="preserve"><value>优先 ONVIF Media2（失败时回退 Media1）</value></data>
+  <data name="Onvif.SetHint" xml:space="preserve"><value>选择摄像头或填写 ONVIF Device Service 地址。</value></data>
+  <data name="Onvif.SetCancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="Onvif.SetConnectionFailed" xml:space="preserve"><value>连接失败，请检查摄像头地址、访问权限及认证信息。</value></data>
+  <data name="Onvif.SetDiscovering" xml:space="preserve"><value>正在通过可用 IPv4 网络适配器搜索 ONVIF 设备…</value></data>
+  <data name="Onvif.SetFound" xml:space="preserve"><value>在 {1} 个网络适配器上发现 {0} 个 ONVIF 端点。</value></data>
+  <data name="Onvif.SetNotFound" xml:space="preserve"><value>未收到 ONVIF 响应（适配器 {0} 个，UDP 数据包 {1} 个）。请检查 UDP 3702/防火墙，或输入 HTTP Device Service 地址（不是 RTSP 554 端口）。</value></data>
+  <data name="Onvif.SetQueryProfiles" xml:space="preserve"><value>正在查询 Media1 / Media2 视频配置文件…</value></data>
+  <data name="Onvif.SetProfileCount" xml:space="preserve"><value>找到 {0} 个 ONVIF 视频配置文件，请选择默认视频流。</value></data>
+  <data name="Onvif.SetSelectMpv" xml:space="preserve"><value>选择 mpv.exe 播放器</value></data>
+  <data name="Onvif.SetMpvFilter" xml:space="preserve"><value>mpv 播放器 (mpv.exe)|mpv.exe|可执行文件 (*.exe)|*.exe</value></data>
+  <data name="Onvif.SetInvalidAddress" xml:space="preserve"><value>ONVIF 地址无效</value></data>
+  <data name="PathOptimizer.NoPaths" xml:space="preserve"><value>旋转器优化路径</value></data>
+  <data name="PathOptimizer.ForSatellite" xml:space="preserve"><value>{0} 的旋转器优化路径</value></data>
+  <data name="Control.AzElEntryDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.AzElEntryDialog.OkBtn" xml:space="preserve"><value>转至目标</value></data>
+  <data name="Control.AzElEntryDialog.ParkBtn" xml:space="preserve"><value>停靠</value></data>
+  <data name="Control.AzElEntryDialog.label1" xml:space="preserve"><value>方位角</value></data>
+  <data name="Control.AzElEntryDialog.label2" xml:space="preserve"><value>仰角</value></data>
+  <data name="AzEl.Title" xml:space="preserve"><value>旋转器手动控制</value></data>
+  <data name="AzEl.TrackingLocked" xml:space="preserve"><value>旋转器手动控制 — 实时跟踪期间锁定</value></data>
+  <data name="Park.Title" xml:space="preserve"><value>PARK 停靠路径点</value></data>
+  <data name="Park.Description" xml:space="preserve"><value>PARK 将依次执行各路径点；旋转器确认到达后才会进入下一段。按 STOP 可中止停靠路径。</value></data>
+  <data name="Park.Coordinates" xml:space="preserve"><value>所选路径点坐标</value></data>
+  <data name="Park.Update" xml:space="preserve"><value>更新</value></data>
+  <data name="Park.AddAfter" xml:space="preserve"><value>在后方添加</value></data>
+  <data name="Park.Remove" xml:space="preserve"><value>删除</value></data>
+  <data name="Park.Up" xml:space="preserve"><value>↑ 上移</value></data>
+  <data name="Park.Down" xml:space="preserve"><value>↓ 下移</value></data>
+  <data name="Park.UseCurrent" xml:space="preserve"><value>使用当前角度</value></data>
+  <data name="Park.Hint" xml:space="preserve"><value>点击“更新”保存当前路径点；点击“保存路径”写入全部路径点。</value></data>
+  <data name="Park.Save" xml:space="preserve"><value>保存路径</value></data>
+  <data name="Park.MinOne" xml:space="preserve"><value>请至少添加一个 PARK 停靠路径点。</value></data>
+  <data name="Dialog.SstvDenoiseDialog.Title" xml:space="preserve"><value>图像降噪</value></data>
+  <data name="SstvDenoise.TitleFor" xml:space="preserve"><value>图像降噪 — {0}</value></data>
+  <data name="SstvDenoise.Unfiltered" xml:space="preserve"><value>原始未滤波</value></data>
+  <data name="SstvDenoise.Wiener" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="SstvDenoise.Nlm" xml:space="preserve"><value>非局部均值（NLM）</value></data>
+  <data name="SstvDenoise.FilteredStatus" xml:space="preserve"><value>{0}，{1:0.00} 秒</value></data>
+  <data name="SstvDenoise.Failed" xml:space="preserve"><value>图像降噪失败</value></data>
+  <data name="Control.SstvDenoiseDialog.ApplyBtn" xml:space="preserve"><value>应用</value></data>
+  <data name="Control.SstvDenoiseDialog.SkipNoiseBandsCheckBox" xml:space="preserve"><value>跳过纯噪声条带</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmGroupBox" xml:space="preserve"><value>非局部均值（NLM）</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmTwoPassCheckBox" xml:space="preserve"><value>去除残留噪点</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmPatchLabel" xml:space="preserve"><value>邻域块尺寸</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmStrengthLabel" xml:space="preserve"><value>滤波强度</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerGroupBox" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerHeightLabel" xml:space="preserve"><value>窗口高度</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerWidthLabel" xml:space="preserve"><value>窗口宽度</value></data>
+  <data name="Control.SstvDenoiseDialog.AlgorithmGroupBox" xml:space="preserve"><value>降噪算法</value></data>
+  <data name="Control.SstvDenoiseDialog.NlmRadio" xml:space="preserve"><value>非局部均值</value></data>
+  <data name="Control.SstvDenoiseDialog.WienerRadio" xml:space="preserve"><value>维纳滤波</value></data>
+  <data name="Control.SstvDenoiseDialog.NoneRadio" xml:space="preserve"><value>不处理</value></data>
+  <data name="Control.SstvDenoiseDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.SstvDenoiseDialog.OkBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Waterfall.CallsignRequired" xml:space="preserve"><value>发送报告前请先在设置中填写本台呼号。</value></data>
+  <data name="Waterfall.CallsignNotSet" xml:space="preserve"><value>尚未设置呼号</value></data>
+  <data name="Recorder.LoadFilter" xml:space="preserve"><value>音频文件 (*.wav;*.mp3)|*.wav;*.mp3|所有文件 (*.*)|*.*</value></data>
+  <data name="Recorder.LoadTitle" xml:space="preserve"><value>加载录音</value></data>
+  <data name="Recorder.LoadError" xml:space="preserve"><value>加载录音文件失败：{0}</value></data>
+  <data name="Recorder.SaveError" xml:space="preserve"><value>保存录音文件失败：{0}</value></data>
+  <data name="Telemetry.AudioSourceError" xml:space="preserve"><value>遥测接收音频源异常：{0}</value></data>
+  <data name="Telemetry.OverrideSaved" xml:space="preserve"><value>已保存至 transmitters-override.json。</value></data>
+  <data name="Telemetry.OverrideSaveFailed" xml:space="preserve"><value>保存发射机参数覆盖失败：{0}</value></data>
+  <data name="Telemetry.SignalDetails" xml:space="preserve"><value>信号参数</value></data>
+  <data name="Cw.MessageFull" xml:space="preserve"><value>CW 发送消息已达到长度上限。</value></data>
+  <data name="Cw.UseConfirmedCallsign" xml:space="preserve"><value>使用已确认的呼号</value></data>
+  <data name="Cw.MacroError" xml:space="preserve"><value>CW 宏</value></data>
+  <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>SkyCAT CAT TCP 端口无效，请在频谱设置中填写 1–65535。</value></data>
+  <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>保存已修改的卫星分组？</value></data>
+  <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>仅可添加数据库状态为“在轨（alive）”的卫星。</value></data>
+  <data name="Telemetry.CombineImage" xml:space="preserve"><value>合并此前过境的图像</value></data>
+  <data name="Telemetry.AudioRxStatus" xml:space="preserve"><value> | 接收：{0}</value></data>
+  <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | 接收异常：{0}</value></data>
+  <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>请先设置本台呼号，再启用 FT4 发射。</value></data>
+  <data name="Settings.InvalidValue" xml:space="preserve"><value>{0} 的值无效：“{1}”</value></data>
+  <data name="Yaesu.Interface" xml:space="preserve"><value>GS-232A/B 接口 · AZ 0–450° / EL 0–180°</value></data>
+  <data name="Yaesu.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Yaesu.Track" xml:space="preserve"><value>跟踪</value></data>
+  <data name="Yaesu.TrackEnabled" xml:space="preserve"><value>跟踪 ✓</value></data>
+  <data name="Yaesu.Go" xml:space="preserve"><value>转至</value></data>
+  <data name="Yaesu.Disabled" xml:space="preserve"><value>未启用</value></data>
+  <data name="Yaesu.PositionFault" xml:space="preserve"><value>位置反馈异常</value></data>
+  <data name="Yaesu.SafetyLock" xml:space="preserve"><value>安全锁定</value></data>
+  <data name="Yaesu.Connecting" xml:space="preserve"><value>连接中</value></data>
+  <data name="Yaesu.LiveTrack" xml:space="preserve"><value>自动跟踪中</value></data>
+  <data name="Yaesu.Connected" xml:space="preserve"><value>已连接</value></data>
+  <data name="Yaesu.Target" xml:space="preserve"><value>目标     {0}</value></data>
+  <data name="Yaesu.Satellite" xml:space="preserve"><value>卫星     {0}</value></data>
+  <data name="Yaesu.ManualHint" xml:space="preserve"><value>按住：连续转动
+松开：停止
+中心：停止</value></data>
+  <data name="Yaesu.LockedHint" xml:space="preserve"><value>自动跟踪中
+手动控制锁定
+先关闭跟踪</value></data>
+  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>正在停靠
+按停止取消</value></data>
+  <data name="Sstv.DialogDecodeWavError" xml:space="preserve"><value>无法解析 SSTV 录音</value></data>
+  <data name="Sstv.AdifFilter" xml:space="preserve"><value>ADIF 通联日志|*.adi</value></data>
+  <data name="Sstv.DialogAdifError" xml:space="preserve"><value>无法导出 ADIF</value></data>
+  <data name="Sstv.SelectTxRequirements" xml:space="preserve"><value>请先选择图片、发送模式及发射声卡。</value></data>
+  <data name="Sstv.SelectRxDevice" xml:space="preserve"><value>请选择接收音频设备。</value></data>
+  <data name="Sstv.DialogRxStartError" xml:space="preserve"><value>无法启动 SSTV 接收</value></data>
+  <data name="Sstv.SelectManualRxMode" xml:space="preserve"><value>请先在接收模式中选定具体模式。</value></data>
+  <data name="Sstv.StartRxFirst" xml:space="preserve"><value>请先启动接收声卡。</value></data>
+  <data name="Sstv.DeleteTemplateConfirm" xml:space="preserve"><value>删除自定义模板“{0}”？</value></data>
+  <data name="Sstv.DeleteTemplateTitle" xml:space="preserve"><value>删除 SSTV 模板</value></data>
+  <data name="Sstv.NeedImage" xml:space="preserve"><value>请先打开或粘贴图片。</value></data>
+  <data name="Sstv.SaveAudioTitle" xml:space="preserve"><value>保存 SSTV 音频</value></data>
+  <data name="Sstv.WavFilter" xml:space="preserve"><value>WAV 音频文件|*.wav</value></data>
+  <data name="Sstv.ImportImageError" xml:space="preserve"><value>导入图片失败</value></data>
+  <data name="Sstv.SelectHistoryExport" xml:space="preserve"><value>请在图库中选中要导出的图片。</value></data>
+  <data name="Sstv.ExportImageTitle" xml:space="preserve"><value>导出图库图片</value></data>
+  <data name="Sstv.PngFilter" xml:space="preserve"><value>PNG 图片|*.png</value></data>
+  <data name="Sstv.ExportImageError" xml:space="preserve"><value>导出图片失败</value></data>
+  <data name="Sstv.SelectHistoryDelete" xml:space="preserve"><value>请在图库中选中要删除的图片。</value></data>
+  <data name="Sstv.DeleteImageConfirm" xml:space="preserve"><value>确定删除图库图片“{0}”？</value></data>
+  <data name="Sstv.DeleteImageTitle" xml:space="preserve"><value>删除 SSTV 图片</value></data>
 </root>

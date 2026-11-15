@@ -1118,8 +1118,8 @@ namespace SkyRoof
       if (TxTextBox.TextLength - TxTextBox.SelectionLength +
           insertion.Length > TxTextBox.MaxLength)
       {
-        MessageBox.Show(this, "The CW message is full.",
-          "Use confirmed callsign", MessageBoxButtons.OK,
+        MessageBox.Show(this, UiLocalizationService.Get("Cw.MessageFull"),
+          UiLocalizationService.Get("Cw.UseConfirmedCallsign"), MessageBoxButtons.OK,
           MessageBoxIcon.Information);
         return;
       }
@@ -1889,7 +1889,7 @@ namespace SkyRoof
         }
         catch (Exception ex)
         {
-          MessageBox.Show(dialog, ex.Message, "CW macro",
+          MessageBox.Show(dialog, ex.Message, UiLocalizationService.Get("Cw.MacroError"),
             MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
       };

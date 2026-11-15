@@ -541,7 +541,8 @@ namespace SkyRoof
     {
       ctx.Settings.Ui.SaveColumnWidths("SatelliteGroupsForm", listView1);
 
-      if (Changed && MessageBox.Show("Save changes?", "SkyRoof", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+      if (Changed && MessageBox.Show(UiLocalizationService.Get("SatelliteGroups.SaveConfirm"),
+        "SkyRoof", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         SaveGroups();
     }
 
@@ -596,7 +597,8 @@ namespace SkyRoof
     {
       if (sats.Any(sat => !sat.Flags.HasFlag(SatelliteFlags.Alive)))
       {
-        MessageBox.Show("You can only add alive satellites to groups.", "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        MessageBox.Show(UiLocalizationService.Get("SatelliteGroups.AliveOnly"),
+      "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return;
       }
 

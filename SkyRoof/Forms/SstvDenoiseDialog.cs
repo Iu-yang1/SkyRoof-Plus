@@ -38,10 +38,32 @@ namespace SkyRoof
 
     // guards the radio/checkbox handlers while the controls are being loaded from the defaults
     private bool Loading;
+    private string? ImageCaption;
+    private bool IsUnfiltered = true;
+    private double FilterSeconds;
 
     public SstvDenoiseDialog()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, RefreshLocalizedUi);
+    }
+
+    private void RefreshLocalizedUi()
+    {
+      // Text-only update: never re-run a filter or alter operator parameters.
+      UiLocalizationService.ApplyStaticControls(this);
+      if (ImageCaption != null)
+        Text = UiLocalizationService.Format("SstvDenoise.TitleFor", ImageCaption);
+      if (Displayed != null)
+      {
+        DisplayStatus = IsUnfiltered
+          ? UiLocalizationService.Get("SstvDenoise.Unfiltered")
+          : UiLocalizationService.Format("SstvDenoise.FilteredStatus",
+              UiLocalizationService.Get(Options.Method == SstvDenoiseMethod.Wiener
+                ? "SstvDenoise.Wiener" : "SstvDenoise.Nlm"), FilterSeconds);
+        StatusLabel.Text =
+          $"{Displayed.Width} x {Displayed.Height}  —  {DisplayStatus}  —  {Zoom:0.##}x";
+      }
     }
 
     /// <summary>Open on one image. <paramref name="planes"/> is the event's raw reconstruction, which is
@@ -54,9 +76,11 @@ namespace SkyRoof
       AnchorControl = anchor;
       if (anchor != null) StartPosition = FormStartPosition.Manual;
 
-      Text = $"Denoise Image — {caption}";
+      ImageCaption = caption;
+      Text = UiLocalizationService.Format("SstvDenoise.TitleFor", caption);
+      IsUnfiltered = true;
       LoadDefaults();
-      ShowImage(Unfiltered, "unfiltered");
+      ShowImage(Unfiltered, UiLocalizationService.Get("SstvDenoise.Unfiltered"));
       return ShowDialog();
     }
 
@@ -153,7 +177,8 @@ namespace SkyRoof
       {
         Options = options;
         Result = Unfiltered;
-        ShowImage(Unfiltered, "unfiltered");
+        IsUnfiltered = true;
+        ShowImage(Unfiltered, UiLocalizationService.Get("SstvDenoise.Unfiltered"));
         return;
       }
 
@@ -167,13 +192,17 @@ namespace SkyRoof
 
         Options = options;
         Result = filtered;
-        string name = options.Method == SstvDenoiseMethod.Wiener ? "Wiener" : "non-local means";
-        ShowImage(filtered, $"{name}, {sw.Elapsed.TotalSeconds:0.00} s");
+        IsUnfiltered = false;
+        FilterSeconds = sw.Elapsed.TotalSeconds;
+        ShowImage(filtered, UiLocalizationService.Format("SstvDenoise.FilteredStatus",
+          UiLocalizationService.Get(options.Method == SstvDenoiseMethod.Wiener
+            ? "SstvDenoise.Wiener" : "SstvDenoise.Nlm"), FilterSeconds));
       }
       catch (Exception ex)
       {
         Log.Error(ex, "SSTV denoise failed");
-        MessageBox.Show(this, ex.Message, "Denoise Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show(this, ex.Message,
+          UiLocalizationService.Get("SstvDenoise.Failed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
       }
       finally
       {

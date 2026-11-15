@@ -41,6 +41,16 @@ namespace SkyRoof
 
     private long orbitDetailVersion;
 
+    internal void RefreshLocalizedUi()
+    {
+      // Existing satellite object and asynchronous orbit-details task are
+      // untouched; only its static labels and aliases need translation.
+      if (Satellite == null) return;
+      SatAkaLabel.Text = UiLocalizationService.Format("SatelliteDetails.Aka",
+        string.Join(", ", Satellite.AllNames.Where(n => n != Satellite.name)));
+      toolTip1.SetToolTip(SatAkaLabel, SatAkaLabel.Text);
+    }
+
     public void SetSatellite(SatnogsDbSatellite? sat = null)
     {
       sat ??= ctx.SatelliteSelector.SelectedSatellite;
@@ -49,7 +59,8 @@ namespace SkyRoof
       SatNameLabel.Text = sat.name;
 
       SatAkaLabel.Visible = sat.AllNames.Count > 1;
-      SatAkaLabel.Text = $"a.k.a. {string.Join(", ", sat.AllNames.Where(s => s != sat.name))}";
+      SatAkaLabel.Text = UiLocalizationService.Format("SatelliteDetails.Aka",
+        string.Join(", ", sat.AllNames.Where(s => s != sat.name)));
       toolTip1.SetToolTip(SatAkaLabel, SatAkaLabel.Text);
 
       ImageLabel.Visible = !string.IsNullOrEmpty(sat.image);

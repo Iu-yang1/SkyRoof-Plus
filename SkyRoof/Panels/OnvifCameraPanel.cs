@@ -20,21 +20,21 @@ namespace SkyRoof
       AutoSize = true, ForeColor = Color.Gainsboro, Font = new Font("Segoe UI", 13F),
       TextAlign = ContentAlignment.MiddleCenter
     };
-    private readonly Button openSettings = new() { Text = "Open Settings", Width = 140, Height = 32 };
+    private readonly Button openSettings = new() { Text = UiLocalizationService.Get("Onvif.OpenSettings"), Width = 140, Height = 32 };
     private readonly Label title = new()
     {
-      Text = "Live video", Dock = DockStyle.Fill, AutoEllipsis = true,
+      Text = UiLocalizationService.Get("Onvif.LiveVideo"), Dock = DockStyle.Fill, AutoEllipsis = true,
       TextAlign = ContentAlignment.MiddleLeft, Font = new Font("Segoe UI Semibold", 11F),
       Padding = new Padding(13, 0, 0, 0)
     };
     private readonly Label status = new()
-    { Text = "Not connected", Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
+    { Text = UiLocalizationService.Get("Onvif.NotConnected"), Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
     private readonly Label stream = new()
     { Text = "", Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleRight };
-    private readonly Button play = new() { Text = "Play", Width = 64, Height = 29 };
-    private readonly Button stop = new() { Text = "Stop", Width = 64, Height = 29 };
-    private readonly Button reconnect = new() { Text = "Reconnect", Width = 92, Height = 29 };
-    private readonly Button settings = new() { Text = "Settings", Width = 82, Height = 29 };
+    private readonly Button play = new() { Text = UiLocalizationService.Get("Onvif.Play"), Width = 64, Height = 29 };
+    private readonly Button stop = new() { Text = UiLocalizationService.Get("Onvif.Stop"), Width = 64, Height = 29 };
+    private readonly Button reconnect = new() { Text = UiLocalizationService.Get("Onvif.Reconnect"), Width = 92, Height = 29 };
+    private readonly Button settings = new() { Text = UiLocalizationService.Get("Onvif.Settings"), Width = 82, Height = 29 };
     private readonly System.Windows.Forms.Timer retryTimer = new() { Interval = 5000 };
     private CancellationTokenSource? pending;
     private int playbackGeneration;
@@ -43,11 +43,12 @@ namespace SkyRoof
     private bool closing;
     private bool stoppedByUser;
     private OnvifMediaProfile? currentProfile;
+    private string? currentStatusKey;
 
     public OnvifCameraPanel(Context context)
     {
       ctx = context;
-      Text = "ONVIF Camera";
+      Text = UiLocalizationService.Get("Panel.OnvifCamera");
       Name = "OnvifCameraPanel";
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(940, 600);
@@ -139,9 +140,8 @@ namespace SkyRoof
               return;
             playing = false;
             placeholder.Visible = true;
-            SetStatus(reason.Contains("D3D11VA", StringComparison.OrdinalIgnoreCase)
-              ? "Hardware decoder unavailable. Choose another video profile."
-              : "Video connection interrupted.");
+            SetLocalizedStatus(reason.Contains("D3D11VA", StringComparison.OrdinalIgnoreCase)
+              ? "Onvif.HardwareUnavailable" : "Onvif.Interrupted");
             UpdateControls();
             if (!stoppedByUser && ctx.Settings.OnvifCamera.AutoReconnect &&
                 !reason.Contains("D3D11VA", StringComparison.OrdinalIgnoreCase))
@@ -158,7 +158,7 @@ namespace SkyRoof
         UpdateControls();
         if (!ctx.Settings.OnvifCamera.IsConfigured)
         {
-          SetStatus("Configure an ONVIF camera to begin.");
+          SetLocalizedStatus("Onvif.Configure");
           return;
         }
         if (ctx.Settings.OnvifCamera.AutoConnect)
@@ -206,7 +206,7 @@ namespace SkyRoof
       UpdateControls();
       if (ctx.Settings.OnvifCamera.AutoConnect)
         _ = ExecuteAsync(ctx.Settings.OnvifCamera.AutoPlay);
-      else SetStatus("Camera settings saved. Press Play to connect.");
+      else SetLocalizedStatus("Onvif.Saved");
     }
 
     private async Task ExecuteAsync(bool startPlayback)
@@ -215,7 +215,7 @@ namespace SkyRoof
       var config = ctx.Settings.OnvifCamera.Clone();
       if (!config.IsConfigured)
       {
-        SetStatus("No camera configured.");
+        SetLocalizedStatus("Onvif.NoCamera");
         ShowSettings();
         return;
       }
@@ -225,7 +225,7 @@ namespace SkyRoof
       var operation = new CancellationTokenSource();
       pending = operation;
       CancellationToken token = operation.Token;
-      SetStatus("Connecting to camera...");
+      SetLocalizedStatus("Onvif.ConnectingCamera");
       UpdateControls();
       try
       {
@@ -239,11 +239,11 @@ namespace SkyRoof
           profiles, config.PreferredProfileToken, config.PreferMedia2);
         if (!startPlayback)
         {
-          SetStatus("Camera ready.");
+          SetLocalizedStatus("Onvif.Ready");
           return;
         }
 
-        SetStatus("Starting hardware-decoded video...");
+        SetLocalizedStatus("Onvif.StartHardware");
         Uri uri = await client.GetStreamUriAsync(currentProfile, token);
         token.ThrowIfCancellationRequested();
         await player.StartAsync(config.MpvPath, video.Handle, uri,
@@ -251,7 +251,7 @@ namespace SkyRoof
         token.ThrowIfCancellationRequested();
         playing = true;
         placeholder.Visible = false;
-        SetStatus("Live · D3D11VA hardware decoding");
+        SetLocalizedStatus("Onvif.LiveHardware");
       }
       catch (OperationCanceledException)
       {
@@ -259,11 +259,11 @@ namespace SkyRoof
       }
       catch (System.ComponentModel.Win32Exception)
       {
-        SetStatus("mpv.exe was not found. Select the player in Settings.");
+        SetLocalizedStatus("Onvif.MpvMissing");
       }
       catch (NotSupportedException)
       {
-        SetStatus("D3D11VA unavailable for this stream. Choose another profile.");
+        SetLocalizedStatus("Onvif.D3dUnavailable");
       }
       catch (Exception ex)
       {
@@ -271,7 +271,7 @@ namespace SkyRoof
         // Never include ex.Message, ToString, URLs or stack traces.
         Serilog.Log.Warning("ONVIF stream setup failed ({Type})",
           ex.GetType().Name);
-        SetStatus("Unable to connect. Check ONVIF address, credentials and stream.");
+        SetLocalizedStatus("Onvif.Failed");
       }
       finally
       {
@@ -298,35 +298,55 @@ namespace SkyRoof
       placeholder.Visible = true;
       if (!closing)
       {
-        SetStatus(byUser ? "Stopped." : "Not connected.");
+        SetLocalizedStatus(byUser ? "Onvif.Stopped" : "Onvif.NotConnected");
         UpdateControls();
       }
+    }
+
+    internal void RefreshLocalizedUi()
+    {
+      openSettings.Text = UiLocalizationService.Get("Onvif.OpenSettings");
+      play.Text = UiLocalizationService.Get("Onvif.Play");
+      stop.Text = UiLocalizationService.Get("Onvif.Stop");
+      reconnect.Text = UiLocalizationService.Get("Onvif.Reconnect");
+      settings.Text = UiLocalizationService.Get("Onvif.Settings");
+      UpdateControls();
+      if (currentStatusKey != null)
+        status.Text = UiLocalizationService.Get(currentStatusKey);
+    }
+
+    private void SetLocalizedStatus(string key)
+    {
+      SetStatus(UiLocalizationService.Get(key));
+      currentStatusKey = key;
     }
 
     private void UpdateControls()
     {
       bool configured = ctx.Settings.OnvifCamera.IsConfigured;
-      title.Text = configured ? ctx.Settings.OnvifCamera.CameraName : "Live video";
+      title.Text = configured ? ctx.Settings.OnvifCamera.CameraName :
+        UiLocalizationService.Get("Onvif.LiveVideo");
       play.Enabled = configured && !connecting && !playing;
       stop.Enabled = playing || connecting;
       reconnect.Enabled = configured && !connecting;
       settings.Enabled = !connecting;
       placeholderText.Text = !configured
-        ? "No camera configured"
+        ? UiLocalizationService.Get("Onvif.NoCamera")
         : connecting
-          ? "Connecting..."
+          ? UiLocalizationService.Get("Onvif.Connecting")
           : playing
             ? ""
-            : "Live video";
+            : UiLocalizationService.Get("Onvif.LiveVideo");
       openSettings.Visible = !configured;
-      string profile = currentProfile?.Name ?? "No stream";
+      string profile = currentProfile?.Name ?? UiLocalizationService.Get("Onvif.NoStream");
       stream.Text = configured
-        ? $"{profile}  ·  {(playing ? "D3D11VA" : "Offline")}"
+        ? $"{profile}  ·  {(playing ? "D3D11VA" : UiLocalizationService.Get("Onvif.Offline"))}"
         : "";
     }
 
     private void SetStatus(string message)
     {
+      currentStatusKey = null;
       if (!closing) status.Text = message;
     }
   }

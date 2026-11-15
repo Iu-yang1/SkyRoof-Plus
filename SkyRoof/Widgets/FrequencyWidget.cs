@@ -31,6 +31,7 @@ namespace SkyRoof
     // cached so the Terrestrial/normal toggle does not allocate (and leak) a new font each update
     private readonly Font DownlinkRegularFont, DownlinkBoldFont;
     private readonly ContextMenuStrip PttMenu = new();
+    private ToolStripItem? AfcContextMenuItem;
     private long SuppressCatTuneFeedbackUntil;
     public readonly AfcController AfcController = new();
     public readonly AfcCatTimeline AfcCatTimeline = new();
@@ -260,13 +261,13 @@ namespace SkyRoof
       // Preserve the existing nominal/corrected frequency popup shared by
       // both RX and TX labels, then append AFC as an additional command.
       contextMenuStrip1.Items.Add(new ToolStripSeparator());
-      contextMenuStrip1.Items.Add("FM / CW / SSB AFC...", null,
+      AfcContextMenuItem = contextMenuStrip1.Items.Add(
+        UiLocalizationService.Get("FrequencyWidget.AfcMenu"), null,
         (_, _) => OpenAfcWindow());
       DownlinkLabel.ContextMenuStrip = contextMenuStrip1;
       DownlinkFrequencyLabel.DoubleClick += (_, _) => OpenAfcWindow();
       toolTip1.SetToolTip(RxAfcCheckbox,
-        "Enable RX-only AFC Auto with the configured 12 kHz IF input. " +
-        "Right-click the downlink frequency to open the full AFC console.");
+        UiLocalizationService.Get("FrequencyWidget.AfcHint"));
     }
 
     internal void AttachTransmitButton(Control host)
@@ -951,6 +952,27 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                settings to/from UI
     //----------------------------------------------------------------------------------------------
+    internal void RefreshLocalizedUi()
+    {
+      // Display-only refresh: do not retune, reconnect, change PTT or reset
+      // Doppler/manual-correction settings on a language change.
+      DownlinkLabel.Text = UiLocalizationService.Get(
+        RadioLink.IsTerrestrial ? "FrequencyWidget.Terrestrial"
+        : !RadioLink.HasDownlink ? "FrequencyWidget.NoDownlink"
+        : "FrequencyWidget.Downlink");
+      UplinkLabel.Text = UiLocalizationService.Get(
+        RadioLink.HasUplink ? "FrequencyWidget.Uplink" : "FrequencyWidget.NoUplink");
+      if (AfcContextMenuItem != null)
+        AfcContextMenuItem.Text = UiLocalizationService.Get("FrequencyWidget.AfcMenu");
+      UiLocalizationService.ApplyToolStripItems(CtcssMenu.Items, nameof(FrequencyWidget));
+      toolTip1.SetToolTip(RxAfcCheckbox,
+        UiLocalizationService.Get("FrequencyWidget.AfcHint"));
+      if (ctx == null) return;
+      toolTip1.SetToolTip(DownlinkFrequencyLabel, MakeDownlinkTooltip());
+      toolTip1.SetToolTip(UplinkFrequencyLabel, MakeUplinkTooltip());
+      UpdateTxButton();
+    }
+
     private void RadioLinkToUi()
     {
       Changing = true;
@@ -966,7 +988,7 @@ namespace SkyRoof
       {
         DownlinkManualSpinner.Value = 0;
 
-        DownlinkLabel.Text = "Terrestrial";
+        DownlinkLabel.Text = UiLocalizationService.Get("FrequencyWidget.Terrestrial");
         DownlinkLabel.ForeColor = Color.Red;
         DownlinkLabel.Font = DownlinkBoldFont;
 
@@ -984,7 +1006,7 @@ namespace SkyRoof
       {
         DownlinkManualSpinner.Value = 0;
 
-        DownlinkLabel.Text = "No Downlink";
+        DownlinkLabel.Text = UiLocalizationService.Get("FrequencyWidget.NoDownlink");
         DownlinkLabel.ForeColor = SystemColors.GrayText;
         DownlinkLabel.Font = DownlinkRegularFont;
 
@@ -1004,7 +1026,7 @@ namespace SkyRoof
         DownlinkManualCheckbox.Checked = RadioLink.DownlinkManualCorrectionEnabled;
         DownlinkManualSpinner.Value = (decimal)(RadioLink.DownlinkManualCorrection / 1000d);
 
-        DownlinkLabel.Text = "Downlink";
+        DownlinkLabel.Text = UiLocalizationService.Get("FrequencyWidget.Downlink");
         DownlinkModeCombobox.Enabled = true;
         DownlinkLabel.ForeColor = SystemColors.ControlText;
         DownlinkLabel.Font = DownlinkRegularFont;
@@ -1025,7 +1047,7 @@ namespace SkyRoof
       {
         UplinkManualSpinner.Value = 0;
 
-        UplinkLabel.Text = "No Uplink";
+        UplinkLabel.Text = UiLocalizationService.Get("FrequencyWidget.NoUplink");
 
         UplinkDopplerCheckbox.Visible = false;
         UplinkDopplerLabel.BackColor = SystemColors.Control;
@@ -1042,7 +1064,7 @@ namespace SkyRoof
         UplinkManualCheckbox.Checked = RadioLink.UplinkManualCorrectionEnabled;
         UplinkManualSpinner.Value = (decimal)(RadioLink.UplinkManualCorrection / 1000d);
 
-        UplinkLabel.Text = "Uplink";
+        UplinkLabel.Text = UiLocalizationService.Get("FrequencyWidget.Uplink");
 
         UplinkDopplerCheckbox.Visible = true;
         UplinkDopplerLabel.BackColor = SystemColors.Window;
@@ -1116,58 +1138,60 @@ namespace SkyRoof
 
     private string MakeUplinkTooltip()
     {
-      if (RadioLink.UplinkFrequency == 0) return "No Uplink Frequency";
+      if (RadioLink.UplinkFrequency == 0)
+        return UiLocalizationService.Get("FrequencyWidget.NoUplinkFrequency");
 
-      string tooltip = $"Nominal frequency:   {RadioLink.UplinkFrequency:n0} Hz\n";
+      string tooltip = UiLocalizationService.Format("FrequencyWidget.NominalFrequency", RadioLink.UplinkFrequency) + "\n";
 
       if (!RadioLink.IsTerrestrial)
-        tooltip += $"Corrected frequency: {RadioLink.CorrectedUplinkFrequency:n0} Hz\n";
+        tooltip += UiLocalizationService.Format("FrequencyWidget.CorrectedFrequency", RadioLink.CorrectedUplinkFrequency) + "\n";
 
       if (RadioLink.IsTransponder)
-        tooltip += $"Transponder offset:     {RadioLink.TransponderOffset:n0} Hz\n";
+        tooltip += UiLocalizationService.Format("FrequencyWidget.TransponderOffset", RadioLink.TransponderOffset) + "\n";
 
       var transverter = ctx.Settings.Transverter;
       if (transverter.TxCatOffsetEnabled)
       {
         var catBand = transverter.GetCatBand(RadioLink.CorrectedUplinkFrequency);
         if (catBand != null)
-          tooltip += $"CAT Transverter IF: {(RadioLink.CorrectedUplinkFrequency - catBand.LoOffset) / 1e6:F6} MHz\n";
+          tooltip += UiLocalizationService.Format("FrequencyWidget.CatTransverterIf", (RadioLink.CorrectedUplinkFrequency - catBand.LoOffset) / 1e6) + "\n";
       }
 
-      return tooltip + "\nRight-click for options";
+      return tooltip + "\n" + UiLocalizationService.Get("FrequencyWidget.RightClick");
     }
 
     private string MakeDownlinkTooltip()
     {
       if (!RadioLink.HasDownlink)
-        return "No Downlink Frequency";
+        return UiLocalizationService.Get("FrequencyWidget.NoDownlinkFrequency");
 
-      string tooltip = $"Nominal frequency:   {RadioLink.DownlinkFrequency:n0} Hz\n";
+      string tooltip = UiLocalizationService.Format("FrequencyWidget.NominalFrequency", RadioLink.DownlinkFrequency) + "\n";
 
       if (!RadioLink.IsTerrestrial)
-        tooltip += $"Corrected frequency: {RadioLink.CorrectedDownlinkFrequency:n0} Hz\n";
+        tooltip += UiLocalizationService.Format("FrequencyWidget.CorrectedFrequency", RadioLink.CorrectedDownlinkFrequency) + "\n";
 
       if (RadioLink.IsTransponder)
-        tooltip += $"Transponder offset:     {RadioLink.TransponderOffset:n0} Hz\n";
+        tooltip += UiLocalizationService.Format("FrequencyWidget.TransponderOffset", RadioLink.TransponderOffset) + "\n";
 
       if (RadioLink.XitOffset != 0)
-        tooltip += $"XIT offset:     {RadioLink.XitOffset:n0} Hz\n";
+        tooltip += UiLocalizationService.Format("FrequencyWidget.XitOffset", RadioLink.XitOffset) + "\n";
 
       var transverter = ctx.Settings.Transverter;
       if (transverter.SdrOffsetEnabled)
       {
         var sdrBand = transverter.GetSdrBand(RadioLink.CorrectedDownlinkFrequency);
         if (sdrBand != null)
-          tooltip += $"SDR Transverter IF: {(RadioLink.CorrectedDownlinkFrequency - sdrBand.LoOffset) / 1e6:F6} MHz\n";
+          tooltip += UiLocalizationService.Format("FrequencyWidget.SdrTransverterIf", (RadioLink.CorrectedDownlinkFrequency - sdrBand.LoOffset) / 1e6) + "\n";
       }
       if (transverter.RxCatOffsetEnabled)
       {
         var catBand = transverter.GetCatBand(RadioLink.CorrectedDownlinkFrequency);
         if (catBand != null)
-          tooltip += $"CAT Transverter IF: {(RadioLink.CorrectedDownlinkFrequency - catBand.LoOffset) / 1e6:F6} MHz\n";
+          tooltip += UiLocalizationService.Format("FrequencyWidget.CatTransverterIf", (RadioLink.CorrectedDownlinkFrequency - catBand.LoOffset) / 1e6) + "\n";
       }
 
-      return tooltip + "\nClick for manual entry\nRight-click for options";
+      return tooltip + "\n" + UiLocalizationService.Get("FrequencyWidget.ClickForManualEntry")
+        + "\n" + UiLocalizationService.Get("FrequencyWidget.RightClick");
     }
 
     public void UiToRadioLink()
@@ -1286,10 +1310,10 @@ namespace SkyRoof
 
     private void BuildPttMenu()
     {
-      var bind = new ToolStripMenuItem("Bind Physical PTT Key...");
+      var bind = new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.BindPtt"));
       bind.Click += (_, _) => BindPhysicalPttKey();
 
-      var clear = new ToolStripMenuItem("Clear Physical PTT Key");
+      var clear = new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.ClearPtt"));
       clear.Click += (_, _) =>
       {
         ctx.PttHotkey?.UpdateSettings();
@@ -1299,7 +1323,7 @@ namespace SkyRoof
         UpdateTxButton();
       };
 
-      var suppress = new ToolStripMenuItem("Suppress Bound Key")
+      var suppress = new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.SuppressPtt"))
       {
         CheckOnClick = true
       };
@@ -1313,11 +1337,11 @@ namespace SkyRoof
       // button. The separate arrow menu remains internally for compatibility,
       // but the normal operator path is now one compact transmit control.
       var ctcssEnabled =
-        new ToolStripMenuItem("Enable CTCSS Encoder");
+        new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.EnableCtcss"));
       ctcssEnabled.Click += CtcssEnabledMnu_Click;
 
       var ctcssTone =
-        new ToolStripMenuItem("CTCSS Tone");
+        new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.CtcssTone"));
       foreach (double tone in CtcssTones.All)
         ctcssTone.DropDownItems.Add(
           MakeToneMenuItem(
@@ -1325,7 +1349,7 @@ namespace SkyRoof
             CtcssToneMnu_Click));
 
       var armingTone =
-        new ToolStripMenuItem("Send Arming Tone Now");
+        new ToolStripMenuItem(UiLocalizationService.Get("FrequencyWidget.ArmingTone"));
       foreach (double tone in CtcssTones.All)
       {
         var item =
@@ -1344,8 +1368,13 @@ namespace SkyRoof
       {
         Keys key = ctx.Settings.Cat.PttHotkey;
         bind.Text = key == Keys.None
-          ? "Bind Physical PTT Key..."
-          : $"Change Physical PTT Key ({key})...";
+          ? UiLocalizationService.Get("FrequencyWidget.BindPtt")
+          : UiLocalizationService.Format("FrequencyWidget.ChangePtt", key);
+        clear.Text = UiLocalizationService.Get("FrequencyWidget.ClearPtt");
+        suppress.Text = UiLocalizationService.Get("FrequencyWidget.SuppressPtt");
+        ctcssEnabled.Text = UiLocalizationService.Get("FrequencyWidget.EnableCtcss");
+        ctcssTone.Text = UiLocalizationService.Get("FrequencyWidget.CtcssTone");
+        armingTone.Text = UiLocalizationService.Get("FrequencyWidget.ArmingTone");
         clear.Enabled = key != Keys.None;
         suppress.Checked = ctx.Settings.Cat.SuppressPttHotkey;
 
@@ -1376,7 +1405,7 @@ namespace SkyRoof
           item.Enabled = canSetTone;
           item.ToolTipText = canSetTone
             ? string.Empty
-            : "The radio has no CAT command for the tone frequency.";
+            : UiLocalizationService.Get("FrequencyWidget.NoCatToneCommand");
           ((ToolStripMenuItem)item).Checked =
             fmUplink &&
             tone == RadioLink.CtcssTone;
@@ -1420,16 +1449,11 @@ namespace SkyRoof
       var ptt = ctx.CatControl.Tx?.Ptt == true;
       Keys hotkey = ctx.Settings.Cat.PttHotkey;
 
-      TxBtn.Text =
-        ptt
-          ? "Stop TX"
-          : "Transmit";
-      toolTip1.SetToolTip(
-        TxBtn,
-        "Click to toggle transmit.\r\n" +
-        (hotkey == Keys.None
-          ? "Right-click for CTCSS/subtone and physical PTT key options."
-          : $"{hotkey}: hold for TX, release for RX.\r\nRight-click for CTCSS/subtone and key options."));
+      TxBtn.Text = UiLocalizationService.Get(
+        ptt ? "FrequencyWidget.StopTx" : "FrequencyWidget.Transmit");
+      toolTip1.SetToolTip(TxBtn, hotkey == Keys.None
+        ? UiLocalizationService.Get("FrequencyWidget.TxHintNone")
+        : UiLocalizationService.Format("FrequencyWidget.TxHintBound", hotkey));
 
       // CTCSS/subtone controls live in the transmit button's right-click menu.
       CtcssBtn.Visible = false;

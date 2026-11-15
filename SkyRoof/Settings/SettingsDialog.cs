@@ -692,7 +692,8 @@ namespace SkyRoof
 
       if (error)
       {
-        MessageBox.Show("Enter your callsign before enabling FT4 transmission.", "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+        MessageBox.Show(UiLocalizationService.Get("Settings.EnterCallForFt4"),
+          "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         e.ChangedItem.PropertyDescriptor.SetValue(e.ChangedItem.Parent.Value, e.OldValue);
       }
 
@@ -707,7 +708,9 @@ namespace SkyRoof
       if (!regEx.IsMatch(cleanValue))
       {
         e.ChangedItem.PropertyDescriptor.SetValue(e.ChangedItem.Parent.Value, e.OldValue);
-        MessageBox.Show($"Invalid {fieldName}: \"{newValue}\"", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+        MessageBox.Show(UiLocalizationService.Format("Settings.InvalidValue", fieldName, newValue),
+          UiLocalizationService.Get("Common.Error"),
+          MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         return false;
       }
 

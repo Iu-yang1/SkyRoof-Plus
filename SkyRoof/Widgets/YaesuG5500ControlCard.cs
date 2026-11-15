@@ -13,6 +13,8 @@ namespace SkyRoof
     private readonly Label target = new();
     private readonly Label satellite = new();
     private readonly Label hint = new();
+    private Label? headerLabel;
+    private Label? interfaceLabel;
     private readonly ProgressBar azimuthBar = new();
     private readonly ProgressBar elevationBar = new();
     private readonly RotatorDirectionWheel wheel = new();
@@ -43,17 +45,29 @@ namespace SkyRoof
       BuildManualControls();
       BuildTargetControls();
       StartRefreshTimer();
+      UiLocalizationService.Bind(this, RefreshLocalizedUi);
+    }
+
+    private void RefreshLocalizedUi()
+    {
+      // Keep rotator transport, target values, TRACK and PARK state intact.
+      if (headerLabel != null) headerLabel.Text = "YAESU G-5500";
+      if (interfaceLabel != null)
+        interfaceLabel.Text = UiLocalizationService.Get("Yaesu.Interface");
+      stopButton.Text = UiLocalizationService.Get("Yaesu.Stop");
+      goButton.Text = UiLocalizationService.Get("Yaesu.Go");
+      RefreshState();
     }
 
     private void BuildIndicators()
     {
-      AddLabel("YAESU G-5500", new Rectangle(12, 10, 192, 25), true);
+      headerLabel = AddLabel("YAESU G-5500", new Rectangle(12, 10, 192, 25), true);
       connection.Location = new Point(210, 12);
       connection.Size = new Size(140, 22);
       connection.TextAlign = ContentAlignment.MiddleRight;
       Controls.Add(connection);
 
-      AddLabel("GS-232A/B interface  ·  AZ 0–450° / EL 0–180°",
+      interfaceLabel = AddLabel(UiLocalizationService.Get("Yaesu.Interface"),
         new Rectangle(12, 37, 338, 20));
 
       azimuth.Location = new Point(12, 64);
@@ -97,17 +111,17 @@ namespace SkyRoof
 
       hint.Location = new Point(223, 160);
       hint.Size = new Size(128, 56);
-      hint.Text = "Hold = MOVE\nRelease = STOP\nCenter = STOP";
+      hint.Text = UiLocalizationService.Get("Yaesu.ManualHint");
       hint.ForeColor = SystemColors.GrayText;
       Controls.Add(hint);
 
-      stopButton.Text = "STOP";
+      stopButton.Text = UiLocalizationService.Get("Yaesu.Stop");
       stopButton.Location = new Point(223, 226);
       stopButton.Size = new Size(127, 31);
       stopButton.Click += (_, _) => widget?.StopRotation();
       Controls.Add(stopButton);
 
-      trackButton.Text = "TRACK";
+      trackButton.Text = UiLocalizationService.Get("Yaesu.Track");
       trackButton.Location = new Point(223, 266);
       trackButton.Size = new Size(127, 29);
       trackButton.Click += (_, _) => widget?.ToggleTracking();
@@ -144,7 +158,7 @@ namespace SkyRoof
       targetElevation.Maximum = 180;
       Controls.Add(targetElevation);
 
-      goButton.Text = "GO";
+      goButton.Text = UiLocalizationService.Get("Yaesu.Go");
       goButton.Location = new Point(228, 415);
       goButton.Size = new Size(122, 26);
       goButton.Click += (_, _) =>
@@ -165,7 +179,7 @@ namespace SkyRoof
       refreshTimer.Start();
     }
 
-    private void AddLabel(string text, Rectangle bounds, bool bold = false)
+    private Label AddLabel(string text, Rectangle bounds, bool bold = false)
     {
       var label = new Label
       {
@@ -176,6 +190,7 @@ namespace SkyRoof
       };
       if (bold) label.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
       Controls.Add(label);
+      return label;
     }
 
     internal void Attach(Context ctx, RotatorWidget rotator)
@@ -195,10 +210,12 @@ namespace SkyRoof
       bool movementAllowed = enabled && connected &&
         !locked && !widget.PositionSafetyTripped;
 
-      connection.Text = !enabled ? "Disabled" :
-        widget.PositionSafetyTripped ? "Position fault" :
-        widget.ManagementReviewRequired ? "Safety lock" :
-        !connected ? "Connecting" : locked ? "Live Track" : "Connected";
+      connection.Text = UiLocalizationService.Get(
+        !enabled ? "Yaesu.Disabled" :
+        widget.PositionSafetyTripped ? "Yaesu.PositionFault" :
+        widget.ManagementReviewRequired ? "Yaesu.SafetyLock" :
+        !connected ? "Yaesu.Connecting" :
+        locked ? "Yaesu.LiveTrack" : "Yaesu.Connected");
       connection.ForeColor = !enabled ? SystemColors.GrayText :
         connected && !widget.PositionSafetyTripped ? Color.Green : Color.IndianRed;
 
@@ -210,8 +227,10 @@ namespace SkyRoof
       SetGauge(azimuthBar, actual?.AzDeg);
       SetGauge(elevationBar, actual?.ElDeg);
 
-      target.Text = "Target    " + FormatBearing(commanded);
-      satellite.Text = "Satellite " + FormatBearing(sat);
+      target.Text = UiLocalizationService.Format("Yaesu.Target",
+        FormatBearing(commanded));
+      satellite.Text = UiLocalizationService.Format("Yaesu.Satellite",
+        FormatBearing(sat));
       wheel.ActualBearing = actual;
       wheel.TargetBearing = commanded;
       wheel.SatelliteBearing = sat;
@@ -231,10 +250,10 @@ namespace SkyRoof
       parkButton.Enabled = enabled;
       parkButton.Text = widget.ParkProgressText;
       trackButton.Enabled = enabled && widget.TrackCheckbox.Enabled;
-      trackButton.Text = widget.IsTracking ? "TRACK ✓" : "TRACK";
-      hint.Text = locked ? "LIVE TRACK\nManual locked\nClear TRACK first" :
-        widget.IsParking ? "PARK ACTIVE\nSTOP cancels" :
-        "Hold = MOVE\nRelease = STOP\nCenter = STOP";
+      trackButton.Text = UiLocalizationService.Get(widget.IsTracking
+        ? "Yaesu.TrackEnabled" : "Yaesu.Track");
+      hint.Text = UiLocalizationService.Get(locked ? "Yaesu.LockedHint"
+        : widget.IsParking ? "Yaesu.ParkingHint" : "Yaesu.ManualHint");
     }
 
     internal static string FormatAxis(double? degrees, int maximum) =>

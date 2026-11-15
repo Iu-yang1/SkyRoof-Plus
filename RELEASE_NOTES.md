@@ -1,3 +1,40 @@
+# SkyRoof-Plus v.1.78
+
+## SkyRoof Plus v1.78 — 2026-11-15 业余卫星通信专业中文术语优化
+
+本次是继 v.1.77 汉化资源安装修复后，针对业余无线电操作语境的一次独立语言完善版本。**不改变通信、轨道、旋转器、音频与解码逻辑，也不覆盖 v.1.77。**
+
+### 专业用语修订与实际页面
+
+- **卫星载荷分类：** 原“卫星发射机”页面改为“卫星转发器与信标”，列表及新建/编辑本地条目同步调整。卫星分组筛选器仍严格区分“发射机（Transmitter）/收发信机（Transceiver）/转发器（Transponder）”，不将单向信标错误归类为双向通信转发器。保留 SatNOGS/JE9PEL 数据来源、UUID、上下行频率及 CAT 关联。
+- **过境匹配：** 原“通联预约（QSO Scheduler）”改为“过境匹配”；其本质是计算本台与 DX 台的共同卫星可见窗口，不是预约服务。补齐详情窗口和过境列表中的共同可见时段（UTC/本地）、最长仰角、等待时间、地球静止轨道等中英文内容。避免将“共同可见”直接断言为“转发器已开机/可以完成 QSO”。
+- **电台操作语汇：** “手动旋转器”改“旋转器手动控制”，“实时追踪”改“实时跟踪”，“位置异常”明确为位置反馈异常；键速标示为 WPM，频谱 REF、VBW、扫频帧平均等提示统一术语。Recorder 改为“音频与 I/Q 录制”以覆盖其实际音频和 IQ 功能。
+- **数据记录和 SSTV：** 将日志 STATE 字段修订为“州 / 省”；SSTV 信号报告标签统一为“发出 RSV / 收到 RSV”（R：可读度、S：信号强度、V：图像质量）；原英文资源将 RSV 误写为 RST；本台/对方台标记与链路术语相统一。
+- **用户交互补齐：** 补齐过境匹配列表自绘文字和详情、转发器与信标编辑、主 RX/TX 工具栏、Doppler/CAT/PTT/CTCSS 选项、频率基准/修正控制、卫星分组过境状态、卫星详情和天空/地球视图、自动选择计划、实体 PTT 绑定，以及 ONVIF 视频与设备设置。新增 PARK 路径点、优化旋转路径、Yaesu G-5500 状态与手动操作提示，SSTV 降噪弹窗及图库/WAV/ADIF 操作提示，Recorder、遥测和 CW 异常消息以及中文日期格式。AMSAT 状态可显示中文，但向外部服务提交时仍使用原始英文 API 代码。语言切换只刷新文字和列表重绘，不重新创建 CAT/PTT、云台、SDR、遥测、录音会话或重置已选条目。
+- 本轮修订 36 个现有中文译文，新增 315 组中英文对等资源键（中文资源总数从 453 增至 768）；继续运行资源键与格式化占位符一致性检查，以及术语分类回归测试。
+
+### 术语依据
+
+- 中国无线电管理（SRRC）：[《全球业余卫星介绍（四）》](https://www.srrc.org.cn/article24576.aspx)，将卫星业余无线电载荷区分为遥测信标机与通信转发器。
+- [《全球业余卫星介绍（五）》](https://www.srrc.org.cn/article.aspx?id=24578)，采用线性转发器、U/V 模式等术语。
+- [AMSAT Amateur Satellite Database](https://satdb.amsat.org/)，明确将 Uplink、Downlink 与 Beacon 列为不同字段。
+- 工业和信息化部：[《业余无线电台管理办法》（工业和信息化部令第67号）](https://www.srrc.org.cn/article31728.aspx)，将卫星业余业务、信标台、呼号及通联日志等术语作规范性区分。
+- IARU：[《业余无线电爱好者的道德和操作守则》中文版](https://www.iaru-r1.org/wp-content/uploads/2019/10/业余无线电爱好者的道德和操作守则.pdf)，II.10.3.4 明确 SSTV 使用 RSV（非 CW 的 RST）信号报告。
+
+### 验收范围
+
+- 通过 Windows CI 的全量 xUnit、受控合成 UI 布局、资源键/占位符以及 aislop 质量检查后进行独立发布；最终计数与打包/签名结果以本版本 Build and Release 的实际记录为准。
+- 不声称已覆盖所有上游硬编码文本或已完成实机 CAT/PTT、物理 DPI、真实转发器 QRV 检测。遗留第三方源数据描述仍保留原始名称。
+- 若缺少 SignPath，Windows 安装包为明确披露的未签名（NotSigned）正式版；用远端 Release SHA-256 回读核对文件完整性。
+
+### English summary
+
+v1.78 professionally refines Simplified Chinese ham-radio satellite terminology: satellite transponders and beacons rather than treating every transmitter as a transponder, common-pass matching rather than an actual reservation system, precise rotator/tracking and spectrum vocabulary, and correct RSV signal-report labels. It also translates the RX/TX toolbar, frequency-control page, satellite group and sky view, pass matching, local transmitter/beacon editor, automatic selection, physical PTT setup, AMSAT status display, and ONVIF camera dialogs. Categorization (transmitter, transceiver, transponder), saved settings, frequencies, UI state and radio/DSP/rotator protocols are unchanged. All new resources have English equivalents and terminology tests. Existing v1.77 remains available. The release build, installed-payload and SHA-256 results are recorded separately; no actual hardware/physical DPI acceptance is claimed.
+
+---
+
+## 历史版本 / Historical: v1.77
+
 # SkyRoof-Plus v.1.77
 
 ## SkyRoof Plus v1.77 — 2026-11-15 简体中文未生效安装包修复
