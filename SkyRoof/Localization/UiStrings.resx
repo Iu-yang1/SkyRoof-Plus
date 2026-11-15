@@ -811,4 +811,17 @@ STOP cancels</value></data>
   <data name="Sstv.SelectHistoryDelete" xml:space="preserve"><value>Select an image in the gallery to delete.</value></data>
   <data name="Sstv.DeleteImageConfirm" xml:space="preserve"><value>Delete gallery image “{0}”?</value></data>
   <data name="Sstv.DeleteImageTitle" xml:space="preserve"><value>Delete SSTV image</value></data>
+  <data name="Control.QsoSchedulerPanel.startUtcLabel" xml:space="preserve"><value>Start (UTC)</value></data>
+  <data name="Control.QsoSchedulerPanel.endUtcLabel" xml:space="preserve"><value>End (UTC)</value></data>
+  <data name="QsoScheduler.Calculate" xml:space="preserve"><value>Start calculation</value></data>
+  <data name="QsoScheduler.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="QsoScheduler.Ready" xml:space="preserve"><value>Select satellite, DX grid and UTC range</value></data>
+  <data name="QsoScheduler.InputChanged" xml:space="preserve"><value>Click Start to calculate</value></data>
+  <data name="QsoScheduler.Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
+  <data name="QsoScheduler.Cancelled" xml:space="preserve"><value>Calculation cancelled</value></data>
+  <data name="QsoScheduler.ProgressMe" xml:space="preserve"><value>My passes {0}%</value></data>
+  <data name="QsoScheduler.ProgressDx" xml:space="preserve"><value>DX passes {0}%</value></data>
+  <data name="QsoScheduler.ProgressOverlap" xml:space="preserve"><value>Matching {0}%</value></data>
+  <data name="QsoScheduler.Completed" xml:space="preserve"><value>{0} common windows</value></data>
+  <data name="QsoScheduler.Failed" xml:space="preserve"><value>Failed: {0}</value></data>
 </root>
