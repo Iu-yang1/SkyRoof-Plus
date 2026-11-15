@@ -63,6 +63,13 @@ namespace SkyRoof
       }
     }
     private TelemetryDecocder? Decoder;
+    private bool replayIqActive;
+    internal void SetIqReplayActive(bool active)
+    {
+      if (replayIqActive == active) return;
+      replayIqActive = active;
+      UpdateTxStatus();
+    }
     private TelemetryAudioReceiveSession? audioReceiver;
     private string? audioReceiverError;
     private SatnogsUploader? SatnogsUploader;
@@ -871,7 +878,8 @@ namespace SkyRoof
       // terrestrial has no horizon and no pass to gate on: the manual parameters are the whole precondition
       // there — or a running search, which is how a terrestrial signal with no parameters at all is reached
       // (§4.8) — while a satellite still needs its pass (§4.9)
-      bool decodeWanted = Terrestrial ? SignalParams != null || Discovery != null : SatAboveHorizon;
+      bool decodeWanted = Terrestrial ? SignalParams != null || Discovery != null
+        : SatAboveHorizon || replayIqActive;
       // §2.2: the telemetry branch follows the resolved telemetry source, which is the selection itself
       // unless an SSTV transmitter is selected; the SSTV branch follows the whole downlink, not the
       // selection. Both may name a transmitter other than the selected one.
@@ -1108,7 +1116,8 @@ namespace SkyRoof
       ctx.KissServer.SendToAll(frame);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
       // (§4.6). Parameters that were never edited are never held — the plain database path is untouched.
-      if (!UploadHeld && snapshot.Satellite?.norad_cat_id is int norad) SatnogsUploader?.Submit(frame, norad);
+      if (!UploadHeld && !replayIqActive && snapshot.Satellite?.norad_cat_id is int norad)
+        SatnogsUploader?.Submit(frame, norad);
       // Which tree node the frame's leaf will go under, asked BEFORE the Push that may answer it: these are
       // the assemblers' own structural gates, and they are true for a fragment the Push then throws away —
       // a failed checksum, a duplicate, an offset that cannot be placed. Those are exactly the frames a

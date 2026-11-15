@@ -20,6 +20,7 @@ namespace SkyRoof
     private RecordingManager recordingManager = null!;
     private DateTime RecordingStart;
     private readonly ToolStripMenuItem audioSourceMenu = new("Audio Source");
+    private readonly ToolStripMenuItem iqSourceMenu = new("I/Q Source");
 
     public RecordingEvents RecordingEvents => recordingManager.RecordingEvents;
     internal bool isPlayingBack => recordingManager?.IsPlayingBack == true;
@@ -77,6 +78,7 @@ namespace SkyRoof
           RecordingAudioSource.WasapiCapture => "Windows AF capture (USB / CABLE Output)",
           RecordingAudioSource.RsBa1Loopback => "RS-BA1 playback (WASAPI loopback)",
           RecordingAudioSource.IfAfDemodulated => "IF -> AF decoded PCM (direct, 48 kHz)",
+          RecordingAudioSource.IfRaw => "Raw 12-kHz IF (48-kHz .if.wav)",
           _ => source.ToString()
         }) { Tag = source };
 
@@ -91,6 +93,23 @@ namespace SkyRoof
 
       RecordMenu.Items.Add(new ToolStripSeparator());
       RecordMenu.Items.Add(audioSourceMenu);
+      foreach (RecordingIqSource source in Enum.GetValues<RecordingIqSource>())
+      {
+        var item = new ToolStripMenuItem(source switch
+        {
+          RecordingIqSource.Sdr => "SkyRoof SDR I/Q",
+          RecordingIqSource.If12k => "12-kHz IF -> complex I/Q (48-kHz .iq.wav)",
+          _ => source.ToString()
+        }) { Tag = source };
+        item.Click += (_, _) =>
+        {
+          ctx.Settings.Audio.RecorderIqSource = source;
+          ctx.Settings.SaveToFile();
+          UpdateAudioSourceMenu();
+        };
+        iqSourceMenu.DropDownItems.Add(item);
+      }
+      RecordMenu.Items.Add(iqSourceMenu);
       UpdateAudioSourceMenu();
     }
 
@@ -99,6 +118,9 @@ namespace SkyRoof
       foreach (ToolStripMenuItem item in audioSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
         item.Checked = item.Tag is RecordingAudioSource source &&
                        source == ctx.Settings.Audio.RecorderSource;
+      foreach (ToolStripMenuItem item in iqSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
+        item.Checked = item.Tag is RecordingIqSource source &&
+                       source == ctx.Settings.Audio.RecorderIqSource;
     }
 
     private void RecorderPanel_Shown(object sender, EventArgs e)
@@ -174,13 +196,16 @@ namespace SkyRoof
 
     private void SaveBtn_Click(object sender, EventArgs e)
     {
-      if (recordingManager.IsRecordingAudio) SaveMp3MNU_Click(sender, e);
+      if (recordingManager.IsRecordingAudio &&
+          recordingManager.ActiveAudioSource != RecordingAudioSource.IfRaw)
+        SaveMp3MNU_Click(sender, e);
       else SaveWavMNU_Click(sender, e);
     }
 
     private void SaveMenuBtn_Click(object sender, EventArgs e)
     {
-      SaveMp3MNU.Enabled = recordingManager.IsRecordingAudio;
+      SaveMp3MNU.Enabled = recordingManager.IsRecordingAudio &&
+        recordingManager.ActiveAudioSource != RecordingAudioSource.IfRaw;
       SaveMenu.Show(SaveMenuBtn, new Point(0, SaveMenuBtn.Height));
     }
 
@@ -301,7 +326,13 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     private void StartPlayback()
     {
-      if (!recordingManager.StartPlayback()) return;
+      bool iq = !recordingManager.IsRecordingAudio;
+      if (iq) ctx.TelemetryPanel?.SetIqReplayActive(true);
+      if (!recordingManager.StartPlayback())
+      {
+        if (iq) ctx.TelemetryPanel?.SetIqReplayActive(false);
+        return;
+      }
 
       PlaybackBtn.BackColor = Color.LightGreen;
       toolTip1.SetToolTip(PlaybackBtn, "Stop Playback");
@@ -323,6 +354,7 @@ namespace SkyRoof
       playbackUiTimer?.Stop();
       playbackTimer?.Stop();
       recordingManager.StopPlayback(resetPosition);
+      ctx.TelemetryPanel?.SetIqReplayActive(false);
 
       PlaybackBtn.BackColor = Color.Transparent;
       toolTip1.SetToolTip(PlaybackBtn, "Start Playback");
@@ -412,20 +444,26 @@ namespace SkyRoof
     {
       bool isMp3 = ext == "mp3";
       bool isIqWav = ext == "wav" && !recordingManager.IsRecordingAudio;
+      bool isIfWav = ext == "wav" && recordingManager.IsRecordingAudio &&
+        recordingManager.ActiveAudioSource == RecordingAudioSource.IfRaw;
 
       using var dialog = new SaveFileDialog();
       dialog.Filter = isMp3
         ? "MP3 Files (*.mp3)|*.mp3|All Files (*.*)|*.*"
         : isIqWav
           ? "I/Q WAV Files (*.iq.wav)|*.iq.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*"
-          : "WAV Files (*.wav)|*.wav|All Files (*.*)|*.*";
-      dialog.DefaultExt = isIqWav ? "iq.wav" : ext;
+          : isIfWav
+            ? "Raw IF WAV Files (*.if.wav)|*.if.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*"
+            : "WAV Files (*.wav)|*.wav|All Files (*.*)|*.*";
+      dialog.DefaultExt = isIqWav ? "iq.wav" : isIfWav ? "if.wav" : ext;
       dialog.InitialDirectory = GetRecordingsPath();
       dialog.FileName = BuildRecordingFileName(ext, isIqWav);
+      if (isIfWav) dialog.FileName = dialog.FileName[..^4] + ".if.wav";
 
       if (dialog.ShowDialog() != DialogResult.OK) return;
 
-      string fileName = isIqWav ? EnsureIqWavExtension(dialog.FileName) : dialog.FileName;
+      string fileName = isIqWav ? EnsureIqWavExtension(dialog.FileName)
+        : isIfWav ? EnsureIfWavExtension(dialog.FileName) : dialog.FileName;
 
       SetSaveButtonsEnabled(false);
       try
@@ -449,6 +487,13 @@ namespace SkyRoof
           SetSaveButtonsEnabled(recordingManager.HasData &&
             !recordingManager.IsRecording && !recordingManager.IsPlayingBack);
       }
+    }
+
+    private static string EnsureIfWavExtension(string name)
+    {
+      if (name.EndsWith(".if.wav", StringComparison.OrdinalIgnoreCase)) return name;
+      return name.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
+        ? name[..^4] + ".if.wav" : name + ".if.wav";
     }
 
     private string EnsureIqWavExtension(string fileName)

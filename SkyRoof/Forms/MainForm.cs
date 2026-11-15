@@ -888,6 +888,10 @@ namespace SkyRoof
 
       Complex32[] streamData = new Complex32[count];
       Array.Copy(data, offset, streamData, 0, count);
+      ctx.TelemetryPanel?.ProcessSamples(new DataEventArgs<Complex32>
+      {
+        Data = streamData, Count = count, Utc = DateTime.UtcNow
+      });
       ApplyIqOutputStreamGainAndRoute(streamData, count);
     }
 
