@@ -233,6 +233,12 @@ public sealed class BilingualUiDpiAndSessionTests
         })
         {
           UiLocalizationService.Apply(language);
+          Assert.Equal(UiLocalizationService.Get("Control.RecorderPanel.RecordBtn"),
+            Field<Button>(recorder, "RecordBtn").Text);
+          Assert.Equal(UiLocalizationService.Get("Control.RecorderPanel.LoadBtn"),
+            Field<Button>(recorder, "LoadBtn").Text);
+          Assert.Equal(UiLocalizationService.Get("Control.RecorderPanel.PlaybackBtn"),
+            Field<Button>(recorder, "PlaybackBtn").Text);
           Assert.Same(beforeIq, manager.IqBuffer);
           Assert.Equal(samples, manager.SamplesInBuffer);
           Assert.Equal(position, manager.PlaybackPosition);

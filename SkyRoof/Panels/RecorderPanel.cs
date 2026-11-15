@@ -34,6 +34,7 @@ namespace SkyRoof
 
     internal void RefreshLocalizedUi()
     {
+      UiLocalizationService.ApplyStaticControls(this);
       audioSourceMenu.Text = UiLocalizationService.Get("Recorder.AudioSource");
       iqSourceMenu.Text = UiLocalizationService.Get("Recorder.IqSource");
       foreach (ToolStripMenuItem item in audioSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
