@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.79 / SkyRoof Plus 1.79 过境匹配异步与可选 UTC 窗口
+
+## v1.79 — 2026-11-15
+
+- DX 网格输入改为纯编辑，不再逐字符调用过境预报；新增“开始计算 / 取消计算”、UTC 起止时间和进度状态。
+- 轨道传播、双方窗口求交、仰角和天空轨迹采样在 WinForms UI 线程外执行；完成后原子更新列表，支持取消与输入失效，避免过期结果。
+- 交集严格裁剪自选 UTC 范围，保持 ≥30 秒门槛；匹配采用有序区间扫描，并修正地球静止轨道固定一日的结果范围。
+- 新增中英文资源、四档模拟 DPI 与时间窗口测试，配套中文/英文操作文档。
+- 本次为独立 v.1.79 迭代，不覆盖 v.1.78；缺少签名凭据时遵循仓库未签名预发布策略。最终质量门禁与 SHA-256 以对应 Actions 运行记录为准。
+
+**English:** v1.79 adds explicit UTC-range pass matching, a start/cancel workflow, background computation with progress, and stale-result rejection. It no longer recalculates while typing grid squares.
+
+---
+
 # SkyRoof Fork v.1.78 / SkyRoof Plus 1.78 专业术语优化
 
 ## v1.78 — 2026-11-15
