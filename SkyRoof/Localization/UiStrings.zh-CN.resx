@@ -545,7 +545,7 @@
   <data name="Control.RotatorWidget.TrackCheckbox" xml:space="preserve"><value>跟踪</value></data>
   <data name="Control.SatelliteSelectorWidget.label1" xml:space="preserve"><value>分组</value></data>
   <data name="Control.SatelliteSelectorWidget.label2" xml:space="preserve"><value>卫星</value></data>
-  <data name="Control.SatelliteSelectorWidget.label3" xml:space="preserve"><value>转发器/信标</value></data>
+  <data name="Control.SatelliteSelectorWidget.label3" xml:space="preserve"><value>载荷</value></data>
   <data name="FrequencyWidget.Terrestrial" xml:space="preserve"><value>地面信号</value></data>
   <data name="FrequencyWidget.NoDownlink" xml:space="preserve"><value>无下行</value></data>
   <data name="FrequencyWidget.NoUplink" xml:space="preserve"><value>无上行</value></data>
@@ -717,13 +717,13 @@
   <data name="Park.Title" xml:space="preserve"><value>PARK 停靠路径点</value></data>
   <data name="Park.Description" xml:space="preserve"><value>PARK 将依次执行各路径点；旋转器确认到达后才会进入下一段。按 STOP 可中止停靠路径。</value></data>
   <data name="Park.Coordinates" xml:space="preserve"><value>所选路径点坐标</value></data>
-  <data name="Park.Update" xml:space="preserve"><value>更新路径点</value></data>
+  <data name="Park.Update" xml:space="preserve"><value>更新</value></data>
   <data name="Park.AddAfter" xml:space="preserve"><value>在后方添加</value></data>
   <data name="Park.Remove" xml:space="preserve"><value>删除</value></data>
   <data name="Park.Up" xml:space="preserve"><value>↑ 上移</value></data>
   <data name="Park.Down" xml:space="preserve"><value>↓ 下移</value></data>
   <data name="Park.UseCurrent" xml:space="preserve"><value>使用当前角度</value></data>
-  <data name="Park.Hint" xml:space="preserve"><value>点击“更新路径点”将 AZ/EL 值写入当前行；点击“保存路径”将整条停靠路径写入配置。</value></data>
+  <data name="Park.Hint" xml:space="preserve"><value>点击“更新”保存当前路径点；点击“保存路径”写入全部路径点。</value></data>
   <data name="Park.Save" xml:space="preserve"><value>保存路径</value></data>
   <data name="Park.MinOne" xml:space="preserve"><value>请至少添加一个 PARK 停靠路径点。</value></data>
 </root>
