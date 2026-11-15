@@ -244,6 +244,18 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal(language == UiLanguage.English
             ? "Manual Rotator" : "手动旋转器",
             rotator.Controls.OfType<Label>().First().Text);
+          var hint = Field<Label>(rotator, "ManualHintLabel");
+          var track = Field<Button>(rotator, "TrackButton");
+          Assert.True(hint.Bottom < track.Top,
+            "Rotator help overlaps the TRACK control");
+          foreach (string line in hint.Text.Split('\n',
+            StringSplitOptions.RemoveEmptyEntries))
+          {
+            int width = TextRenderer.MeasureText(line, hint.Font,
+              Size.Empty, TextFormatFlags.NoPadding).Width;
+            Assert.True(width <= hint.ClientSize.Width + 2,
+              $"Rotator help clipped at {percent}%: '{line}' {width}>{hint.ClientSize.Width}");
+          }
           string shortName = language == UiLanguage.English ? "en" : "zh";
           SaveControlCapture(recorderHost, $"recorder-{shortName}-{percent}.png");
           SaveControlCapture(rotator, $"rotator-{shortName}-{percent}.png");

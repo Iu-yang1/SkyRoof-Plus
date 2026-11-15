@@ -434,29 +434,23 @@
   <data name="Rotator.Connected" xml:space="preserve"><value>已连接</value></data>
   <data name="Rotator.Connecting" xml:space="preserve"><value>连接中</value></data>
   <data name="Rotator.ParkActive" xml:space="preserve"><value>正在 PARK
-
-按 STOP 可取消
+按 STOP 取消
 停靠路径。</value></data>
   <data name="Rotator.ParkReached" xml:space="preserve"><value>C2 已报告 PARK
-
-未确认实际
-机械原点。</value></data>
+机械原点尚未
+得到确认。</value></data>
   <data name="Rotator.ParkAborted" xml:space="preserve"><value>PARK 已中止
-
-请核对日志
-及实际角度。</value></data>
+核对日志及
+实际角度。</value></data>
   <data name="Rotator.ManualLocked" xml:space="preserve"><value>实时追踪中
-
-手动操作已锁定
+手动操作锁定
 先取消 TRACK。</value></data>
   <data name="Rotator.PrePosition" xml:space="preserve"><value>预定位
-
 手动操作将先
 取消 TRACK。</value></data>
-  <data name="Rotator.ManualHint" xml:space="preserve"><value>长按 = 转动
-松开 = STOP
-
-中心 = STOP</value></data>
+  <data name="Rotator.ManualHint" xml:space="preserve"><value>长按：转动
+松开：STOP
+中心：STOP</value></data>
   <data name="Menu.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>重命名</value></data>
   <data name="Menu.SatelliteGroupsForm.DeleteMNU2" xml:space="preserve"><value>删除</value></data>
   <data name="Menu.SatelliteGroupsForm.DetailsMNU2" xml:space="preserve"><value>详情…</value></data>

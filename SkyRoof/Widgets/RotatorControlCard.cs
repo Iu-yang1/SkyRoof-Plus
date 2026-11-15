@@ -128,8 +128,8 @@ namespace SkyRoof
 
       ManualHintLabel.AutoSize = false;
       ManualHintLabel.ForeColor = SystemColors.GrayText;
-      ManualHintLabel.Location = new Point(228, 166);
-      ManualHintLabel.Size = new Size(80, 76);
+      ManualHintLabel.Location = new Point(218, 166);
+      ManualHintLabel.Size = new Size(94, 76);
       ManualHintLabel.Text = "Hold = move\nRelease = STOP\n\nCenter = STOP";
       ManualHintLabel.TextAlign = ContentAlignment.TopLeft;
       Controls.Add(ManualHintLabel);
@@ -229,6 +229,8 @@ namespace SkyRoof
         title.Text = UiLocalizationService.Get("Rotator.Title");
         stepLabel.Text = UiLocalizationService.Get("Rotator.TrackStep");
         footer.Text = UiLocalizationService.Get("Rotator.Footer");
+        if (ctx == null || rotator == null)
+          ManualHintLabel.Text = UiLocalizationService.Get("Rotator.ManualHint");
         UiToolTip.SetToolTip(StepSpinner, UiLocalizationService.Get("Rotator.StepTip"));
         UiToolTip.SetToolTip(ParkButton, UiLocalizationService.Get("Rotator.ParkTip"));
       });
