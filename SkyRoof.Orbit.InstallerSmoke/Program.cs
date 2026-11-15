@@ -15,6 +15,35 @@ try
     if (!File.Exists(runtimeAssembly) || !Directory.Exists(dataRoot))
         throw new FileNotFoundException("Installed Orekit runtime or data is missing.", runtimeAssembly);
 
+    // Load localization from the actual installed root. Compile-time xUnit tests
+    // pass even when the Inno payload silently omits zh-CN satellite assemblies.
+    string skyRoofAssemblyFile = Path.Combine(root, "SkyRoof.dll");
+    string zhResourceFile = Path.Combine(root, "zh-CN", "SkyRoof.resources.dll");
+    if (!File.Exists(skyRoofAssemblyFile) || !File.Exists(zhResourceFile))
+        throw new FileNotFoundException("Installed SkyRoof binary or zh-CN satellite resources missing.");
+
+    Assembly appAssembly = Assembly.LoadFrom(skyRoofAssemblyFile);
+    var uiResources = new System.Resources.ResourceManager(
+        "SkyRoof.Localization.UiStrings", appAssembly);
+    var chineseCulture = System.Globalization.CultureInfo.GetCultureInfo("zh-CN");
+    var englishCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    foreach (var (key, chinese, english) in new (string Key, string Chinese, string English)[]
+    {
+        ("Menu.File", "文件(&F)", "&File"),
+        ("Menu.Tools", "工具(&T)", "&Tools"),
+        ("Menu.Language", "语言(&L)", "&Language"),
+        ("Panel.Passes", "卫星过境", "Satellite Passes"),
+        ("Panel.FrequencyControl", "频率控制", "Frequency Control")
+    })
+    {
+        string? zh = uiResources.GetString(key, chineseCulture);
+        string? en = uiResources.GetString(key, englishCulture);
+        if (zh != chinese || en != english)
+            throw new InvalidOperationException(
+                $"Installed UI resources for {key} were wrong: zh-CN='{zh}', en-US='{en}'.");
+    }
+    Console.WriteLine("Installed SkyRoof UI localization OK: zh-CN and en-US resource resolution");
+
     // Intentionally avoid an AssemblyLoadContext.Resolving handler so missing
     // runtime dependencies cannot be hidden by the test harness.
     Assembly assembly = Assembly.LoadFrom(runtimeAssembly);

@@ -1,3 +1,28 @@
+# SkyRoof-Plus v.1.77
+
+## SkyRoof Plus v1.77 — 2026-11-15 简体中文未生效安装包修复
+
+### 修复内容
+
+- **修复 v.1.76 安装后“选择简体中文但主窗口仍为英文”的实际问题。** 构建输出包含 `zh-CN/SkyRoof.resources.dll`，但旧版 Inno Setup 只将顶层 `*.dll` 打包，遗漏了文化区域子目录；`ResourceManager` 因此回退到默认英文。新版本明确将中文资源程序集安装至 `{app}/zh-CN/SkyRoof.resources.dll`。
+- **防止同类误判：** 在 Windows CI 中，安装器冒烟测试新增资源文件存在性与 SHA-256 一致性检查；独立的 .NET 10 安装后运行时测试从实际安装目录用 `ResourceManager` 解析中文和英文资源，检查 `文件/工具/语言/卫星过境/频率控制` 等关键条目。此检查能识别“源码 xUnit 测试通过、实际安装包缺少语言程序集”的发布缺陷。
+- **保持运行逻辑：** 不修改 CAT/PTT、SkyCAT、GS-232、遥测、DSP、Recorder、SSTV、Orekit 或 UI 语言状态机。修复仅影响安装内容和安装验收，不需要重置用户配置或删除现有工作区。
+- 保留已发布 `v.1.76` 的标签、安装包和 Release；这是独立修复版本。
+
+### 验证与限制
+
+- 发布验收以本版本 Build and Release 的 Windows x64 编译、1609 项既有 xUnit（实际计数以工作流为准）、安装器安装与中文/英文 `ResourceManager` 测试、Orekit/IKVM、aislop、远端 SHA-256 回读的实际结果为准；提交或启动工作流不等于通过。
+- 本次验证语言资源在真实安装目录的存在及资源查找，不声称已验证全部窗口文字、硬件 DPI 或 IC-9700 / 旋转器实机。
+- 没有 SignPath 凭据时安装包仍为 `Authenticode: NotSigned`，明确披露并校验 SHA-256。
+
+### English summary
+
+v1.77 fixes the real-world v1.76 issue where selecting Simplified Chinese still displayed English. The Inno Setup installer previously copied only root-level DLLs and omitted `zh-CN/SkyRoof.resources.dll`, silently triggering the ResourceManager neutral-English fallback. The installer now explicitly includes the Chinese satellite assembly. The installed-payload smoke suite checks presence, byte-identical SHA-256 and runtime retrieval of Chinese/English menu and panel strings from the installed root. This is a packaging and release-validation fix; CAT/PTT, telemetry, DSP and hardware control logic remain unchanged. Previous v1.76 is preserved. Hardware/UI physical validation remains outside this scope. Without SignPath the installer is unsigned.
+
+---
+
+## 历史版本 / Historical: v1.76
+
 # SkyRoof-Plus v.1.76
 
 ## SkyRoof Plus v1.76 — 2026-11-15 遥测、IF/IQ 录音回放与中英双语实时切换
