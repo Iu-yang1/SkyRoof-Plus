@@ -36,6 +36,9 @@ namespace SkyRoof
     internal static void ApplyStaticControls(Control root)
     {
       string section = root.GetType().Name;
+      if (root is Form &&
+          Find($"Dialog.{section}.Title") is string windowTitle)
+        root.Text = windowTitle;
       void Visit(Control control)
       {
         if (!string.IsNullOrEmpty(control.Name) &&

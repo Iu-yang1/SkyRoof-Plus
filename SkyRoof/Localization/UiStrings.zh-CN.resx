@@ -295,4 +295,10 @@
   <data name="Sstv.TemplateQsl" xml:space="preserve"><value>QSL 卡片</value></data>
   <data name="Sstv.TemplateSatellite" xml:space="preserve"><value>卫星横幅</value></data>
   <data name="Sstv.TemplatePlain" xml:space="preserve"><value>纯图片</value></data>
+  <data name="Dialog.DownloadDialog.Title" xml:space="preserve"><value>卫星数据</value></data>
+  <data name="Control.DownloadDialog.label1" xml:space="preserve"><value>正在下载卫星数据…</value></data>
+  <data name="Download.Close" xml:space="preserve"><value>关闭</value></data>
+  <data name="Download.Cancelling" xml:space="preserve"><value>正在取消…</value></data>
+  <data name="Download.Failed" xml:space="preserve"><value>下载失败</value></data>
+  <data name="Download.ImportFailed" xml:space="preserve"><value>数据导入失败</value></data>
 </root>

@@ -295,4 +295,10 @@
   <data name="Sstv.TemplateQsl" xml:space="preserve"><value>QSL card</value></data>
   <data name="Sstv.TemplateSatellite" xml:space="preserve"><value>Satellite banner</value></data>
   <data name="Sstv.TemplatePlain" xml:space="preserve"><value>Plain picture</value></data>
+  <data name="Dialog.DownloadDialog.Title" xml:space="preserve"><value>Satellite Data</value></data>
+  <data name="Control.DownloadDialog.label1" xml:space="preserve"><value>Downloading Satellite Data...</value></data>
+  <data name="Download.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Download.Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
+  <data name="Download.Failed" xml:space="preserve"><value>Download Failed</value></data>
+  <data name="Download.ImportFailed" xml:space="preserve"><value>Data Import Failed</value></data>
 </root>
