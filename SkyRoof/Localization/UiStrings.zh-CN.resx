@@ -474,7 +474,7 @@
   <data name="QsoScheduler.Geostationary" xml:space="preserve"><value>地球静止轨道</value></data>
   <data name="QsoScheduler.TimeRange" xml:space="preserve"><value>{0:yyyy-MM-dd  HH:mm:ss} 至 {1:HH:mm:ss} {2}</value></data>
   <data name="QsoScheduler.Elevations" xml:space="preserve"><value>本台 {0:F0}°，DX {1:F0}°</value></data>
-  <data name="QsoScheduler.Now" xml:space="preserve"><value>当前可通联</value></data>
+  <data name="QsoScheduler.Now" xml:space="preserve"><value>共同可见</value></data>
   <data name="QsoScheduler.In" xml:space="preserve"><value>还有 {0}</value></data>
   <data name="QsoSchedule.Title" xml:space="preserve"><value>过境匹配 — {0}  #{1}</value></data>
   <data name="QsoSchedule.Info" xml:space="preserve"><value>卫星：{0}   轨道圈次：#{1}{2}</value></data>
