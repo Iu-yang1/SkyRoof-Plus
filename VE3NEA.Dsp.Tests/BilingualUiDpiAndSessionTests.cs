@@ -306,12 +306,21 @@ public sealed class BilingualUiDpiAndSessionTests
           typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
             BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(dialog, null));
 
-        float ratio = percent / 100f;
-        host.Size = new Size((int)(538 * ratio), (int)(160 * ratio));
+        // Capture the real 100% control baseline BEFORE changing host size.
+        // Absolute TableLayoutPanel row heights are a separate layout metric
+        // and must be scaled along with the controls and their fonts.
         using var scaler = new UniformControlScale(host,
           scaleRootBounds: false, maxScale: 2f);
+        float ratio = percent / 100f;
+        foreach (RowStyle row in layout.RowStyles)
+          if (row.SizeType == SizeType.Absolute)
+            row.Height *= ratio;
+        host.Size = new Size((int)(538 * ratio), (int)(160 * ratio));
         scaler.Apply(ratio);
+        host.PerformLayout();
+        layout.PerformLayout();
         host.CreateControl();
+        var footer = Field<Panel>(dialog, "panel1");
         foreach (UiLanguage language in new[]
         {
           UiLanguage.English, UiLanguage.SimplifiedChinese
@@ -336,6 +345,22 @@ public sealed class BilingualUiDpiAndSessionTests
           }
           SaveSettingsToolbarCapture(host,
             $"settings-controls-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
+          // Geometric proof complements the screenshot: a green paint
+          // result must not hide the footer or stack two toolbar rows.
+          var rows = layout.Controls.Cast<Control>()
+            .Where(control => control.Visible)
+            .OrderBy(control => control.Top).ToArray();
+          Assert.Equal(3, rows.Length);
+          for (int i = 1; i < rows.Length; i++)
+            Assert.True(rows[i - 1].Bottom <= rows[i].Top + 2,
+              $"Settings toolbar rows overlap at {percent}%");
+          Assert.True(rows[^1].Bottom <= footer.Top + 2,
+            $"Settings toolbar overlaps footer at {percent}%");
+          Assert.True(footer.Top >= 0 && footer.Bottom <= host.ClientSize.Height + 2,
+            $"Settings footer is outside the {percent}% simulation canvas");
+          Assert.All(new[] { ok, apply, cancel }, button =>
+            Assert.True(button.Visible && button.Bottom <= footer.ClientSize.Height + 2,
+              $"Settings command button invisible or clipped at {percent}%"));
         }
       }
       finally { UiLocalizationService.Apply(before); }
