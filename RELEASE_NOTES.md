@@ -1,3 +1,21 @@
+# SkyRoof-Plus v.1.80
+
+## v1.80 — 2026-11-16 ICOM LAN TX 发射音频重启恢复修复
+
+- 为 Control、CI-V、Audio 三条 UDP 流补齐协议 `0x05 Disconnect` 报文。正常关闭时先停止 TX 音频，关闭 CI-V 媒体流，再发送令牌注销（Auth `0x01`），对关联注销应答等待最多 400 ms；未确认与失败会明确记入 UTC 日志，不再把本机 UDP 发送成功当作电台端已注销。
+- 停止过程中先取消并收回正在等待的控制/CI-V UDP 接收任务，避免注销响应被另一个 `ReceiveAsync` 消耗；仅在正常清理未及时完成时保留原有强制关闭作为异常恢复。
+- 为独立 Audio UDP 添加带双向 SID、随机数和序列号验证的 ping/echo 心跳跟踪；日志记录远端最近有效控制报文及累计应答次数。只有本地已经发出实际 TX PCM 且连续至少 12 秒没有可信远端音频控制响应时，才将 TX 链路标记失效并请求恢复。
+- **不打断 PTT：** 处于 PTT ON 时先警告并标记故障，PTT 释放后才重建经认证的 Control/CI-V/Audio 媒体会话。保留 TX 编码器、20 ms 帧节拍、MOD 输入检查、PTT 验证与默认 48 kHz LPCM 协商，不禁用发射功能。
+- 底栏 TX UDP 诊断窗口增加远端音频控制响应时间、应答次数及心跳失效状态；新增协议 Disconnect、SID/随机数关联、过期判断及重放拒绝的 xUnit 测试。
+
+**发布边界：** 本次已完成源码级修改。Windows CI、aislop 与安装包验收需以对应 v1.80 流水线实际结果为准；未执行 IC-9700 实机测试，因此不能声称所有固件均已验证。设备端是否实际调制仍必须使用独立射频测量确定。
+
+**English:** v1.80 improves authenticated Icom LAN session teardown by sending explicit per-stream UDP disconnects and correlating token logout replies. TX audio now tracks verified remote UDP pings and recovers authenticated media after stale heartbeat detection without interrupting an active CAT PTT transmission. Diagnostics expose remote liveness independently of local PCM sends. Hardware TX modulation is not inferred from local UDP delivery.
+
+---
+
+## Historical / 历史版本 v1.79
+
 # SkyRoof-Plus v.1.79
 
 ## SkyRoof Plus v1.79 — 2026-11-15 过境匹配后台计算与 UTC 自选时间范围
