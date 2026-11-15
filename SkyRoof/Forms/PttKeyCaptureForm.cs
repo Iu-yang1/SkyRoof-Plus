@@ -22,7 +22,7 @@ namespace SkyRoof
         Size = new Size(394, 70),
         TextAlign = ContentAlignment.MiddleCenter,
         Text = UiLocalizationService.Format("PttKey.Instructions",
-          current == Keys.None ? UiLocalizationService.Get("PttKey.None") : current)
+          current == Keys.None ? UiLocalizationService.Get("PttKey.None") : current.ToString())
       };
 
       var cancel = new Button
