@@ -627,4 +627,26 @@
   <data name="FrequencyWidget.SdrTransverterIf" xml:space="preserve"><value>SDR 变频器中频：{0:F6} MHz</value></data>
   <data name="FrequencyWidget.ClickForManualEntry" xml:space="preserve"><value>单击可手动输入频率</value></data>
   <data name="FrequencyWidget.NoCatToneCommand" xml:space="preserve"><value>电台不支持通过 CAT 设置该 CTCSS 亚音频率。</value></data>
+  <data name="AutoSelection.TipToggle" xml:space="preserve"><value>开启或关闭当前分组的自动卫星选择。</value></data>
+  <data name="AutoSelection.TipEdit" xml:space="preserve"><value>编辑当前分组的过境自动选择计划。</value></data>
+  <data name="AutoSelection.TipTree" xml:space="preserve"><value>勾选需要加入自动选择计划的卫星过境。</value></data>
+  <data name="AutoSelection.TipMoveUp" xml:space="preserve"><value>提高所选卫星的优先级。</value></data>
+  <data name="AutoSelection.TipMoveDown" xml:space="preserve"><value>降低所选卫星的优先级。</value></data>
+  <data name="AutoSelection.TipTransmitter" xml:space="preserve"><value>选中该卫星过境时使用的转发器或信标。</value></data>
+  <data name="AutoSelection.TipRecord" xml:space="preserve"><value>为所选过境录制音频或 I/Q，或关闭录制。</value></data>
+  <data name="AutoSelection.TipSelectAll" xml:space="preserve"><value>选中当前分组的全部过境。</value></data>
+  <data name="AutoSelection.TipClear" xml:space="preserve"><value>取消当前分组的全部过境选择。</value></data>
+  <data name="AutoSelection.TipTrack" xml:space="preserve"><value>使用天线旋转器跟踪所选卫星过境。</value></data>
+  <data name="AutoSelection.TipTrackDisabled" xml:space="preserve"><value>设置中尚未启用旋转器；启用后才能自动跟踪。</value></data>
+  <data name="AutoSelection.ClearConfirm" xml:space="preserve"><value>确定清空当前分组的过境选择计划吗？</value></data>
+  <data name="AutoSelection.ScheduleTitle" xml:space="preserve"><value>自动卫星选择</value></data>
+  <data name="PttKey.Title" xml:space="preserve"><value>绑定实体 PTT 按键</value></data>
+  <data name="PttKey.Instructions" xml:space="preserve"><value>按下需要绑定的键盘键或 USB 脚踏开关按键。
+按住发射，松开接收。
+当前按键：{0}</value></data>
+  <data name="PttKey.None" xml:space="preserve"><value>未绑定</value></data>
+  <data name="AmsatReport.Heard" xml:space="preserve"><value>已收到信号</value></data>
+  <data name="AmsatReport.TelemetryOnly" xml:space="preserve"><value>仅接收到遥测</value></data>
+  <data name="AmsatReport.NotHeard" xml:space="preserve"><value>未收到信号</value></data>
+  <data name="AmsatReport.CrewActive" xml:space="preserve"><value>航天员正在通信</value></data>
 </root>
