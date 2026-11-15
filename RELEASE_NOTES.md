@@ -1,3 +1,30 @@
+# SkyRoof-Plus v.1.79
+
+## SkyRoof Plus v1.79 — 2026-11-15 过境匹配后台计算与 UTC 自选时间范围
+
+针对“输入网格立即同步预测导致界面卡顿”的修复。该版本作为 **v.1.78 之后的独立发布**，不覆盖此前 Release。
+
+- **手动开始：** 修改 DX 网格、卫星、轨道/站点数据或时间范围不会自动计算；只有点击“开始计算”才启动过境搜索。
+- **UTC 时间区间：** 两个日期/时间选择器分别指定 UTC 开始与结束，默认当前 UTC 分钟至 14 天后；共同窗口严格裁剪该范围，保留至少 30 秒的匹配门槛。
+- **不卡主界面：** Orekit 双地面站轨道预报、共同时间窗口查找、天空轨迹和最大仰角采样在后台 `Task.Run` 完成；使用 `IProgress<T>` 回到 UI 更新分阶段进度条，并且仅在完整成功时一次性发布匹配列表。长耗时调用不占用 WinForms 渲染线程。
+- **可取消：** 计算按钮运行时切换为“取消计算”；修改任何查询条件自动取消旧任务，但不会自动启动下一个任务。底层单次轨道传播调用暂时不能直接中断，取消会在该调用返回后生效；过期结果永不覆盖新输入。
+- **计算性能：** 双方过境按开始时间排序，以有序时间区间扫描匹配，替代旧版全量双层笛卡尔积；地球静止轨道结果覆盖用户选择的区间，不再局限于当前起算的 24 小时。
+- **双语及文档：** 13 组新增对等的英文/中文资源，加入中文 [过境匹配使用指南](docs/zh-cn/fork-guide/pass-matching.md) 与更新后的英文用户手册。
+
+### 验收与限制
+
+- Windows 编译、全量 xUnit、双语言模拟 DPI（100/125/150/200%）、文档构建、aislop，以及安装包构建和发布后 SHA-256 校验均以 v1.79 的 GitHub Actions 结果为准。
+- 软件自动化验证不等于实体显示器 DPI/鼠标交互或真实 TLE、旋转器和电台联机验证。
+- 若仓库未提供 SignPath 凭据，将按现有发布策略提供明确标示为 **未签名的预发布版**，而非擅自放宽签名要求强制设为正式版。
+
+### English summary
+
+v1.79 replaces synchronous per-keystroke pass matching with an explicitly started, cancellable background calculation. The operator selects UTC start/end dates, watches staged progress, can cancel without freezing WinForms, and sees only a completed result snapshot. Edits invalidate old results but never restart automatically. The previous 30-second overlap criterion remains; search windows are clipped to the requested UTC interval. This is a separate v1.79 release after v1.78, and unsigned packages follow the existing prerelease policy.
+
+---
+
+## 历史版本 / Historical: v1.78
+
 # SkyRoof-Plus v.1.78
 
 ## SkyRoof Plus v1.78 — 2026-11-15 业余卫星通信专业中文术语优化
