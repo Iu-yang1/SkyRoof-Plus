@@ -38,34 +38,13 @@ namespace SkyRoof
       var myStation = MakeStation(request.MySquare, request.MyAltitudeMeters);
       var dxStation = MakeStation(request.DxSquare, 0);
 
-      // GEO visibility is essentially stationary. Reuse the existing
-      // tracker horizon check but publish a window spanning the chosen UTC
-      // interval rather than its legacy fixed 24-hour display period.
       bool geo = tracker.IsGeoStationary();
-      List<SatellitePass> PassesAt(GroundStation station)
-      {
-        var visibility = geo
-          ? tracker.ComputeGeostationaryPasses(station)
-          : tracker.ComputePasses(station, request.StartUtc, request.EndUtc);
-        var passes = visibility
-          .Select(period => new SatellitePass(station, satellite, period))
-          .OrderBy(pass => pass.StartTime).ToList();
-        if (geo)
-          foreach (var pass in passes)
-          {
-            pass.StartTime = request.StartUtc;
-            pass.EndTime = request.EndUtc;
-            pass.CulminationTime = request.StartUtc +
-              (request.EndUtc - request.StartUtc) / 2;
-          }
-        return passes;
-      }
 
       progress.Report(new PredictionProgress(5, "QsoScheduler.ProgressMe"));
-      var myPasses = PassesAt(myStation);
+      var myPasses = PredictPassesForStation(request, myStation, geo);
       cancellation.ThrowIfCancellationRequested();
       progress.Report(new PredictionProgress(40, "QsoScheduler.ProgressDx"));
-      var dxPasses = PassesAt(dxStation);
+      var dxPasses = PredictPassesForStation(request, dxStation, geo);
       cancellation.ThrowIfCancellationRequested();
       progress.Report(new PredictionProgress(70, "QsoScheduler.ProgressOverlap"));
 
@@ -120,6 +99,31 @@ namespace SkyRoof
       cancellation.ThrowIfCancellationRequested();
       progress.Report(new PredictionProgress(100, "QsoScheduler.ProgressOverlap"));
       return overlaps.OrderBy(o => o.CommonStart).ToList();
+    }
+
+    private static List<SatellitePass> PredictPassesForStation(
+      PredictionRequest request, GroundStation station, bool geostationary)
+    {
+      var satellite = request.Satellite;
+      var tracker = satellite.Tracker;
+      var visibility = geostationary
+        ? tracker.ComputeGeostationaryPasses(station)
+        : tracker.ComputePasses(station, request.StartUtc, request.EndUtc);
+      var passes = visibility
+        .Select(period => new SatellitePass(station, satellite, period))
+        .OrderBy(pass => pass.StartTime).ToList();
+
+      // GEO periods returned by the existing tracker cover a synthetic 24 h.
+      // The matching query must instead cover the operator's UTC interval.
+      if (geostationary)
+        foreach (var pass in passes)
+        {
+          pass.StartTime = request.StartUtc;
+          pass.EndTime = request.EndUtc;
+          pass.CulminationTime = request.StartUtc +
+            (request.EndUtc - request.StartUtc) / 2;
+        }
+      return passes;
     }
 
     private static GroundStation MakeStation(string square, double altitudeMeters)
