@@ -227,6 +227,52 @@ public sealed class BilingualUiDpiAndSessionTests
     });
   }
 
+  [Theory]
+  [InlineData(100)]
+  [InlineData(125)]
+  [InlineData(150)]
+  [InlineData(200)]
+  public void ActualSettingsDialogRendersBothLocalesWithoutLosingEditedModel(int percent)
+  {
+    Sta(() =>
+    {
+      UiLanguage before = SettingsLanguage.Current;
+      try
+      {
+        using var dialog = new SettingsDialog();
+        var settings = new Settings();
+        var grid = Field<PropertyGrid>(dialog, "grid");
+        grid.SelectedObject = settings;
+        UiLocalizationService.Bind(dialog, () =>
+          typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
+            BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(dialog, null));
+        using var scaler = new UniformControlScale(dialog, scaleRootBounds: false);
+        float ratio = percent / 100f;
+        dialog.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
+        scaler.Apply(ratio);
+        dialog.CreateControl();
+        grid.CreateControl();
+        foreach (UiLanguage language in new[]
+        {
+          UiLanguage.English, UiLanguage.SimplifiedChinese
+        })
+        {
+          UiLocalizationService.Apply(language);
+          grid.Refresh();
+          Assert.Same(settings, grid.SelectedObject);
+          Assert.Equal(language == UiLanguage.English
+            ? "Settings" : "设置", dialog.Text);
+          Assert.Equal(language == UiLanguage.English
+            ? "OK" : "确定", Field<Button>(dialog, "okBtn").Text);
+          SaveControlCapture(dialog,
+            $"settings-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
+        }
+      }
+      finally { UiLocalizationService.Apply(before); }
+    });
+  }
+
   private static void SaveControlCapture(Control control, string file)
   {
     string? directory = Environment.GetEnvironmentVariable(
