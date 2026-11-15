@@ -35,6 +35,13 @@ namespace SkyRoof
     internal void RefreshLocalizedUi()
     {
       UiLocalizationService.ApplyStaticControls(this);
+      // The DPI acceptance harness re-parents the actual Recorder controls
+      // onto a capture canvas. Refresh these buttons directly so localization
+      // still reaches them when they are no longer children of this DockContent.
+      RecordBtn.Text = UiLocalizationService.Get("Control.RecorderPanel.RecordBtn");
+      LoadBtn.Text = UiLocalizationService.Get("Control.RecorderPanel.LoadBtn");
+      SaveBtn.Text = UiLocalizationService.Get("Control.RecorderPanel.SaveBtn");
+      PlaybackBtn.Text = UiLocalizationService.Get("Control.RecorderPanel.PlaybackBtn");
       audioSourceMenu.Text = UiLocalizationService.Get("Recorder.AudioSource");
       iqSourceMenu.Text = UiLocalizationService.Get("Recorder.IqSource");
       foreach (ToolStripMenuItem item in audioSourceMenu.DropDownItems.OfType<ToolStripMenuItem>())
