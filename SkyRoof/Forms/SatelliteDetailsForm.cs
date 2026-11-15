@@ -17,6 +17,7 @@ namespace SkyRoof
     public SatelliteDetailsForm()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
     internal static void ShowSatellite(SatnogsDbSatellite? satellite, Form parent, Context ctx)

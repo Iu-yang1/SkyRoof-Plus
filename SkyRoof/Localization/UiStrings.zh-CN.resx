@@ -301,4 +301,85 @@
   <data name="Download.Cancelling" xml:space="preserve"><value>正在取消…</value></data>
   <data name="Download.Failed" xml:space="preserve"><value>下载失败</value></data>
   <data name="Download.ImportFailed" xml:space="preserve"><value>数据导入失败</value></data>
+  <data name="Dialog.SatelliteGroupsForm.Title" xml:space="preserve"><value>卫星与分组</value></data>
+  <data name="Dialog.SignalParamsDialog.Title" xml:space="preserve"><value>信号参数详情</value></data>
+  <data name="Dialog.SdrDevicesDialog.Title" xml:space="preserve"><value>SDR 设备</value></data>
+  <data name="Dialog.AutoSelectionConfigForm.Title" xml:space="preserve"><value>自动选择计划</value></data>
+  <data name="Dialog.PathOptimizerForm.Title" xml:space="preserve"><value>路径优化详情</value></data>
+  <data name="Dialog.AmsatReportDialog.Title" xml:space="preserve"><value>向 AMSAT 报告</value></data>
+  <data name="Dialog.SatelliteDetailsForm.Title" xml:space="preserve"><value>卫星详情</value></data>
+  <data name="Dialog.SatelliteDetailsDialog.Title" xml:space="preserve"><value>卫星详情</value></data>
+  <data name="Dialog.LoqFt4QsoDialog.Title" xml:space="preserve"><value>保存 QSO</value></data>
+  <data name="Dialog.AboutTitle" xml:space="preserve"><value>关于 {0}</value></data>
+  <data name="Dialog.SaveQsoFor" xml:space="preserve"><value>保存与 {0} 的 FT4 通联？</value></data>
+  <data name="SatelliteGroups.Updated" xml:space="preserve"><value>更新于 {0}</value></data>
+  <data name="SatelliteGroups.Count" xml:space="preserve"><value>{0} / {1}</value></data>
+  <data name="SignalParams.Discover" xml:space="preserve"><value>自动发现</value></data>
+  <data name="Control.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>重命名</value></data>
+  <data name="Control.SatelliteGroupsForm.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.SatelliteGroupsForm.OkBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Control.SatelliteGroupsForm.label2" xml:space="preserve"><value> 卫星分组</value></data>
+  <data name="Control.SatelliteGroupsForm.label1" xml:space="preserve"><value> 卫星</value></data>
+  <data name="Control.SatelliteGroupsForm.label3" xml:space="preserve"><value>搜索：</value></data>
+  <data name="Control.SatelliteGroupsForm.label5" xml:space="preserve"><value>服务：</value></data>
+  <data name="Control.SatelliteGroupsForm.HamCheckbox" xml:space="preserve"><value>业余无线电</value></data>
+  <data name="Control.SatelliteGroupsForm.NonHamCheckbox" xml:space="preserve"><value>非业余无线电</value></data>
+  <data name="Control.SatelliteGroupsForm.label4" xml:space="preserve"><value>波段：</value></data>
+  <data name="Control.SatelliteGroupsForm.OtherBandsCheckbox" xml:space="preserve"><value>其他</value></data>
+  <data name="Control.SatelliteGroupsForm.label6" xml:space="preserve"><value>无线电：</value></data>
+  <data name="Control.SatelliteGroupsForm.TransponderCheckbox" xml:space="preserve"><value>转发器</value></data>
+  <data name="Control.SatelliteGroupsForm.TransceiverCheckbox" xml:space="preserve"><value>收发信机</value></data>
+  <data name="Control.SatelliteGroupsForm.TransmitterCheckbox" xml:space="preserve"><value>发射机</value></data>
+  <data name="Control.SatelliteGroupsForm.label7" xml:space="preserve"><value>状态：</value></data>
+  <data name="Control.SatelliteGroupsForm.AliveCheckbox" xml:space="preserve"><value>在轨</value></data>
+  <data name="Control.SatelliteGroupsForm.FutureCheckbox" xml:space="preserve"><value>待发射</value></data>
+  <data name="Control.SatelliteGroupsForm.ReEnteredCheckbox" xml:space="preserve"><value>已再入</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader1" xml:space="preserve"><value>名称</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader2" xml:space="preserve"><value>NORAD 编号</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader3" xml:space="preserve"><value>发射日期</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader4" xml:space="preserve"><value>服务</value></data>
+  <data name="Control.SignalParamsDialog.ModulationLabel" xml:space="preserve"><value>调制方式</value></data>
+  <data name="Control.SignalParamsDialog.FramingLabel" xml:space="preserve"><value>帧结构</value></data>
+  <data name="Control.SignalParamsDialog.BaudLabel" xml:space="preserve"><value>波特率</value></data>
+  <data name="Control.SignalParamsDialog.DeviationLabel" xml:space="preserve"><value>频偏 (Hz)</value></data>
+  <data name="Control.SignalParamsDialog.AfCarrierLabel" xml:space="preserve"><value>音频载波 (Hz)</value></data>
+  <data name="Control.SignalParamsDialog.ManchesterLabel" xml:space="preserve"><value>曼彻斯特编码</value></data>
+  <data name="Control.SignalParamsDialog.DifferentialLabel" xml:space="preserve"><value>差分预编码</value></data>
+  <data name="Control.SignalParamsDialog.TelemetryFormatLabel" xml:space="preserve"><value>遥测格式</value></data>
+  <data name="Control.SignalParamsDialog.SaveOverrideBtn" xml:space="preserve"><value>保存为覆盖参数</value></data>
+  <data name="Control.SignalParamsDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.SignalParamsDialog.OkBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Control.SdrDevicesDialog.okBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Control.SdrDevicesDialog.cancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.SdrDevicesDialog.label1" xml:space="preserve"><value>SDR 设备</value></data>
+  <data name="Control.SdrDevicesDialog.label2" xml:space="preserve"><value>SDR 设备设置</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveUpBtn" xml:space="preserve"><value>上移</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveDownBtn" xml:space="preserve"><value>下移</value></data>
+  <data name="Control.AutoSelectionConfigForm.SatGroupBox" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.AutoSelectionConfigForm.TxLabel" xml:space="preserve"><value>发射机：</value></data>
+  <data name="Control.AutoSelectionConfigForm.ModeGroupBox" xml:space="preserve"><value>重叠过境</value></data>
+  <data name="Control.AutoSelectionConfigForm.FinishCurrentRadio" xml:space="preserve"><value>完成当前过境</value></data>
+  <data name="Control.AutoSelectionConfigForm.HighestElevationRadio" xml:space="preserve"><value>最高仰角</value></data>
+  <data name="Control.AutoSelectionConfigForm.PriorityRadio" xml:space="preserve"><value>优先级</value></data>
+  <data name="Control.AutoSelectionConfigForm.RecLabel" xml:space="preserve"><value>录制所选过境：</value></data>
+  <data name="Control.AutoSelectionConfigForm.TrackAntennaCheckbox" xml:space="preserve"><value>过境期间跟踪天线</value></data>
+  <data name="Control.AutoSelectionConfigForm.OkBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Control.AutoSelectionConfigForm.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.AutoSelectionConfigForm.ClearBtn" xml:space="preserve"><value>清除</value></data>
+  <data name="Control.AutoSelectionConfigForm.SelectAllBtn" xml:space="preserve"><value>全选</value></data>
+  <data name="Control.FrequencyEntryForm.label1" xml:space="preserve"><value>频率 (Hz)</value></data>
+  <data name="Control.FrequencyEntryForm.TuneBtn" xml:space="preserve"><value>调谐</value></data>
+  <data name="Column.PathOptimizerForm.CurrentDirection" xml:space="preserve"><value>当前方向</value></data>
+  <data name="Column.PathOptimizerForm.RotationTime" xml:space="preserve"><value>初始旋转</value></data>
+  <data name="Column.PathOptimizerForm.FirstPoint" xml:space="preserve"><value>起始点</value></data>
+  <data name="Column.PathOptimizerForm.LastPoint" xml:space="preserve"><value>终点</value></data>
+  <data name="Control.AboutBox.CloseBtn" xml:space="preserve"><value>关闭</value></data>
+  <data name="Control.AmsatReportDialog.label1" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.AmsatReportDialog.label2" xml:space="preserve"><value>状态报告</value></data>
+  <data name="Control.AmsatReportDialog.cancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.AmsatReportDialog.okBtn" xml:space="preserve"><value>确定</value></data>
+  <data name="Control.SatelliteDetailsForm.button1" xml:space="preserve"><value>关闭</value></data>
+  <data name="Control.LoqFt4QsoDialog.SaveBtn" xml:space="preserve"><value>保存</value></data>
+  <data name="Control.LoqFt4QsoDialog.EditBtn" xml:space="preserve"><value>编辑</value></data>
+  <data name="Control.LoqFt4QsoDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
 </root>

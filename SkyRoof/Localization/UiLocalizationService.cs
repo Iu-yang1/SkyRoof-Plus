@@ -99,6 +99,8 @@ namespace SkyRoof
       }
       LanguageChanged += Refresh;
       view.Disposed += (_, _) => LanguageChanged -= Refresh;
+      if (view is Form form)
+        form.FormClosed += (_, _) => LanguageChanged -= Refresh;
       Refresh();
     }
   }

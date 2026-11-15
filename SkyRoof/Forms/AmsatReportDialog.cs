@@ -18,6 +18,7 @@
     public AmsatReportDialog()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
     public static void SendReport(Context ctx, SatnogsDbSatellite satellite, string? preferredEntryToken = null)

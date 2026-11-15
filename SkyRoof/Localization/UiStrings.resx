@@ -301,4 +301,85 @@
   <data name="Download.Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
   <data name="Download.Failed" xml:space="preserve"><value>Download Failed</value></data>
   <data name="Download.ImportFailed" xml:space="preserve"><value>Data Import Failed</value></data>
+  <data name="Dialog.SatelliteGroupsForm.Title" xml:space="preserve"><value>Satellites and Groups</value></data>
+  <data name="Dialog.SignalParamsDialog.Title" xml:space="preserve"><value>Signal Details</value></data>
+  <data name="Dialog.SdrDevicesDialog.Title" xml:space="preserve"><value>SDR Devices</value></data>
+  <data name="Dialog.AutoSelectionConfigForm.Title" xml:space="preserve"><value>Auto Selection Schedule</value></data>
+  <data name="Dialog.PathOptimizerForm.Title" xml:space="preserve"><value>Path Optimizer Details</value></data>
+  <data name="Dialog.AmsatReportDialog.Title" xml:space="preserve"><value>Report to AMSAT</value></data>
+  <data name="Dialog.SatelliteDetailsForm.Title" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Dialog.SatelliteDetailsDialog.Title" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Dialog.LoqFt4QsoDialog.Title" xml:space="preserve"><value>Save QSO</value></data>
+  <data name="Dialog.AboutTitle" xml:space="preserve"><value>About {0}</value></data>
+  <data name="Dialog.SaveQsoFor" xml:space="preserve"><value>Save FT4 QSO with {0}?</value></data>
+  <data name="SatelliteGroups.Updated" xml:space="preserve"><value>Updated {0}</value></data>
+  <data name="SatelliteGroups.Count" xml:space="preserve"><value>{0} of {1}</value></data>
+  <data name="SignalParams.Discover" xml:space="preserve"><value>Discover</value></data>
+  <data name="Control.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>Rename</value></data>
+  <data name="Control.SatelliteGroupsForm.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SatelliteGroupsForm.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SatelliteGroupsForm.label2" xml:space="preserve"><value> Satellite Groups</value></data>
+  <data name="Control.SatelliteGroupsForm.label1" xml:space="preserve"><value> Satellites</value></data>
+  <data name="Control.SatelliteGroupsForm.label3" xml:space="preserve"><value>Search:</value></data>
+  <data name="Control.SatelliteGroupsForm.label5" xml:space="preserve"><value>Service:</value></data>
+  <data name="Control.SatelliteGroupsForm.HamCheckbox" xml:space="preserve"><value>Ham</value></data>
+  <data name="Control.SatelliteGroupsForm.NonHamCheckbox" xml:space="preserve"><value>Non-Ham</value></data>
+  <data name="Control.SatelliteGroupsForm.label4" xml:space="preserve"><value>Bands:</value></data>
+  <data name="Control.SatelliteGroupsForm.OtherBandsCheckbox" xml:space="preserve"><value>Other</value></data>
+  <data name="Control.SatelliteGroupsForm.label6" xml:space="preserve"><value>Radio:</value></data>
+  <data name="Control.SatelliteGroupsForm.TransponderCheckbox" xml:space="preserve"><value>Transponder</value></data>
+  <data name="Control.SatelliteGroupsForm.TransceiverCheckbox" xml:space="preserve"><value>Transceiver</value></data>
+  <data name="Control.SatelliteGroupsForm.TransmitterCheckbox" xml:space="preserve"><value>Transmitter</value></data>
+  <data name="Control.SatelliteGroupsForm.label7" xml:space="preserve"><value>Status:</value></data>
+  <data name="Control.SatelliteGroupsForm.AliveCheckbox" xml:space="preserve"><value>Alive</value></data>
+  <data name="Control.SatelliteGroupsForm.FutureCheckbox" xml:space="preserve"><value>Future</value></data>
+  <data name="Control.SatelliteGroupsForm.ReEnteredCheckbox" xml:space="preserve"><value>Re-Entered</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader1" xml:space="preserve"><value>Name</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader2" xml:space="preserve"><value>NORAD ID</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader3" xml:space="preserve"><value>Launched</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader4" xml:space="preserve"><value>Service</value></data>
+  <data name="Control.SignalParamsDialog.ModulationLabel" xml:space="preserve"><value>Modulation</value></data>
+  <data name="Control.SignalParamsDialog.FramingLabel" xml:space="preserve"><value>Framing</value></data>
+  <data name="Control.SignalParamsDialog.BaudLabel" xml:space="preserve"><value>Baud rate</value></data>
+  <data name="Control.SignalParamsDialog.DeviationLabel" xml:space="preserve"><value>Deviation, Hz</value></data>
+  <data name="Control.SignalParamsDialog.AfCarrierLabel" xml:space="preserve"><value>AF carrier, Hz</value></data>
+  <data name="Control.SignalParamsDialog.ManchesterLabel" xml:space="preserve"><value>Manchester</value></data>
+  <data name="Control.SignalParamsDialog.DifferentialLabel" xml:space="preserve"><value>Precoding (diff.)</value></data>
+  <data name="Control.SignalParamsDialog.TelemetryFormatLabel" xml:space="preserve"><value>Telemetry format</value></data>
+  <data name="Control.SignalParamsDialog.SaveOverrideBtn" xml:space="preserve"><value>Save to Overrides</value></data>
+  <data name="Control.SignalParamsDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SignalParamsDialog.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SdrDevicesDialog.okBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SdrDevicesDialog.cancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SdrDevicesDialog.label1" xml:space="preserve"><value>SDR Devices</value></data>
+  <data name="Control.SdrDevicesDialog.label2" xml:space="preserve"><value>SDR Device Settings</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveUpBtn" xml:space="preserve"><value>Move Up</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveDownBtn" xml:space="preserve"><value>Move Down</value></data>
+  <data name="Control.AutoSelectionConfigForm.SatGroupBox" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Control.AutoSelectionConfigForm.TxLabel" xml:space="preserve"><value>Transmitter:</value></data>
+  <data name="Control.AutoSelectionConfigForm.ModeGroupBox" xml:space="preserve"><value>Overlapping Passes</value></data>
+  <data name="Control.AutoSelectionConfigForm.FinishCurrentRadio" xml:space="preserve"><value>Finish current</value></data>
+  <data name="Control.AutoSelectionConfigForm.HighestElevationRadio" xml:space="preserve"><value>Highest elevation</value></data>
+  <data name="Control.AutoSelectionConfigForm.PriorityRadio" xml:space="preserve"><value>Priority</value></data>
+  <data name="Control.AutoSelectionConfigForm.RecLabel" xml:space="preserve"><value>Record selected passes:</value></data>
+  <data name="Control.AutoSelectionConfigForm.TrackAntennaCheckbox" xml:space="preserve"><value>Track antenna during passes</value></data>
+  <data name="Control.AutoSelectionConfigForm.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.AutoSelectionConfigForm.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.AutoSelectionConfigForm.ClearBtn" xml:space="preserve"><value>Clear</value></data>
+  <data name="Control.AutoSelectionConfigForm.SelectAllBtn" xml:space="preserve"><value>Select All</value></data>
+  <data name="Control.FrequencyEntryForm.label1" xml:space="preserve"><value>Frequency, Hz</value></data>
+  <data name="Control.FrequencyEntryForm.TuneBtn" xml:space="preserve"><value>Tune</value></data>
+  <data name="Column.PathOptimizerForm.CurrentDirection" xml:space="preserve"><value>Current Point</value></data>
+  <data name="Column.PathOptimizerForm.RotationTime" xml:space="preserve"><value>Initial Rotation</value></data>
+  <data name="Column.PathOptimizerForm.FirstPoint" xml:space="preserve"><value>First Point</value></data>
+  <data name="Column.PathOptimizerForm.LastPoint" xml:space="preserve"><value>Last Point</value></data>
+  <data name="Control.AboutBox.CloseBtn" xml:space="preserve"><value>Close</value></data>
+  <data name="Control.AmsatReportDialog.label1" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Control.AmsatReportDialog.label2" xml:space="preserve"><value>Status Report</value></data>
+  <data name="Control.AmsatReportDialog.cancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.AmsatReportDialog.okBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SatelliteDetailsForm.button1" xml:space="preserve"><value>Close</value></data>
+  <data name="Control.LoqFt4QsoDialog.SaveBtn" xml:space="preserve"><value>Save</value></data>
+  <data name="Control.LoqFt4QsoDialog.EditBtn" xml:space="preserve"><value>Edit</value></data>
+  <data name="Control.LoqFt4QsoDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
 </root>

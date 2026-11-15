@@ -22,6 +22,7 @@ namespace SkyRoof
     public FrequencyEntryForm()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
     public void SetInitialFrequency(double frequency, string title)

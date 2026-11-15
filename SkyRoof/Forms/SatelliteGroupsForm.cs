@@ -30,6 +30,7 @@ namespace SkyRoof
     public SatelliteGroupsForm()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
 
@@ -58,7 +59,8 @@ namespace SkyRoof
       // satellites to listview
       foreach (var sat in ctx.SatnogsDb.Satellites) AllItems.Add(ItemFromSat(sat));
       ApplyFilter();
-      UpdatedDateLabel.Text = $"Updated {updateTime:yyyy-MM-dd}";
+      UpdatedDateLabel.Text = UiLocalizationService.Format("SatelliteGroups.Updated",
+        updateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
 
       // groups to treeview, sorted alphabetically and collapsed
       foreach (var group in ctx.Settings.Satellites.SatelliteGroups)
@@ -194,7 +196,8 @@ namespace SkyRoof
     {
       FilteredItems = AllItems.Where(IsItemVisible).ToList();
       listView1.VirtualListSize = FilteredItems.Count;
-      CountLabel.Text = $"{FilteredItems.Count} of {AllItems.Count}";
+      CountLabel.Text = UiLocalizationService.Format("SatelliteGroups.Count",
+        FilteredItems.Count, AllItems.Count);
       SortSatellites(SortColumn);
     }
 

@@ -22,7 +22,8 @@ namespace SkyRoof
     internal static void PopUp(Context ctx, QsoInfo qso)
     {
       var dialog = new LoqFt4QsoDialog(ctx, qso);
-      dialog.label1.Text = $"Save FT4 QSO with {qso.Call}?";
+      UiLocalizationService.ApplyStaticControls(dialog);
+      dialog.label1.Text = UiLocalizationService.Format("Dialog.SaveQsoFor", qso.Call);
       dialog.Show(ctx.MainForm);
     }
 
