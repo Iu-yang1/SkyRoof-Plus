@@ -3,11 +3,11 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.76: AO-123/UNNE-1B telemetry, IF/IQ Recorder and bilingual workspaces. -->
+  <!-- SkyRoof Plus v1.77: ship zh-CN satellite resources and verify installed UI language resolution. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <!-- v1.76-telemetry-i18n-20261115: independent release; preserve v.1.75. -->
-    <Version>1.76</Version>
+    <!-- v1.77-zh-cn-installer-hotfix-20261115: independent release; preserve v.1.76. -->
+    <Version>1.77</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
