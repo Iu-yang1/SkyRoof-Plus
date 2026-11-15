@@ -469,4 +469,63 @@ Center: STOP</value></data>
   <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>Custom text</value></data>
   <data name="Sstv.StatusChooseTxDevice" xml:space="preserve"><value>Select the radio TX audio endpoint; the system default speaker is never selected automatically.</value></data>
   <data name="Sstv.StatusNoTxDevice" xml:space="preserve"><value>No TX audio device detected; you can still save the SSTV WAV.</value></data>
+  <data name="Control.QsoSchedulerPanel.label1" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Control.QsoSchedulerPanel.label2" xml:space="preserve"><value>DX Grid Square</value></data>
+  <data name="QsoScheduler.Geostationary" xml:space="preserve"><value>Geostationary</value></data>
+  <data name="QsoScheduler.TimeRange" xml:space="preserve"><value>{0:yyyy-MM-dd  HH:mm:ss}  to  {1:HH:mm:ss} {2}</value></data>
+  <data name="QsoScheduler.Elevations" xml:space="preserve"><value>Me: {0:F0}°, DX: {1:F0}°</value></data>
+  <data name="QsoScheduler.Now" xml:space="preserve"><value>Now</value></data>
+  <data name="QsoScheduler.In" xml:space="preserve"><value>in {0}</value></data>
+  <data name="QsoSchedule.Title" xml:space="preserve"><value>Pass Match — {0}  #{1}</value></data>
+  <data name="QsoSchedule.Info" xml:space="preserve"><value>Satellite: {0}   Orbit: #{1}{2}</value></data>
+  <data name="QsoSchedule.GeoSuffix" xml:space="preserve"><value> (Geostationary)</value></data>
+  <data name="QsoSchedule.LocalWindow" xml:space="preserve"><value>Common visibility (local): {0:yyyy-MM-dd HH:mm:ss} to {1:HH:mm:ss}</value></data>
+  <data name="QsoSchedule.UtcWindow" xml:space="preserve"><value>Common visibility (UTC): {0:yyyy-MM-dd HH:mm:ss} to {1:HH:mm:ss}</value></data>
+  <data name="QsoSchedule.Duration" xml:space="preserve"><value>Duration: {0}</value></data>
+  <data name="QsoSchedule.StartsIn" xml:space="preserve"><value>Starts in {0}</value></data>
+  <data name="QsoSchedule.EndsIn" xml:space="preserve"><value>In progress, ends in {0}</value></data>
+  <data name="QsoSchedule.Ended" xml:space="preserve"><value>Ended.</value></data>
+  <data name="QsoSchedule.MaxElevation" xml:space="preserve"><value>Max elevation — Me ({0}): {1:F0}°  DX ({2}): {3:F0}°</value></data>
+  <data name="Transmitter.LocalGroup" xml:space="preserve"><value>Local</value></data>
+  <data name="Transmitter.New" xml:space="preserve"><value>New Transmitter / Beacon...</value></data>
+  <data name="Transmitter.Edit" xml:space="preserve"><value>Edit Local Entry...</value></data>
+  <data name="Transmitter.EditNamed" xml:space="preserve"><value>Edit {0}...</value></data>
+  <data name="Transmitter.Delete" xml:space="preserve"><value>Delete Local Entry</value></data>
+  <data name="Transmitter.DeleteNamed" xml:space="preserve"><value>Delete {0}</value></data>
+  <data name="Transmitter.NewTitle" xml:space="preserve"><value>New Satellite Entry — {0}</value></data>
+  <data name="Transmitter.EditTitle" xml:space="preserve"><value>Edit Local Satellite Entry — {0}</value></data>
+  <data name="Transmitter.NewHint" xml:space="preserve"><value>Create a local radio entry. Leave one frequency blank for one-way services.</value></data>
+  <data name="Transmitter.EditHint" xml:space="preserve"><value>Edit this local entry; UUID and existing frequency corrections are preserved.</value></data>
+  <data name="Transmitter.Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Transmitter.Downlink" xml:space="preserve"><value>Downlink (MHz)</value></data>
+  <data name="Transmitter.Uplink" xml:space="preserve"><value>Uplink (MHz)</value></data>
+  <data name="Transmitter.Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="Transmitter.Placeholder" xml:space="preserve"><value>e.g. Linear transponder / Beacon</value></data>
+  <data name="Transmitter.Optional" xml:space="preserve"><value>optional</value></data>
+  <data name="Transmitter.Examples" xml:space="preserve"><value>Examples:
+145.900000
+435.250000</value></data>
+  <data name="Transmitter.Details" xml:space="preserve"><value>Name: {0}
+Downlink: {1}
+Uplink: {2}
+Mode: {3}</value></data>
+  <data name="Transmitter.DeleteConfirm" xml:space="preserve"><value>Delete this local entry?
+
+{0}
+
+This cannot be undone.</value></data>
+  <data name="Transmitter.NotFound" xml:space="preserve"><value>The local entry was not found in saved data.</value></data>
+  <data name="Transmitter.ErrorEdit" xml:space="preserve"><value>Unable to edit local entry.
+
+{0}</value></data>
+  <data name="Transmitter.ErrorDelete" xml:space="preserve"><value>Unable to delete local entry.
+
+{0}</value></data>
+  <data name="Transmitter.ErrorNew" xml:space="preserve"><value>Unable to save local entry.
+
+{0}</value></data>
+  <data name="Transmitter.EnterName" xml:space="preserve"><value>Enter a name for this radio entry.</value></data>
+  <data name="Transmitter.InvalidFrequency" xml:space="preserve"><value>Enter frequencies in MHz, e.g. 145.900000 or 435.250000.
+Leave unused directions blank.</value></data>
+  <data name="Transmitter.MissingFrequency" xml:space="preserve"><value>Enter at least one downlink or uplink frequency.</value></data>
 </root>
