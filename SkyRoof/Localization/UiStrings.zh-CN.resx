@@ -705,4 +705,25 @@
   <data name="Onvif.SetSelectMpv" xml:space="preserve"><value>选择 mpv.exe 播放器</value></data>
   <data name="Onvif.SetMpvFilter" xml:space="preserve"><value>mpv 播放器 (mpv.exe)|mpv.exe|可执行文件 (*.exe)|*.exe</value></data>
   <data name="Onvif.SetInvalidAddress" xml:space="preserve"><value>ONVIF 地址无效</value></data>
+  <data name="PathOptimizer.NoPaths" xml:space="preserve"><value>旋转器优化路径</value></data>
+  <data name="PathOptimizer.ForSatellite" xml:space="preserve"><value>{0} 的旋转器优化路径</value></data>
+  <data name="Control.AzElEntryDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Control.AzElEntryDialog.OkBtn" xml:space="preserve"><value>转至目标</value></data>
+  <data name="Control.AzElEntryDialog.ParkBtn" xml:space="preserve"><value>停靠</value></data>
+  <data name="Control.AzElEntryDialog.label1" xml:space="preserve"><value>方位角</value></data>
+  <data name="Control.AzElEntryDialog.label2" xml:space="preserve"><value>仰角</value></data>
+  <data name="AzEl.Title" xml:space="preserve"><value>旋转器手动控制</value></data>
+  <data name="AzEl.TrackingLocked" xml:space="preserve"><value>旋转器手动控制 — 实时跟踪期间锁定</value></data>
+  <data name="Park.Title" xml:space="preserve"><value>PARK 停靠路径点</value></data>
+  <data name="Park.Description" xml:space="preserve"><value>PARK 将依次执行各路径点；旋转器确认到达后才会进入下一段。按 STOP 可中止停靠路径。</value></data>
+  <data name="Park.Coordinates" xml:space="preserve"><value>所选路径点坐标</value></data>
+  <data name="Park.Update" xml:space="preserve"><value>更新路径点</value></data>
+  <data name="Park.AddAfter" xml:space="preserve"><value>在后方添加</value></data>
+  <data name="Park.Remove" xml:space="preserve"><value>删除</value></data>
+  <data name="Park.Up" xml:space="preserve"><value>↑ 上移</value></data>
+  <data name="Park.Down" xml:space="preserve"><value>↓ 下移</value></data>
+  <data name="Park.UseCurrent" xml:space="preserve"><value>使用当前角度</value></data>
+  <data name="Park.Hint" xml:space="preserve"><value>点击“更新路径点”将 AZ/EL 值写入当前行；点击“保存路径”将整条停靠路径写入配置。</value></data>
+  <data name="Park.Save" xml:space="preserve"><value>保存路径</value></data>
+  <data name="Park.MinOne" xml:space="preserve"><value>请至少添加一个 PARK 停靠路径点。</value></data>
 </root>
