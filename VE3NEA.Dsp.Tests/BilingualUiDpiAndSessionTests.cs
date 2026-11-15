@@ -67,21 +67,18 @@ public sealed class BilingualUiDpiAndSessionTests
         // The production panel constructs the real WinForms controls and
         // its receive/transmit sessions; no device starts in this fixture.
         using var panel = new SstvConsolePanel(ctx);
-        // Use an off-screen child-window host. Windows CI's desktop is
-        // 1024x768; a top-level Form is capped around 1044x788, which made
-        // old 125/150/200% pictures identical and falsely appear tested.
+        // A Form's native HWND cannot exceed the Windows CI work area,
+        // even when TopLevel=false. Move the real production TabControl
+        // into a pure Control canvas: the same widgets, without a Form cap.
+        var tabs = panel.Controls.OfType<TabControl>().Single();
+        panel.Controls.Remove(tabs);
         using var host = new Panel { Size = new Size(980, 720) };
-        panel.TopLevel = false;
-        panel.FormBorderStyle = FormBorderStyle.None;
-        panel.Dock = DockStyle.Fill;
-        host.Controls.Add(panel);
+        host.Controls.Add(tabs);
         host.CreateControl();
-        panel.Show();
-        Application.DoEvents();
-        using var scaler = new UniformControlScale(panel,
+        tabs.CreateControl();
+        using var scaler = new UniformControlScale(host,
           scaleRootBounds: false, maxScale: 2f);
         UiLocalizationService.Bind(panel, panel.RefreshLocalizedUi);
-        var tabs = panel.Controls.OfType<TabControl>().Single();
         var myCall = Field<TextBox>(panel, "myCallInput");
         var theirCall = Field<TextBox>(panel, "theirCallInput");
         var overlay = Field<TextBox>(panel, "overlayText");
@@ -100,7 +97,8 @@ public sealed class BilingualUiDpiAndSessionTests
           (int)(baseSize.Height * ratio));
         host.Size = target;
         scaler.Apply(ratio);
-        Assert.Equal(target, panel.Size);
+        Assert.Equal(target, host.Size);
+        Assert.Equal(target, tabs.Size);
         foreach (UiLanguage language in new[]
         {
           UiLanguage.SimplifiedChinese, UiLanguage.English
@@ -131,12 +129,13 @@ public sealed class BilingualUiDpiAndSessionTests
           for (int tab = 0; tab < 2; tab++)
           {
             tabs.SelectedIndex = tab;
-            panel.PerformLayout();
+            host.PerformLayout();
             tabs.PerformLayout();
             Application.DoEvents();
-            Assert.False(panel.AutoScroll);
-            using var image = new Bitmap(panel.Width, panel.Height);
-            panel.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+            Assert.False(host.AutoScroll);
+            Assert.Equal(target, tabs.Size);
+            using var image = new Bitmap(host.Width, host.Height);
+            host.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
             // Real content must be present: not just a blank DockContent
             // surface, unlike earlier false-positive screenshot runs.
             int nonBackground = 0;
@@ -197,14 +196,9 @@ public sealed class BilingualUiDpiAndSessionTests
           .SetValue(manager, true);
         UiLocalizationService.Bind(recorder, recorder.RefreshLocalizedUi);
         using var rotator = new RotatorControlCard();
-        using var recorderHost = new Panel { Size = new Size(612, 172) };
-        recorder.TopLevel = false;
-        recorder.FormBorderStyle = FormBorderStyle.None;
-        recorder.Dock = DockStyle.Fill;
-        recorderHost.Controls.Add(recorder);
-        recorderHost.CreateControl();
-        recorder.Show();
-        using var recorderScale = new UniformControlScale(recorder,
+        using var recorderHost = ReparentControlsToCanvas(recorder,
+          new Size(612, 172));
+        using var recorderScale = new UniformControlScale(recorderHost,
           scaleRootBounds: false, maxScale: 2f);
         using var rotatorScale = new UniformControlScale(rotator,
           maxScale: 2f);
@@ -212,7 +206,8 @@ public sealed class BilingualUiDpiAndSessionTests
         recorderHost.Size = new Size((int)(612 * ratio), (int)(172 * ratio));
         recorderScale.Apply(ratio);
         rotatorScale.Apply(ratio);
-        Assert.Equal(recorderHost.Size, recorder.Size);
+        Assert.Equal(new Size((int)(612 * ratio), (int)(172 * ratio)),
+          recorderHost.Size);
         Assert.Equal(new Size((int)Math.Round(318 * ratio),
           (int)Math.Round(386 * ratio)), rotator.Size);
         recorder.CreateControl();
@@ -250,7 +245,7 @@ public sealed class BilingualUiDpiAndSessionTests
             ? "Manual Rotator" : "手动旋转器",
             rotator.Controls.OfType<Label>().First().Text);
           string shortName = language == UiLanguage.English ? "en" : "zh";
-          SaveControlCapture(recorder, $"recorder-{shortName}-{percent}.png");
+          SaveControlCapture(recorderHost, $"recorder-{shortName}-{percent}.png");
           SaveControlCapture(rotator, $"rotator-{shortName}-{percent}.png");
         }
       }
@@ -284,23 +279,18 @@ public sealed class BilingualUiDpiAndSessionTests
         typeof(SettingsDialog).GetMethod("InstallLanguageSelector",
           BindingFlags.Instance | BindingFlags.NonPublic)!
           .Invoke(dialog, null);
-        using var host = new Panel { Size = new Size(538, 860) };
-        dialog.TopLevel = false;
-        dialog.FormBorderStyle = FormBorderStyle.None;
-        dialog.Dock = DockStyle.Fill;
-        host.Controls.Add(dialog);
-        host.CreateControl();
-        dialog.Show();
+        using var host = ReparentControlsToCanvas(dialog, new Size(538, 860));
         UiLocalizationService.Bind(dialog, () =>
           typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
             BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(dialog, null));
-        using var scaler = new UniformControlScale(dialog,
+        using var scaler = new UniformControlScale(host,
           scaleRootBounds: false, maxScale: 2f);
         float ratio = percent / 100f;
         host.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
         scaler.Apply(ratio);
-        Assert.Equal(host.Size, dialog.Size);
+        Assert.Equal(new Size((int)(538 * ratio), (int)(860 * ratio)),
+          host.Size);
         dialog.CreateControl();
         grid.CreateControl();
         foreach (UiLanguage language in new[]
@@ -315,12 +305,32 @@ public sealed class BilingualUiDpiAndSessionTests
             ? "Settings" : "设置", dialog.Text);
           Assert.Equal(language == UiLanguage.English
             ? "OK" : "确定", Field<Button>(dialog, "okBtn").Text);
-          SaveControlCapture(dialog,
+          SaveControlCapture(host,
             $"settings-{(language == UiLanguage.English ? "en" : "zh")}-{percent}.png");
         }
       }
       finally { UiLocalizationService.Apply(before); }
     });
+  }
+
+  private static Panel ReparentControlsToCanvas(Form source, Size size)
+  {
+    // Production controls, not substitute mock buttons or static drawings.
+    // No screen-bound Form is part of the canvas, so 200% is measurable.
+    var controls = source.Controls.Cast<Control>().ToArray();
+    var canvas = new Panel { Size = size, BackColor = source.BackColor };
+    source.SuspendLayout();
+    canvas.SuspendLayout();
+    foreach (Control control in controls)
+    {
+      source.Controls.Remove(control);
+      canvas.Controls.Add(control);
+    }
+    canvas.ResumeLayout(true);
+    source.ResumeLayout(false);
+    canvas.CreateControl();
+    foreach (Control control in controls) control.CreateControl();
+    return canvas;
   }
 
   private static void SaveControlCapture(Control control, string file)
