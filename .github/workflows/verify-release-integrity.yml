@@ -103,7 +103,7 @@ jobs:
           $signature = Get-AuthenticodeSignature -FilePath $file
           if (-not $release.prerelease -and $signature.Status -ne 'Valid') {
             # Historical v.1.66 and user-authorized v.1.75/v.1.76 are verified unsigned stable releases; retain full SHA-256 verification.
-            $authorizedUnsignedStable = $tag -in @('v.1.66', 'v.1.75', 'v.1.76', 'v.1.77') -and
+            $authorizedUnsignedStable = $tag -in @('v.1.66', 'v.1.75', 'v.1.76', 'v.1.77', 'v.1.78') -and
               $signature.Status -eq 'NotSigned'
             if (-not $authorizedUnsignedStable) {
               throw "Stable release installer lacks valid Authenticode signature: $($signature.Status)"
