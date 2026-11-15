@@ -408,9 +408,11 @@ public sealed class BilingualUiDpiAndSessionTests
             Math.Abs(pixel.B - baseline.B) > 65)
           painted++;
       }
+    // Preserve even failing snapshots so the actual rendering defect can
+    // be inspected from the workflow artifact instead of inferred from a log.
+    output.Save(Path.Combine(folder, filename));
     Assert.True(painted > 100,
       $"Blank Settings controls at '{filename}': {painted} painted pixels");
-    output.Save(Path.Combine(folder, filename));
   }
 
   private static void SaveControlCapture(Control control, string file)
