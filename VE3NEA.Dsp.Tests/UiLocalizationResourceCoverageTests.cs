@@ -75,4 +75,28 @@ public sealed class UiLocalizationResourceCoverageTests
     })
       Assert.Contains(key, en.Keys);
   }
+  [Fact]
+  public void HamRadioTermsDistinguishTranspondersBeaconsAndPassMatching()
+  {
+    var zh = Read(CultureInfo.GetCultureInfo("zh-CN"));
+    var en = Read(CultureInfo.InvariantCulture);
+
+    Assert.Equal("卫星转发器与信标(&T)", zh["Menu.Transmitters"]);
+    Assert.Equal("转发器与信标", zh["Panel.Transmitters"]);
+    Assert.Equal("过境匹配", zh["Panel.QsoScheduler"]);
+    Assert.Equal("发射机", zh["Control.SatelliteGroupsForm.TransmitterCheckbox"]);
+    Assert.Equal("收发信机", zh["Control.SatelliteGroupsForm.TransceiverCheckbox"]);
+    Assert.Equal("转发器", zh["Control.SatelliteGroupsForm.TransponderCheckbox"]);
+    Assert.Equal("旋转器手动控制", zh["Rotator.Title"]);
+    Assert.Equal("州 / 省", zh["Control.QsoEntryPanel.label1"]);
+    Assert.Equal("发出 RST", zh["Sstv.FieldRstTx"]);
+    Assert.Equal("收到 RST", zh["Sstv.FieldRstRx"]);
+    Assert.Equal("Satellite", en["Control.QsoSchedulerPanel.label1"]);
+    Assert.Equal("卫星", zh["Control.QsoSchedulerPanel.label1"]);
+    Assert.Equal("共同可见", zh["QsoScheduler.Now"]);
+    Assert.Equal("过境匹配 — {0}  #{1}", zh["QsoSchedule.Title"]);
+    Assert.Equal("新增转发器 / 信标…", zh["Transmitter.New"]);
+    Assert.Equal("Edit Local Entry...", en["Transmitter.Edit"]);
+  }
+
 }
