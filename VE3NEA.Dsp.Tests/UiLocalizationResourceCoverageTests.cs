@@ -89,8 +89,8 @@ public sealed class UiLocalizationResourceCoverageTests
     Assert.Equal("转发器", zh["Control.SatelliteGroupsForm.TransponderCheckbox"]);
     Assert.Equal("旋转器手动控制", zh["Rotator.Title"]);
     Assert.Equal("州 / 省", zh["Control.QsoEntryPanel.label1"]);
-    Assert.Equal("发出 RST", zh["Sstv.FieldRstTx"]);
-    Assert.Equal("收到 RST", zh["Sstv.FieldRstRx"]);
+    Assert.Equal("发出 RSV", zh["Sstv.FieldRstTx"]);
+    Assert.Equal("收到 RSV", zh["Sstv.FieldRstRx"]);
     Assert.Equal("Satellite", en["Control.QsoSchedulerPanel.label1"]);
     Assert.Equal("卫星", zh["Control.QsoSchedulerPanel.label1"]);
     Assert.Equal("共同可见", zh["QsoScheduler.Now"]);
