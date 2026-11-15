@@ -346,6 +346,7 @@ namespace SkyRoof.AFC
         spectrum.SetPeakHold(peakCheck.Checked);
       VisibleChanged += (_, _) => input.DisplayEnabled = Visible && active;
       ConfigureDisplay();
+      UiLocalizationService.Bind(this, RefreshLanguage);
       timer.Tick += (_, _) => RefreshDisplay();
       timer.Start();
       RefreshDisplay();

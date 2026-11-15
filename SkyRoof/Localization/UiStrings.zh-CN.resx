@@ -195,4 +195,25 @@
   <data name="Cw.TxIdle" xml:space="preserve"><value>TX 空闲</value></data>
   <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX：控制器不可用</value></data>
   <data name="Cw.TxIdleHint" xml:space="preserve"><value>TX：空闲 · 发送时自动检查 SkyCAT</value></data>
+  <data name="Spectrum.Diagnostics" xml:space="preserve"><value>诊断</value></data>
+  <data name="Spectrum.Waiting" xml:space="preserve"><value>等待频谱</value></data>
+  <data name="Spectrum.StoppedHint" xml:space="preserve"><value>已停止采集。请在“设置”中配置频谱来源，随后点击“启动”。</value></data>
+  <data name="Spectrum.NotConnected" xml:space="preserve"><value>尚未连接频谱 · 0.0 帧/s</value></data>
+  <data name="Spectrum.DiagnosticsMenu" xml:space="preserve"><value>频谱诊断…</value></data>
+  <data name="Spectrum.CopyDiagnostics" xml:space="preserve"><value>复制频谱诊断信息</value></data>
+  <data name="Spectrum.ClipboardBusy" xml:space="preserve"><value>剪贴板被占用，无法复制频谱诊断信息。</value></data>
+  <data name="Spectrum.TipScopeBand" xml:space="preserve"><value>选择自动/主接收机/副接收机。只读来源仍可本地切换。</value></data>
+  <data name="Spectrum.TipScopeMode" xml:space="preserve"><value>电台频谱模式：CENTER / FIXED / SCROLL。需要可写 CAT 控制通道。</value></data>
+  <data name="Spectrum.TipSpanEdge" xml:space="preserve"><value>设置频谱跨度或固定边界预设；依当前模式自动切换。</value></data>
+  <data name="Spectrum.TipReference" xml:space="preserve"><value>向 IC-9700 写入频谱 REF 参考等级，须等待真实读回确认。</value></data>
+  <data name="Spectrum.TipSweep" xml:space="preserve"><value>电台扫描速度；此项可能修改无线电设备状态。</value></data>
+  <data name="Spectrum.TipVbw" xml:space="preserve"><value>电台视频带宽，需可写 CAT 通道。</value></data>
+  <data name="Spectrum.TipHold" xml:space="preserve"><value>冻结本地频谱与瀑布图；释放时重新读取电台设置。</value></data>
+  <data name="Spectrum.TipPeak" xml:space="preserve"><value>本地峰值保持；右键可清除峰值历史。</value></data>
+  <data name="Spectrum.TipWaterfall" xml:space="preserve"><value>显示或隐藏本地瀑布图。</value></data>
+  <data name="Spectrum.TipAverage" xml:space="preserve"><value>仅对本地频谱曲线进行完整 Sweep 平均；瀑布图不平均。</value></data>
+  <data name="Spectrum.TipSmooth" xml:space="preserve"><value>仅对频谱/峰值曲线进行频率方向平滑。</value></data>
+  <data name="Spectrum.TipZoom" xml:space="preserve"><value>本地频谱缩放，不修改无线电 SPAN。</value></data>
+  <data name="Spectrum.TipReadback" xml:space="preserve"><value>从 IC-9700 读取频谱设置，不将本地值当作已确认写入。</value></data>
+  <data name="Spectrum.TipDiagnostics" xml:space="preserve"><value>查看完整连接详情、序列缺口、CAT 队列与帧率统计。</value></data>
 </root>

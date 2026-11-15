@@ -195,4 +195,25 @@
   <data name="Cw.TxIdle" xml:space="preserve"><value>TX idle</value></data>
   <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX: controller unavailable</value></data>
   <data name="Cw.TxIdleHint" xml:space="preserve"><value>TX: idle · Send automatically checks SkyCAT</value></data>
+  <data name="Spectrum.Diagnostics" xml:space="preserve"><value>DIAG</value></data>
+  <data name="Spectrum.Waiting" xml:space="preserve"><value>Waiting for spectrum</value></data>
+  <data name="Spectrum.StoppedHint" xml:space="preserve"><value>Capture stopped. Configure the spectrum source in Settings, then click START.</value></data>
+  <data name="Spectrum.NotConnected" xml:space="preserve"><value>No spectrum connection · 0.0 frames/s</value></data>
+  <data name="Spectrum.DiagnosticsMenu" xml:space="preserve"><value>Spectrum diagnostics…</value></data>
+  <data name="Spectrum.CopyDiagnostics" xml:space="preserve"><value>Copy spectrum diagnostics</value></data>
+  <data name="Spectrum.ClipboardBusy" xml:space="preserve"><value>Could not copy spectrum diagnostics because the clipboard is busy.</value></data>
+  <data name="Spectrum.TipScopeBand" xml:space="preserve"><value>Choose Auto / Main / Sub receiver. Read-only sources allow local switching.</value></data>
+  <data name="Spectrum.TipScopeMode" xml:space="preserve"><value>Radio scope mode: CENTER / FIXED / SCROLL. Requires writable CAT.</value></data>
+  <data name="Spectrum.TipSpanEdge" xml:space="preserve"><value>Set spectrum span or fixed-edge presets; selected by current mode.</value></data>
+  <data name="Spectrum.TipReference" xml:space="preserve"><value>Write IC-9700 scope REF level and verify readback.</value></data>
+  <data name="Spectrum.TipSweep" xml:space="preserve"><value>Radio sweep speed; may change the radio state.</value></data>
+  <data name="Spectrum.TipVbw" xml:space="preserve"><value>Radio video bandwidth; requires writable CAT.</value></data>
+  <data name="Spectrum.TipHold" xml:space="preserve"><value>Freeze local spectrum/waterfall; read back radio settings on release.</value></data>
+  <data name="Spectrum.TipPeak" xml:space="preserve"><value>Local peak hold; right-click to clear history.</value></data>
+  <data name="Spectrum.TipWaterfall" xml:space="preserve"><value>Show/hide local waterfall.</value></data>
+  <data name="Spectrum.TipAverage" xml:space="preserve"><value>Average local spectrum sweeps; does not affect waterfall.</value></data>
+  <data name="Spectrum.TipSmooth" xml:space="preserve"><value>Smooth spectrum/peaks across frequency.</value></data>
+  <data name="Spectrum.TipZoom" xml:space="preserve"><value>Local spectrum zoom; does not change radio SPAN.</value></data>
+  <data name="Spectrum.TipReadback" xml:space="preserve"><value>Read actual spectrum settings from IC-9700; do not treat local values as confirmed.</value></data>
+  <data name="Spectrum.TipDiagnostics" xml:space="preserve"><value>Inspect connection, sequence gaps, CAT queue and frame rate.</value></data>
 </root>

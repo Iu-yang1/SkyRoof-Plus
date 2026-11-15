@@ -985,7 +985,7 @@ namespace SkyRoof
       GeometryLabel.Height = 28;
       GeometryLabel.AutoEllipsis = true;
       GeometryLabel.TextAlign = ContentAlignment.MiddleLeft;
-      GeometryLabel.Text = "等待频谱";
+      GeometryLabel.Text = UiLocalizationService.Get("Spectrum.Waiting");
       GeometryLabel.ForeColor = SystemColors.GrayText;
       GeometryLabel.Margin = new Padding(0, 7, 12, 0);
       RadioToolbar.Controls.Add(GeometryLabel);
@@ -1236,7 +1236,7 @@ namespace SkyRoof
       ScopeTips.SetToolTip(SmoothBox, "仅对频谱/峰值曲线进行频率方向平滑。");
       ScopeTips.SetToolTip(ZoomBox, "本地频谱缩放，不修改无线电 SPAN。");
       ScopeTips.SetToolTip(ReadbackBtn, "从 IC-9700 读取频谱设置，不将本地值当作已确认写入。");
-      ScopeTips.SetToolTip(DiagnosticsBtn, "查看完整连接详情、序列缺口、CAT 队列与帧率统计。");
+      ScopeTips.SetToolTip(DiagnosticsBtn, UiLocalizationService.Get("Spectrum.TipDiagnostics"));
       var diagnosticsMenu =
         new ContextMenuStrip();
       diagnosticsMenu.Items.Add(
@@ -1257,7 +1257,7 @@ namespace SkyRoof
           catch (System.Runtime.InteropServices.ExternalException)
           {
             StatusLabel.Text =
-              "Could not copy spectrum diagnostics because the clipboard is busy.";
+              UiLocalizationService.Get("Spectrum.ClipboardBusy");
           }
         });
 
@@ -1266,7 +1266,7 @@ namespace SkyRoof
       StatsLabel.ContextMenuStrip =
         diagnosticsMenu;
       StatsLabel.DoubleClick += (_, _) => ShowSpectrumDiagnostics();
-      DiagnosticsBtn.Text = "诊断";
+      DiagnosticsBtn.Text = UiLocalizationService.Get("Spectrum.Diagnostics");
       DiagnosticsBtn.Width = 64;
       DiagnosticsBtn.Height = 24;
       DiagnosticsBtn.Dock = DockStyle.Fill;
@@ -1361,15 +1361,14 @@ namespace SkyRoof
       StatusLabel.TextAlign = ContentAlignment.MiddleLeft;
       StatusLabel.AutoEllipsis = true;
       StatusLabel.ForeColor = colors.Muted;
-      StatusLabel.Text =
-        "已停止采集。请在“设置”中配置频谱来源，随后点击“启动”。";
+      StatusLabel.Text = UiLocalizationService.Get("Spectrum.StoppedHint");
       root.Controls.Add(StatusLabel, 0, 2);
 
       StatsLabel.Dock = DockStyle.Fill;
       StatsLabel.TextAlign = ContentAlignment.MiddleLeft;
       StatsLabel.AutoEllipsis = true;
       StatsLabel.ForeColor = colors.Muted;
-      StatsLabel.Text = "尚未连接频谱 · 0.0 帧/s";
+      StatsLabel.Text = UiLocalizationService.Get("Spectrum.NotConnected");
       var statusBar = new TableLayoutPanel
       {
         Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -2974,6 +2973,35 @@ namespace SkyRoof
       catch (InvalidOperationException)
       {
         // The panel is closing.
+      }
+    }
+
+    internal void RefreshLocalizedUi()
+    {
+      DiagnosticsBtn.Text = UiLocalizationService.Get("Spectrum.Diagnostics");
+      if (Capture == null)
+      {
+        StatusLabel.Text = UiLocalizationService.Get("Spectrum.StoppedHint");
+        StatsLabel.Text = UiLocalizationService.Get("Spectrum.NotConnected");
+      }
+      ScopeTips.SetToolTip(ScopeBandBox, UiLocalizationService.Get("Spectrum.TipScopeBand"));
+      ScopeTips.SetToolTip(ScopeModeBox, UiLocalizationService.Get("Spectrum.TipScopeMode"));
+      ScopeTips.SetToolTip(SpanEdgeBox, UiLocalizationService.Get("Spectrum.TipSpanEdge"));
+      ScopeTips.SetToolTip(ReferenceBox, UiLocalizationService.Get("Spectrum.TipReference"));
+      ScopeTips.SetToolTip(SweepSpeedBox, UiLocalizationService.Get("Spectrum.TipSweep"));
+      ScopeTips.SetToolTip(VbwBox, UiLocalizationService.Get("Spectrum.TipVbw"));
+      ScopeTips.SetToolTip(HoldBtn, UiLocalizationService.Get("Spectrum.TipHold"));
+      ScopeTips.SetToolTip(PeakBtn, UiLocalizationService.Get("Spectrum.TipPeak"));
+      ScopeTips.SetToolTip(WaterfallBtn, UiLocalizationService.Get("Spectrum.TipWaterfall"));
+      ScopeTips.SetToolTip(AverageBox, UiLocalizationService.Get("Spectrum.TipAverage"));
+      ScopeTips.SetToolTip(SmoothBox, UiLocalizationService.Get("Spectrum.TipSmooth"));
+      ScopeTips.SetToolTip(ZoomBox, UiLocalizationService.Get("Spectrum.TipZoom"));
+      ScopeTips.SetToolTip(ReadbackBtn, UiLocalizationService.Get("Spectrum.TipReadback"));
+      ScopeTips.SetToolTip(DiagnosticsBtn, UiLocalizationService.Get("Spectrum.TipDiagnostics"));
+      if (DiagnosticsBtn.ContextMenuStrip is ContextMenuStrip menu && menu.Items.Count >= 2)
+      {
+        menu.Items[0].Text = UiLocalizationService.Get("Spectrum.DiagnosticsMenu");
+        menu.Items[1].Text = UiLocalizationService.Get("Spectrum.CopyDiagnostics");
       }
     }
 
