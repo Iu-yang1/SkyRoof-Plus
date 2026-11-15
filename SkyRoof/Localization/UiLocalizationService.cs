@@ -28,6 +28,46 @@ namespace SkyRoof
     internal static string Format(string key, params object?[] args) =>
       string.Format(CultureInfo.CurrentCulture, Get(key), args);
 
+    internal static string? Find(string key) =>
+      Strings.GetString(key, CurrentResourceCulture);
+
+    /// <summary>Translate only controls with explicitly registered resource keys.
+    /// Live telemetry and user-entered content have no keys, so are not rewritten.</summary>
+    internal static void ApplyStaticControls(Control root)
+    {
+      string section = root.GetType().Name;
+      void Visit(Control control)
+      {
+        if (!string.IsNullOrEmpty(control.Name) &&
+            Find($"Control.{section}.{control.Name}") is string label)
+          control.Text = label;
+        if (control is ListView list)
+          foreach (ColumnHeader column in list.Columns)
+            if (Find($"Column.{section}.{column.Name}") is string title)
+              column.Text = title;
+        if (control is DataGridView grid)
+          foreach (DataGridViewColumn column in grid.Columns)
+            if (Find($"Column.{section}.{column.Name}") is string title)
+              column.HeaderText = title;
+        if (control is ToolStrip strip) ApplyToolStripItems(strip.Items, section);
+        if (control.ContextMenuStrip is ContextMenuStrip menu)
+          ApplyToolStripItems(menu.Items, section);
+        foreach (Control child in control.Controls) Visit(child);
+      }
+      Visit(root);
+    }
+
+    internal static void ApplyToolStripItems(ToolStripItemCollection items, string section)
+    {
+      foreach (ToolStripItem item in items)
+      {
+        if (Find($"Menu.{section}.{item.Name}") is string label)
+          item.Text = label;
+        if (item is ToolStripDropDownItem menu)
+          ApplyToolStripItems(menu.DropDownItems, section);
+      }
+    }
+
     /// <summary>One entry point for language changes; the legacy PropertyGrid
     /// API also triggers NotifyLanguageChanged on a direct Set call.</summary>
     internal static void Apply(UiLanguage language) => SettingsLanguage.Set(language);

@@ -75,4 +75,37 @@
   <data name="Common.Load" xml:space="preserve"><value>加载</value></data>
   <data name="Common.Error" xml:space="preserve"><value>错误</value></data>
   <data name="Common.ConnectionLost" xml:space="preserve"><value>连接已断开</value></data>
+  <data name="Control.RecorderPanel.RecordBtn" xml:space="preserve"><value>录制</value></data>
+  <data name="Control.RecorderPanel.SaveBtn" xml:space="preserve"><value>保存</value></data>
+  <data name="Control.RecorderPanel.LoadBtn" xml:space="preserve"><value>加载</value></data>
+  <data name="Control.RecorderPanel.PlaybackBtn" xml:space="preserve"><value>回放</value></data>
+  <data name="Control.Ft4ConsolePanel.LogBtn" xml:space="preserve"><value>日志</value></data>
+  <data name="Control.Ft4ConsolePanel.HaltTxBtn" xml:space="preserve"><value>停止 TX</value></data>
+  <data name="Control.Ft4ConsolePanel.EnableTxBtn" xml:space="preserve"><value>启用 TX</value></data>
+  <data name="Control.Ft4ConsolePanel.TuneBtn" xml:space="preserve"><value>调谐</value></data>
+  <data name="Control.QsoEntryPanel.label10" xml:space="preserve"><value>波段</value></data>
+  <data name="Control.QsoEntryPanel.label11" xml:space="preserve"><value>模式</value></data>
+  <data name="Control.QsoEntryPanel.label12" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.QsoEntryPanel.label13" xml:space="preserve"><value>呼号</value></data>
+  <data name="Control.QsoEntryPanel.label14" xml:space="preserve"><value>网格</value></data>
+  <data name="Control.QsoEntryPanel.label1" xml:space="preserve"><value>州</value></data>
+  <data name="Control.QsoEntryPanel.label15" xml:space="preserve"><value>发出</value></data>
+  <data name="Control.QsoEntryPanel.label16" xml:space="preserve"><value>收到</value></data>
+  <data name="Control.QsoEntryPanel.label17" xml:space="preserve"><value>姓名</value></data>
+  <data name="Control.QsoEntryPanel.label2" xml:space="preserve"><value>备注</value></data>
+  <data name="Control.QsoEntryPanel.ClearBtn" xml:space="preserve"><value>清除</value></data>
+  <data name="Control.QsoEntryPanel.SaveBtn" xml:space="preserve"><value>保存</value></data>
+  <data name="Control.PassesPanel.CurrentSatBtn" xml:space="preserve"><value>当前卫星</value></data>
+  <data name="Control.PassesPanel.GroupBtn" xml:space="preserve"><value>分组</value></data>
+  <data name="Control.PassesPanel.AllBtn" xml:space="preserve"><value>全部 VHF/UHF</value></data>
+  <data name="Column.TransmittersPanel.columnHeader1" xml:space="preserve"><value>发射机</value></data>
+  <data name="Column.TransmittersPanel.columnHeader3" xml:space="preserve"><value>下行</value></data>
+  <data name="Column.TransmittersPanel.columnHeader2" xml:space="preserve"><value>上行</value></data>
+  <data name="Column.TransmittersPanel.columnHeader4" xml:space="preserve"><value>模式</value></data>
+  <data name="Control.AutoSelectionPanel.EditBtn" xml:space="preserve"><value>编辑</value></data>
+  <data name="Control.AutoSelectionPanel.ActiveLabel" xml:space="preserve"><value>当前：</value></data>
+  <data name="Control.AutoSelectionPanel.NextLabel" xml:space="preserve"><value>下一项：</value></data>
+  <data name="Control.AutoSelectionPanel.RecLabel" xml:space="preserve"><value>录制：</value></data>
+  <data name="Ft4.TxOdd" xml:space="preserve"><value>TX 奇数时隙</value></data>
+  <data name="Ft4.TxEven" xml:space="preserve"><value>TX 偶数时隙</value></data>
 </root>

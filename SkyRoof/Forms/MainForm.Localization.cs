@@ -143,6 +143,8 @@ namespace SkyRoof
         string title = UiLocalizationService.Get(key);
         panel.Text = title;
         panel.TabText = title;
+        UiLocalizationService.ApplyStaticControls(panel);
+
       });
     }
   }
