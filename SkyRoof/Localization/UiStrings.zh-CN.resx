@@ -528,4 +528,99 @@
   <data name="Transmitter.InvalidFrequency" xml:space="preserve"><value>请以 MHz 为单位输入频率，例如 145.900000 或 435.250000。
 不使用的链路方向可留空。</value></data>
   <data name="Transmitter.MissingFrequency" xml:space="preserve"><value>至少填写一个下行或上行频率。</value></data>
+  <data name="Control.FrequencyWidget.label3" xml:space="preserve"><value>多普勒</value></data>
+  <data name="Control.FrequencyWidget.label4" xml:space="preserve"><value>手动</value></data>
+  <data name="Control.FrequencyWidget.label5" xml:space="preserve"><value>手动</value></data>
+  <data name="Control.FrequencyWidget.label6" xml:space="preserve"><value>多普勒</value></data>
+  <data name="Control.FrequencyWidget.RxAfcCheckbox" xml:space="preserve"><value>RX AFC</value></data>
+  <data name="Menu.FrequencyWidget.ShowNominalFrequencyMNU" xml:space="preserve"><value>显示标称频率</value></data>
+  <data name="Menu.FrequencyWidget.ShowCorrectedFrequencyMNU" xml:space="preserve"><value>显示补偿后频率</value></data>
+  <data name="Menu.FrequencyWidget.SendToneMnu" xml:space="preserve"><value>发射时发送亚音</value></data>
+  <data name="Menu.FrequencyWidget.CtcssEnabledMnu" xml:space="preserve"><value>启用 CTCSS</value></data>
+  <data name="Menu.FrequencyWidget.SendArmingToneMnu" xml:space="preserve"><value>立即发送激活音</value></data>
+  <data name="Control.GainWidget.label1" xml:space="preserve"><value>RF 增益</value></data>
+  <data name="Control.GainWidget.label2" xml:space="preserve"><value>AF 增益</value></data>
+  <data name="Control.RotatorWidget.label1" xml:space="preserve"><value>方位角</value></data>
+  <data name="Control.RotatorWidget.label2" xml:space="preserve"><value>仰角</value></data>
+  <data name="Control.RotatorWidget.TrackCheckbox" xml:space="preserve"><value>跟踪</value></data>
+  <data name="Control.SatelliteSelectorWidget.label1" xml:space="preserve"><value>分组</value></data>
+  <data name="Control.SatelliteSelectorWidget.label2" xml:space="preserve"><value>卫星</value></data>
+  <data name="Control.SatelliteSelectorWidget.label3" xml:space="preserve"><value>转发器/信标</value></data>
+  <data name="FrequencyWidget.Terrestrial" xml:space="preserve"><value>地面信号</value></data>
+  <data name="FrequencyWidget.NoDownlink" xml:space="preserve"><value>无下行</value></data>
+  <data name="FrequencyWidget.NoUplink" xml:space="preserve"><value>无上行</value></data>
+  <data name="FrequencyWidget.Downlink" xml:space="preserve"><value>下行</value></data>
+  <data name="FrequencyWidget.Uplink" xml:space="preserve"><value>上行</value></data>
+  <data name="FrequencyWidget.StopTx" xml:space="preserve"><value>停止发射</value></data>
+  <data name="FrequencyWidget.Transmit" xml:space="preserve"><value>发射</value></data>
+  <data name="FrequencyWidget.TxHintNone" xml:space="preserve"><value>点击切换发射/接收。
+右键设置 CTCSS 亚音与实体 PTT 按键。</value></data>
+  <data name="FrequencyWidget.TxHintBound" xml:space="preserve"><value>点击切换发射/接收。
+{0}：按住发射，松开接收。
+右键设置 CTCSS 亚音与按键。</value></data>
+  <data name="FrequencyWidget.AfcMenu" xml:space="preserve"><value>FM / CW / SSB 自动频率校正…</value></data>
+  <data name="FrequencyWidget.AfcHint" xml:space="preserve"><value>启用仅接收端 AFC（使用设置中的 12 kHz IF 输入）。
+右键单击下行频率可打开 AFC 控制。</value></data>
+  <data name="FrequencyWidget.NoUplinkFrequency" xml:space="preserve"><value>无上行频率</value></data>
+  <data name="FrequencyWidget.NoDownlinkFrequency" xml:space="preserve"><value>无下行频率</value></data>
+  <data name="FrequencyWidget.NominalFrequency" xml:space="preserve"><value>标称频率：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.CorrectedFrequency" xml:space="preserve"><value>补偿后频率：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.TransponderOffset" xml:space="preserve"><value>转发器频率偏移：{0:n0} Hz</value></data>
+  <data name="FrequencyWidget.CatTransverterIf" xml:space="preserve"><value>CAT 变频器中频：{0:F6} MHz</value></data>
+  <data name="FrequencyWidget.RightClick" xml:space="preserve"><value>右键打开设置</value></data>
+  <data name="FrequencyWidget.BindPtt" xml:space="preserve"><value>绑定实体 PTT 按键…</value></data>
+  <data name="FrequencyWidget.ChangePtt" xml:space="preserve"><value>修改实体 PTT 按键（{0}）…</value></data>
+  <data name="FrequencyWidget.ClearPtt" xml:space="preserve"><value>清除实体 PTT 按键</value></data>
+  <data name="FrequencyWidget.SuppressPtt" xml:space="preserve"><value>屏蔽已绑定的按键</value></data>
+  <data name="FrequencyWidget.EnableCtcss" xml:space="preserve"><value>启用 CTCSS 亚音编码</value></data>
+  <data name="FrequencyWidget.CtcssTone" xml:space="preserve"><value>CTCSS 亚音频率</value></data>
+  <data name="FrequencyWidget.ArmingTone" xml:space="preserve"><value>立即发送激活音</value></data>
+  <data name="FrequencyControl.DownlinkBase" xml:space="preserve"><value>下行基准频率</value></data>
+  <data name="FrequencyControl.UplinkBase" xml:space="preserve"><value>上行基准频率</value></data>
+  <data name="FrequencyControl.DatabaseReference" xml:space="preserve"><value>数据库参考值</value></data>
+  <data name="FrequencyControl.SavedCorrection" xml:space="preserve"><value>已保存的修正量</value></data>
+  <data name="FrequencyControl.EditBase" xml:space="preserve"><value>编辑基准频率…</value></data>
+  <data name="FrequencyControl.ResetDatabase" xml:space="preserve"><value>恢复数据库值</value></data>
+  <data name="FrequencyControl.Tuning" xml:space="preserve"><value>频率微调</value></data>
+  <data name="FrequencyControl.DownlinkNoDoppler" xml:space="preserve"><value>下行 · 未补偿多普勒</value></data>
+  <data name="FrequencyControl.UplinkNoDoppler" xml:space="preserve"><value>上行 · 未补偿多普勒</value></data>
+  <data name="FrequencyControl.ResetBase" xml:space="preserve"><value>恢复基准频率</value></data>
+  <data name="FrequencyControl.Help" xml:space="preserve"><value>水平拖动或滚轮微调；Ctrl 调整 RIT；Alt + 滚轮步进 500 Hz。</value></data>
+  <data name="FrequencyControl.Title" xml:space="preserve"><value>频率控制</value></data>
+  <data name="FrequencyControl.SelectedTransmitter" xml:space="preserve"><value>已选择的转发器或信标</value></data>
+  <data name="FrequencyControl.TerrestrialPlaceholder" xml:space="preserve"><value>地面通信频率；选择卫星转发器或信标后可编辑基准频率</value></data>
+  <data name="FrequencyControl.NoDownlink" xml:space="preserve"><value>无下行</value></data>
+  <data name="FrequencyControl.NoUplink" xml:space="preserve"><value>无上行</value></data>
+  <data name="FrequencyControl.NoDownlinkTuning" xml:space="preserve"><value>无下行链路，接收调谐不变</value></data>
+  <data name="FrequencyControl.TerrestrialFrequency" xml:space="preserve"><value>地面通信频率</value></data>
+  <data name="FrequencyControl.TransponderOffset" xml:space="preserve"><value>转发器频率偏移：{0:n0} Hz · {1}</value></data>
+  <data name="FrequencyControl.Inverting" xml:space="preserve"><value>反相</value></data>
+  <data name="FrequencyControl.NonInverting" xml:space="preserve"><value>非反相</value></data>
+  <data name="FrequencyControl.ManualCorrection" xml:space="preserve"><value>手动修正：{0:+0;-0;0} Hz</value></data>
+  <data name="FrequencyControl.EditDownlinkBase" xml:space="preserve"><value>编辑下行基准频率</value></data>
+  <data name="FrequencyControl.EditUplinkBase" xml:space="preserve"><value>编辑上行基准频率</value></data>
+  <data name="Column.GroupViewPanel.columnHeader1" xml:space="preserve"><value>名称</value></data>
+  <data name="Column.GroupViewPanel.columnHeader2" xml:space="preserve"><value>NORAD 编号</value></data>
+  <data name="Column.GroupViewPanel.columnHeader3" xml:space="preserve"><value>下次过境</value></data>
+  <data name="Column.GroupViewPanel.columnHeader4" xml:space="preserve"><value>最大仰角</value></data>
+  <data name="Menu.GroupViewPanel.SatelliteDetailsMNU" xml:space="preserve"><value>卫星详情…</value></data>
+  <data name="GroupView.GroupName" xml:space="preserve"><value>卫星分组：{0}</value></data>
+  <data name="GroupView.Now" xml:space="preserve"><value>过境中</value></data>
+  <data name="GroupView.Unavailable" xml:space="preserve"><value>无</value></data>
+  <data name="Control.SkyViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>实时</value></data>
+  <data name="Control.SkyViewPanel.OrbitRadioBtn" xml:space="preserve"><value>选定轨道</value></data>
+  <data name="SkyView.SelectedOrbit" xml:space="preserve"><value>选定轨道</value></data>
+  <data name="SkyView.OrbitNumber" xml:space="preserve"><value>{1} · 第 {0} 圈轨道</value></data>
+  <data name="Control.EarthViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>实时</value></data>
+  <data name="Control.EarthViewPanel.PassRadioBtn" xml:space="preserve"><value>选定过境</value></data>
+  <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>网站</value></data>
+  <data name="Control.SatelliteDetailsPanel.ImageLabel" xml:space="preserve"><value>图片</value></data>
+  <data name="SatelliteDetails.Aka" xml:space="preserve"><value>别名：{0}</value></data>
+  <data name="Menu.WaterfallPanel.SelectTransmitterMNU" xml:space="preserve"><value>选择转发器或信标</value></data>
+  <data name="Menu.WaterfallPanel.AddToGroupMNU" xml:space="preserve"><value>添加到分组</value></data>
+  <data name="Menu.WaterfallPanel.ReportToAmsatMNU" xml:space="preserve"><value>向 AMSAT 报告…</value></data>
+  <data name="Menu.WaterfallPanel.satelliteDetailsToolStripMenuItem" xml:space="preserve"><value>卫星详情…</value></data>
+  <data name="AutoSelection.TooltipToggle" xml:space="preserve"><value>开启或关闭当前分组的自动卫星选择</value></data>
+  <data name="AutoSelection.TooltipEdit" xml:space="preserve"><value>编辑当前分组的过境自动选择计划</value></data>
+  <data name="AutoSelection.StoppedOnClose" xml:space="preserve"><value>自动卫星选择面板已关闭，自动选择已停止。</value></data>
 </root>
