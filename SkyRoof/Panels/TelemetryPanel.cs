@@ -67,6 +67,16 @@ namespace SkyRoof
     internal void SetIqReplayActive(bool active)
     {
       if (replayIqActive == active) return;
+      // A live SDR PLL/framer must not continue from its old state into
+      // historical WAV samples; likewise clear replay state on resume.
+      if (Decoder != null)
+      {
+        Decoder.Purge();
+        var prior = Decoder;
+        Decoder = null;
+        CurrentDecode = null;
+        prior.Dispose();
+      }
       replayIqActive = active;
       UpdateTxStatus();
     }
@@ -3239,7 +3249,13 @@ namespace SkyRoof
 
     internal void ProcessSamples(DataEventArgs<Complex32> e)
     {
-      if (ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
+      if (!replayIqActive && ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
+        Decoder?.StartProcessing(e);
+    }
+
+    internal void ProcessReplaySamples(DataEventArgs<Complex32> e)
+    {
+      if (replayIqActive && ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
         Decoder?.StartProcessing(e);
     }
 
