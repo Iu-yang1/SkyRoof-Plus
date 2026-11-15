@@ -110,7 +110,7 @@ public sealed class UiLocalizationResourceCoverageTests
       ["Control.FrequencyWidget.label3"] = "多普勒",
       ["Control.GainWidget.label1"] = "RF 增益",
       ["Control.RotatorWidget.TrackCheckbox"] = "跟踪",
-      ["Control.SatelliteSelectorWidget.label3"] = "转发器/信标",
+      ["Control.SatelliteSelectorWidget.label3"] = "载荷",
       ["FrequencyWidget.Terrestrial"] = "地面信号",
       ["FrequencyWidget.StopTx"] = "停止发射",
       ["FrequencyWidget.EnableCtcss"] = "启用 CTCSS 亚音编码",
