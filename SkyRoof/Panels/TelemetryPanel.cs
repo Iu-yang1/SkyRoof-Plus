@@ -968,10 +968,21 @@ namespace SkyRoof
           var voice = Decoder.Voice;
           bool unne = snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
             snapshot.SignalParams.Framing == Framing.HADES;
+          var asrtuTransport = snapshot.Satellite?.norad_cat_id == 61781 &&
+            snapshot.SignalParams.Framing == Framing.CCSDS &&
+            snapshot.Transmitter?.downlink_low == 435400000
+              ? new AsrtuTmShortKissTransport() : null;
           // The vendored HADES deframer contains only HADES-SA packet layouts.
           // UNNE-1B's soft symbols must use its own type-C packet table/CRC.
           if (!unne)
-            Decoder.Pipeline.FrameDecoded += frame => FrameDecodedHandler(frame, snapshot, images, voice, pushed);
+            Decoder.Pipeline.FrameDecoded += frame =>
+            {
+              // Preserve the original CCSDS transfer-frame evidence.
+              FrameDecodedHandler(frame, snapshot, images, voice, pushed);
+              if (asrtuTransport != null)
+                foreach (Frame packet in asrtuTransport.Push(frame))
+                  FrameDecodedHandler(packet, snapshot, images, voice, pushed);
+            };
           Decoder.Pipeline.BurstDecoded += report =>
           {
             if (unne)
@@ -1815,8 +1826,19 @@ namespace SkyRoof
       string geo = "";
       if (snapshot.SignalParams.Framing == Framing.GEOSCAN)
         geo = string.Join("", GeoscanHeader.Describe(frame.Bytes).Select(f => $"  {f.Name}: {f.Value}\n"));
-      else if (snapshot.SignalParams.Framing == Framing.CCSDS && snapshot.Satellite?.norad_cat_id == Asrtu1Header.NoradId)
-        geo = string.Join("", Asrtu1Header.Describe(frame.Bytes).Select(f => $"  {f.Name}: {f.Value}\n"));
+      else if (snapshot.SignalParams.Framing == Framing.CCSDS &&
+               snapshot.Satellite?.norad_cat_id == Asrtu1Header.NoradId)
+      {
+        geo = frame.Note?.StartsWith("AO-123 packet VC", StringComparison.Ordinal) == true
+          ? string.Join("", AsrtuTmShortKissTransport.DescribeSpacePacket(frame.Bytes)
+              .Select(f => $"  {f.Name}: {f.Value}\n"))
+          : string.Join("", Asrtu1Header.Describe(frame.Bytes)
+              .Select(f => $"  {f.Name}: {f.Value}\n"));
+      }
+      else if (snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
+               snapshot.SignalParams.Framing == Framing.HADES)
+        geo = string.Join("", Unne1bTelemetry.Describe(frame.Bytes)
+          .Select(f => $"  {f.Name}: {f.Value}\n"));
 
       // an SSDV packet carries a CRC-32 and RS of its own, and the framings that carry it — HADES, AO-40
       // FEC — carry no frame CRC at all, so the "CRC:" line below reads "n/a" on precisely the frames whose
