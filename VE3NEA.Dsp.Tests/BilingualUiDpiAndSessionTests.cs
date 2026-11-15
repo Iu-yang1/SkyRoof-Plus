@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using MathNet.Numerics;
 using SkyRoof;
 using SkyRoof.SSTV;
+using VE3NEA.SkyTlm.Core;
 using Xunit;
 
 namespace VE3NEA.Dsp.Tests;
@@ -200,6 +201,37 @@ public sealed class BilingualUiDpiAndSessionTests
       }
       finally { UiLocalizationService.Apply(before); }
     });
+  }
+
+  [Fact]
+  public void LiveAo123KissDecoderKeepsPartialFrameAcrossLocaleChanges()
+  {
+    // The actual TM-short KISS transport holds per-VC packet state between
+    // transfer frames. A localization event must not clear its pending data.
+    UiLanguage before = SettingsLanguage.Current;
+    try
+    {
+      var decoder = new AsrtuTmShortKissTransport();
+      static Frame Transfer(params byte[] data)
+      {
+        byte[] frame = new byte[5 + data.Length];
+        Array.Copy(data, 0, frame, 5, data.Length);
+        return new Frame
+        {
+          Bytes = frame, Framing = Framing.CCSDS, CrcValid = true
+        };
+      }
+
+      Assert.Empty(decoder.Push(Transfer(0xC0, 0x00, 0x31)).ToArray());
+      UiLocalizationService.Apply(UiLanguage.English);
+      Assert.Empty(decoder.Push(Transfer(0x32)).ToArray());
+      UiLocalizationService.Apply(UiLanguage.SimplifiedChinese);
+      var frames = decoder.Push(Transfer(0x33, 0xC0)).ToArray();
+      Assert.Single(frames);
+      Assert.Equal(new byte[] { 0x00, 0x31, 0x32, 0x33 }, frames[0].Bytes);
+      Assert.Null(frames[0].CrcValid);
+    }
+    finally { UiLocalizationService.Apply(before); }
   }
 
   [Fact]
