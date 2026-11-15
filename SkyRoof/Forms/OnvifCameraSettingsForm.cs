@@ -20,13 +20,13 @@ namespace SkyRoof
     private readonly ComboBox profiles = new()
     { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
     private readonly TextBox mpvPath = new() { Dock = DockStyle.Fill };
-    private readonly CheckBox autoConnect = new() { Text = "Connect when window opens", AutoSize = true };
-    private readonly CheckBox autoPlay = new() { Text = "Start video automatically", AutoSize = true };
-    private readonly CheckBox autoReconnect = new() { Text = "Reconnect after playback interruption", AutoSize = true };
-    private readonly CheckBox media2 = new() { Text = "Prefer ONVIF Media2 (fallback Media1)", AutoSize = true };
+    private readonly CheckBox autoConnect = new() { Text = UiLocalizationService.Get("Onvif.SetAutoConnect"), AutoSize = true };
+    private readonly CheckBox autoPlay = new() { Text = UiLocalizationService.Get("Onvif.SetAutoPlay"), AutoSize = true };
+    private readonly CheckBox autoReconnect = new() { Text = UiLocalizationService.Get("Onvif.SetAutoReconnect"), AutoSize = true };
+    private readonly CheckBox media2 = new() { Text = UiLocalizationService.Get("Onvif.SetMedia2"), AutoSize = true };
     private readonly Label feedback = new()
     { AutoSize = false, Dock = DockStyle.Fill, Height = 48, AutoEllipsis = true,
-      Text = "Select a camera or enter its ONVIF Device Service address." };
+      Text = UiLocalizationService.Get("Onvif.SetHint") };
     private CancellationTokenSource? operations;
 
     internal OnvifCameraSettings Result => edited.Clone();
@@ -34,7 +34,7 @@ namespace SkyRoof
     internal OnvifCameraSettingsForm(OnvifCameraSettings current)
     {
       edited = current.Clone();
-      Text = "ONVIF Camera Settings";
+      Text = UiLocalizationService.Get("Onvif.SettingsTitle");
       StartPosition = FormStartPosition.CenterParent;
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(760, 560);
@@ -74,23 +74,23 @@ namespace SkyRoof
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 154));
       layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-      AddRow(layout, "Camera name", cameraName);
-      var discover = MakeRow(devices, Button("Discover", DiscoverAsync));
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetName"), cameraName);
+      var discover = MakeRow(devices, Button(UiLocalizationService.Get("Onvif.SetDiscover"), DiscoverAsync));
       devices.SelectedIndexChanged += (_, _) =>
       {
         if (devices.SelectedItem is DeviceOption chosen)
           endpoint.Text = chosen.Device.Endpoint;
       };
-      AddRow(layout, "Device", discover);
-      AddRow(layout, "Device service", endpoint);
-      AddRow(layout, "Username", user);
-      AddRow(layout, "Password", password);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetDevice"), discover);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetService"), endpoint);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetUsername"), user);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetPassword"), password);
 
-      var profileRow = MakeRow(profiles, Button("Get profiles", GetProfilesAsync));
-      AddRow(layout, "Video profile", profileRow);
+      var profileRow = MakeRow(profiles, Button(UiLocalizationService.Get("Onvif.SetProfiles"), GetProfilesAsync));
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetVideoProfile"), profileRow);
 
-      var playerRow = MakeRow(mpvPath, Button("Browse", BrowsePlayerAsync));
-      AddRow(layout, "Player", playerRow);
+      var playerRow = MakeRow(mpvPath, Button(UiLocalizationService.Get("Onvif.SetBrowse"), BrowsePlayerAsync));
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetPlayer"), playerRow);
 
       var preferences = new FlowLayoutPanel
       {
@@ -101,18 +101,18 @@ namespace SkyRoof
       preferences.Controls.Add(autoConnect);
       preferences.Controls.Add(autoPlay);
       preferences.Controls.Add(autoReconnect);
-      AddRow(layout, "Playback", preferences);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetPlayback"), preferences);
 
       feedback.ForeColor = SystemColors.GrayText;
-      AddRow(layout, "Status", feedback);
+      AddRow(layout, UiLocalizationService.Get("Onvif.SetStatus"), feedback);
 
       var actions = new FlowLayoutPanel
       {
         Dock = DockStyle.Bottom, Height = 56,
         FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(10, 9, 16, 8)
       };
-      var save = new Button { Text = "Save", Width = 100, Height = 30 };
-      var cancel = new Button { Text = "Cancel", Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+      var save = new Button { Text = UiLocalizationService.Get("Common.Save"), Width = 100, Height = 30 };
+      var cancel = new Button { Text = UiLocalizationService.Get("Common.Cancel"), Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
       save.Click += (_, _) => Save();
       actions.Controls.Add(save);
       actions.Controls.Add(cancel);
@@ -164,14 +164,14 @@ namespace SkyRoof
       {
         button.Enabled = false;
         try { await action(); }
-        catch (OperationCanceledException) { feedback.Text = "Operation cancelled."; }
+        catch (OperationCanceledException) { feedback.Text = UiLocalizationService.Get("Onvif.SetCancelled"); }
         catch (Exception ex)
         {
           // Do not log exception messages: SOAP/RTSP errors can include
           // authenticated URLs and embedded camera credentials.
           Serilog.Log.Warning("ONVIF operation failed ({ExceptionType})",
             ex.GetType().Name);
-          feedback.Text = "Connection failed. Check camera address, permissions and credentials.";
+          feedback.Text = UiLocalizationService.Get("Onvif.SetConnectionFailed");
         }
         finally { if (!IsDisposed) button.Enabled = true; }
       };
@@ -188,24 +188,24 @@ namespace SkyRoof
 
     private async Task DiscoverAsync()
     {
-      feedback.Text = "Discovering ONVIF devices on active IPv4 adapters...";
+      feedback.Text = UiLocalizationService.Get("Onvif.SetDiscovering");
       var found = await OnvifDiscovery.ProbeWithDiagnosticsAsync(BeginOperation());
       if (IsDisposed) return;
       devices.Items.Clear();
       foreach (var device in found.Devices) devices.Items.Add(new DeviceOption(device));
       if (devices.Items.Count > 0) devices.SelectedIndex = 0;
       feedback.Text = found.Devices.Count > 0
-        ? $"{found.Devices.Count} ONVIF endpoint(s) on {found.InterfacesProbed} adapter(s)."
-        : $"No ONVIF replies ({found.InterfacesProbed} adapters, " +
-          $"{found.ResponsePackets} UDP packets). Check UDP 3702/firewall, " +
-          "or enter an HTTP ONVIF Device Service address (not RTSP port 554).";
+        ? UiLocalizationService.Format("Onvif.SetFound",
+            found.Devices.Count, found.InterfacesProbed)
+        : UiLocalizationService.Format("Onvif.SetNotFound",
+            found.InterfacesProbed, found.ResponsePackets);
     }
 
     private async Task GetProfilesAsync()
     {
       string error = OnvifCameraSettings.ValidateEndpoint(endpoint.Text);
       if (error.Length != 0) { feedback.Text = error; return; }
-      feedback.Text = "Querying Media1 / Media2 profiles...";
+      feedback.Text = UiLocalizationService.Get("Onvif.SetQueryProfiles");
       using var client = new OnvifProtocolClient(
         endpoint.Text.Trim(), user.Text.Trim(), password.Text);
       var found = await client.GetProfilesAsync(BeginOperation());
@@ -216,13 +216,14 @@ namespace SkyRoof
         found, edited.PreferredProfileToken, media2.Checked);
       int index = found.ToList().IndexOf(preferred);
       if (index >= 0) profiles.SelectedIndex = index;
-      feedback.Text = $"{found.Count} ONVIF profile(s). Choose the default stream.";
+      feedback.Text = UiLocalizationService.Format("Onvif.SetProfileCount", found.Count);
     }
 
     private Task BrowsePlayerAsync()
     {
       using var chooser = new OpenFileDialog
-      { Title = "Select mpv.exe", Filter = "mpv player (mpv.exe)|mpv.exe|Executables (*.exe)|*.exe" };
+      { Title = UiLocalizationService.Get("Onvif.SetSelectMpv"),
+        Filter = UiLocalizationService.Get("Onvif.SetMpvFilter") };
       if (chooser.ShowDialog(this) == DialogResult.OK) mpvPath.Text = chooser.FileName;
       return Task.CompletedTask;
     }
@@ -232,7 +233,7 @@ namespace SkyRoof
       string error = OnvifCameraSettings.ValidateEndpoint(endpoint.Text);
       if (error.Length != 0)
       {
-        MessageBox.Show(this, error, "Invalid ONVIF address",
+        MessageBox.Show(this, error, UiLocalizationService.Get("Onvif.SetInvalidAddress"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
         endpoint.Focus();
         return;
