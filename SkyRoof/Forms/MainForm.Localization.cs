@@ -151,7 +151,8 @@ namespace SkyRoof
         if (panel is TelemetryPanel telemetry) telemetry.RefreshLocalizedUi();
         if (panel is AutoSelectionPanel autoSelection) autoSelection.UpdateStatus();
         if (panel is Ft4ConsolePanel ft4Panel) ft4Panel.RefreshLocalizedUi();
-
+        if (panel is QsoSchedulerPanel scheduler) scheduler.RefreshLocalizedUi();
+        if (panel is TransmittersPanel transmitters) transmitters.RefreshLocalizedUi();
       });
     }
   }
