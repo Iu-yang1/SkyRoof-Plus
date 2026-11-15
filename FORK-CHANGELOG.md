@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.77 / SkyRoof Plus 1.77 中文资源安装修复
+
+## v1.77 — 2026-11-15
+
+- 修复已安装的 v.1.76 在选择简体中文后主窗口仍为英文：Inno Setup 遗漏 `zh-CN/SkyRoof.resources.dll`，导致 .NET UI 资源回退英文。
+- 将中文卫星资源 DLL 打包到正确的 `{app}/zh-CN`；在安装后测试中检查文件 SHA-256 以及菜单和面板的中/英文实际 `ResourceManager` 查找。
+- 仅修改安装包、安装后冒烟测试与版本发布元数据，保留 CAT/PTT、旋转器、遥测与录音功能；保留独立 `v.1.76` 标签和安装包。
+- 本次新版本 Release 的完整测试状态以 GitHub Actions 为准；无实机、物理 DPI 和全部 WinForms 窗口的图像验收。
+- 缺少 SignPath 时安装包为明确披露的 NotSigned，继续核验 SHA-256。
+
+**English:** v1.77 fixes missing Chinese satellite resource assemblies in the v1.76 Inno Setup payload. Installed-runtime resource resolution and per-file hash checks now block regressions. The patch does not alter radio, DSP or rotator logic.
+
+---
+
 # SkyRoof Fork v.1.76 / SkyRoof Plus 1.76 遥测与双语迭代
 
 ## v1.76 — 2026-11-15
