@@ -224,6 +224,8 @@ namespace SkyRoof
       BuildTxTab();
       BuildHistoryTab();
       BuildQsoTab();
+      SetRxStatus("Sstv.StatusRxIdle");
+      SetTxStatus("Sstv.StatusTxIdle");
       foreach (SstvTxModeProfile mode in SstvTxModeProfile.All)
         modeBox.Items.Add(mode);
       modeBox.DisplayMember = nameof(SstvTxModeProfile.Name);
@@ -248,6 +250,18 @@ namespace SkyRoof
       {
         "己方呼号", "对方呼号", "自定义文字"
       });
+      textLayerBox.FormattingEnabled = true;
+      textLayerBox.Format += (_, e) =>
+      {
+        if (e.ListItem is not string value) return;
+        e.Value = value switch
+        {
+          "己方呼号" => UiLocalizationService.Get("Sstv.TextLayerMy"),
+          "对方呼号" => UiLocalizationService.Get("Sstv.TextLayerTheir"),
+          "自定义文字" => UiLocalizationService.Get("Sstv.TextLayerCustom"),
+          _ => value
+        };
+      };
       textLayerBox.SelectedIndex = 0;
       textLayerBox.SelectedIndexChanged += (_, _) => UpdateTextEditorControls();
       foreach (var variable in SstvTextMacros.Catalog)

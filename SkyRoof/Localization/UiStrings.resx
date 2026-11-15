@@ -468,4 +468,9 @@ Center = STOP</value></data>
   <data name="SignalParams.TriAuto" xml:space="preserve"><value>Auto</value></data>
   <data name="SignalParams.TriOn" xml:space="preserve"><value>On</value></data>
   <data name="SignalParams.TriOff" xml:space="preserve"><value>Off</value></data>
+  <data name="Sstv.StatusRxIdle" xml:space="preserve"><value>Waiting for SSTV image</value></data>
+  <data name="Sstv.StatusTxIdle" xml:space="preserve"><value>Choose a picture and mode to export SSTV audio</value></data>
+  <data name="Sstv.TextLayerMy" xml:space="preserve"><value>My callsign</value></data>
+  <data name="Sstv.TextLayerTheir" xml:space="preserve"><value>Their callsign</value></data>
+  <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>Custom text</value></data>
 </root>

@@ -468,4 +468,9 @@
   <data name="SignalParams.TriAuto" xml:space="preserve"><value>自动</value></data>
   <data name="SignalParams.TriOn" xml:space="preserve"><value>开</value></data>
   <data name="SignalParams.TriOff" xml:space="preserve"><value>关</value></data>
+  <data name="Sstv.StatusRxIdle" xml:space="preserve"><value>等待接收图像</value></data>
+  <data name="Sstv.StatusTxIdle" xml:space="preserve"><value>选择图片和模式，即可保存 SSTV 音频</value></data>
+  <data name="Sstv.TextLayerMy" xml:space="preserve"><value>己方呼号</value></data>
+  <data name="Sstv.TextLayerTheir" xml:space="preserve"><value>对方呼号</value></data>
+  <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>自定义文字</value></data>
 </root>
