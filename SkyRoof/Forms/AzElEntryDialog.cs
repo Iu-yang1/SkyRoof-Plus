@@ -9,6 +9,7 @@ namespace SkyRoof
     public AzElEntryDialog()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
     public void Open(Context ctx)
@@ -48,8 +49,8 @@ namespace SkyRoof
 
       Text =
         manualEnabled
-          ? "Manual Rotator Control"
-          : "Manual Rotator Control — locked during live tracking";
+          ? UiLocalizationService.Get("AzEl.Title")
+          : UiLocalizationService.Get("AzEl.TrackingLocked");
     }
 
     private void StartRotation()
