@@ -801,11 +801,19 @@ namespace SkyRoof
     {
       Task<Task>? audioWorkerExit = MonitorAudioWorkers(
         AudioLinkConnected, AudioTxReady, audioDrain, audioKeepAlive, audioTransmit);
-      Task<UdpReceiveResult> controlReceive = control.ReceiveAsync(token).AsTask();
-      Task<UdpReceiveResult> civReceive = civ.ReceiveAsync(token).AsTask();
+      // Cancel and observe both UDP receive tasks before attempting to
+      // consume a correlated logout reply on the same control socket.
+      using var readerLifetime =
+        CancellationTokenSource.CreateLinkedTokenSource(token);
+      Task<UdpReceiveResult> controlReceive =
+        control.ReceiveAsync(readerLifetime.Token).AsTask();
+      Task<UdpReceiveResult> civReceive =
+        civ.ReceiveAsync(readerLifetime.Token).AsTask();
       using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
       Task<bool> tick = timer.WaitForNextTickAsync(token).AsTask();
 
+      try
+      {
       while (!token.IsCancellationRequested)
       {
         Task completed = audioWorkerExit == null
@@ -828,7 +836,7 @@ namespace SkyRoof
             result.Buffer,
             token);
 
-          controlReceive = control.ReceiveAsync(token).AsTask();
+          controlReceive = control.ReceiveAsync(readerLifetime.Token).AsTask();
         }
         else if (completed == civReceive)
         {
@@ -839,7 +847,7 @@ namespace SkyRoof
             result.Buffer,
             token);
 
-          civReceive = civ.ReceiveAsync(token).AsTask();
+          civReceive = civ.ReceiveAsync(readerLifetime.Token).AsTask();
         }
         else
         {
@@ -852,6 +860,21 @@ namespace SkyRoof
             token);
 
           tick = timer.WaitForNextTickAsync(token).AsTask();
+        }
+      }
+      }
+      finally
+      {
+        readerLifetime.Cancel();
+        try
+        {
+          await Task.WhenAll(controlReceive, civReceive)
+            .WaitAsync(TimeSpan.FromMilliseconds(500));
+        }
+        catch (OperationCanceledException) when (readerLifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+          Log.Debug(ex, "Direct LAN receive readers stopped during media teardown");
         }
       }
     }
@@ -876,6 +899,26 @@ namespace SkyRoof
       await PollMetersAsync(civ, now, token);
       await PollModInputAsync(civ, now, token);
       ReportAudioDiagnostics(now);
+
+      if (AudioLinkConnected && AudioTxReady && AudioOptions.Transmit.Enabled &&
+          AudioHeartbeat.HasGoneStale(
+            now.Ticks, Interlocked.Read(ref AudioConnectedTicks),
+            Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12)))
+      {
+        if (!AudioHeartbeatStale)
+        {
+          AudioHeartbeatStale = true;
+          Log.Warning(
+            "Direct LAN TX audio remote heartbeat STALE: no correlated radio Audio UDP ping for 12s; TX sent={Sent}, pong={Pongs}. Recovery will occur after CAT PTT releases.",
+            Interlocked.Read(ref AudioTxDatagrams), AudioHeartbeat.MatchedReplies);
+          Publish("Direct LAN TX audio: remote media heartbeat lost; release PTT to recover authenticated audio/CI-V session.");
+        }
+        // Do not interrupt an ongoing PTT transmission, even if radio
+        // audio has stopped accepting packets. Reconnect once unkeyed.
+        if (IsPttActive?.Invoke() != true)
+          throw new IOException(
+            "Direct LAN TX audio remote heartbeat expired; renewing authenticated media.");
+      }
 
       DateTime lastSweepUtc = new DateTime(
         Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
@@ -1011,6 +1054,11 @@ namespace SkyRoof
           AudioOptions.Transmit.CaptureBufferMs,
           AudioOptions.Transmit.JitterPrefillMs,
           AudioOptions.Transmit.JitterMaximumMs);
+        Log.Information(
+          "Direct LAN TX remote UDP heartbeat: confirmed={Confirmed} correlatedPongs={Pongs} lastRemoteUtcTicks={Ticks} stale={Stale}",
+          AudioHeartbeat.LastRemoteTicks > 0,
+          AudioHeartbeat.MatchedReplies,
+          AudioHeartbeat.LastRemoteTicks, AudioHeartbeatStale);
         Log.Information(
           "Direct LAN TX modulation source: {Status}", ModInputState.Description);
         Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
@@ -2133,23 +2181,27 @@ namespace SkyRoof
     {
       if (packet.Length > IcomLanLpcmAudioCodec.HeaderBytes)
         Interlocked.Increment(ref AudioRxDatagrams);
-          if (packet.Length == 21 &&
-              BinaryPrimitives.ReadUInt16LittleEndian(
-                packet.AsSpan(4, 2)) == 0x0007 &&
-              BinaryPrimitives.ReadUInt32BigEndian(
-                packet.AsSpan(8, 4)) == AudioRemoteSid &&
-              BinaryPrimitives.ReadUInt32BigEndian(
-                packet.AsSpan(12, 4)) == AudioLocalSid &&
-              packet[16] == 0x00)
-          {
-            byte[] reply = packet.ToArray();
-            reply[16] = 0x01;
-            WriteSid(reply, 8, AudioLocalSid);
-            WriteSid(reply, 12, AudioRemoteSid);
-            await SendAudioRawAsync(audio, reply, token);
-            return;
-          }
 
+      if (packet.Length == 21 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2)) == 0x0007)
+      {
+        bool confirmed = AudioHeartbeat.Observe(
+          packet, AudioLocalSid, AudioRemoteSid, DateTime.UtcNow.Ticks);
+        if (confirmed && packet[16] == 0x00)
+        {
+          byte[] reply = packet.ToArray();
+          reply[16] = 0x01;
+          WriteSid(reply, 8, AudioLocalSid);
+          WriteSid(reply, 12, AudioRemoteSid);
+          await SendAudioRawAsync(audio, reply, token);
+        }
+        return;
+      }
+
+      if (packet.Length == 16 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2)) == 0x0005 &&
+          MatchesControlEnvelope(packet, AudioLocalSid, AudioRemoteSid))
+        throw new IOException("Radio explicitly disconnected the authenticated audio UDP stream.");
           if (packet.Length == 16 &&
               BinaryPrimitives.ReadUInt16LittleEndian(
                 packet.AsSpan(4, 2)) == 0x0001 &&
@@ -2376,11 +2428,13 @@ namespace SkyRoof
         ping.AsSpan(6, 2), AudioPingSeq++);
       WriteSid(ping, 8, AudioLocalSid);
       WriteSid(ping, 12, AudioRemoteSid);
-      ping[17] = RandomNumberGenerator.GetBytes(1)[0];
-      ping[18] = (byte)AudioPingInnerSeq;
-      ping[19] = (byte)(AudioPingInnerSeq >> 8);
+      byte nonce = RandomNumberGenerator.GetBytes(1)[0];
+      ushort innerSequence = AudioPingInnerSeq++;
+      ping[17] = nonce;
+      ping[18] = (byte)innerSequence;
+      ping[19] = (byte)(innerSequence >> 8);
       ping[20] = 0x06;
-      AudioPingInnerSeq++;
+      AudioHeartbeat.RecordSent(innerSequence, nonce);
       await SendAudioRawAsync(audio, ping, token);
     }
 
