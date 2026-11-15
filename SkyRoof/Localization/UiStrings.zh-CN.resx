@@ -764,4 +764,11 @@
   <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>SkyCAT CAT TCP 端口无效，请在频谱设置中填写 1–65535。</value></data>
   <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>保存已修改的卫星分组？</value></data>
   <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>仅可将仍在轨且正常工作的卫星添加到分组。</value></data>
+  <data name="Telemetry.CombineImage" xml:space="preserve"><value>合并此前过境的图像</value></data>
+  <data name="Telemetry.AudioRxStatus" xml:space="preserve"><value> | 接收：{0}</value></data>
+  <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | 接收异常：{0}</value></data>
+  <data name="Telemetry.SavedOverride" xml:space="preserve"><value>已保存到 transmitters-override.json。</value></data>
+  <data name="Telemetry.FailedOverride" xml:space="preserve"><value>无法保存自定义参数：{0}</value></data>
+  <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>请先设置本台呼号，再启用 FT4 发射。</value></data>
+  <data name="Settings.InvalidValue" xml:space="preserve"><value>{0} 的值无效：“{1}”</value></data>
 </root>
