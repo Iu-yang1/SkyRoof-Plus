@@ -1,12 +1,10 @@
-﻿using System.Reflection.Emit;
-using Serilog;
+﻿using Serilog;
 using SGPdotNET.Observation;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.Util;
 using VE3NEA;
 using VE3NEA.Clock;
 using WeifenLuo.WinFormsUI.Docking;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace SkyRoof
 {
@@ -32,6 +30,30 @@ namespace SkyRoof
     private readonly Context ctx = null!;
     private bool changing;
     private List<ListViewItem> Items = new();
+    private CancellationTokenSource? predictionCancellation;
+    private bool canceledByInputChange;
+    private string statusKey = "QsoScheduler.Ready";
+    private object?[] statusArgs = [];
+
+    internal bool IsPredictionRunning => predictionCancellation != null;
+
+    private readonly record struct PredictionRequest(
+      SatnogsDbSatellite Satellite, string MySquare, double MyAltitudeMeters,
+      string DxSquare, DateTime StartUtc, DateTime EndUtc);
+
+    private readonly record struct PredictionProgress(int Percent, string StageKey);
+
+    internal static bool HasValidRange(DateTime startUtc, DateTime endUtc) =>
+      endUtc > startUtc;
+
+    internal static bool TryCommonWindow(
+      DateTime myStart, DateTime myEnd, DateTime dxStart, DateTime dxEnd,
+      DateTime rangeStart, DateTime rangeEnd, out DateTime start, out DateTime end)
+    {
+      start = new[] { myStart, dxStart, rangeStart }.Max();
+      end = new[] { myEnd, dxEnd, rangeEnd }.Min();
+      return end - start >= TimeSpan.FromSeconds(30);
+    }
 
     private readonly Font BoldFont;
     private readonly Pen PathPen = new Pen(Theme.Now, 2);
@@ -39,6 +61,7 @@ namespace SkyRoof
     public QsoSchedulerPanel()
     {
       InitializeComponent();
+      InitializeTimeRange();
     }
 
     public QsoSchedulerPanel(Context ctx)
@@ -46,6 +69,7 @@ namespace SkyRoof
       Log.Information("Creating QsoScheduler");
       this.ctx = ctx;
       InitializeComponent();
+      InitializeTimeRange();
 
       ctx.QsoSchedulerPanel = this;
       ctx.MainForm.QsoSchedulerMNU.Checked = true;
@@ -59,8 +83,25 @@ namespace SkyRoof
       SetSatelliteList();
     }
 
+    private void InitializeTimeRange()
+    {
+      // DateTimePicker is a wall-clock editor: explicitly interpret both
+      // displayed values as UTC, never as the Windows local time zone.
+      var utc = DateTime.UtcNow;
+      var minute = new DateTime(utc.Year, utc.Month, utc.Day,
+        utc.Hour, utc.Minute, 0, DateTimeKind.Unspecified);
+      changing = true;
+      StartUtcPicker.Value = minute;
+      EndUtcPicker.Value = minute.AddDays(14);
+      changing = false;
+      CalculationProgress.Visible = false;
+      SetStatus("QsoScheduler.Ready");
+      RefreshActionState();
+    }
+
     private void QsoScheduler_FormClosing(object sender, FormClosingEventArgs e)
     {
+      predictionCancellation?.Cancel();
       Log.Information("Closing QsoScheduler");
       ctx.QsoSchedulerPanel = null;
       ctx.MainForm.QsoSchedulerMNU.Checked = false;
@@ -71,12 +112,44 @@ namespace SkyRoof
       bool ok = GridSquare.IsValid(DxSquareEdit.Text.Trim());
       DxSquareEdit.BackColor = ok ? SystemColors.Window : Color.FromArgb(0xFF, 0xDD, 0xDD);
 
-      UpdatePredictions();
+      if (!changing) UpdatePredictions();
     }
 
     private void SatelliteComboBox_SelectedIndexChanged(object sender, EventArgs e)
     {
-      UpdatePredictions();
+      if (!changing) UpdatePredictions();
+    }
+
+    private void RangePicker_ValueChanged(object sender, EventArgs e)
+    {
+      if (!changing) UpdatePredictions();
+    }
+
+    private void CalculateButton_Click(object sender, EventArgs e)
+    {
+      if (predictionCancellation != null)
+      {
+        predictionCancellation.Cancel();
+        canceledByInputChange = false;
+        SetStatus("QsoScheduler.Cancelling");
+        RefreshActionState();
+        return;
+      }
+
+      if (!TryCreateRequest(out var request))
+      {
+        RefreshActionState();
+        return;
+      }
+
+      var cancellation = new CancellationTokenSource();
+      predictionCancellation = cancellation;
+      canceledByInputChange = false;
+      CalculationProgress.Value = 0;
+      CalculationProgress.Visible = true;
+      SetStatus("QsoScheduler.ProgressMe", 0);
+      RefreshActionState();
+      _ = RunPredictionAsync(request, cancellation);
     }
 
     private void PredictionList_Resize(object sender, EventArgs e)
@@ -101,98 +174,234 @@ namespace SkyRoof
 
     internal void RefreshLocalizedUi()
     {
-      // The list is owner-drawn: changing static labels is not enough to
-      // repaint localized time ranges and elevation summaries.
+      // Relabel only. A locale change must never start or cancel an orbit search.
+      RefreshActionState();
+      RenderStatus();
       PredictionList.Invalidate();
     }
 
     public void SetSatelliteList()
     {
-      SatelliteComboBox.Items.Clear();
-      SatelliteComboBox.Items.AddRange(ctx.SatelliteSelector.GroupSatellites);
+      string? selectedId = (SatelliteComboBox.SelectedItem as SatnogsDbSatellite)?.sat_id;
+      changing = true;
+      try
+      {
+        SatelliteComboBox.Items.Clear();
+        SatelliteComboBox.Items.AddRange(ctx.SatelliteSelector.GroupSatellites);
+        if (selectedId != null)
+          for (int i = 0; i < SatelliteComboBox.Items.Count; i++)
+            if ((SatelliteComboBox.Items[i] as SatnogsDbSatellite)?.sat_id == selectedId)
+            {
+              SatelliteComboBox.SelectedIndex = i;
+              break;
+            }
+      }
+      finally { changing = false; }
       UpdatePredictions();
     }
 
+    // Called by text/date/satellite edits and external orbit/site refreshes.
+    // Never perform an orbit prediction from a UI event.
     public void UpdatePredictions()
     {
-      Items.Clear();
-      PredictionList.VirtualListSize = 0;
-
-      bool ok = GridSquare.IsValid(DxSquareEdit.Text.Trim()) && SatelliteComboBox.SelectedIndex >= 0;
-
-      if (ok) ComputePredictions();
-
-      PredictionList.Invalidate();
-    }
-
-    private void ComputePredictions()
-    {
-      var satellite = SatelliteComboBox.SelectedItem as SatnogsDbSatellite;
-      if (satellite == null || satellite.Tracker == null || !satellite.Tracker.Enabled) return;
-
-      var now = DateTime.UtcNow;
-      var endTime = now + TimeSpan.FromDays(14);
-
-      // ground stations: me uses configured altitude, DX at sea level
-      var mySquare = ctx.Settings.User.Square;
-      var dxSquare = DxSquareEdit.Text.Trim();
-      var myStation = MakeStation(mySquare, ctx.Settings.User.Altitude);
-      var dxStation = MakeStation(dxSquare, 0);
-
-      // raw passes for both stations
-      bool geo = satellite.Tracker.IsGeoStationary();
-      List<SatelliteVisibilityPeriod> myVis, dxVis;
-      if (geo)
+      if (predictionCancellation != null)
       {
-        myVis = satellite.Tracker.ComputeGeostationaryPasses(myStation);
-        dxVis = satellite.Tracker.ComputeGeostationaryPasses(dxStation);
+        canceledByInputChange = true;
+        predictionCancellation.Cancel();
+        SetStatus("QsoScheduler.Cancelling");
       }
       else
       {
-        myVis = satellite.Tracker.ComputePasses(myStation, now, endTime);
-        dxVis = satellite.Tracker.ComputePasses(dxStation, now, endTime);
+        SetStatus("QsoScheduler.InputChanged");
       }
 
-      var myPasses = myVis.Select(p => new SatellitePass(myStation, satellite, p)).ToList();
-      var dxPasses = dxVis.Select(p => new SatellitePass(dxStation, satellite, p)).ToList();
+      Items.Clear();
+      PredictionList.VirtualListSize = 0;
+      PredictionList.Invalidate();
+      RefreshActionState();
+    }
 
-      // build overlapping passes
-      var minOverlap = TimeSpan.FromSeconds(30);
-      var overlaps = new List<OverlapPass>();
+    private bool TryCreateRequest(out PredictionRequest request)
+    {
+      request = default;
+      var satellite = SatelliteComboBox.SelectedItem as SatnogsDbSatellite;
+      if (satellite?.Tracker?.Enabled != true || ctx == null ||
+          !GridSquare.IsValid(DxSquareEdit.Text.Trim()) ||
+          !GridSquare.IsValid(ctx.Settings.User.Square))
+        return false;
 
-      foreach (var my in myPasses)
-        foreach (var dx in dxPasses)
+      DateTime startUtc = DateTime.SpecifyKind(StartUtcPicker.Value, DateTimeKind.Utc);
+      DateTime endUtc = DateTime.SpecifyKind(EndUtcPicker.Value, DateTimeKind.Utc);
+      if (!HasValidRange(startUtc, endUtc)) return false;
+
+      request = new PredictionRequest(satellite, ctx.Settings.User.Square,
+        ctx.Settings.User.Altitude, DxSquareEdit.Text.Trim(), startUtc, endUtc);
+      return true;
+    }
+
+    private void SetStatus(string key, params object?[] args)
+    {
+      statusKey = key;
+      statusArgs = args;
+      RenderStatus();
+    }
+
+    private void RenderStatus() =>
+      StatusLabel.Text = UiLocalizationService.Format(statusKey, statusArgs);
+
+    private void RefreshActionState()
+    {
+      bool running = predictionCancellation != null;
+      CalculateButton.Text = UiLocalizationService.Get(running
+        ? "QsoScheduler.Cancel" : "QsoScheduler.Calculate");
+      CalculateButton.Enabled = running
+        ? !predictionCancellation!.IsCancellationRequested
+        : TryCreateRequest(out _);
+    }
+
+    private async Task RunPredictionAsync(PredictionRequest request,
+      CancellationTokenSource cancellation)
+    {
+      try
+      {
+        // Progress<T> captures the WinForms synchronization context. No
+        // ListView, Label or ProgressBar is ever accessed by the worker.
+        var progress = new Progress<PredictionProgress>(step =>
         {
-          var start = my.StartTime > dx.StartTime ? my.StartTime : dx.StartTime;
-          var end = my.EndTime < dx.EndTime ? my.EndTime : dx.EndTime;
-          if (end - start < minOverlap) continue;
+          if (IsDisposed || Disposing || cancellation.IsCancellationRequested ||
+              !ReferenceEquals(predictionCancellation, cancellation)) return;
+          CalculationProgress.Value = Math.Clamp(step.Percent, 0, 100);
+          SetStatus(step.StageKey, step.Percent);
+        });
 
+        var overlaps = await Task.Run(
+          () => ComputePredictions(request, progress, cancellation.Token),
+          cancellation.Token);
+        cancellation.Token.ThrowIfCancellationRequested();
+        if (IsDisposed || Disposing) return;
+
+        // Publish one immutable completed result on the UI thread. Old
+        // rows never expose partially computed paths to owner-draw.
+        Items = overlaps.Select(pass => new ListViewItem { Tag = pass }).ToList();
+        PredictionList.VirtualListSize = Items.Count;
+        PredictionList.Invalidate();
+        CalculationProgress.Value = 100;
+        SetStatus("QsoScheduler.Completed", Items.Count);
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+      {
+        if (!IsDisposed && !Disposing)
+          SetStatus(canceledByInputChange
+            ? "QsoScheduler.InputChanged" : "QsoScheduler.Cancelled");
+      }
+      catch (Exception ex)
+      {
+        Log.Error(ex, "Pass matching prediction failed.");
+        if (!IsDisposed && !Disposing)
+          SetStatus("QsoScheduler.Failed", ex.Message);
+      }
+      finally
+      {
+        if (ReferenceEquals(predictionCancellation, cancellation))
+        {
+          predictionCancellation = null;
+          if (!IsDisposed && !Disposing)
+          {
+            CalculationProgress.Visible = false;
+            RefreshActionState();
+          }
+        }
+        cancellation.Dispose();
+      }
+    }
+
+    private static List<OverlapPass> ComputePredictions(PredictionRequest request,
+      IProgress<PredictionProgress> progress, CancellationToken cancellation)
+    {
+      cancellation.ThrowIfCancellationRequested();
+      var satellite = request.Satellite;
+      var tracker = satellite.Tracker;
+      var myStation = MakeStation(request.MySquare, request.MyAltitudeMeters);
+      var dxStation = MakeStation(request.DxSquare, 0);
+
+      // A geostationary target must cover the requested interval, not a
+      // synthetic 24-hour interval beginning at DateTime.UtcNow.
+      List<SatelliteVisibilityPeriod> VisiblePasses(GroundStation station)
+      {
+        if (!tracker.IsGeoStationary())
+          return tracker.ComputePasses(station, request.StartUtc, request.EndUtc);
+        var observation = tracker.Observe(station, request.StartUtc);
+        if (observation == null || observation.Elevation.Degrees < 0)
+          return new List<SatelliteVisibilityPeriod>();
+        return new List<SatelliteVisibilityPeriod>
+        {
+          new(null!, request.StartUtc, request.EndUtc, observation.Elevation,
+            request.StartUtc + (request.EndUtc - request.StartUtc) / 2,
+            station.Location)
+        };
+      }
+
+      bool geo = tracker.IsGeoStationary();
+      progress.Report(new PredictionProgress(5, "QsoScheduler.ProgressMe"));
+      var myVis = VisiblePasses(myStation);
+      cancellation.ThrowIfCancellationRequested();
+      progress.Report(new PredictionProgress(40, "QsoScheduler.ProgressDx"));
+      var dxVis = VisiblePasses(dxStation);
+      cancellation.ThrowIfCancellationRequested();
+      progress.Report(new PredictionProgress(70, "QsoScheduler.ProgressOverlap"));
+
+      var myPasses = myVis.Select(p => new SatellitePass(myStation, satellite, p))
+        .OrderBy(p => p.StartTime).ToList();
+      var dxPasses = dxVis.Select(p => new SatellitePass(dxStation, satellite, p))
+        .OrderBy(p => p.StartTime).ToList();
+
+      var overlaps = new List<OverlapPass>();
+      int dxFirst = 0;
+      for (int i = 0; i < myPasses.Count; i++)
+      {
+        cancellation.ThrowIfCancellationRequested();
+        var my = myPasses[i];
+        while (dxFirst < dxPasses.Count &&
+               dxPasses[dxFirst].EndTime <= my.StartTime)
+          dxFirst++;
+
+        // Sorted intervals: only DX passes intersecting this local pass
+        // need examination, rather than the former O(me * DX) scan.
+        for (int j = dxFirst; j < dxPasses.Count &&
+             dxPasses[j].StartTime < my.EndTime; j++)
+        {
+          cancellation.ThrowIfCancellationRequested();
+          var dx = dxPasses[j];
+          if (!TryCommonWindow(my.StartTime, my.EndTime, dx.StartTime, dx.EndTime,
+                request.StartUtc, request.EndUtc, out var start, out var end))
+            continue;
           var overlap = new OverlapPass
           {
             Satellite = satellite,
             MyPass = my,
             DxPass = dx,
-            MySquare = mySquare,
-            DxSquare = dxSquare,
+            MySquare = request.MySquare,
+            DxSquare = request.DxSquare,
             CommonStart = start,
             CommonEnd = end,
             Geostationary = geo,
-            OrbitNumber = my.OrbitNumber
+            OrbitNumber = my.OrbitNumber,
+            MyMiniPath = ComputeMiniPath(my, start, end, cancellation),
+            DxMiniPath = ComputeMiniPath(dx, start, end, cancellation),
+            MyMaxElevation = MaxElevationInRange(my, start, end, cancellation),
+            DxMaxElevation = MaxElevationInRange(dx, start, end, cancellation)
           };
-          overlap.MyMiniPath = ComputeMiniPath(my, start, end);
-          overlap.DxMiniPath = ComputeMiniPath(dx, start, end);
-          overlap.MyMaxElevation = MaxElevationInRange(my, start, end);
-          overlap.DxMaxElevation = MaxElevationInRange(dx, start, end);
-
           overlaps.Add(overlap);
         }
 
-      Items = overlaps
-        .OrderBy(o => o.CommonStart)
-        .Select(o => new ListViewItem { Tag = o })
-        .ToList();
-
-      PredictionList.VirtualListSize = Items.Count;
+        if (i % 4 == 0 || i == myPasses.Count - 1)
+          progress.Report(new PredictionProgress(
+            70 + 29 * (i + 1) / Math.Max(1, myPasses.Count),
+            "QsoScheduler.ProgressOverlap"));
+      }
+      cancellation.ThrowIfCancellationRequested();
+      progress.Report(new PredictionProgress(100, "QsoScheduler.ProgressOverlap"));
+      return overlaps.OrderBy(o => o.CommonStart).ToList();
     }
 
     private static GroundStation MakeStation(string square, double altitudeMeters)
@@ -206,7 +415,8 @@ namespace SkyRoof
     }
 
     private const int MiniPathSteps = 10;
-    private static PointF[] ComputeMiniPath(SatellitePass pass, DateTime start, DateTime end)
+    private static PointF[] ComputeMiniPath(SatellitePass pass, DateTime start, DateTime end,
+      CancellationToken cancellation)
     {
       var duration = end - start;
       if (duration <= TimeSpan.Zero) return Array.Empty<PointF>();
@@ -215,6 +425,7 @@ namespace SkyRoof
 
       for (int i = 0; i <= MiniPathSteps; i++)
       {
+        cancellation.ThrowIfCancellationRequested();
         var utc = start + step * i;
         var observation = pass.GetObservationAt(utc);
         if (observation == null) continue;
@@ -225,7 +436,8 @@ namespace SkyRoof
       return path;
     }
 
-    private static double MaxElevationInRange(SatellitePass pass, DateTime start, DateTime end)
+    private static double MaxElevationInRange(SatellitePass pass, DateTime start, DateTime end,
+      CancellationToken cancellation)
     {
       if (pass.Geostationary) return pass.MaxElevation;
 
@@ -237,6 +449,7 @@ namespace SkyRoof
 
       for (int i = 0; i <= Steps; i++)
       {
+        cancellation.ThrowIfCancellationRequested();
         var utc = start + step * i;
         var observation = pass.GetObservationAt(utc);
         if (observation == null) continue;
