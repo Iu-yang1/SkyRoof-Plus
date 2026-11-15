@@ -981,7 +981,8 @@ namespace SkyRoof
               FrameDecodedHandler(frame, snapshot, images, voice, pushed);
               if (asrtuTransport != null)
                 foreach (Frame packet in asrtuTransport.Push(frame))
-                  FrameDecodedHandler(packet, snapshot, images, voice, pushed);
+                  FrameDecodedHandler(packet, snapshot, images, voice, pushed,
+                    transportPacket: true);
             };
           Decoder.Pipeline.BurstDecoded += report =>
           {
@@ -1140,12 +1141,15 @@ namespace SkyRoof
     }
 
     private void FrameDecodedHandler(Frame frame, DecodeSnapshot snapshot, IImageAssembler? images,
-      IAudioAssembler? voice, PushOutcome pushed)
+      IAudioAssembler? voice, PushOutcome pushed, bool transportPacket = false)
     {
       ctx.KissServer.SendToAll(frame);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
       // (§4.6). Parameters that were never edited are never held — the plain database path is untouched.
-      if (!UploadHeld && !replayIqActive && snapshot.Satellite?.norad_cat_id is int norad)
+      // Nested TM/KISS packets are useful locally but are not the actual
+      // RF frames expected by SatNOGS. Submit only the outer decoded TM frame.
+      if (!UploadHeld && !replayIqActive && !transportPacket &&
+          snapshot.Satellite?.norad_cat_id is int norad)
         SatnogsUploader?.Submit(frame, norad);
       // Which tree node the frame's leaf will go under, asked BEFORE the Push that may answer it: these are
       // the assemblers' own structural gates, and they are true for a fragment the Push then throws away —
