@@ -734,8 +734,18 @@ namespace SkyRoof
         if (sat.norad_cat_id == null) continue;
         foreach (var tx in sat.Transmitters)
         {
-          GrSatsInfo? info = satyaml.Find(sat.norad_cat_id.Value, tx.baud);
-          if (info != null) { tx.gr_sats = info; matched++; }
+          GrSatsInfo? info = satyaml.Find(sat.norad_cat_id.Value, tx.baud, tx.downlink_low);
+          if (info == null) continue;
+          // Frequency + baud metadata must not silently turn an FM voice row
+          // into a digital BPSK decoder for the same spacecraft.
+          string declared = $"{tx.description} {tx.mode} {tx.DownlinkMode}";
+          bool voiceOnly = declared.Contains("FM voice", StringComparison.OrdinalIgnoreCase) ||
+            (string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) &&
+             !declared.Contains("FSK", StringComparison.OrdinalIgnoreCase) &&
+             !declared.Contains("PSK", StringComparison.OrdinalIgnoreCase));
+          if (voiceOnly && tx.baud == null) continue;
+          tx.gr_sats = info;
+          matched++;
         }
       }
       Log.Information($"satyaml: enriched {matched} transmitters");

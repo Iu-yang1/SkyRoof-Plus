@@ -202,7 +202,7 @@ namespace SkyRoof.Satellites
         if (m.Groups["plain"].Success)
         {
           int v = int.Parse(m.Groups["plain"].Value);
-          if (v is 300 or 600 or 800 or 1200 or 2400 or 4800 or 9600 or 19200 or 38400) return v;
+          if (v is 200 or 300 or 600 or 800 or 1200 or 2400 or 4800 or 9600 or 19200 or 38400) return v;
         }
       }
       return null;
