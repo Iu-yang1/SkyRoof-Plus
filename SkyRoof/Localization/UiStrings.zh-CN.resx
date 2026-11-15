@@ -767,8 +767,6 @@
   <data name="Telemetry.CombineImage" xml:space="preserve"><value>合并此前过境的图像</value></data>
   <data name="Telemetry.AudioRxStatus" xml:space="preserve"><value> | 接收：{0}</value></data>
   <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | 接收异常：{0}</value></data>
-  <data name="Telemetry.SavedOverride" xml:space="preserve"><value>已保存到 transmitters-override.json。</value></data>
-  <data name="Telemetry.FailedOverride" xml:space="preserve"><value>无法保存自定义参数：{0}</value></data>
   <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>请先设置本台呼号，再启用 FT4 发射。</value></data>
   <data name="Settings.InvalidValue" xml:space="preserve"><value>{0} 的值无效：“{1}”</value></data>
 </root>
