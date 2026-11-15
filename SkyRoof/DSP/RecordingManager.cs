@@ -23,6 +23,8 @@ namespace SkyRoof
     private InputSoundcard<float>? captureInput;
     private LoopbackInputSoundcard? loopbackInput;
     private SkyRoof.IF.IfAfService? ifAfInput;
+    private TelemetryAudioReceiveSession? ifIqInput;
+    private RecordingIqSource activeIqSource = RecordingIqSource.Sdr;
     private RecordingAudioSource activeAudioSource = RecordingAudioSource.Sdr;
     private string recordingSourceStatus = "Not recording";
     private DateTime lastNonSilentAudioUtc;
@@ -54,6 +56,7 @@ namespace SkyRoof
     public bool HasData => SamplesInBuffer > 0;
     public int AcceptedAudioSamples => SamplesInBuffer;
     public RecordingAudioSource ActiveAudioSource => activeAudioSource;
+    public RecordingIqSource ActiveIqSource => activeIqSource;
     public string RecordingSourceStatus => recordingSourceStatus;
     public long NonSilentAudioSamples => System.Threading.Interlocked.Read(ref nonSilentAudioSamples);
     public bool IsAudioSilent => IsRecording && IsRecordingAudio &&
@@ -88,6 +91,31 @@ namespace SkyRoof
       if (activeAudioSource == RecordingAudioSource.Sdr)
       {
         recordingSourceStatus = "SDR demodulator";
+        return;
+      }
+
+      if (activeAudioSource == RecordingAudioSource.IfRaw)
+      {
+        var source = ctx.IfAf;
+        if (source?.IsRunning == true)
+        {
+          ifAfInput = source;
+          source.RawIfAvailable += ExternalAudioSamplesAvailable;
+          recordingSourceStatus = "Shared raw 12-kHz IF, 48-kHz mono";
+          return;
+        }
+        string? id = ctx.Settings.Audio.RecorderIfCaptureDeviceId ??
+          ctx.Settings.Telemetry.IfCaptureDeviceId;
+        if (string.IsNullOrWhiteSpace(id))
+          throw new InvalidOperationException("Select Recorder 12-kHz IF Capture Device or start IF->AF.");
+        captureInput = new InputSoundcard<float>(
+          id, SdrConst.AUDIO_SAMPLING_RATE,
+          captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600);
+        captureInput.SamplesAvailable += ExternalAudioSamplesAvailable;
+        captureInput.Enabled = true;
+        if (!captureInput.IsRunning)
+          throw new InvalidOperationException("Raw IF capture did not start: " + captureInput.GetDisplayName());
+        recordingSourceStatus = "12-kHz IF capture: " + captureInput.GetDisplayName();
         return;
       }
 
@@ -140,6 +168,42 @@ namespace SkyRoof
         : "RS-BA1 loopback failed to start: " + loopbackInput.GetDisplayName();
     }
 
+    private void StartExternalIqInput()
+    {
+      if (activeIqSource == RecordingIqSource.Sdr)
+      {
+        recordingSourceStatus = "SDR I/Q (48 kHz, two-channel float)";
+        return;
+      }
+      // Use the same asynchronous IQ bridge as telemetry; the shared IF
+      // avoids opening an already-owned IC-9700 capture endpoint a second time.
+      var input = new TelemetryAudioReceiveSession();
+      input.IqAvailable += ExternalIqSamplesAvailable;
+      try
+      {
+        input.Start(new TelemetrySettings
+        {
+          InputSource = ctx.IfAf?.IsRunning == true
+            ? TelemetryReceiveSource.Shared12kIf : TelemetryReceiveSource.Capture12kIf,
+          IfCaptureDeviceId = ctx.Settings.Audio.RecorderIfCaptureDeviceId ??
+            ctx.Settings.Telemetry.IfCaptureDeviceId
+        }, ctx.IfAf);
+        ifIqInput = input;
+        recordingSourceStatus = "12-kHz IF -> complex I/Q, " + input.Status;
+      }
+      catch
+      {
+        input.IqAvailable -= ExternalIqSamplesAvailable;
+        input.Dispose();
+        throw;
+      }
+    }
+
+    private void ExternalIqSamplesAvailable(object? sender, DataEventArgs<Complex32> args)
+    {
+      AddIqSamples(args);
+    }
+
     private void ExternalAudioSamplesAvailable(object? sender, DataEventArgs<float> args)
     {
       // Only the selected external source is fed to this recorder. Do not
@@ -152,7 +216,19 @@ namespace SkyRoof
       var hub = ifAfInput;
       ifAfInput = null;
       if (hub != null)
-        hub.DemodulatedAfAvailable -= ExternalAudioSamplesAvailable;
+      {
+        if (activeAudioSource == RecordingAudioSource.IfRaw)
+          hub.RawIfAvailable -= ExternalAudioSamplesAvailable;
+        else
+          hub.DemodulatedAfAvailable -= ExternalAudioSamplesAvailable;
+      }
+      var iqInput = ifIqInput;
+      ifIqInput = null;
+      if (iqInput != null)
+      {
+        iqInput.IqAvailable -= ExternalIqSamplesAvailable;
+        iqInput.Dispose();
+      }
       var capture = captureInput;
       captureInput = null;
       if (capture != null)
@@ -190,6 +266,7 @@ namespace SkyRoof
         }
 
         activeAudioSource = isAudio ? ResolveSource() : RecordingAudioSource.Sdr;
+        activeIqSource = ctx.Settings.Audio.RecorderIqSource;
         samplesInBuffer = 0;
         playbackPosition = 0;
         recordingStartTime = DateTime.UtcNow;
@@ -198,19 +275,20 @@ namespace SkyRoof
         recordingEvents.Start(ctx);
         recordingEvents.StartUtc = recordingStartTime;
         IsRecording = true;
-        recordingSourceStatus = isAudio ? activeAudioSource.ToString() : "SDR I/Q";
+        recordingSourceStatus = isAudio ? activeAudioSource.ToString() : activeIqSource + " I/Q";
       }
 
       Log.Information("Starting {Mode} recording from {Source}",
         isAudio ? "audio" : "I/Q", activeAudioSource);
-      if (isAudio)
+      try
       {
-        try { StartExternalAudioInput(); }
-        catch
-        {
-          StopRecording();
-          throw;
-        }
+        if (isAudio) StartExternalAudioInput();
+        else StartExternalIqInput();
+      }
+      catch
+      {
+        StopRecording();
+        throw;
       }
     }
 
@@ -416,6 +494,9 @@ namespace SkyRoof
         else throw new InvalidOperationException($"Unsupported channel count: {reader.WaveFormat.Channels}");
       }
 
+      activeAudioSource = filename.EndsWith(".if.wav", StringComparison.OrdinalIgnoreCase)
+        ? RecordingAudioSource.IfRaw : RecordingAudioSource.Sdr;
+      activeIqSource = RecordingIqSource.Sdr;
       playbackPosition = 0;
       LoadRecordingEvents(filename);
       recordingStartTime = recordingEvents.StartUtc;
@@ -425,6 +506,8 @@ namespace SkyRoof
 
     public void SaveRecording(string fileName, bool saveAsMp3)
     {
+      if (saveAsMp3 && activeAudioSource == RecordingAudioSource.IfRaw)
+        throw new InvalidOperationException("Raw IF must be saved losslessly as .if.wav, not MP3.");
       if (saveAsMp3) SaveRecordingAsMp3(fileName);
       else SaveRecordingAsWav(fileName);
       SaveRecordingEvents(fileName);
@@ -441,6 +524,8 @@ namespace SkyRoof
           throw new InvalidOperationException("Stop the recording before saving.");
         snapshot.audioBuffer = audioBuffer;
         snapshot.iqBuffer = iqBuffer;
+        snapshot.activeAudioSource = activeAudioSource;
+        snapshot.activeIqSource = activeIqSource;
         snapshot.samplesInBuffer = samplesInBuffer;
         snapshot.recordingStartTime = recordingStartTime;
         snapshot.recordingEvents = new RecordingEvents
