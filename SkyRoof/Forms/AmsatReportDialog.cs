@@ -18,7 +18,29 @@
     public AmsatReportDialog()
     {
       InitializeComponent();
-      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
+      UiLocalizationService.Bind(this, () =>
+      {
+        UiLocalizationService.ApplyStaticControls(this);
+        comboBox2.Refresh();
+      });
+      // Keep AMSAT's English submission codes in SelectedItem. Format controls
+      // display only; sending localized labels would corrupt the report.
+      comboBox2.FormattingEnabled = true;
+      comboBox2.Format += (_, e) =>
+      {
+        if (e.ListItem is string code)
+        {
+          string key = code switch
+          {
+            "Heard" => "AmsatReport.Heard",
+            "Telemetry Only" => "AmsatReport.TelemetryOnly",
+            "Not Heard" => "AmsatReport.NotHeard",
+            "Crew Active" => "AmsatReport.CrewActive",
+            _ => ""
+          };
+          if (key.Length != 0) e.Value = UiLocalizationService.Get(key);
+        }
+      };
     }
 
     public static void SendReport(Context ctx, SatnogsDbSatellite satellite, string? preferredEntryToken = null)
@@ -56,7 +78,8 @@
       CancelAutoClose();
       okBtn.Enabled = false;
       SubmitCancellation = new CancellationTokenSource();
-      _ = SendReportAndCloseAsync(comboBox1.Text, comboBox2.Text,
+      _ = SendReportAndCloseAsync(comboBox1.Text,
+        comboBox2.SelectedItem as string ?? comboBox2.Text,
         SubmitCancellation.Token);
     }
 
@@ -68,7 +91,7 @@
         string? errorMessage = await ctx.AmsatStatusLoader.SendAmsatStatusAsync(entry, report, cancellationToken);
         if (IsDisposed || Disposing) return;
         if (errorMessage != null)
-          MessageBox.Show(this, errorMessage, "Error",
+          MessageBox.Show(this, errorMessage, UiLocalizationService.Get("Common.Error"),
             MessageBoxButtons.OK, MessageBoxIcon.Error);
         Close();
       }
@@ -80,7 +103,7 @@
       {
         Serilog.Log.Error(ex, "Unexpected AMSAT status submission failure");
         if (IsDisposed || Disposing) return;
-        MessageBox.Show(this, ex.Message, "Error",
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Common.Error"),
           MessageBoxButtons.OK, MessageBoxIcon.Error);
         Close();
       }
