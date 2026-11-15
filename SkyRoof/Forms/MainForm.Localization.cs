@@ -164,6 +164,7 @@ namespace SkyRoof
         if (panel is GroupViewPanel group) group.RefreshLocalizedUi();
         if (panel is SkyViewPanel sky) sky.RefreshLocalizedUi();
         if (panel is SatelliteDetailsPanel satellite) satellite.RefreshLocalizedUi();
+        if (panel is OnvifCameraPanel camera) camera.RefreshLocalizedUi();
       });
     }
   }
