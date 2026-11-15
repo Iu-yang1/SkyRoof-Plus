@@ -12,6 +12,13 @@ namespace VE3NEA
   // comes from SystemColors.WindowFrame and flips on its own.
   public class ToolTipEx : ToolTip
   {
+    // Explicit text insets keep multilingual, multi-line tooltips away from the border.
+    private const int HorizontalInset = 6;
+    private const int VerticalInset = 5;
+
+    internal static Size AddTextInsets(Size native) =>
+      new(native.Width + HorizontalInset * 2, native.Height + VerticalInset * 2);
+
     public ToolTipEx() : base()
     {
       Initialize();
@@ -27,6 +34,7 @@ namespace VE3NEA
       OwnerDraw = true;
       BackColor = Theme.TipBack;
       ForeColor = Theme.TipText;
+      Popup += (_, e) => e.ToolTipSize = AddTextInsets(e.ToolTipSize);
       Draw += DrawTooltip;
     }
 
@@ -36,20 +44,16 @@ namespace VE3NEA
       e.DrawBackground();
       e.DrawBorder();
 
-      // e.DrawText() runs the lines of a multi-line tooltip together into a single clipped one,
-      // so the text is drawn here instead. Without a title the inset is measured off the native
-      // rendering - two pixels in on the sides, three above the top of the bounds - which lands
-      // the lines where the framework itself used to put them.
+      // Native DrawText can clip a multi-line tooltip. Reserve the same insets
+      // in Popup sizing and Draw bounds: enlarging the rectangle vertically
+      // would move its first line above the tooltip window.
       const TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.NoPrefix;
-      var rect = e.Bounds;
-      rect.Inflate(-2, 3);
+      var rect = Rectangle.Inflate(e.Bounds, -HorizontalInset, -VerticalInset);
 
       // the native control reserves room for the title but paints none of it, so without this a
       // titled tooltip would show its headline as an empty strip
       if (!string.IsNullOrEmpty(ToolTipTitle))
       {
-        rect = e.Bounds;
-        rect.Inflate(-3, -2);
         using var titleFont = new Font(e.Font, FontStyle.Bold);
         var titleHeight = TextRenderer.MeasureText(e.Graphics, ToolTipTitle, titleFont, rect.Size, flags).Height;
         TextRenderer.DrawText(e.Graphics, ToolTipTitle, titleFont, rect, ForeColor, flags);

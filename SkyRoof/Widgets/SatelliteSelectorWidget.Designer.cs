@@ -53,11 +53,12 @@
       // 
       // label3
       // 
-      label3.AutoSize = true;
-      label3.Location = new Point(128, 45);
+      label3.AutoSize = false;
+      label3.Location = new Point(126, 41);
       label3.Name = "label3";
-      label3.Size = new Size(66, 15);
+      label3.Size = new Size(68, 24);
       label3.TabIndex = 12;
+      label3.TextAlign = ContentAlignment.MiddleRight;
       label3.Text = "Transmitter";
       // 
       // SatelliteComboBox
@@ -95,11 +96,12 @@
       // 
       // label2
       // 
-      label2.AutoSize = true;
-      label2.Location = new Point(146, 15);
+      label2.AutoSize = false;
+      label2.Location = new Point(126, 11);
       label2.Name = "label2";
-      label2.Size = new Size(48, 15);
+      label2.Size = new Size(68, 24);
       label2.TabIndex = 10;
+      label2.TextAlign = ContentAlignment.MiddleRight;
       label2.Text = "Satellite";
       // 
       // SatelliteSelector

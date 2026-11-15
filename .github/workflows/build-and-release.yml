@@ -3,7 +3,7 @@ name: Build and Release
 on:
   workflow_dispatch:
   # Updating Directory.Build.props on master triggers a release build.
-  # Normal releases bump the version. In-place v.1.73 replacement is guarded by pinned tag/asset identity.
+  # Normal releases bump the version. Authorized v.1.73/v.1.78 replacements pin tag, release and asset identity.
   push:
     branches: [master]
     paths:
@@ -93,6 +93,9 @@ jobs:
             $replaceV173 = $version -eq '1.73' -and
               "${{ github.event_name }}" -eq 'push' -and
               (Get-Content Directory.Build.props -Raw).Contains('v1.73-grid-regex-correction-20261113')
+            $replaceV178 = $version -eq '1.78' -and
+              "${{ github.event_name }}" -eq 'push' -and
+              (Get-Content Directory.Build.props -Raw).Contains('v1.78-zh-toolbar-padding-replacement-20261115')
             if ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
@@ -109,6 +112,23 @@ jobs:
               }
               "REPLACE_V173=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
               Write-Host "Authorized one-time v.1.73 Maidenhead settings validation installer replacement"
+            }
+            elseif ($replaceV178) {
+              if ($existingSha -ne 'c62e73debe61fe154f963b0dda9e91041474a73c') {
+                throw 'v.1.78 original tag moved; refusing replacement'
+              }
+              $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or $null -eq $oldRelease -or
+                  $oldRelease.id -ne 446108807 -or $oldRelease.prerelease -ne $false) {
+                throw 'v.1.78 existing Release identity or stability differs'
+              }
+              $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.78.exe' })
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 751218364 -or
+                  $oldAsset[0].digest -ne 'sha256:c418041e52f23143f87c56ce317fafbece85368be65b1a76301e58064bf62295') {
+                throw 'v.1.78 existing installer changed; refusing replacement'
+              }
+              "REPLACE_V178=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+              Write-Host "Authorized one-time v.1.78 localized toolbar geometry and tooltip replacement"
             }
             elseif (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
@@ -387,7 +407,7 @@ jobs:
           # Other unsigned releases remain prereleases by default.
           prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' && steps.get_version.outputs.version != '1.76' && steps.get_version.outputs.version != '1.77' && steps.get_version.outputs.version != '1.78' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
-          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' }}
+          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' || env.REPLACE_V178 == 'true' }}
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body_path: RELEASE_NOTES.md
@@ -459,6 +479,37 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.73 release target commit' }
           Write-Host "v.1.73 replacement verified SHA-256: $localHash"
+
+      - name: Finalize one-time v.1.78 localized toolbar geometry installer replacement
+        if: env.REPLACE_V178 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.78'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = 'c62e73debe61fe154f963b0dda9e91041474a73c'
+          $name = 'SkyRoofSetup-v.1.78.exe'
+          $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release -or $release.id -ne 446108807) {
+            throw 'v.1.78 Release identity changed during replacement'
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].digest -ne "sha256:$localHash") {
+            throw 'v.1.78 replacement installer digest differs from local validated output'
+          }
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw 'v.1.78 original tag moved before finalization'
+          }
+          git tag -f $tag $newCommit
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not retarget v.1.78 to validated source' }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.78 release target commit' }
+          Write-Host "v.1.78 replacement verified SHA-256: $localHash"
 
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh
