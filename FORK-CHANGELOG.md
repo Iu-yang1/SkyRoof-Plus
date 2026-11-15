@@ -1,3 +1,18 @@
+# SkyRoof Fork v.1.80 / Direct LAN TX 音频会话恢复
+
+## v1.80 — 2026-11-16
+
+- 增加 Control / CI-V / Audio 三个 RS-BA1 UDP 会话各自的断开通知、关联令牌注销确认及未确认故障日志。
+- 将重连前控制 UDP 的悬挂接收任务收回，阻止新旧接收事务竞争注销应答，延长正常释放窗口以减少强制关闭残留。
+- Audio UDP 远端心跳依据 SID、随机数和序列号核对，不再把本机 SendAsync 计数视作电台活性；12 秒失活会在 PTT 释放后请求完整媒体重建。
+- 底栏 TX 诊断添加远端响应时间/次数/失效状态，并增加独立协议测试；保留现有 CAT/PTT、发射使能与轨道/频谱功能。
+- TX 开关热切换：已有有效 TX 媒体授权时仅重启本地 WASAPI 采集端点，不再断开控制/CI-V/频谱；首次启用或调整协议参数仍重新协商。
+- 无 IC-9700 实机测试；自动化验收与签名状态以 v1.80 Actions/Release 为准。
+
+**English:** Explicit 3-stream disconnect, correlated logout, remote-audio heartbeat monitoring and post-PTT authenticated recovery.
+
+---
+
 # SkyRoof Fork v.1.79 / SkyRoof Plus 1.79 过境匹配异步与可选 UTC 窗口
 
 ## v1.79 — 2026-11-15

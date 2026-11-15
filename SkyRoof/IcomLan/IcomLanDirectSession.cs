@@ -16,7 +16,10 @@ namespace SkyRoof
     long LastSentUtcTicks,
     string ModSource = "",
     bool WrongModSource = false,
-    bool MutedLanLevel = false);
+    bool MutedLanLevel = false,
+    long LastRemoteAudioTicks = 0,
+    long AudioPingReplies = 0,
+    bool RemoteAudioStale = false);
 
   internal enum IcomDirectLanTxLinkState
   {
@@ -146,8 +149,12 @@ namespace SkyRoof
     private volatile bool AudioTxReady;
     private volatile bool AudioLinkConnected;
     private volatile bool AudioTxNegotiationComplete;
+    private readonly IcomLanAudioHeartbeat AudioHeartbeat = new();
+    private long AudioConnectedTicks;
+    private volatile bool AudioHeartbeatStale;
     internal bool IsTxUdpReady =>
-      AudioLinkConnected && AudioTxReady && IsStreaming && !Disposed;
+      AudioLinkConnected && AudioTxReady && !AudioHeartbeatStale &&
+      IsStreaming && !Disposed;
     internal bool HasCompletedTxNegotiation => AudioTxNegotiationComplete;
     private long AudioTxRejectedWithoutPtt;
     private long AudioRxDatagrams;
@@ -178,7 +185,10 @@ namespace SkyRoof
       Interlocked.Read(ref LastSentAudioTicks),
       ModInputState.Description,
       ModInputState.ConfirmedWrongSource,
-      ModInputState.ConfirmedZeroLanLevel);
+      ModInputState.ConfirmedZeroLanLevel,
+      AudioHeartbeat.LastRemoteTicks,
+      AudioHeartbeat.MatchedReplies,
+      AudioHeartbeatStale);
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
@@ -582,6 +592,7 @@ namespace SkyRoof
         $"Direct Icom LAN native CI-V connected: " +
         $"{RadioAddress}:{RemoteCivPort} -> local UDP/{LocalCivPort}.");
 
+      using var audioLifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
       Task audioDrain = Task.CompletedTask;
       Task audioTransmit = Task.CompletedTask;
       Task audioKeepAlive = Task.CompletedTask;
@@ -591,10 +602,12 @@ namespace SkyRoof
         {
           audio.Connect(RadioAddress, RemoteAudioPort);
           AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
+          Interlocked.Exchange(ref AudioConnectedTicks, DateTime.UtcNow.Ticks);
+          AudioHeartbeatStale = false;
           AudioLinkConnected = true;
           audioDrain = DrainAudioAsync(
-            audio, (int)NegotiatedRxRate, token);
-          audioKeepAlive = KeepAudioAliveAsync(audio, token);
+            audio, (int)NegotiatedRxRate, audioLifetime.Token);
+          audioKeepAlive = KeepAudioAliveAsync(audio, audioLifetime.Token);
           AudioTxReady = NegotiatedTxRate != 0;
           Publish(
             $"Direct LAN audio UDP/{RemoteAudioPort} ready: RX={NegotiatedRxRate}Hz, TX={NegotiatedTxRate}Hz. " +
@@ -603,14 +616,16 @@ namespace SkyRoof
             "Direct LAN audio session established on UDP/{Port}: RX {RxRate} Hz, TX {TxRate} Hz",
             RemoteAudioPort, NegotiatedRxRate, NegotiatedTxRate);
           if (AudioTxReady)
-            audioTransmit = TransmitAudioAsync(audio, token);
+            audioTransmit = TransmitAudioAsync(audio, audioLifetime.Token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+          audioLifetime.Cancel();
           throw;
         }
         catch (Exception ex)
         {
+          audioLifetime.Cancel();
           // A successful CI-V handshake is not a usable audio session.
           // Renew the *whole* authenticated media grant: merely keeping
           // scope/CI-V alive leaves LAN audio permanently disconnected.
@@ -625,17 +640,16 @@ namespace SkyRoof
       }
       AudioTxNegotiationComplete = true;
 
-      await SendScopeConfigurationAsync(civ, token);
-      if (PreferFastScopeSweep)
-      {
-        foreach (byte[] frame in BuildFastSweepCommands(
-                   RadioCivAddress, ExpectedScopeProfile.ReceiverCount))
-          await SendCivDataAsync(civ, frame, token);
-        Publish("Direct Icom LAN: FAST scope sweep requested (radio-side setting).");
-      }
-
       try
       {
+        await SendScopeConfigurationAsync(civ, token);
+        if (PreferFastScopeSweep)
+        {
+          foreach (byte[] frame in BuildFastSweepCommands(
+                     RadioCivAddress, ExpectedScopeProfile.ReceiverCount))
+            await SendCivDataAsync(civ, frame, token);
+          Publish("Direct Icom LAN: FAST scope sweep requested (radio-side setting).");
+        }
         await RunStreamingLoopsAsync(
           control,
           civ,
@@ -649,6 +663,7 @@ namespace SkyRoof
         IsStreaming = false;
         AudioTxReady = false;
         AudioLinkConnected = false;
+        audioLifetime.Cancel();
         TxAudio.Writer.TryComplete();
 
         try
@@ -662,39 +677,111 @@ namespace SkyRoof
 
         try
         {
-          await Task.WhenAny(
-            Task.WhenAll(audioDrain, audioTransmit, audioKeepAlive),
-            Task.Delay(150));
+          await Task.WhenAll(audioDrain, audioTransmit, audioKeepAlive)
+            .WaitAsync(TimeSpan.FromMilliseconds(400));
         }
+        catch (OperationCanceledException) when (audioLifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
-          Log.Debug("Icom Direct LAN audio workers did not settle ({Type})", ex.GetType().Name);
+          Log.Debug("Icom Direct LAN audio workers did not settle ({Type})",
+            ex.GetType().Name);
         }
       }
       }
       finally
       {
-        AudioTxReady = false;
-        AudioLinkConnected = false;
-        AudioTxNegotiationComplete = false;
-        IsStreaming = false;
-        // Login may already have succeeded even when capability/media
-        // negotiation or the second CI-V handshake fails. Always release
-        // the radio's authenticated control session before closing sockets.
-        if (IsAuthenticated)
+        await CloseAuthenticatedSessionAsync(control, civ, audio);
+      }
+    }
+
+    private async Task CloseAuthenticatedSessionAsync(
+      UdpClient control, UdpClient civ, UdpClient audio)
+    {
+      AudioTxReady = false;
+      AudioLinkConnected = false;
+      AudioTxNegotiationComplete = false;
+      IsStreaming = false;
+      // Release the token before sending packet 0x05. This gives the
+      // radio a chance to answer the correlated logout request while
+      // its control session still exists; disconnect packets follow
+      // even when no logout reply arrives.
+      if (IsAuthenticated)
+      {
+        byte[] logoutAuthId = AuthId.ToArray();
+        try
         {
+          ushort sequence = await SendAuthAsync(
+            control, 0x01, CancellationToken.None);
           try
           {
-            _ = await SendAuthAsync(control, 0x01, CancellationToken.None);
-            Log.Information("Direct Icom LAN authenticated control session signed out");
+            byte[] reply = await ReceiveMatchingAsync(
+              control,
+              packet => IsMatchingAuthReply(
+                packet, ControlLocalSid, ControlRemoteSid,
+                0x01, sequence, logoutAuthId),
+              TimeSpan.FromMilliseconds(400), CancellationToken.None,
+              "logout");
+            uint result = BinaryPrimitives.ReadUInt32LittleEndian(
+              reply.AsSpan(0x30, 4));
+            if (result == 0)
+              Log.Information("Direct Icom LAN token logout acknowledged by radio");
+            else
+              Log.Warning("Direct Icom LAN token logout returned {Code:X8}", result);
           }
-          catch (Exception ex)
+          catch (TimeoutException)
           {
-            Log.Warning(ex,
-              "Direct Icom LAN logout could not be sent before socket close");
+            Log.Warning(
+              "Direct Icom LAN token logout unconfirmed (400ms); sending control disconnect");
           }
-          IsAuthenticated = false;
         }
+        catch (Exception ex)
+        {
+          Log.Warning(ex, "Direct Icom LAN token logout could not be sent");
+        }
+        IsAuthenticated = false;
+      }
+
+      // An incomplete grant may have established only one or two
+      // media streams. Release each stream whose handshake succeeded.
+      if (AudioRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          audio, AudioLocalSid, AudioRemoteSid, audioStream: true);
+      if (CivRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          civ, CivLocalSid, CivRemoteSid, audioStream: false);
+      if (ControlRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          control, ControlLocalSid, ControlRemoteSid, audioStream: false);
+    }
+
+    internal static byte[] BuildDisconnectPacket(
+      uint localSid, uint remoteSid) =>
+      BuildControlPacket(0x0005, 0, localSid, remoteSid);
+
+    private async Task TryDisconnectStreamAsync(
+      UdpClient socket, uint localSid, uint remoteSid, bool audioStream)
+    {
+      try
+      {
+        byte[] packet = BuildDisconnectPacket(localSid, remoteSid);
+        // This is an idempotent datagram, not a tracked auth mutation.
+        // Sending twice follows RS-BA1 stream teardown convention.
+        for (int n = 0; n < 2; n++)
+        {
+          if (audioStream)
+            await SendAudioRawAsync(socket, packet, CancellationToken.None);
+          else
+            await socket.SendAsync(packet, CancellationToken.None);
+        }
+        Log.Information(
+          "Direct LAN {Stream} UDP disconnect sent (local=0x{Local:X8}, remote=0x{Remote:X8})",
+          audioStream ? "audio" : ReferenceEquals(socket, Control) ? "control" : "CI-V",
+          localSid, remoteSid);
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "Direct LAN UDP disconnect failed for local SID 0x{Sid:X8}",
+          localSid);
       }
     }
 
@@ -722,11 +809,19 @@ namespace SkyRoof
     {
       Task<Task>? audioWorkerExit = MonitorAudioWorkers(
         AudioLinkConnected, AudioTxReady, audioDrain, audioKeepAlive, audioTransmit);
-      Task<UdpReceiveResult> controlReceive = control.ReceiveAsync(token).AsTask();
-      Task<UdpReceiveResult> civReceive = civ.ReceiveAsync(token).AsTask();
+      // Cancel and observe both UDP receive tasks before attempting to
+      // consume a correlated logout reply on the same control socket.
+      using var readerLifetime =
+        CancellationTokenSource.CreateLinkedTokenSource(token);
+      Task<UdpReceiveResult> controlReceive =
+        control.ReceiveAsync(readerLifetime.Token).AsTask();
+      Task<UdpReceiveResult> civReceive =
+        civ.ReceiveAsync(readerLifetime.Token).AsTask();
       using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
       Task<bool> tick = timer.WaitForNextTickAsync(token).AsTask();
 
+      try
+      {
       while (!token.IsCancellationRequested)
       {
         Task completed = audioWorkerExit == null
@@ -749,7 +844,7 @@ namespace SkyRoof
             result.Buffer,
             token);
 
-          controlReceive = control.ReceiveAsync(token).AsTask();
+          controlReceive = control.ReceiveAsync(readerLifetime.Token).AsTask();
         }
         else if (completed == civReceive)
         {
@@ -760,7 +855,7 @@ namespace SkyRoof
             result.Buffer,
             token);
 
-          civReceive = civ.ReceiveAsync(token).AsTask();
+          civReceive = civ.ReceiveAsync(readerLifetime.Token).AsTask();
         }
         else
         {
@@ -773,6 +868,21 @@ namespace SkyRoof
             token);
 
           tick = timer.WaitForNextTickAsync(token).AsTask();
+        }
+      }
+      }
+      finally
+      {
+        readerLifetime.Cancel();
+        try
+        {
+          await Task.WhenAll(controlReceive, civReceive)
+            .WaitAsync(TimeSpan.FromMilliseconds(500));
+        }
+        catch (OperationCanceledException) when (readerLifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+          Log.Debug(ex, "Direct LAN receive readers stopped during media teardown");
         }
       }
     }
@@ -797,6 +907,36 @@ namespace SkyRoof
       await PollMetersAsync(civ, now, token);
       await PollModInputAsync(civ, now, token);
       ReportAudioDiagnostics(now);
+
+      if (AudioLinkConnected && AudioTxReady && AudioOptions.Transmit.Enabled)
+      {
+        bool stale = AudioHeartbeat.HasGoneStale(
+          now.Ticks, Interlocked.Read(ref AudioConnectedTicks),
+          Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12));
+        if (!stale && AudioHeartbeatStale)
+        {
+          // A delayed but valid radio response may recover the link while
+          // PTT is still held. Do not leave the UI permanently red.
+          AudioHeartbeatStale = false;
+          Log.Information("Direct LAN TX audio remote heartbeat recovered in-place");
+        }
+        if (stale)
+        {
+          if (!AudioHeartbeatStale)
+          {
+            AudioHeartbeatStale = true;
+            Log.Warning(
+              "Direct LAN TX audio remote heartbeat STALE: no correlated radio Audio UDP ping for 12s; TX sent={Sent}, pong={Pongs}. Recovery will occur after CAT PTT releases.",
+              Interlocked.Read(ref AudioTxDatagrams), AudioHeartbeat.MatchedReplies);
+            Publish("Direct LAN TX audio: remote media heartbeat lost; release PTT to recover authenticated audio/CI-V session.");
+          }
+          // Do not interrupt an ongoing PTT transmission, even if radio
+          // audio has stopped accepting packets. Reconnect once unkeyed.
+          if (IsPttActive?.Invoke() != true)
+            throw new IOException(
+              "Direct LAN TX audio remote heartbeat expired; renewing authenticated media.");
+        }
+      }
 
       DateTime lastSweepUtc = new DateTime(
         Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
@@ -932,6 +1072,11 @@ namespace SkyRoof
           AudioOptions.Transmit.CaptureBufferMs,
           AudioOptions.Transmit.JitterPrefillMs,
           AudioOptions.Transmit.JitterMaximumMs);
+        Log.Information(
+          "Direct LAN TX remote UDP heartbeat: confirmed={Confirmed} correlatedPongs={Pongs} lastRemoteUtcTicks={Ticks} stale={Stale}",
+          AudioHeartbeat.LastRemoteTicks > 0,
+          AudioHeartbeat.MatchedReplies,
+          AudioHeartbeat.LastRemoteTicks, AudioHeartbeatStale);
         Log.Information(
           "Direct LAN TX modulation source: {Status}", ModInputState.Description);
         Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
@@ -2054,23 +2199,27 @@ namespace SkyRoof
     {
       if (packet.Length > IcomLanLpcmAudioCodec.HeaderBytes)
         Interlocked.Increment(ref AudioRxDatagrams);
-          if (packet.Length == 21 &&
-              BinaryPrimitives.ReadUInt16LittleEndian(
-                packet.AsSpan(4, 2)) == 0x0007 &&
-              BinaryPrimitives.ReadUInt32BigEndian(
-                packet.AsSpan(8, 4)) == AudioRemoteSid &&
-              BinaryPrimitives.ReadUInt32BigEndian(
-                packet.AsSpan(12, 4)) == AudioLocalSid &&
-              packet[16] == 0x00)
-          {
-            byte[] reply = packet.ToArray();
-            reply[16] = 0x01;
-            WriteSid(reply, 8, AudioLocalSid);
-            WriteSid(reply, 12, AudioRemoteSid);
-            await SendAudioRawAsync(audio, reply, token);
-            return;
-          }
 
+      if (packet.Length == 21 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2)) == 0x0007)
+      {
+        bool confirmed = AudioHeartbeat.Observe(
+          packet, AudioLocalSid, AudioRemoteSid, DateTime.UtcNow.Ticks);
+        if (confirmed && packet[16] == 0x00)
+        {
+          byte[] reply = packet.ToArray();
+          reply[16] = 0x01;
+          WriteSid(reply, 8, AudioLocalSid);
+          WriteSid(reply, 12, AudioRemoteSid);
+          await SendAudioRawAsync(audio, reply, token);
+        }
+        return;
+      }
+
+      if (packet.Length == 16 &&
+          BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2)) == 0x0005 &&
+          MatchesControlEnvelope(packet, AudioLocalSid, AudioRemoteSid))
+        throw new IOException("Radio explicitly disconnected the authenticated audio UDP stream.");
           if (packet.Length == 16 &&
               BinaryPrimitives.ReadUInt16LittleEndian(
                 packet.AsSpan(4, 2)) == 0x0001 &&
@@ -2158,7 +2307,11 @@ namespace SkyRoof
           Interlocked.Increment(ref AudioTxLateTicks);
         lastTick = tick;
 
-        bool keyed = IsStreaming && IsPttActive?.Invoke() == true;
+        // A locally disabled TX endpoint must not continue emitting
+        // silent UDP audio during PTT. Keep the negotiated media grant so
+        // TX can be re-enabled without restarting the CI-V/scope session.
+        bool keyed = AudioOptions.Transmit.Enabled &&
+          IsStreaming && IsPttActive?.Invoke() == true;
         if (!keyed)
         {
           if (wasKeyed)
@@ -2297,11 +2450,13 @@ namespace SkyRoof
         ping.AsSpan(6, 2), AudioPingSeq++);
       WriteSid(ping, 8, AudioLocalSid);
       WriteSid(ping, 12, AudioRemoteSid);
-      ping[17] = RandomNumberGenerator.GetBytes(1)[0];
-      ping[18] = (byte)AudioPingInnerSeq;
-      ping[19] = (byte)(AudioPingInnerSeq >> 8);
+      byte nonce = RandomNumberGenerator.GetBytes(1)[0];
+      ushort innerSequence = AudioPingInnerSeq++;
+      ping[17] = nonce;
+      ping[18] = (byte)innerSequence;
+      ping[19] = (byte)(innerSequence >> 8);
       ping[20] = 0x06;
-      AudioPingInnerSeq++;
+      AudioHeartbeat.RecordSent(innerSequence, nonce);
       await SendAudioRawAsync(audio, ping, token);
     }
 

@@ -15,6 +15,18 @@ namespace SkyRoof
   /// </summary>
   internal static class IcomLanSettingsChangePolicy
   {
+    internal static bool CanToggleTxLocally(
+      IEnumerable<string> changed, bool currentTxMediaReady)
+    {
+      // The radio already granted the TX codec/rate: toggling local PCM
+      // capture must not tear down the unrelated CI-V scope stream.
+      // Enabling TX without that grant still requires real renegotiation.
+      return currentTxMediaReady &&
+        changed.SequenceEqual([
+          "SkyRoof.IcomDirectLanTransmitSettings.Enabled"
+        ]);
+    }
+
     internal static IcomLanSettingsAction Classify(IEnumerable<string> changed)
     {
       IcomLanSettingsAction result = IcomLanSettingsAction.None;

@@ -1469,6 +1469,10 @@ namespace SkyRoof
         : "尚未发送";
       string modSource = string.IsNullOrWhiteSpace(tx.ModSource)
         ? "尚无电台读回" : tx.ModSource;
+      string audioHeartbeat = tx.LastRemoteAudioTicks > 0
+        ? new DateTime(tx.LastRemoteAudioTicks, DateTimeKind.Utc)
+          .ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'")
+        : "本次媒体会话尚未确认";
       bool ptt = ctx.CatControl.Tx?.Ptt == true || ctx.CatControl.Rx?.Ptt == true;
       MessageBox.Show(this,
         $"TX UDP 链路：{state}\n" +
@@ -1478,7 +1482,10 @@ namespace SkyRoof
         $"PTT：{(ptt ? "ON" : "OFF")}\n\n" +
         $"UDP PCM 已发送包数：{tx.UdpSent}\n" +
         $"最近发送音频电平：{tx.LastSentDbfs:F1} dBFS\n" +
-        $"最近发送时间：{lastSent}\n\n" +
+        $"最近发送时间：{lastSent}\n" +
+        $"音频会话最近有效远端响应：{audioHeartbeat}\n" +
+        $"远端音频心跳应答累计：{tx.AudioPingReplies}\n" +
+        $"远端音频流超时：{(tx.RemoteAudioStale ? "是（将在 PTT 释放后重连）" : "否")}\n\n" +
         $"电台 MOD 输入：{modSource}\n" +
         $"MOD 输入来源不匹配：{(tx.WrongModSource ? "已检测到" : "未检测到")}\n" +
         $"LAN MOD 电平为零：{(tx.MutedLanLevel ? "已检测到" : "未检测到")}\n\n" +
