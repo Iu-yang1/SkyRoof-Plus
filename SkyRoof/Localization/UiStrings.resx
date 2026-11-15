@@ -764,4 +764,11 @@ Current: {0}</value></data>
   <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>Invalid SkyCAT CAT TCP port: use 1–65535 in Spectrum settings.</value></data>
   <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>Save changes?</value></data>
   <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>You can only add alive satellites to groups.</value></data>
+  <data name="Telemetry.CombineImage" xml:space="preserve"><value>Combine with Previous Passes</value></data>
+  <data name="Telemetry.AudioRxStatus" xml:space="preserve"><value> | RX: {0}</value></data>
+  <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | RX ERROR: {0}</value></data>
+  <data name="Telemetry.SavedOverride" xml:space="preserve"><value>Saved to transmitters-override.json.</value></data>
+  <data name="Telemetry.FailedOverride" xml:space="preserve"><value>Could not save the override: {0}</value></data>
+  <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>Enter your callsign before enabling FT4 transmission.</value></data>
+  <data name="Settings.InvalidValue" xml:space="preserve"><value>Invalid {0}: "{1}"</value></data>
 </root>
