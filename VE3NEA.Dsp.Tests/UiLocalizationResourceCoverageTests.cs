@@ -99,4 +99,43 @@ public sealed class UiLocalizationResourceCoverageTests
     Assert.Equal("Edit Local Entry...", en["Transmitter.Edit"]);
   }
 
+
+  [Fact]
+  public void MainRadioWorkspacesAndSecondaryDialogsHaveChineseResources()
+  {
+    var zh = Read(CultureInfo.GetCultureInfo("zh-CN"));
+    var en = Read(CultureInfo.InvariantCulture);
+    var keys = new Dictionary<string, string>
+    {
+      ["Control.FrequencyWidget.label3"] = "多普勒",
+      ["Control.GainWidget.label1"] = "RF 增益",
+      ["Control.RotatorWidget.TrackCheckbox"] = "跟踪",
+      ["Control.SatelliteSelectorWidget.label3"] = "转发器/信标",
+      ["FrequencyWidget.Terrestrial"] = "地面信号",
+      ["FrequencyWidget.StopTx"] = "停止发射",
+      ["FrequencyWidget.EnableCtcss"] = "启用 CTCSS 亚音编码",
+      ["FrequencyControl.DownlinkBase"] = "下行基准频率",
+      ["FrequencyControl.SavedCorrection"] = "已保存的修正量",
+      ["FrequencyControl.NoDownlinkTuning"] = "无下行链路，接收调谐不变",
+      ["GroupView.Now"] = "过境中",
+      ["Column.GroupViewPanel.columnHeader3"] = "下次过境",
+      ["Control.SkyViewPanel.RealTimeRadioBtn"] = "实时",
+      ["Control.EarthViewPanel.PassRadioBtn"] = "选定过境",
+      ["Menu.WaterfallPanel.SelectTransmitterMNU"] = "选择转发器或信标",
+      ["AutoSelection.TipTrackDisabled"] = "设置中尚未启用旋转器；启用后才能自动跟踪。",
+      ["PttKey.Title"] = "绑定实体 PTT 按键",
+      ["AmsatReport.Heard"] = "已收到信号",
+      ["AmsatReport.NotHeard"] = "未收到信号",
+      ["Onvif.LiveVideo"] = "实时画面",
+      ["Onvif.SetDiscover"] = "搜索设备",
+      ["Onvif.SetInvalidAddress"] = "ONVIF 地址无效"
+    };
+    foreach (var (key, expected) in keys)
+    {
+      Assert.Equal(expected, zh[key]);
+      Assert.True(en.ContainsKey(key), $"Missing English resource: {key}");
+      Assert.NotEqual(zh[key], en[key]);
+    }
+  }
+
 }
