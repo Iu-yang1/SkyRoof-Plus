@@ -769,4 +769,20 @@ Current: {0}</value></data>
   <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | RX ERROR: {0}</value></data>
   <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>Enter your callsign before enabling FT4 transmission.</value></data>
   <data name="Settings.InvalidValue" xml:space="preserve"><value>Invalid {0}: "{1}"</value></data>
+  <data name="Yaesu.Interface" xml:space="preserve"><value>GS-232A/B interface · AZ 0–450° / EL 0–180°</value></data>
+  <data name="Yaesu.Stop" xml:space="preserve"><value>STOP</value></data>
+  <data name="Yaesu.Track" xml:space="preserve"><value>TRACK</value></data>
+  <data name="Yaesu.TrackEnabled" xml:space="preserve"><value>TRACK ✓</value></data>
+  <data name="Yaesu.Go" xml:space="preserve"><value>GO</value></data>
+  <data name="Yaesu.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Yaesu.PositionFault" xml:space="preserve"><value>Position fault</value></data>
+  <data name="Yaesu.SafetyLock" xml:space="preserve"><value>Safety lock</value></data>
+  <data name="Yaesu.Connecting" xml:space="preserve"><value>Connecting</value></data>
+  <data name="Yaesu.LiveTrack" xml:space="preserve"><value>Live Track</value></data>
+  <data name="Yaesu.Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Yaesu.Target" xml:space="preserve"><value>Target    {0}</value></data>
+  <data name="Yaesu.Satellite" xml:space="preserve"><value>Satellite {0}</value></data>
+  <data name="Yaesu.ManualHint" xml:space="preserve"><value>Hold = MOVE\nRelease = STOP\nCenter = STOP</value></data>
+  <data name="Yaesu.LockedHint" xml:space="preserve"><value>LIVE TRACK\nManual locked\nClear TRACK first</value></data>
+  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>PARK ACTIVE\nSTOP cancels</value></data>
 </root>

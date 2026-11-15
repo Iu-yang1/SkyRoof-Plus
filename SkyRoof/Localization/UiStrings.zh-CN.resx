@@ -763,10 +763,26 @@
   <data name="Cw.MacroError" xml:space="preserve"><value>CW 宏</value></data>
   <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>SkyCAT CAT TCP 端口无效，请在频谱设置中填写 1–65535。</value></data>
   <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>保存已修改的卫星分组？</value></data>
-  <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>仅可将仍在轨且正常工作的卫星添加到分组。</value></data>
+  <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>仅可添加数据库状态为“在轨（alive）”的卫星。</value></data>
   <data name="Telemetry.CombineImage" xml:space="preserve"><value>合并此前过境的图像</value></data>
   <data name="Telemetry.AudioRxStatus" xml:space="preserve"><value> | 接收：{0}</value></data>
   <data name="Telemetry.AudioRxError" xml:space="preserve"><value> | 接收异常：{0}</value></data>
   <data name="Settings.EnterCallForFt4" xml:space="preserve"><value>请先设置本台呼号，再启用 FT4 发射。</value></data>
   <data name="Settings.InvalidValue" xml:space="preserve"><value>{0} 的值无效：“{1}”</value></data>
+  <data name="Yaesu.Interface" xml:space="preserve"><value>GS-232A/B 接口 · AZ 0–450° / EL 0–180°</value></data>
+  <data name="Yaesu.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Yaesu.Track" xml:space="preserve"><value>跟踪</value></data>
+  <data name="Yaesu.TrackEnabled" xml:space="preserve"><value>跟踪 ✓</value></data>
+  <data name="Yaesu.Go" xml:space="preserve"><value>转至</value></data>
+  <data name="Yaesu.Disabled" xml:space="preserve"><value>未启用</value></data>
+  <data name="Yaesu.PositionFault" xml:space="preserve"><value>位置反馈异常</value></data>
+  <data name="Yaesu.SafetyLock" xml:space="preserve"><value>安全锁定</value></data>
+  <data name="Yaesu.Connecting" xml:space="preserve"><value>连接中</value></data>
+  <data name="Yaesu.LiveTrack" xml:space="preserve"><value>自动跟踪中</value></data>
+  <data name="Yaesu.Connected" xml:space="preserve"><value>已连接</value></data>
+  <data name="Yaesu.Target" xml:space="preserve"><value>目标     {0}</value></data>
+  <data name="Yaesu.Satellite" xml:space="preserve"><value>卫星     {0}</value></data>
+  <data name="Yaesu.ManualHint" xml:space="preserve"><value>按住：连续转动\n松开：停止\n中心：停止</value></data>
+  <data name="Yaesu.LockedHint" xml:space="preserve"><value>自动跟踪中\n手动控制锁定\n先关闭跟踪</value></data>
+  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>正在停靠\n按停止取消</value></data>
 </root>
