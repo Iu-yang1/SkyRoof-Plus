@@ -55,6 +55,25 @@ namespace SkyRoof
       ctx.Settings.Ui.SaveColumnWidths("GroupViewPanel", listView1);
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      // Refresh labels in place; do not regenerate pass predictions or reorder
+      // the existing list just because the display language changed.
+      var group = ctx.Settings.Satellites.SatelliteGroups
+        .FirstOrDefault(g => g.Id == ctx.Settings.Satellites.SelectedGroupId);
+      if (group != null)
+        GroupNameLabel.Text = UiLocalizationService.Format("GroupView.GroupName", group.Name);
+      foreach (ListViewItem item in listView1.Items)
+      {
+        if (item.Tag is not ItemData data) continue;
+        if (data.Pass == null)
+          item.SubItems[2].Text = UiLocalizationService.Get("GroupView.Unavailable");
+        else if (data.Pass.StartTime <= DateTime.UtcNow &&
+                 data.Pass.EndTime >= DateTime.UtcNow)
+          item.SubItems[2].Text = UiLocalizationService.Get("GroupView.Now");
+      }
+    }
+
     public void LoadGroup()
     {
       // select group or default
@@ -66,7 +85,7 @@ namespace SkyRoof
       PopulateListView();
 
       ShowSelectedSat();
-      GroupNameLabel.Text = $"Group:   {group.Name}";
+      GroupNameLabel.Text = UiLocalizationService.Format("GroupView.GroupName", group.Name);
     }
 
     // fill the (non-virtual) list from the Items array, preserving its order
@@ -155,12 +174,12 @@ namespace SkyRoof
 
         if (data.Pass == null)
         {
-          item.SubItems[2].Text = "n/a";
+          item.SubItems[2].Text = UiLocalizationService.Get("GroupView.Unavailable");
           item.SubItems[3].Text = "";
         }
         else if (data.Pass.StartTime < now)
         {
-          item.SubItems[2].Text = "Now";
+          item.SubItems[2].Text = UiLocalizationService.Get("GroupView.Now");
           item.SubItems[3].Text = $"{Math.Round(data.Pass.MaxElevation)}°";
         }
         else
