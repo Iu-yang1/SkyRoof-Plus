@@ -303,23 +303,30 @@ namespace SkyRoof
       if (Sender.TxOdd)
       {
         OddRadioBtn.Checked = true;
-        OddEvenGroupBox.Text = "TX Odd";
+        OddEvenGroupBox.Text = UiLocalizationService.Get("Ft4.TxOdd");
       }
       else
       {
         EvenRadioBtn.Checked = true;
-        OddEvenGroupBox.Text = "TX Even";
+        OddEvenGroupBox.Text = UiLocalizationService.Get("Ft4.TxEven");
       }
 
       RxSpinner.Value = AudioWaterfall.RxAudioFrequency;
       TxSpinner.Value = AudioWaterfall.TxAudioFrequency;
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      OddEvenGroupBox.Text = UiLocalizationService.Get(Sender.TxOdd
+        ? "Ft4.TxOdd" : "Ft4.TxEven");
+    }
+
     private bool CheckTxEnabled()
     {
       if (ctx.Settings.Ft4Console.Transmit.Enabled) return true;
 
-      MessageBox.Show("FT4 transmit is not enabled in Settings.", "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Information);
+      MessageBox.Show(UiLocalizationService.Get("Ft4.TransmitDisabled"), "SkyRoof",
+        MessageBoxButtons.OK, MessageBoxIcon.Information);
       return false;
     }
 

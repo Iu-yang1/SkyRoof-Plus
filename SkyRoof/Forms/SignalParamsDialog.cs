@@ -105,6 +105,29 @@ namespace SkyRoof
     public SignalParamsDialog()
     {
       InitializeComponent();
+      foreach (ComboBox box in new[] { ManchesterCombo, DifferentialCombo })
+      {
+        box.FormattingEnabled = true;
+        box.Format += (_, e) =>
+        {
+          if (e.ListItem is not string text) return;
+          e.Value = text switch
+          {
+            "Auto" => UiLocalizationService.Get("SignalParams.TriAuto"),
+            "On" => UiLocalizationService.Get("SignalParams.TriOn"),
+            "Off" => UiLocalizationService.Get("SignalParams.TriOff"),
+            _ => text
+          };
+        };
+      }
+      UiLocalizationService.Bind(this, () =>
+      {
+        UiLocalizationService.ApplyStaticControls(this);
+        ManchesterCombo.Refresh();
+        DifferentialCombo.Refresh();
+        DiscoverBtn.Text = UiLocalizationService.Get(Discovering
+          ? "Common.Stop" : "SignalParams.Discover");
+      });
       WireDots();
       SetupResetMenu();
       // wired here rather than in the designer: the button keeps its DialogResult.Cancel (which closes the
@@ -550,7 +573,7 @@ namespace SkyRoof
     private void DiscoverBtn_Click(object sender, EventArgs e)
     {
       Discovering = !Discovering;
-      DiscoverBtn.Text = Discovering ? "Stop" : "Discover";
+      DiscoverBtn.Text = UiLocalizationService.Get(Discovering ? "Common.Stop" : "SignalParams.Discover");
       if (Discovering) { StoppedExplicitly = false; BeginSearchDisplay(); ShowDiscoveryProgress(0, 0, false); }
       else ShowDiscoveryStopped("search stopped");
       DiscoverToggled?.Invoke(Discovering);
@@ -610,7 +633,7 @@ namespace SkyRoof
       if (InvokeRequired) { BeginInvoke(() => ShowDiscoveryStopped(reason)); return; }
 
       Discovering = false;
-      DiscoverBtn.Text = "Discover";
+      DiscoverBtn.Text = UiLocalizationService.Get("SignalParams.Discover");
       StoppedExplicitly = true;
       EndSearchDisplay(true);
       CountdownText = null;
@@ -639,7 +662,7 @@ namespace SkyRoof
       if (InvokeRequired) { BeginInvoke(() => ShowDiscovered(found, need)); return; }
 
       Discovering = false;
-      DiscoverBtn.Text = "Discover";
+      DiscoverBtn.Text = UiLocalizationService.Get("SignalParams.Discover");
       Original = found;
       Quiet(() =>
       {
@@ -713,7 +736,7 @@ namespace SkyRoof
     public void ShowDiscoveryEnded(bool found)
     {
       Discovering = false;
-      DiscoverBtn.Text = "Discover";
+      DiscoverBtn.Text = UiLocalizationService.Get("SignalParams.Discover");
       if (StoppedExplicitly) { StoppedExplicitly = false; return; }
       if (!found)
       {
@@ -745,7 +768,7 @@ namespace SkyRoof
       HasDiscovered = false;
       Discovering = false;
       StoppedExplicitly = false;
-      DiscoverBtn.Text = "Discover";
+      DiscoverBtn.Text = UiLocalizationService.Get("SignalParams.Discover");
 
       TelemetryFormatCombo.DataSource = new List<string>(view.FormatIds);
       // the co-channel switch is the caller writing the dialog, not an operator edit, and it ends whatever

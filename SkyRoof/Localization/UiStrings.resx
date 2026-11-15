@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Menu.File" xml:space="preserve"><value>&amp;File</value></data>
+  <data name="Menu.Exit" xml:space="preserve"><value>E&amp;xit</value></data>
+  <data name="Menu.View" xml:space="preserve"><value>&amp;View</value></data>
+  <data name="Menu.Group" xml:space="preserve"><value>&amp;Group</value></data>
+  <data name="Menu.SatelliteDetails" xml:space="preserve"><value>Satellite &amp;Details</value></data>
+  <data name="Menu.Transmitters" xml:space="preserve"><value>Satellite &amp;Transmitters</value></data>
+  <data name="Menu.SatellitePasses" xml:space="preserve"><value>Satellite &amp;Passes</value></data>
+  <data name="Menu.Waterfall" xml:space="preserve"><value>Wideband &amp;Waterfall</value></data>
+  <data name="Menu.FrequencyControl" xml:space="preserve"><value>&amp;Frequency Control</value></data>
+  <data name="Menu.IcomLanSpectrum" xml:space="preserve"><value>Icom LAN S&amp;pectrum</value></data>
+  <data name="Menu.Timeline" xml:space="preserve"><value>T&amp;imeline</value></data>
+  <data name="Menu.SkyView" xml:space="preserve"><value>&amp;Sky View</value></data>
+  <data name="Menu.EarthView" xml:space="preserve"><value>&amp;Earth View</value></data>
+  <data name="Menu.QsoEntry" xml:space="preserve"><value>&amp;QSO Entry</value></data>
+  <data name="Menu.Ft4Console" xml:space="preserve"><value>&amp;FT4 Console</value></data>
+  <data name="Menu.CwConsole" xml:space="preserve"><value>&amp;CW Console (RX / TX)</value></data>
+  <data name="Menu.CwConsoleHelp" xml:space="preserve"><value>Manual CW transmit is available independently of satellite transponder selection; SkyCAT/radio CW readiness is checked when sending.</value></data>
+  <data name="Menu.SstvConsole" xml:space="preserve"><value>SSTV RX / TX</value></data>
+  <data name="Menu.Recorder" xml:space="preserve"><value>&amp;Recorder</value></data>
+  <data name="Menu.QsoScheduler" xml:space="preserve"><value>QSO &amp;Scheduler</value></data>
+  <data name="Menu.Telemetry" xml:space="preserve"><value>Te&amp;lemetry</value></data>
+  <data name="Menu.AutoSelection" xml:space="preserve"><value>&amp;Auto Selection</value></data>
+  <data name="Menu.ResetLayout" xml:space="preserve"><value>Reset Window &amp;Layout</value></data>
+  <data name="Menu.Tools" xml:space="preserve"><value>&amp;Tools</value></data>
+  <data name="Menu.SatellitesAndGroups" xml:space="preserve"><value>&amp;Satellites and Groups...</value></data>
+  <data name="Menu.SdrDevices" xml:space="preserve"><value>SD&amp;R Devices...</value></data>
+  <data name="Menu.Settings" xml:space="preserve"><value>S&amp;ettings...</value></data>
+  <data name="Menu.Theme" xml:space="preserve"><value>T&amp;heme</value></data>
+  <data name="Menu.ThemeSystem" xml:space="preserve"><value>&amp;System</value></data>
+  <data name="Menu.ThemeLight" xml:space="preserve"><value>&amp;Light · Pink / Blue</value></data>
+  <data name="Menu.ThemeDark" xml:space="preserve"><value>&amp;Dark</value></data>
+  <data name="Menu.Language" xml:space="preserve"><value>&amp;Language</value></data>
+  <data name="Menu.ToolbarScale" xml:space="preserve"><value>UI Scale</value></data>
+  <data name="Menu.DockScale" xml:space="preserve"><value>Dock &amp; Popup Scale</value></data>
+  <data name="Menu.DownloadSatelliteData" xml:space="preserve"><value>&amp;Download All Satellite Data</value></data>
+  <data name="Menu.DownloadOrbitElements" xml:space="preserve"><value>Download &amp;Orbit Elements</value></data>
+  <data name="Menu.DownloadAmsatStatuses" xml:space="preserve"><value>Download &amp;AMSAT Statuses</value></data>
+  <data name="Menu.LoadOrbitFile" xml:space="preserve"><value>Load Orbit Elements From &amp;File...</value></data>
+  <data name="Menu.Help" xml:space="preserve"><value>&amp;Help</value></data>
+  <data name="Menu.OnlineHelp" xml:space="preserve"><value>&amp;Online Help...</value></data>
+  <data name="Menu.SupportGroup" xml:space="preserve"><value>&amp;Support Group...</value></data>
+  <data name="Menu.DataFolder" xml:space="preserve"><value>&amp;Data Folder...</value></data>
+  <data name="Menu.About" xml:space="preserve"><value>&amp;About...</value></data>
+  <data name="Panel.Groups" xml:space="preserve"><value>Groups</value></data>
+  <data name="Panel.SatelliteDetails" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Panel.Transmitters" xml:space="preserve"><value>Satellite Transmitters</value></data>
+  <data name="Panel.Passes" xml:space="preserve"><value>Satellite Passes</value></data>
+  <data name="Panel.Timeline" xml:space="preserve"><value>Timeline</value></data>
+  <data name="Panel.SkyView" xml:space="preserve"><value>Sky View</value></data>
+  <data name="Panel.EarthView" xml:space="preserve"><value>Earth View</value></data>
+  <data name="Panel.FrequencyControl" xml:space="preserve"><value>Frequency Control</value></data>
+  <data name="Panel.IcomLanSpectrum" xml:space="preserve"><value>Icom LAN Spectrum</value></data>
+  <data name="Panel.OnvifCamera" xml:space="preserve"><value>ONVIF Camera</value></data>
+  <data name="Panel.Waterfall" xml:space="preserve"><value>Wideband Waterfall</value></data>
+  <data name="Panel.QsoEntry" xml:space="preserve"><value>QSO Entry</value></data>
+  <data name="Panel.Ft4Console" xml:space="preserve"><value>FT4 Console</value></data>
+  <data name="Panel.CwConsole" xml:space="preserve"><value>CW Console [RX / TX]</value></data>
+  <data name="Panel.SstvConsole" xml:space="preserve"><value>SSTV</value></data>
+  <data name="Panel.Recorder" xml:space="preserve"><value>Recorder</value></data>
+  <data name="Panel.QsoScheduler" xml:space="preserve"><value>QSO Scheduler</value></data>
+  <data name="Panel.Telemetry" xml:space="preserve"><value>Telemetry</value></data>
+  <data name="Panel.AutoSelection" xml:space="preserve"><value>Auto Selection</value></data>
+  <data name="Common.Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Common.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="Common.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common.Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Common.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Common.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Common.Load" xml:space="preserve"><value>Load</value></data>
+  <data name="Common.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="Common.ConnectionLost" xml:space="preserve"><value>Connection lost</value></data>
+  <data name="Control.RecorderPanel.RecordBtn" xml:space="preserve"><value>Record</value></data>
+  <data name="Control.RecorderPanel.SaveBtn" xml:space="preserve"><value>Save</value></data>
+  <data name="Control.RecorderPanel.LoadBtn" xml:space="preserve"><value>Load</value></data>
+  <data name="Control.RecorderPanel.PlaybackBtn" xml:space="preserve"><value>Play Back</value></data>
+  <data name="Control.Ft4ConsolePanel.LogBtn" xml:space="preserve"><value>Log</value></data>
+  <data name="Control.Ft4ConsolePanel.HaltTxBtn" xml:space="preserve"><value>Halt TX</value></data>
+  <data name="Control.Ft4ConsolePanel.EnableTxBtn" xml:space="preserve"><value>Enable TX</value></data>
+  <data name="Control.Ft4ConsolePanel.TuneBtn" xml:space="preserve"><value>Tune</value></data>
+  <data name="Control.QsoEntryPanel.label10" xml:space="preserve"><value>BAND</value></data>
+  <data name="Control.QsoEntryPanel.label11" xml:space="preserve"><value>MODE</value></data>
+  <data name="Control.QsoEntryPanel.label12" xml:space="preserve"><value>SAT</value></data>
+  <data name="Control.QsoEntryPanel.label13" xml:space="preserve"><value>CALL</value></data>
+  <data name="Control.QsoEntryPanel.label14" xml:space="preserve"><value>GRID</value></data>
+  <data name="Control.QsoEntryPanel.label1" xml:space="preserve"><value>STATE</value></data>
+  <data name="Control.QsoEntryPanel.label15" xml:space="preserve"><value>SENT</value></data>
+  <data name="Control.QsoEntryPanel.label16" xml:space="preserve"><value>RECV</value></data>
+  <data name="Control.QsoEntryPanel.label17" xml:space="preserve"><value>NAME</value></data>
+  <data name="Control.QsoEntryPanel.label2" xml:space="preserve"><value>NOTES</value></data>
+  <data name="Control.QsoEntryPanel.ClearBtn" xml:space="preserve"><value>Clear</value></data>
+  <data name="Control.QsoEntryPanel.SaveBtn" xml:space="preserve"><value>Save</value></data>
+  <data name="Control.PassesPanel.CurrentSatBtn" xml:space="preserve"><value>Current Satellite</value></data>
+  <data name="Control.PassesPanel.GroupBtn" xml:space="preserve"><value>Group</value></data>
+  <data name="Control.PassesPanel.AllBtn" xml:space="preserve"><value>All VHF/UHF</value></data>
+  <data name="Column.TransmittersPanel.columnHeader1" xml:space="preserve"><value>Transmitter</value></data>
+  <data name="Column.TransmittersPanel.columnHeader3" xml:space="preserve"><value>Downlink</value></data>
+  <data name="Column.TransmittersPanel.columnHeader2" xml:space="preserve"><value>Uplink</value></data>
+  <data name="Column.TransmittersPanel.columnHeader4" xml:space="preserve"><value>Mode</value></data>
+  <data name="Control.AutoSelectionPanel.EditBtn" xml:space="preserve"><value>Edit</value></data>
+  <data name="Control.AutoSelectionPanel.ActiveLabel" xml:space="preserve"><value>Active:</value></data>
+  <data name="Control.AutoSelectionPanel.NextLabel" xml:space="preserve"><value>Next:</value></data>
+  <data name="Control.AutoSelectionPanel.RecLabel" xml:space="preserve"><value>Rec:</value></data>
+  <data name="Ft4.TxOdd" xml:space="preserve"><value>TX Odd</value></data>
+  <data name="Ft4.TxEven" xml:space="preserve"><value>TX Even</value></data>
+  <data name="Recorder.Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Recorder.AudioSource" xml:space="preserve"><value>Audio Source</value></data>
+  <data name="Recorder.IqSource" xml:space="preserve"><value>I/Q Source</value></data>
+  <data name="Recorder.SourceAuto" xml:space="preserve"><value>Auto (SDR if running, else RS-BA1 playback)</value></data>
+  <data name="Recorder.SourceSdr" xml:space="preserve"><value>SkyRoof SDR</value></data>
+  <data name="Recorder.SourceCapture" xml:space="preserve"><value>Windows AF capture (USB / CABLE Output)</value></data>
+  <data name="Recorder.SourceLoopback" xml:space="preserve"><value>RS-BA1 playback (WASAPI loopback)</value></data>
+  <data name="Recorder.SourceIfAf" xml:space="preserve"><value>IF -&gt; AF decoded PCM (direct, 48 kHz)</value></data>
+  <data name="Recorder.SourceRawIf" xml:space="preserve"><value>Raw 12-kHz IF (48-kHz .if.wav)</value></data>
+  <data name="Recorder.IqSdr" xml:space="preserve"><value>SkyRoof SDR I/Q</value></data>
+  <data name="Recorder.IqIf" xml:space="preserve"><value>12-kHz IF -&gt; complex I/Q (48-kHz .iq.wav)</value></data>
+  <data name="Recorder.RecordAudio" xml:space="preserve"><value>Record Audio</value></data>
+  <data name="Recorder.RecordIq" xml:space="preserve"><value>Record I/Q</value></data>
+  <data name="Recorder.SaveMp3" xml:space="preserve"><value>Save .mp3</value></data>
+  <data name="Recorder.SaveWav" xml:space="preserve"><value>Save .wav</value></data>
+  <data name="Recorder.StopRecording" xml:space="preserve"><value>Stop Recording</value></data>
+  <data name="Recorder.StartPlayback" xml:space="preserve"><value>Start Playback</value></data>
+  <data name="Recorder.StopPlayback" xml:space="preserve"><value>Stop Playback</value></data>
+  <data name="Recorder.Audio" xml:space="preserve"><value>Audio</value></data>
+  <data name="Recorder.Failed" xml:space="preserve"><value>Recording failed: {0}</value></data>
+  <data name="Recorder.NoSamples" xml:space="preserve"><value>No samples from {0}; check audio source/device</value></data>
+  <data name="Recorder.SilentInput" xml:space="preserve"><value>Input silent/quiet: {0}; check radio AF, squelch and endpoint</value></data>
+  <data name="Recorder.Recording" xml:space="preserve"><value>Recording {0} {1}</value></data>
+  <data name="Recorder.Empty" xml:space="preserve"><value>No audio/IQ samples recorded - input: {0}</value></data>
+  <data name="Recorder.EmptyAudio" xml:space="preserve"><value>Recording contains silence - verify {0}</value></data>
+  <data name="Recorder.Stopped" xml:space="preserve"><value>Recording stopped - Duration: {0} ({1} samples)</value></data>
+  <data name="Recorder.BufferFull" xml:space="preserve"><value>Recording stopped - Buffer full (30 min)</value></data>
+  <data name="Recorder.PlaybackStopped" xml:space="preserve"><value>Playback stopped</value></data>
+  <data name="Recorder.Playing" xml:space="preserve"><value>Playing {0} {1} of {2} ({3}%)</value></data>
+  <data name="Recorder.Loaded" xml:space="preserve"><value>Loaded {0}</value></data>
+  <data name="Recorder.Saving" xml:space="preserve"><value>Saving {0}…</value></data>
+  <data name="Recorder.Saved" xml:space="preserve"><value>Saved to {0}</value></data>
+  <data name="Recorder.FilterMp3" xml:space="preserve"><value>MP3 Files (*.mp3)|*.mp3|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIq" xml:space="preserve"><value>I/Q WAV Files (*.iq.wav)|*.iq.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterIf" xml:space="preserve"><value>Raw IF WAV Files (*.if.wav)|*.if.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.FilterWav" xml:space="preserve"><value>WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Telemetry.NoTerrestrialParams" xml:space="preserve"><value>terrestrial, signal parameters not set</value></data>
+  <data name="Telemetry.BelowHorizon" xml:space="preserve"><value>satellite below horizon</value></data>
+  <data name="Telemetry.Ready" xml:space="preserve"><value>ready to decode</value></data>
+  <data name="Telemetry.UnsupportedCw" xml:space="preserve"><value>CW decoding not supported</value></data>
+  <data name="Telemetry.UnsupportedFm" xml:space="preserve"><value>FM decoding not supported</value></data>
+  <data name="Telemetry.UnknownParams" xml:space="preserve"><value>signal parameters unknown</value></data>
+  <data name="Telemetry.UnsupportedFormat" xml:space="preserve"><value>telemetry format not supported</value></data>
+  <data name="Telemetry.Images" xml:space="preserve"><value>images</value></data>
+  <data name="Telemetry.FmSpeech" xml:space="preserve"><value>FM speech</value></data>
+  <data name="Telemetry.SaveAs" xml:space="preserve"><value>Save As...</value></data>
+  <data name="Telemetry.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Telemetry.OpenImage" xml:space="preserve"><value>Open in Viewer</value></data>
+  <data name="Telemetry.RepairImage" xml:space="preserve"><value>Repair Damaged Image</value></data>
+  <data name="Telemetry.DenoiseImage" xml:space="preserve"><value>Denoise Image...</value></data>
+  <data name="Telemetry.PlayVoice" xml:space="preserve"><value>Play</value></data>
+  <data name="Telemetry.OpenVoice" xml:space="preserve"><value>Open in Player</value></data>
+  <data name="Telemetry.ClearAll" xml:space="preserve"><value>Clear All</value></data>
+  <data name="Telemetry.Terrestrial" xml:space="preserve"><value>Terrestrial</value></data>
+  <data name="AutoSelection.Toggle" xml:space="preserve"><value>Auto Selection: {0}</value></data>
+  <data name="AutoSelection.Active" xml:space="preserve"><value>Active: {0} · LOS in {1}</value></data>
+  <data name="AutoSelection.ActiveNone" xml:space="preserve"><value>Active: none</value></data>
+  <data name="AutoSelection.Next" xml:space="preserve"><value>Next: {0} · in {1}</value></data>
+  <data name="AutoSelection.NextNone" xml:space="preserve"><value>Next: none</value></data>
+  <data name="AutoSelection.Recording" xml:space="preserve"><value>Recording: {0} ● {1}</value></data>
+  <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>Recording: Off</value></data>
+  <data name="AutoSelection.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Ft4.TransmitDisabled" xml:space="preserve"><value>FT4 transmit is not enabled in Settings.</value></data>
+  <data name="Cw.Settings" xml:space="preserve"><value>CW Settings…</value></data>
+  <data name="Cw.History" xml:space="preserve"><value>CW History…</value></data>
+  <data name="Cw.HistoryTitle" xml:space="preserve"><value>CW RX History (committed · UTC)</value></data>
+  <data name="Cw.Send" xml:space="preserve"><value>Send</value></data>
+  <data name="Cw.SetWpm" xml:space="preserve"><value>Set WPM</value></data>
+  <data name="Cw.TxDisarmed" xml:space="preserve"><value>TX: disarmed</value></data>
+  <data name="Cw.StartRx" xml:space="preserve"><value>Start RX</value></data>
+  <data name="Cw.StopRx" xml:space="preserve"><value>Stop RX</value></data>
+  <data name="Cw.InputUnavailable" xml:space="preserve"><value>Input: unavailable</value></data>
+  <data name="Cw.StateDisabled" xml:space="preserve"><value>disabled</value></data>
+  <data name="Cw.StateRunning" xml:space="preserve"><value>running</value></data>
+  <data name="Cw.StateWaiting" xml:space="preserve"><value>waiting</value></data>
+  <data name="Cw.InputStatus" xml:space="preserve"><value>RX: {0} · {1}</value></data>
+  <data name="Cw.WorkerUnavailable" xml:space="preserve"><value>CW decoder: worker unavailable</value></data>
+  <data name="Cw.WorkerStopped" xml:space="preserve"><value>Worker: stopped</value></data>
+  <data name="Cw.SpectrumRaw" xml:space="preserve"><value>Spectrum: Raw</value></data>
+  <data name="Cw.DecodingSuffix" xml:space="preserve"><value> · decoding</value></data>
+  <data name="Cw.TxUnavailable" xml:space="preserve"><value>TX unavailable</value></data>
+  <data name="Cw.TxSending" xml:space="preserve"><value>TX SENDING</value></data>
+  <data name="Cw.TxPreflight" xml:space="preserve"><value>TX preflight</value></data>
+  <data name="Cw.TxReady" xml:space="preserve"><value>TX: ready</value></data>
+  <data name="Cw.TxIdle" xml:space="preserve"><value>TX idle</value></data>
+  <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX: controller unavailable</value></data>
+  <data name="Cw.TxIdleHint" xml:space="preserve"><value>TX: idle · Send automatically checks SkyCAT</value></data>
+  <data name="Spectrum.Diagnostics" xml:space="preserve"><value>DIAG</value></data>
+  <data name="Spectrum.Waiting" xml:space="preserve"><value>Waiting for spectrum</value></data>
+  <data name="Spectrum.StoppedHint" xml:space="preserve"><value>Capture stopped. Configure the spectrum source in Settings, then click START.</value></data>
+  <data name="Spectrum.NotConnected" xml:space="preserve"><value>No spectrum connection · 0.0 frames/s</value></data>
+  <data name="Spectrum.DiagnosticsMenu" xml:space="preserve"><value>Spectrum diagnostics…</value></data>
+  <data name="Spectrum.CopyDiagnostics" xml:space="preserve"><value>Copy spectrum diagnostics</value></data>
+  <data name="Spectrum.ClipboardBusy" xml:space="preserve"><value>Could not copy spectrum diagnostics because the clipboard is busy.</value></data>
+  <data name="Spectrum.TipScopeBand" xml:space="preserve"><value>Choose Auto / Main / Sub receiver. Read-only sources allow local switching.</value></data>
+  <data name="Spectrum.TipScopeMode" xml:space="preserve"><value>Radio scope mode: CENTER / FIXED / SCROLL. Requires writable CAT.</value></data>
+  <data name="Spectrum.TipSpanEdge" xml:space="preserve"><value>Set spectrum span or fixed-edge presets; selected by current mode.</value></data>
+  <data name="Spectrum.TipReference" xml:space="preserve"><value>Write IC-9700 scope REF level and verify readback.</value></data>
+  <data name="Spectrum.TipSweep" xml:space="preserve"><value>Radio sweep speed; may change the radio state.</value></data>
+  <data name="Spectrum.TipVbw" xml:space="preserve"><value>Radio video bandwidth; requires writable CAT.</value></data>
+  <data name="Spectrum.TipHold" xml:space="preserve"><value>Freeze local spectrum/waterfall; read back radio settings on release.</value></data>
+  <data name="Spectrum.TipPeak" xml:space="preserve"><value>Local peak hold; right-click to clear history.</value></data>
+  <data name="Spectrum.TipWaterfall" xml:space="preserve"><value>Show/hide local waterfall.</value></data>
+  <data name="Spectrum.TipAverage" xml:space="preserve"><value>Average local spectrum sweeps; does not affect waterfall.</value></data>
+  <data name="Spectrum.TipSmooth" xml:space="preserve"><value>Smooth spectrum/peaks across frequency.</value></data>
+  <data name="Spectrum.TipZoom" xml:space="preserve"><value>Local spectrum zoom; does not change radio SPAN.</value></data>
+  <data name="Spectrum.TipReadback" xml:space="preserve"><value>Read actual spectrum settings from IC-9700; do not treat local values as confirmed.</value></data>
+  <data name="Spectrum.TipDiagnostics" xml:space="preserve"><value>Inspect connection, sequence gaps, CAT queue and frame rate.</value></data>
+  <data name="Sstv.ImportWav" xml:space="preserve"><value>Import WAV</value></data>
+  <data name="Sstv.ManualStart" xml:space="preserve"><value>Manual start</value></data>
+  <data name="Sstv.SaveImage" xml:space="preserve"><value>Save image</value></data>
+  <data name="Sstv.CopyImage" xml:space="preserve"><value>Copy image</value></data>
+  <data name="Sstv.RxHistory" xml:space="preserve"><value>RX history</value></data>
+  <data name="Sstv.OpenImage" xml:space="preserve"><value>Open image</value></data>
+  <data name="Sstv.Paste" xml:space="preserve"><value>Paste</value></data>
+  <data name="Sstv.Undo" xml:space="preserve"><value>Undo</value></data>
+  <data name="Sstv.Redo" xml:space="preserve"><value>Redo</value></data>
+  <data name="Sstv.Rotate" xml:space="preserve"><value>Rotate</value></data>
+  <data name="Sstv.Mirror" xml:space="preserve"><value>Mirror</value></data>
+  <data name="Sstv.Crop" xml:space="preserve"><value>Crop</value></data>
+  <data name="Sstv.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Sstv.Gallery" xml:space="preserve"><value>Gallery</value></data>
+  <data name="Sstv.SaveWav" xml:space="preserve"><value>Save WAV</value></data>
+  <data name="Sstv.SaveTemplate" xml:space="preserve"><value>Save template</value></data>
+  <data name="Sstv.DeleteTemplate" xml:space="preserve"><value>Delete template</value></data>
+  <data name="Sstv.QsoLog" xml:space="preserve"><value>QSO log</value></data>
+  <data name="Sstv.AddLayer" xml:space="preserve"><value>Add</value></data>
+  <data name="Sstv.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Sstv.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Sstv.InsertVariable" xml:space="preserve"><value>Insert variable</value></data>
+  <data name="Sstv.ImportImage" xml:space="preserve"><value>Import image</value></data>
+  <data name="Sstv.ExportImage" xml:space="preserve"><value>Export image</value></data>
+  <data name="Sstv.DeleteImage" xml:space="preserve"><value>Delete image</value></data>
+  <data name="Sstv.View" xml:space="preserve"><value>View</value></data>
+  <data name="Sstv.UseForTx" xml:space="preserve"><value>Use for TX</value></data>
+  <data name="Sstv.SaveQso" xml:space="preserve"><value>Save QSO</value></data>
+  <data name="Sstv.ExportAdif" xml:space="preserve"><value>Export ADIF</value></data>
+  <data name="Sstv.HeadingMode" xml:space="preserve"><value>Mode &amp; templates</value></data>
+  <data name="Sstv.HeadingStation" xml:space="preserve"><value>QSO / Station</value></data>
+  <data name="Sstv.HeadingText" xml:space="preserve"><value>Image text styling</value></data>
+  <data name="Sstv.HeadingAudio" xml:space="preserve"><value>Audio &amp; ID</value></data>
+  <data name="Sstv.FieldMode" xml:space="preserve"><value>Mode</value></data>
+  <data name="Sstv.FieldTemplate" xml:space="preserve"><value>Template</value></data>
+  <data name="Sstv.FieldMy" xml:space="preserve"><value>MY</value></data>
+  <data name="Sstv.FieldHis" xml:space="preserve"><value>HIS</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RST TX</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RST RX</value></data>
+  <data name="Sstv.FieldName" xml:space="preserve"><value>Name</value></data>
+  <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
+  <data name="Sstv.FieldNotes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Sstv.FieldText" xml:space="preserve"><value>Text</value></data>
+  <data name="Sstv.FieldObject" xml:space="preserve"><value>Object</value></data>
+  <data name="Sstv.FieldContent" xml:space="preserve"><value>Content</value></data>
+  <data name="Sstv.FieldSize" xml:space="preserve"><value>Font %</value></data>
+  <data name="Sstv.FieldVariable" xml:space="preserve"><value>Variable</value></data>
+  <data name="Sstv.FieldSoundcard" xml:space="preserve"><value>Soundcard</value></data>
+  <data name="Sstv.TabRx" xml:space="preserve"><value>Receive RX</value></data>
+  <data name="Sstv.TabTx" xml:space="preserve"><value>Transmit TX</value></data>
+  <data name="Sstv.TabHistory" xml:space="preserve"><value>Gallery / History</value></data>
+  <data name="Sstv.TabQso" xml:space="preserve"><value>QSO log</value></data>
+  <data name="Sstv.Transmit" xml:space="preserve"><value>Transmit image</value></data>
+  <data name="Sstv.StopTransmit" xml:space="preserve"><value>Stop TX</value></data>
+  <data name="Sstv.StartReceive" xml:space="preserve"><value>Start RX</value></data>
+  <data name="Sstv.StopReceive" xml:space="preserve"><value>Stop RX</value></data>
+  <data name="Sstv.AutoVis" xml:space="preserve"><value>Auto tuning</value></data>
+  <data name="Sstv.TextColor" xml:space="preserve"><value>Text color</value></data>
+  <data name="Sstv.TuningHz" xml:space="preserve"><value>Tuning Hz</value></data>
+  <data name="Sstv.ImageSlant" xml:space="preserve"><value>Image slant</value></data>
+  <data name="Sstv.GalleryGroup" xml:space="preserve"><value>Gallery / recent images</value></data>
+  <data name="Sstv.TxMode" xml:space="preserve"><value>TX mode</value></data>
+  <data name="Sstv.DragText" xml:space="preserve"><value>Drag text to position; wheel to resize</value></data>
+  <data name="Sstv.TheirCall" xml:space="preserve"><value>Their call</value></data>
+  <data name="Sstv.Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Sstv.MyCallPlaceholder" xml:space="preserve"><value>Your callsign</value></data>
+  <data name="Sstv.TheirCallPlaceholder" xml:space="preserve"><value>Other station callsign</value></data>
+  <data name="Sstv.CaptionPlaceholder" xml:space="preserve"><value>Supports {MYCALL} and other variables</value></data>
+  <data name="Sstv.OverlayPlaceholder" xml:space="preserve"><value>Callsign / {MYGRID} / {SAT} / {UTC}</value></data>
+  <data name="Sstv.SourceAf" xml:space="preserve"><value>Soundcard AF</value></data>
+  <data name="Sstv.SourceLoopbackAf" xml:space="preserve"><value>RS-BA1 loopback AF</value></data>
+  <data name="Sstv.SourceIf" xml:space="preserve"><value>Soundcard 12 kHz IF</value></data>
+  <data name="Sstv.SourceLoopbackIf" xml:space="preserve"><value>Loopback 12 kHz IF</value></data>
+  <data name="Sstv.IfFollow" xml:space="preserve"><value>IF: follow downlink</value></data>
+  <data name="Sstv.AutoDetect" xml:space="preserve"><value>Auto-detect SSTV</value></data>
+  <data name="Sstv.TemplateClassic" xml:space="preserve"><value>Classic callsigns</value></data>
+  <data name="Sstv.TemplateQsl" xml:space="preserve"><value>QSL card</value></data>
+  <data name="Sstv.TemplateSatellite" xml:space="preserve"><value>Satellite banner</value></data>
+  <data name="Sstv.TemplatePlain" xml:space="preserve"><value>Plain picture</value></data>
+  <data name="Dialog.DownloadDialog.Title" xml:space="preserve"><value>Satellite Data</value></data>
+  <data name="Control.DownloadDialog.label1" xml:space="preserve"><value>Downloading Satellite Data...</value></data>
+  <data name="Download.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Download.Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
+  <data name="Download.Failed" xml:space="preserve"><value>Download Failed</value></data>
+  <data name="Download.ImportFailed" xml:space="preserve"><value>Data Import Failed</value></data>
+  <data name="Dialog.SatelliteGroupsForm.Title" xml:space="preserve"><value>Satellites and Groups</value></data>
+  <data name="Dialog.SignalParamsDialog.Title" xml:space="preserve"><value>Signal Details</value></data>
+  <data name="Dialog.SdrDevicesDialog.Title" xml:space="preserve"><value>SDR Devices</value></data>
+  <data name="Dialog.AutoSelectionConfigForm.Title" xml:space="preserve"><value>Auto Selection Schedule</value></data>
+  <data name="Dialog.PathOptimizerForm.Title" xml:space="preserve"><value>Path Optimizer Details</value></data>
+  <data name="Dialog.AmsatReportDialog.Title" xml:space="preserve"><value>Report to AMSAT</value></data>
+  <data name="Dialog.SatelliteDetailsForm.Title" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Dialog.SatelliteDetailsDialog.Title" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Dialog.LoqFt4QsoDialog.Title" xml:space="preserve"><value>Save QSO</value></data>
+  <data name="Dialog.AboutTitle" xml:space="preserve"><value>About {0}</value></data>
+  <data name="Dialog.SaveQsoFor" xml:space="preserve"><value>Save FT4 QSO with {0}?</value></data>
+  <data name="SatelliteGroups.Updated" xml:space="preserve"><value>Updated {0}</value></data>
+  <data name="SatelliteGroups.Count" xml:space="preserve"><value>{0} of {1}</value></data>
+  <data name="SignalParams.Discover" xml:space="preserve"><value>Discover</value></data>
+  <data name="Control.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>Rename</value></data>
+  <data name="Control.SatelliteGroupsForm.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SatelliteGroupsForm.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SatelliteGroupsForm.label2" xml:space="preserve"><value> Satellite Groups</value></data>
+  <data name="Control.SatelliteGroupsForm.label1" xml:space="preserve"><value> Satellites</value></data>
+  <data name="Control.SatelliteGroupsForm.label3" xml:space="preserve"><value>Search:</value></data>
+  <data name="Control.SatelliteGroupsForm.label5" xml:space="preserve"><value>Service:</value></data>
+  <data name="Control.SatelliteGroupsForm.HamCheckbox" xml:space="preserve"><value>Ham</value></data>
+  <data name="Control.SatelliteGroupsForm.NonHamCheckbox" xml:space="preserve"><value>Non-Ham</value></data>
+  <data name="Control.SatelliteGroupsForm.label4" xml:space="preserve"><value>Bands:</value></data>
+  <data name="Control.SatelliteGroupsForm.OtherBandsCheckbox" xml:space="preserve"><value>Other</value></data>
+  <data name="Control.SatelliteGroupsForm.label6" xml:space="preserve"><value>Radio:</value></data>
+  <data name="Control.SatelliteGroupsForm.TransponderCheckbox" xml:space="preserve"><value>Transponder</value></data>
+  <data name="Control.SatelliteGroupsForm.TransceiverCheckbox" xml:space="preserve"><value>Transceiver</value></data>
+  <data name="Control.SatelliteGroupsForm.TransmitterCheckbox" xml:space="preserve"><value>Transmitter</value></data>
+  <data name="Control.SatelliteGroupsForm.label7" xml:space="preserve"><value>Status:</value></data>
+  <data name="Control.SatelliteGroupsForm.AliveCheckbox" xml:space="preserve"><value>Alive</value></data>
+  <data name="Control.SatelliteGroupsForm.FutureCheckbox" xml:space="preserve"><value>Future</value></data>
+  <data name="Control.SatelliteGroupsForm.ReEnteredCheckbox" xml:space="preserve"><value>Re-Entered</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader1" xml:space="preserve"><value>Name</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader2" xml:space="preserve"><value>NORAD ID</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader3" xml:space="preserve"><value>Launched</value></data>
+  <data name="Column.SatelliteGroupsForm.columnHeader4" xml:space="preserve"><value>Service</value></data>
+  <data name="Control.SignalParamsDialog.ModulationLabel" xml:space="preserve"><value>Modulation</value></data>
+  <data name="Control.SignalParamsDialog.FramingLabel" xml:space="preserve"><value>Framing</value></data>
+  <data name="Control.SignalParamsDialog.BaudLabel" xml:space="preserve"><value>Baud rate</value></data>
+  <data name="Control.SignalParamsDialog.DeviationLabel" xml:space="preserve"><value>Deviation, Hz</value></data>
+  <data name="Control.SignalParamsDialog.AfCarrierLabel" xml:space="preserve"><value>AF carrier, Hz</value></data>
+  <data name="Control.SignalParamsDialog.ManchesterLabel" xml:space="preserve"><value>Manchester</value></data>
+  <data name="Control.SignalParamsDialog.DifferentialLabel" xml:space="preserve"><value>Precoding (diff.)</value></data>
+  <data name="Control.SignalParamsDialog.TelemetryFormatLabel" xml:space="preserve"><value>Telemetry format</value></data>
+  <data name="Control.SignalParamsDialog.SaveOverrideBtn" xml:space="preserve"><value>Save to Overrides</value></data>
+  <data name="Control.SignalParamsDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SignalParamsDialog.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SdrDevicesDialog.okBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SdrDevicesDialog.cancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.SdrDevicesDialog.label1" xml:space="preserve"><value>SDR Devices</value></data>
+  <data name="Control.SdrDevicesDialog.label2" xml:space="preserve"><value>SDR Device Settings</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveUpBtn" xml:space="preserve"><value>Move Up</value></data>
+  <data name="Control.AutoSelectionConfigForm.MoveDownBtn" xml:space="preserve"><value>Move Down</value></data>
+  <data name="Control.AutoSelectionConfigForm.SatGroupBox" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Control.AutoSelectionConfigForm.TxLabel" xml:space="preserve"><value>Transmitter:</value></data>
+  <data name="Control.AutoSelectionConfigForm.ModeGroupBox" xml:space="preserve"><value>Overlapping Passes</value></data>
+  <data name="Control.AutoSelectionConfigForm.FinishCurrentRadio" xml:space="preserve"><value>Finish current</value></data>
+  <data name="Control.AutoSelectionConfigForm.HighestElevationRadio" xml:space="preserve"><value>Highest elevation</value></data>
+  <data name="Control.AutoSelectionConfigForm.PriorityRadio" xml:space="preserve"><value>Priority</value></data>
+  <data name="Control.AutoSelectionConfigForm.RecLabel" xml:space="preserve"><value>Record selected passes:</value></data>
+  <data name="Control.AutoSelectionConfigForm.TrackAntennaCheckbox" xml:space="preserve"><value>Track antenna during passes</value></data>
+  <data name="Control.AutoSelectionConfigForm.OkBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.AutoSelectionConfigForm.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.AutoSelectionConfigForm.ClearBtn" xml:space="preserve"><value>Clear</value></data>
+  <data name="Control.AutoSelectionConfigForm.SelectAllBtn" xml:space="preserve"><value>Select All</value></data>
+  <data name="Control.FrequencyEntryForm.label1" xml:space="preserve"><value>Frequency, Hz</value></data>
+  <data name="Control.FrequencyEntryForm.TuneBtn" xml:space="preserve"><value>Tune</value></data>
+  <data name="Column.PathOptimizerForm.CurrentDirection" xml:space="preserve"><value>Current Point</value></data>
+  <data name="Column.PathOptimizerForm.RotationTime" xml:space="preserve"><value>Initial Rotation</value></data>
+  <data name="Column.PathOptimizerForm.FirstPoint" xml:space="preserve"><value>First Point</value></data>
+  <data name="Column.PathOptimizerForm.LastPoint" xml:space="preserve"><value>Last Point</value></data>
+  <data name="Control.AboutBox.CloseBtn" xml:space="preserve"><value>Close</value></data>
+  <data name="Control.AmsatReportDialog.label1" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Control.AmsatReportDialog.label2" xml:space="preserve"><value>Status Report</value></data>
+  <data name="Control.AmsatReportDialog.cancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.AmsatReportDialog.okBtn" xml:space="preserve"><value>OK</value></data>
+  <data name="Control.SatelliteDetailsForm.button1" xml:space="preserve"><value>Close</value></data>
+  <data name="Control.LoqFt4QsoDialog.SaveBtn" xml:space="preserve"><value>Save</value></data>
+  <data name="Control.LoqFt4QsoDialog.EditBtn" xml:space="preserve"><value>Edit</value></data>
+  <data name="Control.LoqFt4QsoDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Sstv.StatusPreparingWave" xml:space="preserve"><value>Preparing SSTV recording…</value></data>
+  <data name="Sstv.StatusAnalyzingWave" xml:space="preserve"><value>Analyzing SSTV recording…</value></data>
+  <data name="Sstv.StatusAnalyzingProgress" xml:space="preserve"><value>Analyzing SSTV recording · {0}</value></data>
+  <data name="Sstv.StatusWaveDone" xml:space="preserve"><value>Recording analysis complete</value></data>
+  <data name="Sstv.StatusWaveStopped" xml:space="preserve"><value>Recording analysis stopped</value></data>
+  <data name="Sstv.StatusRecordedFsk" xml:space="preserve"><value>Station ID from recording: {0} (verify)</value></data>
+  <data name="Sstv.StatusNoAudioDevice" xml:space="preserve"><value>No RX soundcard; use Import WAV for offline decoding</value></data>
+  <data name="Sstv.StatusAudioUnavailable" xml:space="preserve"><value>RX soundcard unavailable; check Windows audio device</value></data>
+  <data name="Sstv.StatusRxStopped" xml:space="preserve"><value>Reception stopped</value></data>
+  <data name="Sstv.StatusRxWaiting" xml:space="preserve"><value>Waiting for SSTV signal…</value></data>
+  <data name="Sstv.StatusImageSaved" xml:space="preserve"><value>Image saved</value></data>
+  <data name="Sstv.StatusQsoUnavailable" xml:space="preserve"><value>QSO log temporarily unavailable</value></data>
+  <data name="Sstv.StatusTxAudioUnavailable" xml:space="preserve"><value>TX soundcard unavailable; check Windows audio device</value></data>
+  <data name="Sstv.StatusPttOff" xml:space="preserve"><value>CAT confirms the radio is receiving; TX can be resumed</value></data>
+  <data name="Sstv.StatusPttStopping" xml:space="preserve"><value>Stopping audio and requesting PTT OFF…</value></data>
+  <data name="Sstv.StatusPreparingImage" xml:space="preserve"><value>Preparing SSTV picture…</value></data>
+  <data name="Sstv.StatusImageLoaded" xml:space="preserve"><value>Image loaded; edit it or save SSTV audio</value></data>
+  <data name="Sstv.StatusTemplateUnavailable" xml:space="preserve"><value>Picture template unavailable</value></data>
+  <data name="Sstv.StatusCannotDeleteBuiltin" xml:space="preserve"><value>Built-in templates cannot be deleted; select a saved custom template</value></data>
+  <data name="Sstv.StatusTooManyLayers" xml:space="preserve"><value>A maximum of eight text layers is supported</value></data>
+  <data name="Sstv.StatusProtectedLayers" xml:space="preserve"><value>The three base layers cannot be removed; clear their text or delete an added layer</value></data>
+  <data name="Sstv.StatusTextLimit" xml:space="preserve"><value>Text length limit reached</value></data>
+  <data name="Sstv.StatusGeneratingAudio" xml:space="preserve"><value>Generating SSTV audio…</value></data>
+  <data name="Sstv.StatusAudioSaved" xml:space="preserve"><value>Audio saved</value></data>
+  <data name="Sstv.StatusSaveFailed" xml:space="preserve"><value>Save failed</value></data>
+  <data name="Sstv.StatusImageImported" xml:space="preserve"><value>Image imported into gallery</value></data>
+  <data name="Sstv.StatusImageExported" xml:space="preserve"><value>Image exported</value></data>
+  <data name="Sstv.StatusMissingImage" xml:space="preserve"><value>Image no longer exists</value></data>
+  <data name="Sstv.StatusImageDeleted" xml:space="preserve"><value>Image deleted from gallery</value></data>
+  <data name="Sstv.StatusImageOpenError" xml:space="preserve"><value>Cannot open image: {0}</value></data>
+  <data name="Sstv.StatusGalleryError" xml:space="preserve"><value>Cannot read gallery: {0}</value></data>
+  <data name="Sstv.StatusSkySignalsMode" xml:space="preserve"><value>{0}: SkySignals auto-decode; waiting for VIS synchronization</value></data>
+  <data name="Sstv.StatusManualMode" xml:space="preserve"><value>Manual start requested for {0}; waiting for scanlines</value></data>
+  <data name="Sstv.StatusFskStation" xml:space="preserve"><value>FSK station ID received: {0} (verify)</value></data>
+  <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>Template deleted: {0}</value></data>
+  <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>Reception complete · {0}</value></data>
+  <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>Receiving · {0}</value></data>
+  <data name="Rotator.Title" xml:space="preserve"><value>Manual Rotator</value></data>
+  <data name="Rotator.TrackStep" xml:space="preserve"><value>Track step</value></data>
+  <data name="Rotator.Footer" xml:space="preserve"><value>Right-click Rotator status to open this panel.</value></data>
+  <data name="Rotator.StepTip" xml:space="preserve"><value>Automatic satellite-tracking step size; manual jog is continuous.</value></data>
+  <data name="Rotator.ParkTip" xml:space="preserve"><value>Left-click: follow PARK route; right-click: edit waypoints.</value></data>
+  <data name="Rotator.Antenna" xml:space="preserve"><value>Antenna</value></data>
+  <data name="Rotator.Command" xml:space="preserve"><value>Command</value></data>
+  <data name="Rotator.Satellite" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Rotator.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Rotator.LiveTrack" xml:space="preserve"><value>Live Track</value></data>
+  <data name="Rotator.SafetyLock" xml:space="preserve"><value>Safety lock</value></data>
+  <data name="Rotator.PositionFault" xml:space="preserve"><value>POSITION FAULT</value></data>
+  <data name="Rotator.Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Rotator.Connecting" xml:space="preserve"><value>Connecting</value></data>
+  <data name="Rotator.ParkActive" xml:space="preserve"><value>PARK ACTIVE
+
+STOP cancels
+the route.</value></data>
+  <data name="Rotator.ParkReached" xml:space="preserve"><value>C2 PARK REACHED
+
+Mechanical home
+NOT verified.</value></data>
+  <data name="Rotator.ParkAborted" xml:space="preserve"><value>PARK ABORTED
+
+Check Logs
+and actual angle.</value></data>
+  <data name="Rotator.ManualLocked" xml:space="preserve"><value>LIVE TRACK
+
+Manual locked.
+Clear TRACK first.</value></data>
+  <data name="Rotator.PrePosition" xml:space="preserve"><value>PRE-POSITION
+
+Manual input will
+clear TRACK first.</value></data>
+  <data name="Rotator.ManualHint" xml:space="preserve"><value>Hold = move
+Release = STOP
+
+Center = STOP</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameMNU2" xml:space="preserve"><value>Rename</value></data>
+  <data name="Menu.SatelliteGroupsForm.DeleteMNU2" xml:space="preserve"><value>Delete</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU2" xml:space="preserve"><value>Details...</value></data>
+  <data name="Menu.SatelliteGroupsForm.ClearGroupMNU" xml:space="preserve"><value>Clear Group</value></data>
+  <data name="Menu.SatelliteGroupsForm.RenameSatMNU" xml:space="preserve"><value>Rename</value></data>
+  <data name="Menu.SatelliteGroupsForm.AddToGroupMNU" xml:space="preserve"><value>Add to Group</value></data>
+  <data name="Menu.SatelliteGroupsForm.DetailsMNU" xml:space="preserve"><value>Satellite Details...</value></data>
+  <data name="Menu.SatelliteGroupsForm.toolStripMenuItem1" xml:space="preserve"><value>Copy NORAD ID</value></data>
+  <data name="SignalParams.TriAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="SignalParams.TriOn" xml:space="preserve"><value>On</value></data>
+  <data name="SignalParams.TriOff" xml:space="preserve"><value>Off</value></data>
+  <data name="Sstv.StatusRxIdle" xml:space="preserve"><value>Waiting for SSTV image</value></data>
+  <data name="Sstv.StatusTxIdle" xml:space="preserve"><value>Choose a picture and mode to export SSTV audio</value></data>
+  <data name="Sstv.TextLayerMy" xml:space="preserve"><value>My callsign</value></data>
+  <data name="Sstv.TextLayerTheir" xml:space="preserve"><value>Their callsign</value></data>
+  <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>Custom text</value></data>
+</root>

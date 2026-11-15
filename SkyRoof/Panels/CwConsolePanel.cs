@@ -126,7 +126,7 @@ namespace SkyRoof
       if (ctx.CwAudio != null)
         ctx.CwAudio.Ingress.SamplesAccepted += Ingress_SamplesAccepted;
 
-      Text = "CW Console [RX / TX]";
+      Text = UiLocalizationService.Get("Panel.CwConsole");
       Name = "CwConsolePanel";
       // Keep the Console usable as a compact floating tool window. The old
       // 1040x900 / 720x720 geometry was unnecessarily tall on 1080p displays.
@@ -203,7 +203,7 @@ namespace SkyRoof
       if(worker==null)return;
       var dialog=new Form
       {
-        Text="CW RX History (committed · UTC)",
+        Text=UiLocalizationService.Get("Cw.HistoryTitle"),
         StartPosition=FormStartPosition.CenterParent,
         Width=880,Height=560,MinimumSize=new Size(520,320)
       };
@@ -321,7 +321,7 @@ namespace SkyRoof
 
       ConfigureSpectrumSelector(toolbar);
 
-      SettingsBtn.Text = "CW Settings…";
+      SettingsBtn.Text = UiLocalizationService.Get("Cw.Settings");
       SettingsBtn.AutoSize = true;
       SettingsBtn.Click +=
         (_, _) =>
@@ -335,7 +335,7 @@ namespace SkyRoof
       toolbar.Controls.Add(
         SettingsBtn);
 
-      RxHistoryBtn.Text="CW History…";
+      RxHistoryBtn.Text = UiLocalizationService.Get("Cw.History");
       RxHistoryBtn.AutoSize=true;
       RxHistoryBtn.Click+=(_,_)=>ShowRxHistory();
       toolbar.Controls.Add(RxHistoryBtn);
@@ -652,7 +652,7 @@ namespace SkyRoof
       layout.RowStyles.Add(
         new RowStyle(SizeType.Absolute, 32));
 
-      TxStatusLabel.Text = "TX: disarmed";
+      TxStatusLabel.Text = UiLocalizationService.Get("Cw.TxDisarmed");
       TxStatusLabel.Dock = DockStyle.Fill;
       TxStatusLabel.AutoEllipsis = true;
       layout.Controls.Add(TxStatusLabel, 0, 0);
@@ -676,7 +676,7 @@ namespace SkyRoof
         Margin = new Padding(0, 2, 0, 0)
       };
 
-      SendTxBtn.Text = "Send";
+      SendTxBtn.Text = UiLocalizationService.Get("Cw.Send");
       SendTxBtn.AutoSize = true;
       SendTxBtn.FlatStyle = FlatStyle.Flat;
       SendTxBtn.FlatAppearance.BorderColor = CwConsolePalette.Border;
@@ -708,7 +708,7 @@ namespace SkyRoof
       KeySpeedBox.Value = 20m;
       KeySpeedBox.Width = 64;
       actions.Controls.Add(KeySpeedBox);
-      SetKeySpeedBtn.Text = "Set WPM";
+      SetKeySpeedBtn.Text = UiLocalizationService.Get("Cw.SetWpm");
       SetKeySpeedBtn.AutoSize = true;
       SetKeySpeedBtn.FlatStyle = FlatStyle.Flat;
       SetKeySpeedBtn.FlatAppearance.BorderColor = CwConsolePalette.Border;
@@ -862,6 +862,21 @@ namespace SkyRoof
       }
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      Text = UiLocalizationService.Get("Panel.CwConsole");
+      SettingsBtn.Text = UiLocalizationService.Get("Cw.Settings");
+      RxHistoryBtn.Text = UiLocalizationService.Get("Cw.History");
+      SendTxBtn.Text = UiLocalizationService.Get("Cw.Send");
+      SetKeySpeedBtn.Text = UiLocalizationService.Get("Cw.SetWpm");
+      // Presentation refresh only: the decoder and CW TX state are preserved.
+      RefreshSourceStatus();
+      RefreshWorkerStatus();
+      RefreshTransmitUi();
+      if (rxHistoryForm is { IsDisposed: false } history)
+        history.Text = UiLocalizationService.Get("Cw.HistoryTitle");
+    }
+
     private void RefreshUi()
     {
       RefreshSourceStatus();
@@ -883,8 +898,8 @@ namespace SkyRoof
       {
         RxToggleBtn.Text =
           settings.ReceiveEnabled
-            ? "Stop RX"
-            : "Start RX";
+            ? UiLocalizationService.Get("Cw.StopRx")
+            : UiLocalizationService.Get("Cw.StartRx");
         RxToggleBtn.UseVisualStyleBackColor =
           !settings.ReceiveEnabled;
         if (settings.ReceiveEnabled)
@@ -920,22 +935,22 @@ namespace SkyRoof
       if (status == null)
       {
         InputStatusLabel.Text =
-          "Input: unavailable";
+          UiLocalizationService.Get("Cw.InputUnavailable");
         return;
       }
 
       string state =
         !status.Value.Enabled
-          ? "disabled"
+          ? UiLocalizationService.Get("Cw.StateDisabled")
           : status.Value.Running
-            ? "running"
-            : "waiting";
+            ? UiLocalizationService.Get("Cw.StateRunning")
+            : UiLocalizationService.Get("Cw.StateWaiting");
 
       string role =
         CwAudioSourceController.SourceRoleHint(
           status.Value.Source);
       InputStatusLabel.Text =
-        $"RX: {state} · {status.Value.DeviceName}";
+        UiLocalizationService.Format("Cw.InputStatus", state, status.Value.DeviceName);
       SourceBox.AccessibleDescription =
         CwAudioSourceController.SourceDisplayName(status.Value.Source) +
         (string.IsNullOrEmpty(role) ? "" : $" · {role}");
@@ -948,9 +963,9 @@ namespace SkyRoof
       if (worker == null)
       {
         ModelStatusLabel.Text =
-          "CW decoder: worker unavailable";
+          UiLocalizationService.Get("Cw.WorkerUnavailable");
         WorkerStatusLabel.Text =
-          "Worker: stopped";
+          UiLocalizationService.Get("Cw.WorkerStopped");
         return;
       }
 
@@ -980,7 +995,7 @@ namespace SkyRoof
         (mode==CwDecoderMode.NewCW ? "New CW: " : "DeepCW: ") +
         modelText +
         (status.InferenceBusy
-          ? " · decoding"
+          ? UiLocalizationService.Get("Cw.DecodingSuffix")
           : string.Empty);
 
       if (!string.IsNullOrWhiteSpace(
@@ -992,7 +1007,7 @@ namespace SkyRoof
         ctx.Settings.CwConsole.SpectrumDenoiseMode;
       SpectrumStatusLabel.Text =
         cleanup == CwDenoiseMode.Bypass
-          ? "Spectrum: Raw"
+          ? UiLocalizationService.Get("Cw.SpectrumRaw")
           : $"Spectrum: {(
               cleanup == CwDenoiseMode.HamNoiseV2
                 ? "HamNoise CW V2"
@@ -1464,25 +1479,25 @@ namespace SkyRoof
       CwTransmitController? tx =
         ctx.CwTransmit;
       string topStatus = tx == null
-        ? "TX unavailable"
+        ? UiLocalizationService.Get("Cw.TxUnavailable")
         : tx.State.Sending
-          ? "TX SENDING"
+          ? UiLocalizationService.Get("Cw.TxSending")
           : sendRequestInProgress
-            ? "TX preflight"
+            ? UiLocalizationService.Get("Cw.TxPreflight")
             : tx.State.Armed
-              ? "TX ready"
-              : "TX idle";
+              ? UiLocalizationService.Get("Cw.TxReady")
+              : UiLocalizationService.Get("Cw.TxIdle");
       if (HeaderTxStatusLabel.Text != topStatus)
         HeaderTxStatusLabel.Text = topStatus;
       HeaderTxStatusLabel.ForeColor = tx?.State.Sending == true
         ? CwConsolePalette.Danger : CwConsolePalette.Text;
-      Text = "CW Console [RX / TX]";
+      Text = UiLocalizationService.Get("Panel.CwConsole");
       ctx.MainForm.UpdateCwConsoleMenuText();
 
       if (tx == null)
       {
         TxStatusLabel.Text =
-          "TX: controller unavailable";
+          UiLocalizationService.Get("Cw.ControllerUnavailable");
         SendTxBtn.Enabled = false;
         StopTxBtn.Enabled = false;
         TxTextBox.ReadOnly = true;
@@ -1564,8 +1579,8 @@ namespace SkyRoof
 
       TxStatusLabel.Text =
         state.Armed
-          ? "TX: ready" + radio
-          : "TX: idle · Send automatically checks SkyCAT" + radio;
+          ? UiLocalizationService.Get("Cw.TxReady") + radio
+          : UiLocalizationService.Get("Cw.TxIdleHint") + radio;
 
       if (!string.IsNullOrWhiteSpace(
             state.LastError))

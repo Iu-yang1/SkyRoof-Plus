@@ -58,7 +58,7 @@ namespace SkyRoof
         Font = new Font("Segoe UI", 10F, FontStyle.Bold),
         Location = new Point(12, 10),
         Size = new Size(190, 24),
-        Text = "Manual Rotator",
+        Text = UiLocalizationService.Get("Rotator.Title"),
         TextAlign = ContentAlignment.MiddleLeft
       };
       Controls.Add(title);
@@ -107,7 +107,7 @@ namespace SkyRoof
         AutoSize = false,
         Location = new Point(232, 112),
         Size = new Size(72, 19),
-        Text = "Track step",
+        Text = UiLocalizationService.Get("Rotator.TrackStep"),
         TextAlign = ContentAlignment.MiddleLeft
       };
       Controls.Add(stepLabel);
@@ -205,7 +205,7 @@ namespace SkyRoof
         ForeColor = SystemColors.GrayText,
         Location = new Point(12, 355),
         Size = new Size(292, 20),
-        Text = "Right-click Rotator status to open this panel.",
+        Text = UiLocalizationService.Get("Rotator.Footer"),
         TextAlign = ContentAlignment.MiddleLeft
       };
       Controls.Add(footer);
@@ -224,6 +224,14 @@ namespace SkyRoof
       QuickControls.Visible = false;
       Controls.Add(QuickControls);
 
+      UiLocalizationService.Bind(this, () =>
+      {
+        title.Text = UiLocalizationService.Get("Rotator.Title");
+        stepLabel.Text = UiLocalizationService.Get("Rotator.TrackStep");
+        footer.Text = UiLocalizationService.Get("Rotator.Footer");
+        UiToolTip.SetToolTip(StepSpinner, UiLocalizationService.Get("Rotator.StepTip"));
+        UiToolTip.SetToolTip(ParkButton, UiLocalizationService.Get("Rotator.ParkTip"));
+      });
       RefreshTimer.Interval = 250;
       RefreshTimer.Tick += (_, _) => RefreshState();
       RefreshTimer.Start();
@@ -282,16 +290,13 @@ namespace SkyRoof
       Bearing? satellite = rotator.SatelliteBearing;
 
       ActualLabel.Text =
-        "Antenna   " +
-        FormatBearing(actual);
+        UiLocalizationService.Get("Rotator.Antenna") + "  " + FormatBearing(actual);
 
       TargetLabel.Text =
-        "Command  " +
-        FormatBearing(target);
+        UiLocalizationService.Get("Rotator.Command") + "  " + FormatBearing(target);
 
       SatelliteLabel.Text =
-        "Satellite " +
-        FormatBearing(satellite);
+        UiLocalizationService.Get("Rotator.Satellite") + "  " + FormatBearing(satellite);
 
       bool rc3040s = ctx.Settings.Rotator.NativeProtocol ==
         SkyRoof.NativeRotator.RotatorProtocolKind.Rc3040sLan;
@@ -318,12 +323,12 @@ namespace SkyRoof
       bool connected = rotator.IsRunning();
 
       ConnectionLabel.Text =
-        !enabled ? "Disabled" :
-        rotator.IsManualControlLocked ? "Live Track" :
-        rotator.ManagementReviewRequired ? "Safety lock" :
-        rotator.PositionSafetyTripped ? "POSITION FAULT" :
-        connected ? "Connected" :
-        "Connecting";
+        !enabled ? UiLocalizationService.Get("Rotator.Disabled") :
+        rotator.IsManualControlLocked ? UiLocalizationService.Get("Rotator.LiveTrack") :
+        rotator.ManagementReviewRequired ? UiLocalizationService.Get("Rotator.SafetyLock") :
+        rotator.PositionSafetyTripped ? UiLocalizationService.Get("Rotator.PositionFault") :
+        connected ? UiLocalizationService.Get("Rotator.Connected") :
+        UiLocalizationService.Get("Rotator.Connecting");
 
       ConnectionLabel.ForeColor =
         !enabled ? SystemColors.GrayText :
@@ -367,16 +372,16 @@ namespace SkyRoof
 
       ManualHintLabel.Text =
         rotator.IsParking
-          ? "PARK ACTIVE\n\nSTOP cancels\nthe route."
+          ? UiLocalizationService.Get("Rotator.ParkActive")
           : rotator.ParkControllerReportedHome
-          ? "C2 PARK REACHED\n\nMechanical home\nNOT verified."
+          ? UiLocalizationService.Get("Rotator.ParkReached")
           : rotator.LastParkFailure != null
-          ? "PARK ABORTED\n\nCheck Logs\nand actual angle."
+          ? UiLocalizationService.Get("Rotator.ParkAborted")
           : manualLocked
-          ? "LIVE TRACK\n\nManual locked.\nClear TRACK first."
+          ? UiLocalizationService.Get("Rotator.ManualLocked")
           : rotator.IsTracking
-            ? "PRE-POSITION\n\nManual input will\nclear TRACK first."
-            : "Hold = move\nRelease = STOP\n\nCenter = STOP";
+            ? UiLocalizationService.Get("Rotator.PrePosition")
+            : UiLocalizationService.Get("Rotator.ManualHint");
 
       ManualHintLabel.ForeColor =
         manualLocked

@@ -24,12 +24,24 @@ namespace SkyRoof
     private int SortColumn;
     private Context ctx;
     private bool Changed;
+    private DateTime? lastUpdatedAt;
     // shared, so we don't leak a GDI font handle per item/node (one per satellite in the whole db)
     private Font ListBoldFont, ListStrikeoutFont, TreeRegularFont, TreeStrikeoutFont;
 
     public SatelliteGroupsForm()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () =>
+      {
+        UiLocalizationService.ApplyStaticControls(this);
+        if (lastUpdatedAt is DateTime time)
+          UpdatedDateLabel.Text = UiLocalizationService.Format(
+            "SatelliteGroups.Updated", time.ToString("yyyy-MM-dd",
+              System.Globalization.CultureInfo.InvariantCulture));
+        if (FilteredItems is not null)
+          CountLabel.Text = UiLocalizationService.Format(
+            "SatelliteGroups.Count", FilteredItems.Count, AllItems.Count);
+      });
     }
 
 
@@ -48,6 +60,7 @@ namespace SkyRoof
 
       ctx.Settings.Ui.RestoreColumnWidths("SatelliteGroupsForm", listView1);
       var updateTime = ctx.Settings.Satellites.LastDownloadTime;
+      lastUpdatedAt = updateTime;
 
       // shared fonts, created once instead of per item/node
       ListBoldFont = new Font(listView1.Font, FontStyle.Bold);
@@ -58,7 +71,8 @@ namespace SkyRoof
       // satellites to listview
       foreach (var sat in ctx.SatnogsDb.Satellites) AllItems.Add(ItemFromSat(sat));
       ApplyFilter();
-      UpdatedDateLabel.Text = $"Updated {updateTime:yyyy-MM-dd}";
+      UpdatedDateLabel.Text = UiLocalizationService.Format("SatelliteGroups.Updated",
+        updateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
 
       // groups to treeview, sorted alphabetically and collapsed
       foreach (var group in ctx.Settings.Satellites.SatelliteGroups)
@@ -194,7 +208,8 @@ namespace SkyRoof
     {
       FilteredItems = AllItems.Where(IsItemVisible).ToList();
       listView1.VirtualListSize = FilteredItems.Count;
-      CountLabel.Text = $"{FilteredItems.Count} of {AllItems.Count}";
+      CountLabel.Text = UiLocalizationService.Format("SatelliteGroups.Count",
+        FilteredItems.Count, AllItems.Count);
       SortSatellites(SortColumn);
     }
 

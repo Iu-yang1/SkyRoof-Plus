@@ -7,6 +7,17 @@ namespace SkyRoof
   {
     private Context ctx = null!;
     private SatnogsDb? db;
+    private bool canClose;
+    private bool cancellationRequested;
+    private string? failureKey;
+
+    private void RefreshLocalizedUi()
+    {
+      UiLocalizationService.ApplyStaticControls(this);
+      Button.Text = UiLocalizationService.Get(canClose ? "Download.Close"
+        : cancellationRequested ? "Download.Cancelling" : "Common.Cancel");
+      if (failureKey != null) ErrorLabel.Text = UiLocalizationService.Get(failureKey);
+    }
     public DownloadDialog()
     {
       InitializeComponent();
@@ -20,6 +31,7 @@ namespace SkyRoof
       // Keep the form open until the async operation has actually stopped.
       // This avoids disposing controls while a cancellation is still unwinding.
       Button.DialogResult = DialogResult.None;
+      UiLocalizationService.Bind(this, RefreshLocalizedUi);
     }
 
     public static bool Download(Form parent, Context ctx)
@@ -35,15 +47,18 @@ namespace SkyRoof
 
     private void Button_Click(object sender, EventArgs e)
     {
-      if (Button.Text == "Close")
+      // UI text is presentation only and must never select the download
+      // state-machine transition when the operator changes languages.
+      if (canClose)
       {
         DialogResult = DialogResult.Cancel;
         Close();
         return;
       }
 
+      cancellationRequested = true;
       Button.Enabled = false;
-      Button.Text = "Cancelling...";
+      RefreshLocalizedUi();
 
       db?.AbortDownload();
     }
@@ -82,8 +97,9 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        ErrorLabel.Text = "Download Failed";
-        Button.Text = "Close";
+        canClose = true;
+        failureKey = "Download.Failed";
+        RefreshLocalizedUi();
         Log.Error(ex, ErrorLabel.Text);
         db = null;
         DialogResult = DialogResult.None;
@@ -118,8 +134,9 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        ErrorLabel.Text = "Data Import Failed";
-        Button.Text = "Close";
+        canClose = true;
+        failureKey = "Download.ImportFailed";
+        RefreshLocalizedUi();
         Log.Error(ex, ErrorLabel.Text);
       }
     }

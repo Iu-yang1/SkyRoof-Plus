@@ -11,6 +11,7 @@ namespace SkyRoof
     public PathOptimizerForm()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
 
       dataGridView.EnableHeadersVisualStyles = false;
       dataGridView.DefaultCellStyle.SelectionBackColor = Color.Transparent;

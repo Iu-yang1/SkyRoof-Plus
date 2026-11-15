@@ -165,6 +165,8 @@ namespace SkyRoof
       ctx.UdpStreamSender.ctx = ctx;
 
       var settingsLoadResult = ctx.Settings.LoadFromFile();
+      UiLocalizationService.Apply(ctx.Settings.Ui.Language);
+      InitializeUiLocalization();
       UpdateCwConsoleMenuText();
 
       AddRotatorControlCard();
@@ -663,6 +665,7 @@ namespace SkyRoof
     private void RegisterDockScale(DockContent panel)
     {
       if (!registeredDockPanels.Add(panel)) return;
+      RegisterPanelLocalization(panel);
       panel.Shown += (_, _) => ApplyDockScale(panel);
       panel.FormClosed += (_, _) =>
       {
@@ -1751,10 +1754,9 @@ namespace SkyRoof
 
     internal void UpdateCwConsoleMenuText()
     {
-      CwConsoleMNU.Text = "&CW Console (RX / TX)";
+      CwConsoleMNU.Text = UiLocalizationService.Get("Menu.CwConsole");
       CwConsoleMNU.ToolTipText =
-        "Manual CW transmit is available independently of satellite " +
-        "transponder selection; SkyCAT/radio CW readiness is checked when sending.";
+        UiLocalizationService.Get("Menu.CwConsoleHelp");
     }
 
     private void CwConsoleMNU_Click(

@@ -36,11 +36,23 @@ namespace SkyRoof
     public AutoSelectionConfigForm(Context ctx)
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
 
       this.ctx = ctx;
       RotationTree.StateImageList = BuildStateImages();
 
       RecordCombo.Items.AddRange(new object[] { "Off", "Audio", "I/Q" });
+      RecordCombo.FormattingEnabled = true;
+      RecordCombo.Format += (_, e) =>
+      {
+        if (e.ListItem is string value)
+          e.Value = value switch
+          {
+            "Off" => UiLocalizationService.Get("AutoSelection.Off"),
+            "Audio" => UiLocalizationService.Get("Recorder.Audio"),
+            _ => value
+          };
+      };
       TransmitterCombo.DisplayMember = "description";
 
       var tips = new VE3NEA.ToolTipEx();

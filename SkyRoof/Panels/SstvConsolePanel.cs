@@ -224,6 +224,8 @@ namespace SkyRoof
       BuildTxTab();
       BuildHistoryTab();
       BuildQsoTab();
+      SetRxStatus("Sstv.StatusRxIdle");
+      SetTxStatus("Sstv.StatusTxIdle");
       foreach (SstvTxModeProfile mode in SstvTxModeProfile.All)
         modeBox.Items.Add(mode);
       modeBox.DisplayMember = nameof(SstvTxModeProfile.Name);
@@ -248,6 +250,18 @@ namespace SkyRoof
       {
         "己方呼号", "对方呼号", "自定义文字"
       });
+      textLayerBox.FormattingEnabled = true;
+      textLayerBox.Format += (_, e) =>
+      {
+        if (e.ListItem is not string value) return;
+        e.Value = value switch
+        {
+          "己方呼号" => UiLocalizationService.Get("Sstv.TextLayerMy"),
+          "对方呼号" => UiLocalizationService.Get("Sstv.TextLayerTheir"),
+          "自定义文字" => UiLocalizationService.Get("Sstv.TextLayerCustom"),
+          _ => value
+        };
+      };
       textLayerBox.SelectedIndex = 0;
       textLayerBox.SelectedIndexChanged += (_, _) => UpdateTextEditorControls();
       foreach (var variable in SstvTextMacros.Catalog)
@@ -319,6 +333,47 @@ namespace SkyRoof
       {
         "声卡 AF", "RS-BA1 回环 AF", "声卡 12 kHz IF", "回环 12 kHz IF"
       });
+      // Display source names through ComboBox.Format so selection indices,
+      // the active capture session and the device list remain unchanged.
+      rxSourceBox.FormattingEnabled = true;
+      rxSourceBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw switch
+          {
+            "声卡 AF" => UiLocalizationService.Get("Sstv.SourceAf"),
+            "RS-BA1 回环 AF" => UiLocalizationService.Get("Sstv.SourceLoopbackAf"),
+            "声卡 12 kHz IF" => UiLocalizationService.Get("Sstv.SourceIf"),
+            "回环 12 kHz IF" => UiLocalizationService.Get("Sstv.SourceLoopbackIf"),
+            _ => raw
+          };
+      };
+      rxIfDemodBox.FormattingEnabled = true;
+      rxIfDemodBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw == "IF: 跟随下行"
+            ? UiLocalizationService.Get("Sstv.IfFollow") : raw;
+      };
+      rxModeBox.FormattingEnabled = true;
+      rxModeBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw && raw == "自动识别 SSTV")
+          e.Value = UiLocalizationService.Get("Sstv.AutoDetect");
+      };
+      templateBox.FormattingEnabled = true;
+      templateBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw switch
+          {
+            "经典呼号" => UiLocalizationService.Get("Sstv.TemplateClassic"),
+            "QSL 卡片" => UiLocalizationService.Get("Sstv.TemplateQsl"),
+            "卫星横幅" => UiLocalizationService.Get("Sstv.TemplateSatellite"),
+            "纯图片" => UiLocalizationService.Get("Sstv.TemplatePlain"),
+            _ => raw
+          };
+      };
       rxSourceBox.SelectedIndexChanged += (_, _) => PopulateAudioDevices();
       rxSourceBox.SelectedIndex = 0;
       rxIfDemodBox.Items.AddRange(new object[]
@@ -376,11 +431,62 @@ namespace SkyRoof
       ReloadQsoLog();
     }
 
+    private (string Key, object?[] Args, string Text)? localizedRxStatus;
+    private (string Key, object?[] Args, string Text)? localizedTxStatus;
+
+    private void SetRxStatus(string key, params object?[] args)
+    {
+      string text = UiLocalizationService.Format(key, args);
+      localizedRxStatus = (key, args, text);
+      rxStatus.Text = text;
+    }
+
+    private void SetTxStatus(string key, params object?[] args)
+    {
+      string text = UiLocalizationService.Format(key, args);
+      localizedTxStatus = (key, args, text);
+      txStatus.Text = text;
+    }
+
+    internal void RefreshLocalizedUi()
+    {
+      string[] pages = { "Sstv.TabRx", "Sstv.TabTx", "Sstv.TabHistory", "Sstv.TabQso" };
+      foreach (var pair in tabs.TabPages.Cast<TabPage>()
+        .Zip(pages, (page, key) => (page, key)))
+        pair.page.Text = UiLocalizationService.Get(pair.key);
+      void Translate(Control root)
+      {
+        if (root.Tag is string key && key.StartsWith("Sstv.", StringComparison.Ordinal))
+          root.Text = UiLocalizationService.Get(key);
+        foreach (Control child in root.Controls) Translate(child);
+      }
+      Translate(tabs);
+      txSendButton.Text = UiLocalizationService.Get("Sstv.Transmit");
+      txStopButton.Text = UiLocalizationService.Get("Sstv.StopTransmit");
+      rxToggleButton.Text = UiLocalizationService.Get(receiveSession.IsRunning
+        ? "Sstv.StopReceive" : "Sstv.StartReceive");
+      autoVisCorrection.Text = UiLocalizationService.Get("Sstv.AutoVis");
+      textColorButton.Text = UiLocalizationService.Get("Sstv.TextColor");
+      myCallInput.PlaceholderText = UiLocalizationService.Get("Sstv.MyCallPlaceholder");
+      theirCallInput.PlaceholderText = UiLocalizationService.Get("Sstv.TheirCallPlaceholder");
+      activeCaptionInput.PlaceholderText = UiLocalizationService.Get("Sstv.CaptionPlaceholder");
+      overlayText.PlaceholderText = UiLocalizationService.Get("Sstv.OverlayPlaceholder");
+      rxSourceBox.Refresh();
+      rxIfDemodBox.Refresh();
+      rxModeBox.Refresh();
+      templateBox.Refresh();
+      if (localizedRxStatus is { } rx && rxStatus.Text == rx.Text)
+        SetRxStatus(rx.Key, rx.Args);
+      if (localizedTxStatus is { } tx && txStatus.Text == tx.Text)
+        SetTxStatus(tx.Key, tx.Args);
+    }
+
     private static Button Btn(string text, Action action, int width = 95)
     {
       var b = new Button
       {
-        Text = text, Width = width, Height = 30,
+        Text = UiLocalizationService.Get(text), Tag = text,
+        Width = width, Height = 30,
         Margin = new Padding(4, 4, 4, 4)
       };
       b.Click += (_, _) => action();
@@ -395,7 +501,7 @@ namespace SkyRoof
 
     private void BuildRxTab()
     {
-      var page = new TabPage("接收 RX");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabRx"));
       var bar = Toolbar();
       bar.Controls.Add(rxSourceBox);
       bar.Controls.Add(rxIfDemodBox);
@@ -405,26 +511,26 @@ namespace SkyRoof
       tuning.Controls.Add(rxModeBox);
       tuning.Controls.Add(new Label
       {
-        Text = "校频 Hz", Width = 57, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.TuningHz"), Tag = "Sstv.TuningHz", Width = 57, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       tuning.Controls.Add(pitchCorrection);
       tuning.Controls.Add(autoVisCorrection);
       tuning.Controls.Add(new Label
       {
-        Text = "图像倾斜", Width = 66, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.ImageSlant"), Tag = "Sstv.ImageSlant", Width = 66, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       tuning.Controls.Add(imageSlantCorrection);
       var actions = Toolbar();
-      actions.Controls.Add(Btn("导入 WAV", () => _ = ReplayWavAsync()));
-      actions.Controls.Add(Btn("手动开始", ManualStartReceive, 98));
-      actions.Controls.Add(Btn("保存图片", SaveReceivedImage));
-      actions.Controls.Add(Btn("复制图片", () =>
+      actions.Controls.Add(Btn("Sstv.ImportWav", () => _ = ReplayWavAsync()));
+      actions.Controls.Add(Btn("Sstv.ManualStart", ManualStartReceive, 98));
+      actions.Controls.Add(Btn("Sstv.SaveImage", SaveReceivedImage));
+      actions.Controls.Add(Btn("Sstv.CopyImage", () =>
       {
         if (rxPicture.Image != null) Clipboard.SetImage(rxPicture.Image);
       }));
-      actions.Controls.Add(Btn("接收记录", () => { ReloadHistory(); tabs.SelectedIndex = 2; }));
+      actions.Controls.Add(Btn("Sstv.RxHistory", () => { ReloadHistory(); tabs.SelectedIndex = 2; }));
       page.Controls.Add(rxPicture);
       page.Controls.Add(rxToneReference);
       page.Controls.Add(rxStatus);
@@ -442,21 +548,21 @@ namespace SkyRoof
     /// </summary>
     private void BuildTxTab()
     {
-      var page = new TabPage("发送 TX");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabTx"));
       var bar = Toolbar();
-      bar.Controls.Add(Btn("打开图片", LoadImage));
-      bar.Controls.Add(Btn("粘贴", PasteImage, 65));
-      bar.Controls.Add(Btn("撤销", UndoImage, 60));
-      bar.Controls.Add(Btn("重做", RedoImage, 60));
-      bar.Controls.Add(Btn("旋转", RotateImage, 60));
-      bar.Controls.Add(Btn("镜像", MirrorImage, 60));
-      bar.Controls.Add(Btn("裁剪", CropImage, 60));
+      bar.Controls.Add(Btn("Sstv.OpenImage", LoadImage));
+      bar.Controls.Add(Btn("Sstv.Paste", PasteImage, 65));
+      bar.Controls.Add(Btn("Sstv.Undo", UndoImage, 60));
+      bar.Controls.Add(Btn("Sstv.Redo", RedoImage, 60));
+      bar.Controls.Add(Btn("Sstv.Rotate", RotateImage, 60));
+      bar.Controls.Add(Btn("Sstv.Mirror", MirrorImage, 60));
+      bar.Controls.Add(Btn("Sstv.Crop", CropImage, 60));
 
       // The photo archive is always visible, as in the original MMSSTV
       // workspace. The height drops at narrow/minimized dock sizes.
       var galleryGroup = new GroupBox
       {
-        Text = "图片库 / 最近图片", Dock = DockStyle.Bottom, Height = 146
+        Text = UiLocalizationService.Get("Sstv.GalleryGroup"), Tag = "Sstv.GalleryGroup", Dock = DockStyle.Bottom, Height = 146
       };
       galleryGroup.Controls.Add(txThumbnailStrip);
       var galleryBar = new FlowLayoutPanel
@@ -464,8 +570,8 @@ namespace SkyRoof
         Dock = DockStyle.Right, Width = 65, WrapContents = false,
         FlowDirection = FlowDirection.TopDown, Padding = Padding.Empty
       };
-      galleryBar.Controls.Add(Btn("刷新", RefreshTxThumbnails, 56));
-      galleryBar.Controls.Add(Btn("图库", () => tabs.SelectedIndex = 2, 56));
+      galleryBar.Controls.Add(Btn("Sstv.Refresh", RefreshTxThumbnails, 56));
+      galleryBar.Controls.Add(Btn("Sstv.Gallery", () => tabs.SelectedIndex = 2, 56));
       galleryGroup.Controls.Add(galleryBar);
       page.Resize += (_, _) =>
       {
@@ -489,7 +595,7 @@ namespace SkyRoof
       };
       actions.Controls.Add(txSendButton);
       actions.Controls.Add(txStopButton);
-      actions.Controls.Add(Btn("保存 WAV", () => _ = ExportWaveAsync(), 82));
+      actions.Controls.Add(Btn("Sstv.SaveWav", () => _ = ExportWaveAsync(), 82));
       left.Controls.Add(txPicture);
       left.Controls.Add(actions);
       main.Controls.Add(left, 0, 0);
@@ -501,7 +607,7 @@ namespace SkyRoof
       var modeHeader = new Label
       {
         Dock = DockStyle.Top, Height = 27,
-        Text = "TX 模式", TextAlign = ContentAlignment.MiddleCenter,
+        Text = UiLocalizationService.Get("Sstv.TxMode"), Tag = "Sstv.TxMode", TextAlign = ContentAlignment.MiddleCenter,
         Font = new Font(Font, FontStyle.Bold)
       };
       modeColumn.Controls.Add(txQuickModes);
@@ -522,7 +628,8 @@ namespace SkyRoof
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 29));
         var header = new Label
         {
-          Text = text, Dock = DockStyle.Fill,
+          Text = UiLocalizationService.Get(text), Tag = text,
+          Dock = DockStyle.Fill,
           TextAlign = ContentAlignment.MiddleLeft,
           Font = new Font(Font, FontStyle.Bold)
         };
@@ -535,7 +642,8 @@ namespace SkyRoof
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         settingsGrid.Controls.Add(new Label
         {
-          Text = name, Dock = DockStyle.Fill,
+          Text = UiLocalizationService.Get(name), Tag = name,
+          Dock = DockStyle.Fill,
           TextAlign = ContentAlignment.MiddleLeft
         }, 0, r);
         input.Dock = DockStyle.Fill;
@@ -556,45 +664,45 @@ namespace SkyRoof
         settingsGrid.SetColumnSpan(row, 2);
       }
 
-      Heading("模式与模板");
-      Field("模式", modeBox);
-      Field("模板", templateBox);
-      Buttons(Btn("保存模板", SaveUserTemplate, 88),
-        Btn("删除模板", DeleteUserTemplate, 88));
+      Heading("Sstv.HeadingMode");
+      Field("Sstv.FieldMode", modeBox);
+      Field("Sstv.FieldTemplate", templateBox);
+      Buttons(Btn("Sstv.SaveTemplate", SaveUserTemplate, 88),
+        Btn("Sstv.DeleteTemplate", DeleteUserTemplate, 88));
 
-      Heading("QSO / 台站信息");
-      Field("MY", myCallInput);
-      Field("HIS", theirCallInput);
-      Field("RSV TX", txRstSent);
-      Field("RSV RX", txRstReceived);
-      Field("姓名", txContactName);
-      Field("QTH", txContactQth);
-      Field("备注", txQsoNote);
-      Field("文字", overlayText);
-      Buttons(Btn("通联日志", () =>
+      Heading("Sstv.HeadingStation");
+      Field("Sstv.FieldMy", myCallInput);
+      Field("Sstv.FieldHis", theirCallInput);
+      Field("Sstv.FieldRstTx", txRstSent);
+      Field("Sstv.FieldRstRx", txRstReceived);
+      Field("Sstv.FieldName", txContactName);
+      Field("Sstv.FieldQth", txContactQth);
+      Field("Sstv.FieldNotes", txQsoNote);
+      Field("Sstv.FieldText", overlayText);
+      Buttons(Btn("Sstv.QsoLog", () =>
       {
         qsoCall.Text = theirCallInput.Text;
         qsoNotes.Text = txQsoNote.Text;
         tabs.SelectedIndex = 3;
       }, 88));
 
-      Heading("图片文字样式");
-      Field("对象", textLayerBox);
-      Field("内容", activeCaptionInput);
-      Field("字号 %", textSizeBox);
-      Buttons(textColorButton, Btn("新增", AddTextLayer, 56),
-        Btn("复制", DuplicateTextLayer, 56), Btn("删除", RemoveTextLayer, 56));
-      Field("变量", macroSelector);
-      Buttons(Btn("插入变量", InsertSelectedMacro, 88));
+      Heading("Sstv.HeadingText");
+      Field("Sstv.FieldObject", textLayerBox);
+      Field("Sstv.FieldContent", activeCaptionInput);
+      Field("Sstv.FieldSize", textSizeBox);
+      Buttons(textColorButton, Btn("Sstv.AddLayer", AddTextLayer, 56),
+        Btn("Sstv.Copy", DuplicateTextLayer, 56), Btn("Sstv.Delete", RemoveTextLayer, 56));
+      Field("Sstv.FieldVariable", macroSelector);
+      Buttons(Btn("Sstv.InsertVariable", InsertSelectedMacro, 88));
       Buttons(new Label
       {
-        Text = "拖动预览文字定位，滚轮调整大小",
+        Text = UiLocalizationService.Get("Sstv.DragText"), Tag = "Sstv.DragText",
         Height = 30, AutoSize = true,
         TextAlign = ContentAlignment.MiddleLeft
       });
 
-      Heading("音频与识别");
-      Field("声卡", txOutputBox);
+      Heading("Sstv.HeadingAudio");
+      Field("Sstv.FieldSoundcard", txOutputBox);
       Buttons(txCwId, txFskId);
 
       // Fixed-height rows plus a fixed-width grid permit vertical scrolling
@@ -749,7 +857,7 @@ namespace SkyRoof
               catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                 or ArgumentException)
               {
-                txStatus.Text = $"图片无法打开：{ex.Message}";
+                SetTxStatus("Sstv.StatusImageOpenError", ex.Message);
               }
             });
           }
@@ -766,21 +874,21 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = $"图库无法读取：{ex.Message}";
+        SetTxStatus("Sstv.StatusGalleryError", ex.Message);
       }
       finally { txThumbnailStrip.ResumeLayout(); }
     }
 
     private void BuildHistoryTab()
     {
-      var page = new TabPage("图库 / 历史");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabHistory"));
       var bar = Toolbar();
-      bar.Controls.Add(Btn("刷新", ReloadHistory, 70));
-      bar.Controls.Add(Btn("导入图片", ImportHistoryImage, 90));
-      bar.Controls.Add(Btn("导出图片", ExportHistoryImage, 90));
-      bar.Controls.Add(Btn("删除图片", DeleteHistoryImage, 90));
-      bar.Controls.Add(Btn("查看", ShowSelectedHistory, 70));
-      bar.Controls.Add(Btn("用作发送图片", UseSelectedHistoryForTx, 125));
+      bar.Controls.Add(Btn("Sstv.Refresh", ReloadHistory, 70));
+      bar.Controls.Add(Btn("Sstv.ImportImage", ImportHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.ExportImage", ExportHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.DeleteImage", DeleteHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.View", ShowSelectedHistory, 70));
+      bar.Controls.Add(Btn("Sstv.UseForTx", UseSelectedHistoryForTx, 125));
       page.Controls.Add(archiveList);
       page.Controls.Add(bar);
       tabs.TabPages.Add(page);
@@ -800,13 +908,13 @@ namespace SkyRoof
       };
       if (dialog.ShowDialog(this) != DialogResult.OK) return;
       receiveSession.Stop();
-      rxToggleButton.Text = "开始接收";
+      rxToggleButton.Text = UiLocalizationService.Get("Sstv.StartReceive");
       var stop = new CancellationTokenSource();
       replayStop = stop;
       string? normalizedTemporaryFile = null;
       try
       {
-        rxStatus.Text = "正在准备 SSTV 录音...";
+        SetRxStatus("Sstv.StatusPreparingWave");
         string workingWave = dialog.FileName;
         bool convert = await Task.Run(
           () => SstvWavNormalizer.NeedsConversion(dialog.FileName), stop.Token);
@@ -820,7 +928,7 @@ namespace SkyRoof
           workingWave = output;
         }
         stop.Token.ThrowIfCancellationRequested();
-        rxStatus.Text = "正在解析 SSTV 录音...";
+        SetRxStatus("Sstv.StatusAnalyzingWave");
         double clockPpm = (double)imageSlantCorrection.Value;
         SstvVisModeIdentity? identified = await Task.Run(
           () => SstvVisModeIdentifier.DetectWave(workingWave), stop.Token);
@@ -865,7 +973,7 @@ namespace SkyRoof
               BeginInvoke((Action)(() =>
               {
                 if (!closed)
-                  rxStatus.Text = $"正在解析 SSTV 录音 · {progress:P0}";
+                  SetRxStatus("Sstv.StatusAnalyzingProgress", progress.ToString("P0"));
               }));
             }
             catch (InvalidOperationException)
@@ -876,13 +984,13 @@ namespace SkyRoof
           }, stop.Token);
         if (!closed)
         {
-          rxStatus.Text = "录音解析已完成";
+          SetRxStatus("Sstv.StatusWaveDone");
           await IdentifyRecordedFskIdAsync(workingWave, stop.Token);
         }
       }
       catch (OperationCanceledException)
       {
-        if (!closed) rxStatus.Text = "录音解析已停止";
+        if (!closed) SetRxStatus("Sstv.StatusWaveStopped");
       }
       catch (Exception ex)
       {
@@ -920,7 +1028,7 @@ namespace SkyRoof
         () => SstvFskIdDecoder.DecodeWaveSuffix(path), token);
       if (closed || IsDisposed || string.IsNullOrWhiteSpace(call)) return;
       qsoCall.Text = call;
-      rxStatus.Text = $"录音中的台站标识：{call}（请核对）";
+      SetRxStatus("Sstv.StatusRecordedFsk", call);
     }
 
     private string QsoLogPath =>
@@ -928,23 +1036,23 @@ namespace SkyRoof
 
     private void BuildQsoTab()
     {
-      var page = new TabPage("通联日志");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabQso"));
       var bar = Toolbar();
       bar.Controls.Add(new Label
       {
-        Text = "对方呼号", Width = 73, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.TheirCall"), Tag = "Sstv.TheirCall", Width = 73, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       bar.Controls.Add(qsoCall);
       bar.Controls.Add(new Label
       {
-        Text = "备注", Width = 40, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.Notes"), Tag = "Sstv.Notes", Width = 40, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       bar.Controls.Add(qsoNotes);
       var actions = Toolbar();
-      actions.Controls.Add(Btn("保存通联", SaveQsoRecord, 96));
-      actions.Controls.Add(Btn("导出 ADIF", ExportQsoAdif, 106));
+      actions.Controls.Add(Btn("Sstv.SaveQso", SaveQsoRecord, 96));
+      actions.Controls.Add(Btn("Sstv.ExportAdif", ExportQsoAdif, 106));
       page.Controls.Add(qsoList);
       page.Controls.Add(actions);
       page.Controls.Add(bar);
@@ -962,7 +1070,7 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = "通联日志暂时无法读取";
+        SetTxStatus("Sstv.StatusQsoUnavailable");
       }
       finally { qsoList.EndUpdate(); }
     }
@@ -1046,7 +1154,7 @@ namespace SkyRoof
       catch (Exception ex)
       {
         Serilog.Log.Warning(ex, "Could not enumerate SSTV TX audio endpoints");
-        txStatus.Text = "发射声卡不可用，请检查 Windows 音频设备";
+        SetTxStatus("Sstv.StatusTxAudioUnavailable");
       }
     }
 
@@ -1064,7 +1172,7 @@ namespace SkyRoof
       }
       if (releaseWasUnconfirmed)
       {
-        txStatus.Text = "CAT 已确认电台返回接收状态，可重新发送。";
+        SetTxStatus("Sstv.StatusPttOff");
       }
       txSendButton.Enabled =
         txOperationStop == null &&
@@ -1078,7 +1186,7 @@ namespace SkyRoof
     {
       if (txOperationStop == null && !transmitSession.IsSending) return;
       txStopButton.Enabled = false; // prevent duplicate STOP clicks
-      txStatus.Text = "正在停止音频并请求 PTT OFF...";
+      SetTxStatus("Sstv.StatusPttStopping");
       txOperationStop?.Cancel();
       transmitSession.RequestStop();
     }
@@ -1109,7 +1217,7 @@ namespace SkyRoof
         // picture snapshot. STOP can also abort the entire WAV preparation.
         RefreshTxPreview();
         using var snapshot = new Bitmap(txPicture.Image!);
-        txStatus.Text = "正在准备 SSTV 图片...";
+        SetTxStatus("Sstv.StatusPreparingImage");
         SstvIdOptions? stationId = txCwId.Checked || txFskId.Checked
           ? new SstvIdOptions(myCallInput.Text.Trim(),
             txCwId.Checked, txFskId.Checked)
@@ -1193,12 +1301,12 @@ namespace SkyRoof
         if (rxDeviceBox.Items.Count > 0)
           rxDeviceBox.SelectedIndex = 0;
         else
-          rxStatus.Text = "未检测到接收声卡；可使用“导入 WAV”解码录音";
+          SetRxStatus("Sstv.StatusNoAudioDevice");
       }
       catch (Exception ex)
       {
         Serilog.Log.Warning(ex, "Could not enumerate SSTV RX audio endpoints");
-        rxStatus.Text = "接收声卡不可用，请检查 Windows 音频设备";
+        SetRxStatus("Sstv.StatusAudioUnavailable");
       }
     }
 
@@ -1207,8 +1315,8 @@ namespace SkyRoof
       if (receiveSession.IsRunning)
       {
         receiveSession.Stop();
-        rxToggleButton.Text = "开始接收";
-        rxStatus.Text = "接收已停止";
+        rxToggleButton.Text = UiLocalizationService.Get("Sstv.StartReceive");
+        SetRxStatus("Sstv.StatusRxStopped");
         return;
       }
       if (rxDeviceBox.SelectedItem is not DeviceEntry device)
@@ -1241,8 +1349,8 @@ namespace SkyRoof
         else
           receiveSession.Start((SstvReceiveSource)rxSourceBox.SelectedIndex,
             device.Id, ifMode);
-        rxToggleButton.Text = "停止接收";
-        rxStatus.Text = "正在等待 SSTV 信号...";
+        rxToggleButton.Text = UiLocalizationService.Get("Sstv.StopReceive");
+        SetRxStatus("Sstv.StatusRxWaiting");
       }
       catch (Exception ex)
       {
@@ -1268,11 +1376,11 @@ namespace SkyRoof
       }
       if (mode.Native != null)
       {
-        rxStatus.Text = $"{mode.Name} 由 SkySignals 自动识别解码，请等待 VIS 同步";
+        SetRxStatus("Sstv.StatusSkySignalsMode", mode.Name);
         return;
       }
       receiveSession.ManualStart(mode);
-      rxStatus.Text = $"已请求手动开始 {mode.Name}，等待扫描行";
+      SetRxStatus("Sstv.StatusManualMode", mode.Name);
     }
 
     private void OnLiveFskStationIdentified(string callsign)
@@ -1285,7 +1393,7 @@ namespace SkyRoof
           if (closed || IsDisposed) return;
           if (string.IsNullOrWhiteSpace(qsoCall.Text))
             qsoCall.Text = callsign;
-          rxStatus.Text = $"收到 FSK 台站标识：{callsign}（需核对）";
+          SetRxStatus("Sstv.StatusFskStation", callsign);
         }));
       }
       catch (InvalidOperationException)
@@ -1519,7 +1627,7 @@ namespace SkyRoof
       if (remember) RememberTxImage(image);
       ClearHistory(redoImages);
       RefreshTxPreview();
-      txStatus.Text = "图片已加载，可以编辑或保存 SSTV 音频";
+      SetTxStatus("Sstv.StatusImageLoaded");
       if (remember) RefreshTxThumbnails();
       tabs.SelectedIndex = 1;
     }
@@ -1539,7 +1647,7 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = "图片模板无法读取";
+        SetTxStatus("Sstv.StatusTemplateUnavailable");
       }
     }
 
@@ -1633,7 +1741,7 @@ namespace SkyRoof
     {
       if (templateBox.SelectedItem is not SstvUserTemplate selected)
       {
-        txStatus.Text = "内置模板不可删除，请先选择已保存的自定义模板";
+        SetTxStatus("Sstv.StatusCannotDeleteBuiltin");
         return;
       }
       if (MessageBox.Show(this, $"删除自定义模板“{selected.Name}”？",
@@ -1645,7 +1753,7 @@ namespace SkyRoof
         {
           ReloadUserTemplates();
           templateBox.SelectedIndex = 0;
-          txStatus.Text = $"已删除模板：{selected.Name}";
+          SetTxStatus("Sstv.StatusTemplateDeleted", selected.Name);
         }
       }
       catch (Exception ex)
@@ -1706,7 +1814,7 @@ namespace SkyRoof
     {
       if (TextLayerCount >= MaxTextLayers)
       {
-        txStatus.Text = "最多可创建 8 个文字图层";
+        SetTxStatus("Sstv.StatusTooManyLayers");
         return;
       }
       int next = extraCaptions.Count;
@@ -1725,7 +1833,7 @@ namespace SkyRoof
     {
       if (TextLayerCount >= MaxTextLayers)
       {
-        txStatus.Text = "最多可创建 8 个文字图层";
+        SetTxStatus("Sstv.StatusTooManyLayers");
         return;
       }
       int selected = Math.Max(0, textLayerBox.SelectedIndex);
@@ -1742,7 +1850,7 @@ namespace SkyRoof
       int selected = textLayerBox.SelectedIndex;
       if (selected < 3)
       {
-        txStatus.Text = "三个基础图层不可删除，可清空文字或删除附加图层";
+        SetTxStatus("Sstv.StatusProtectedLayers");
         return;
       }
       textLayerBox.SelectedIndex = 0;
@@ -1762,7 +1870,7 @@ namespace SkyRoof
       string current = GetCaptionText(index);
       if (current.Length + macro.Token.Length > 512)
       {
-        txStatus.Text = "文字长度已达上限";
+        SetTxStatus("Sstv.StatusTextLimit");
         return;
       }
       int position = Math.Clamp(activeCaptionInput.SelectionStart, 0, current.Length);
@@ -2036,7 +2144,7 @@ namespace SkyRoof
       };
       if (save.ShowDialog(this) != DialogResult.OK) return;
       using var snapshot = new Bitmap(preview);
-      txStatus.Text = "正在生成 SSTV 音频...";
+      SetTxStatus("Sstv.StatusGeneratingAudio");
       try
       {
         SstvIdOptions? stationId = txCwId.Checked || txFskId.Checked
@@ -2045,13 +2153,13 @@ namespace SkyRoof
           : null;
         await Task.Run(() => SstvRgbWaveExporter.Export(
           snapshot, spec, save.FileName, default, stationId));
-        if (!closed) txStatus.Text = "音频已保存";
+        if (!closed) SetTxStatus("Sstv.StatusAudioSaved");
       }
       catch (Exception ex)
       {
         if (!closed)
         {
-          txStatus.Text = "保存失败";
+          SetTxStatus("Sstv.StatusSaveFailed");
           MessageBox.Show(this, ex.Message, "SSTV",
             MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
@@ -2066,7 +2174,7 @@ namespace SkyRoof
       var old = rxPicture.Image;
       rxPicture.Image = next;
       old?.Dispose();
-      rxStatus.Text = final ? $"接收完成 · {mode}" : $"正在接收 · {mode}";
+      SetRxStatus(final ? "Sstv.StatusRxCompleted" : "Sstv.StatusRxInProgress", mode);
       // Never associate a new partial picture with the previous received
       // image in QSO logging. Keep the actual RX mode for the next log.
       rxPicture.Tag = final ? savedFile : null;
@@ -2102,7 +2210,7 @@ namespace SkyRoof
           using var snapshot = new Bitmap(rxPicture.Image);
           await Task.Run(() => snapshot.Save(target, ImageFormat.Png));
         }
-        if (!closed) rxStatus.Text = "图片已保存";
+        if (!closed) SetRxStatus("Sstv.StatusImageSaved");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or System.Runtime.InteropServices.ExternalException or ArgumentException)
@@ -2138,7 +2246,7 @@ namespace SkyRoof
           }
         }
         RefreshTxThumbnails();
-        txStatus.Text = "图片已导入图库";
+        SetTxStatus("Sstv.StatusImageImported");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException or System.Runtime.InteropServices.ExternalException)
@@ -2167,7 +2275,7 @@ namespace SkyRoof
       try
       {
         SstvImageLibrary.Export(item.Path, dialog.FileName);
-        txStatus.Text = "图片已导出";
+        SetTxStatus("Sstv.StatusImageExported");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException)
@@ -2193,11 +2301,11 @@ namespace SkyRoof
       {
         if (!SstvImageLibrary.Delete(HistoryFolder, item.Path))
         {
-          txStatus.Text = "图片已经不存在";
+          SetTxStatus("Sstv.StatusMissingImage");
         }
         else
         {
-          txStatus.Text = "图片已从图库删除";
+          SetTxStatus("Sstv.StatusImageDeleted");
         }
         ReloadHistory();
         RefreshTxThumbnails();

@@ -15,6 +15,11 @@ namespace SkyRoof
       label1.Text = Utils.GetVersionString();
       label2.Text = Utils.GetCopyrightString();
       label3.Text = ForkCopyright;
+      UiLocalizationService.Bind(this, () =>
+      {
+        UiLocalizationService.ApplyStaticControls(this);
+        Text = UiLocalizationService.Format("Dialog.AboutTitle", Utils.GetAppName());
+      });
     }
 
     private void WebsiteLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

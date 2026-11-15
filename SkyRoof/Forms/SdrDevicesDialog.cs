@@ -15,12 +15,14 @@ namespace SkyRoof
     public SdrDevicesDialog()
     {
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
     }
 
     public SdrDevicesDialog(Context ctx)
     {
       this.ctx = ctx;
       InitializeComponent();
+      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
 
       using (var ms = new MemoryStream(Properties.Resources.radio_button_on)) { RadioOnImage = Image.FromStream(ms); }
       using (var ms = new MemoryStream(Properties.Resources.radio_button_off)) { RadioOffImage = Image.FromStream(ms); }

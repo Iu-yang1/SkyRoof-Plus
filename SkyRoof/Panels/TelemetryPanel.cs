@@ -750,7 +750,7 @@ namespace SkyRoof
       UpdateUploadHold();
       SettingsButton.ForeColor = SystemColors.GrayText;
 
-      if (Terrestrial) SatNameLabel.Text = "Terrestrial";
+      if (Terrestrial) SatNameLabel.Text = UiLocalizationService.Get("Telemetry.Terrestrial");
       else SatNameLabel.Text = $"{Satellite!.name}  {Transmitter!.description}";
 
       ResolveSignalParams();
@@ -3171,16 +3171,25 @@ namespace SkyRoof
       // operator selects that telemetry transmitter, which re-adds the SSTV branch anyway (§2.2 row 1).
       SettingsButton.Visible = Sibling == null;
 
-      // terrestrial is no longer a refusal: with parameters it decodes like any other signal (§4.9), so
-      // only the state before the operator has entered any is reported as such
-      if (Terrestrial && SignalParams == null) UpdateStatusLabel("terrestrial, signal parameters not set", Color.Red);
-      else if (!IsDecodable()) UpdateStatusLabel(DescribeUnsupported(), Color.Red);
-      // an FM-only transmitter with no FM artefact unzipped into the installation folder reads as
-      // unsupported, silently - the user installs it manually, there is no in-app prompt or download
-      else if (IsFmDecodable() && !IsTelemetryDecodable() && !IsSstvDecodable() && !FmModelPresent)
+      RenderTelemetryStatus();
+    }
+
+    /// <summary>Presentation only. Never recreates the decoder or changes the
+    /// current RF input merely because the operator changed interface language.</summary>
+    private void RenderTelemetryStatus()
+    {
+      if (Terrestrial && SignalParams == null)
+        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.NoTerrestrialParams"), Color.Red);
+      else if (!IsDecodable())
         UpdateStatusLabel(DescribeUnsupported(), Color.Red);
-      else if (!Terrestrial && !SatAboveHorizon) UpdateStatusLabel("satellite below horizon", SystemColors.ControlText);
-      else UpdateStatusLabel($"ready to decode{DescribeBranches()}", SystemColors.ControlText);
+      else if (IsFmDecodable() && !IsTelemetryDecodable() &&
+               !IsSstvDecodable() && !FmModelPresent)
+        UpdateStatusLabel(DescribeUnsupported(), Color.Red);
+      else if (!Terrestrial && !SatAboveHorizon)
+        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.BelowHorizon"), SystemColors.ControlText);
+      else
+        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.Ready") + DescribeBranches(),
+          SystemColors.ControlText);
       if (ctx.Settings.Telemetry.InputSource != TelemetryReceiveSource.SdrIq &&
           audioReceiver != null)
       {
@@ -3192,6 +3201,23 @@ namespace SkyRoof
       }
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      SaveImageMNU.Text = UiLocalizationService.Get("Telemetry.SaveAs");
+      CopyImageMNU.Text = UiLocalizationService.Get("Telemetry.Copy");
+      OpenImageMNU.Text = UiLocalizationService.Get("Telemetry.OpenImage");
+      RepairImageMNU.Text = UiLocalizationService.Get("Telemetry.RepairImage");
+      DenoiseImageMNU.Text = UiLocalizationService.Get("Telemetry.DenoiseImage");
+      PlayVoiceMNU.Text = UiLocalizationService.Get("Telemetry.PlayVoice");
+      SaveVoiceMNU.Text = UiLocalizationService.Get("Telemetry.SaveAs");
+      OpenVoiceMNU.Text = UiLocalizationService.Get("Telemetry.OpenVoice");
+      ClearAllMNU.Text = UiLocalizationService.Get("Telemetry.ClearAll");
+      if (Terrestrial) SatNameLabel.Text = UiLocalizationService.Get("Telemetry.Terrestrial");
+      // The currently running receiver and the text of past decoded frames
+      // are deliberately left untouched; only live status captions change.
+      RenderTelemetryStatus();
+    }
+
     // Name what is actually unsupported about the SELECTED transmitter instead of blaming the telemetry
     // format for everything: a CW transmitter has no telemetry format to fail on, and an FM one usually only
     // lacks its speech model. The verdict covers the selection alone — a co-channel SSTV image, or an FM
@@ -3200,11 +3226,11 @@ namespace SkyRoof
     {
       return SignalParams?.Modulation switch
       {
-        Modulation.CW => "CW decoding not supported",
-        // reached only via the ladder's FM branch, i.e. the modulation is supported but the model is absent
-        Modulation.FM => "FM decoding not supported",
-        null => "signal parameters unknown",
-        _ => "telemetry format not supported"
+        Modulation.CW => UiLocalizationService.Get("Telemetry.UnsupportedCw"),
+        // FM branch needs a satellite-specific speech decoder.
+        Modulation.FM => UiLocalizationService.Get("Telemetry.UnsupportedFm"),
+        null => UiLocalizationService.Get("Telemetry.UnknownParams"),
+        _ => UiLocalizationService.Get("Telemetry.UnsupportedFormat")
       };
     }
 
@@ -3220,8 +3246,10 @@ namespace SkyRoof
       // satellite whose framing has an assembler — 100-odd USP birds that have never sent a picture
       // included. Naming it there would be noise, so it is named only where the operator asked for it by
       // selecting the SSDV row and the parameters it resolved to would otherwise not mention it.
-      if (IsSsdvDecodable() && IsImagingWanted()) names.Add("images");
-      if (IsFmDecodable() && FmModelPresent) names.Add("FM speech");
+      if (IsSsdvDecodable() && IsImagingWanted())
+        names.Add(UiLocalizationService.Get("Telemetry.Images"));
+      if (IsFmDecodable() && FmModelPresent)
+        names.Add(UiLocalizationService.Get("Telemetry.FmSpeech"));
       return names.Count == 0 ? "" : ": " + string.Join(" + ", names);
     }
 
