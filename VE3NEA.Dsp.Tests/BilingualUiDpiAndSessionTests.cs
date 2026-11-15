@@ -194,6 +194,11 @@ public sealed class BilingualUiDpiAndSessionTests
         var az = Field<NumericUpDown>(rotator, "AzimuthSpinner");
         var el = Field<NumericUpDown>(rotator, "ElevationSpinner");
         var step = Field<NumericUpDown>(rotator, "StepSpinner");
+        // In production Attach() installs the configured mechanical
+        // azimuth/elevation limits; the no-device fixture sets equivalent
+        // numeric ranges before assigning a simulated pointing target.
+        az.Maximum = 450m;
+        el.Maximum = 180m;
         az.Value = 120m;
         el.Value = 45m;
         step.Value = 2.5m;
