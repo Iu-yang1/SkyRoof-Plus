@@ -649,4 +649,9 @@ Current: {0}</value></data>
   <data name="AmsatReport.TelemetryOnly" xml:space="preserve"><value>Telemetry Only</value></data>
   <data name="AmsatReport.NotHeard" xml:space="preserve"><value>Not Heard</value></data>
   <data name="AmsatReport.CrewActive" xml:space="preserve"><value>Crew Active</value></data>
+  <data name="Menu.AutoSelectionConfigForm.SelectAllMnu" xml:space="preserve"><value>Select All</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select5Mnu" xml:space="preserve"><value>Select passes above 5°</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select10Mnu" xml:space="preserve"><value>Select passes above 10°</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select15Mnu" xml:space="preserve"><value>Select passes above 15°</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select20Mnu" xml:space="preserve"><value>Select passes above 20°</value></data>
 </root>
