@@ -3,11 +3,11 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.77: ship zh-CN satellite resources and verify installed UI language resolution. -->
+  <!-- SkyRoof Plus v1.78: professionally localize satellite communication terminology. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
-    <!-- v1.77-zh-cn-installer-hotfix-20261115: independent release; preserve v.1.76. -->
-    <Version>1.77</Version>
+    <!-- v1.78-satellite-terminology-20261115: independent release; preserve v.1.77. -->
+    <Version>1.78</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
