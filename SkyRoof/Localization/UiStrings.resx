@@ -654,4 +654,55 @@ Current: {0}</value></data>
   <data name="Menu.AutoSelectionConfigForm.Select10Mnu" xml:space="preserve"><value>Select passes above 10°</value></data>
   <data name="Menu.AutoSelectionConfigForm.Select15Mnu" xml:space="preserve"><value>Select passes above 15°</value></data>
   <data name="Menu.AutoSelectionConfigForm.Select20Mnu" xml:space="preserve"><value>Select passes above 20°</value></data>
+  <data name="Onvif.LiveVideo" xml:space="preserve"><value>Live video</value></data>
+  <data name="Onvif.NotConnected" xml:space="preserve"><value>Not connected</value></data>
+  <data name="Onvif.OpenSettings" xml:space="preserve"><value>Open Settings</value></data>
+  <data name="Onvif.Play" xml:space="preserve"><value>Play</value></data>
+  <data name="Onvif.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="Onvif.Reconnect" xml:space="preserve"><value>Reconnect</value></data>
+  <data name="Onvif.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Onvif.NoCamera" xml:space="preserve"><value>No camera configured</value></data>
+  <data name="Onvif.Connecting" xml:space="preserve"><value>Connecting...</value></data>
+  <data name="Onvif.NoStream" xml:space="preserve"><value>No stream</value></data>
+  <data name="Onvif.Offline" xml:space="preserve"><value>Offline</value></data>
+  <data name="Onvif.Stopped" xml:space="preserve"><value>Stopped.</value></data>
+  <data name="Onvif.Configure" xml:space="preserve"><value>Configure an ONVIF camera to begin.</value></data>
+  <data name="Onvif.Saved" xml:space="preserve"><value>Camera settings saved. Press Play to connect.</value></data>
+  <data name="Onvif.Ready" xml:space="preserve"><value>Camera ready.</value></data>
+  <data name="Onvif.ConnectingCamera" xml:space="preserve"><value>Connecting to camera...</value></data>
+  <data name="Onvif.StartHardware" xml:space="preserve"><value>Starting hardware-decoded video...</value></data>
+  <data name="Onvif.LiveHardware" xml:space="preserve"><value>Live · D3D11VA hardware decoding</value></data>
+  <data name="Onvif.HardwareUnavailable" xml:space="preserve"><value>Hardware decoder unavailable. Choose another video profile.</value></data>
+  <data name="Onvif.Interrupted" xml:space="preserve"><value>Video connection interrupted.</value></data>
+  <data name="Onvif.MpvMissing" xml:space="preserve"><value>mpv.exe was not found. Select the player in Settings.</value></data>
+  <data name="Onvif.D3dUnavailable" xml:space="preserve"><value>D3D11VA unavailable for this stream. Choose another profile.</value></data>
+  <data name="Onvif.Failed" xml:space="preserve"><value>Unable to connect. Check ONVIF address, credentials and stream.</value></data>
+  <data name="Onvif.SettingsTitle" xml:space="preserve"><value>ONVIF Camera Settings</value></data>
+  <data name="Onvif.SetName" xml:space="preserve"><value>Camera name</value></data>
+  <data name="Onvif.SetDevice" xml:space="preserve"><value>Device</value></data>
+  <data name="Onvif.SetService" xml:space="preserve"><value>Device service</value></data>
+  <data name="Onvif.SetUsername" xml:space="preserve"><value>Username</value></data>
+  <data name="Onvif.SetPassword" xml:space="preserve"><value>Password</value></data>
+  <data name="Onvif.SetVideoProfile" xml:space="preserve"><value>Video profile</value></data>
+  <data name="Onvif.SetPlayer" xml:space="preserve"><value>Player</value></data>
+  <data name="Onvif.SetPlayback" xml:space="preserve"><value>Playback</value></data>
+  <data name="Onvif.SetStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="Onvif.SetDiscover" xml:space="preserve"><value>Discover</value></data>
+  <data name="Onvif.SetProfiles" xml:space="preserve"><value>Get profiles</value></data>
+  <data name="Onvif.SetBrowse" xml:space="preserve"><value>Browse</value></data>
+  <data name="Onvif.SetAutoConnect" xml:space="preserve"><value>Connect when window opens</value></data>
+  <data name="Onvif.SetAutoPlay" xml:space="preserve"><value>Start video automatically</value></data>
+  <data name="Onvif.SetAutoReconnect" xml:space="preserve"><value>Reconnect after playback interruption</value></data>
+  <data name="Onvif.SetMedia2" xml:space="preserve"><value>Prefer ONVIF Media2 (fallback Media1)</value></data>
+  <data name="Onvif.SetHint" xml:space="preserve"><value>Select a camera or enter its ONVIF Device Service address.</value></data>
+  <data name="Onvif.SetCancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+  <data name="Onvif.SetConnectionFailed" xml:space="preserve"><value>Connection failed. Check camera address, permissions and credentials.</value></data>
+  <data name="Onvif.SetDiscovering" xml:space="preserve"><value>Discovering ONVIF devices on active IPv4 adapters...</value></data>
+  <data name="Onvif.SetFound" xml:space="preserve"><value>Found {0} ONVIF endpoint(s) on {1} adapter(s).</value></data>
+  <data name="Onvif.SetNotFound" xml:space="preserve"><value>No ONVIF replies ({0} adapters, {1} UDP packets). Check UDP 3702/firewall, or enter the HTTP Device Service URL (not RTSP port 554).</value></data>
+  <data name="Onvif.SetQueryProfiles" xml:space="preserve"><value>Querying Media1 / Media2 profiles...</value></data>
+  <data name="Onvif.SetProfileCount" xml:space="preserve"><value>{0} ONVIF profile(s). Choose the default stream.</value></data>
+  <data name="Onvif.SetSelectMpv" xml:space="preserve"><value>Select mpv.exe</value></data>
+  <data name="Onvif.SetMpvFilter" xml:space="preserve"><value>mpv player (mpv.exe)|mpv.exe|Executables (*.exe)|*.exe</value></data>
+  <data name="Onvif.SetInvalidAddress" xml:space="preserve"><value>Invalid ONVIF address</value></data>
 </root>
