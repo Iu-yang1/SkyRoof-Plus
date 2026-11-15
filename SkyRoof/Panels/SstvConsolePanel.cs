@@ -420,8 +420,9 @@ namespace SkyRoof
     internal void RefreshLocalizedUi()
     {
       string[] pages = { "Sstv.TabRx", "Sstv.TabTx", "Sstv.TabHistory", "Sstv.TabQso" };
-      for (int i = 0; i < tabs.TabPages.Count && i < pages.Length; i++)
-        tabs.TabPages[i].Text = UiLocalizationService.Get(pages[i]);
+      foreach (var pair in tabs.TabPages.Cast<TabPage>()
+        .Zip(pages, (page, key) => (page, key)))
+        pair.page.Text = UiLocalizationService.Get(pair.key);
       void Translate(Control root)
       {
         if (root.Tag is string key && key.StartsWith("Sstv.", StringComparison.Ordinal))
