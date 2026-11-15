@@ -18,7 +18,7 @@
 - 中国无线电管理（SRRC）：[《全球业余卫星介绍（四）》](https://www.srrc.org.cn/article24576.aspx)，将卫星业余无线电载荷区分为遥测信标机与通信转发器。
 - [《全球业余卫星介绍（五）》](https://www.srrc.org.cn/article.aspx?id=24578)，采用线性转发器、U/V 模式等术语。
 - [AMSAT Amateur Satellite Database](https://satdb.amsat.org/)，明确将 Uplink、Downlink 与 Beacon 列为不同字段。
-- 中国无线电运动协会（CRAC）：[《业余无线电台管理办法》](https://www.srrc.org.cn/article31728.aspx)，将卫星业余业务、信标台、呼号及通联日志等术语作规范性区分。
+- 工业和信息化部：[《业余无线电台管理办法》（工业和信息化部令第67号）](https://www.srrc.org.cn/article31728.aspx)，将卫星业余业务、信标台、呼号及通联日志等术语作规范性区分。
 
 ### 验收范围
 
