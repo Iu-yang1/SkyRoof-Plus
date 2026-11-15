@@ -46,7 +46,7 @@ public sealed class BilingualUiDpiAndSessionTests
     thread.IsBackground = true;
     thread.SetApartmentState(ApartmentState.STA);
     thread.Start();
-    Assert.True(thread.Join(TimeSpan.FromSeconds(85)),
+    Assert.True(thread.Join(TimeSpan.FromSeconds(35)),
       "Bilingual UI rendering or session check timed out on STA");
     if (error is not null) throw new Xunit.Sdk.XunitException(error.ToString());
   }
@@ -208,8 +208,8 @@ public sealed class BilingualUiDpiAndSessionTests
         rotatorScale.Apply(ratio);
         Assert.Equal(new Size((int)(612 * ratio), (int)(172 * ratio)),
           recorderHost.Size);
-        Assert.Equal(new Size((int)Math.Round(318 * ratio),
-          (int)Math.Round(386 * ratio)), rotator.Size);
+        Assert.Equal(new Size(UniformControlScale.Pixel(318, ratio),
+          UniformControlScale.Pixel(386, ratio)), rotator.Size);
         recorder.CreateControl();
         rotator.CreateControl();
         var az = Field<NumericUpDown>(rotator, "AzimuthSpinner");
@@ -296,11 +296,27 @@ public sealed class BilingualUiDpiAndSessionTests
           typeof(SettingsDialog).GetMethod("RefreshLanguageCaptions",
             BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(dialog, null));
+        // The PropertyGrid is a native composite that provides its own DPI
+        // scaling. Applying a generic recursive bounds scaler to its
+        // internal controls can deadlock on the headless Windows runner.
+        // Exclude the grid from the visual-chrome scaler and adjust its
+        // font and enclosing table layout explicitly instead.
+        var layout = (TableLayoutPanel)grid.Parent!;
+        int gridRow = layout.GetRow(grid);
+        layout.Controls.Remove(grid);
         using var scaler = new UniformControlScale(host,
           scaleRootBounds: false, maxScale: 2f);
+        layout.Controls.Add(grid, 0, gridRow);
+        grid.Dock = DockStyle.Fill;
         float ratio = percent / 100f;
         host.Size = new Size((int)(538 * ratio), (int)(860 * ratio));
+        foreach (RowStyle row in layout.RowStyles)
+          if (row.SizeType == SizeType.Absolute)
+            row.Height = row.Height * ratio;
         scaler.Apply(ratio);
+        using var scaledGridFont = new Font(grid.Font.FontFamily,
+          grid.Font.SizeInPoints * ratio, grid.Font.Style);
+        grid.Font = scaledGridFont;
         Assert.Equal(new Size((int)(538 * ratio), (int)(860 * ratio)),
           host.Size);
         dialog.CreateControl();
