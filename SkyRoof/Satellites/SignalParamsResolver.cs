@@ -27,6 +27,16 @@ namespace SkyRoof.Satellites
 
       Modulation mod = ResolveModulation(tx, je9pel);
       Framing framing = ResolveFraming(tx, je9pel);
+      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
+      // from HADES-SA. The app handles that table after the FSK soft modem.
+      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
+          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
+      {
+        if (mod == Modulation.FSK && framing == Framing.Unknown)
+          framing = Framing.HADES;
+        if (mod == Modulation.FSK && baud <= 0)
+          baud = 200;
+      }
 
       double? devOverride = mod == Modulation.GMSK ? null : Field(layers, l => l.deviation);
       // AFSK (Bell-202 audio subcarrier over FM, e.g. 1k2 telemetry): the demod's "deviation" is the audio tone

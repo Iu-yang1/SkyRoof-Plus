@@ -966,8 +966,26 @@ namespace SkyRoof
           // transmitter's decoder, and this decoder's frames must never reach that one's assembler.
           var images = Decoder.Images;
           var voice = Decoder.Voice;
-          Decoder.Pipeline.FrameDecoded += frame => FrameDecodedHandler(frame, snapshot, images, voice, pushed);
-          Decoder.Pipeline.BurstDecoded += report => BurstDecodedHandler(report, snapshot);
+          bool unne = snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
+            snapshot.SignalParams.Framing == Framing.HADES;
+          // The vendored HADES deframer contains only HADES-SA packet layouts.
+          // UNNE-1B's soft symbols must use its own type-C packet table/CRC.
+          if (!unne)
+            Decoder.Pipeline.FrameDecoded += frame => FrameDecodedHandler(frame, snapshot, images, voice, pushed);
+          Decoder.Pipeline.BurstDecoded += report =>
+          {
+            if (unne)
+              foreach (Frame frame in Unne1bDeframer.Decode(report.Soft))
+              {
+                var tagged = frame with
+                {
+                  BurstIndex = report.Index, TimeSeconds = report.TimeSeconds,
+                  CfoHz = report.Burst.CfoHz, SnrDb = report.Burst.SnrDb
+                };
+                FrameDecodedHandler(tagged, snapshot, images, voice, pushed);
+              }
+            BurstDecodedHandler(report, snapshot);
+          };
         }
         if (Decoder.Images != null)
         {
