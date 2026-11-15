@@ -123,24 +123,18 @@ public sealed class QsoSchedulerManualSearchTests
           UiLocalizationService.ApplyStaticControls(panel);
           panel.RefreshLocalizedUi();
 
-          using var scale = new UniformControlScale(panel, maxScale: 2f);
           float ratio = percent / 100f;
-          scale.Apply(ratio);
           var progress = Field<ProgressBar>(panel, "CalculationProgress");
           var button = Field<Button>(panel, "CalculateButton");
           var start = Field<DateTimePicker>(panel, "StartUtcPicker");
           var end = Field<DateTimePicker>(panel, "EndUtcPicker");
           var status = Field<Label>(panel, "StatusLabel");
 
-          Assert.Equal(UiLocalizationService.Get("QsoScheduler.Calculate"), button.Text);
-          Assert.False(panel.IsPredictionRunning);
-          Assert.True(start.Right < end.Left);
-          Assert.True(progress.Right < status.Left);
-          Assert.False(progress.Visible);
-
+          // Scale a non-Form canvas so 200% is not capped by the CI
+          // desktop work area (the native DockContent Form is screen-bound).
           using var host = new Panel
           {
-            Size = new Size(panel.Width, (int)(100 * ratio)),
+            Size = new Size(600, 100),
             BackColor = panel.BackColor
           };
           foreach (Control control in panel.Controls.Cast<Control>().ToArray())
@@ -149,8 +143,20 @@ public sealed class QsoSchedulerManualSearchTests
             panel.Controls.Remove(control);
             host.Controls.Add(control);
           }
+          using var scale = new UniformControlScale(host, maxScale: 2f);
+          scale.Apply(ratio);
           host.CreateControl();
           foreach (Control child in host.Controls) child.CreateControl();
+
+          Assert.Equal(new Size((int)(600 * ratio), (int)(100 * ratio)), host.Size);
+          Assert.Equal(UiLocalizationService.Get("QsoScheduler.Calculate"), button.Text);
+          Assert.False(panel.IsPredictionRunning);
+          Assert.True(start.Right < end.Left);
+          Assert.True(progress.Right < status.Left);
+          Assert.True(end.Right <= host.ClientSize.Width, "UTC end picker is clipped");
+          Assert.True(button.Right <= host.ClientSize.Width, "Start button is clipped");
+          Assert.True(status.Right <= host.ClientSize.Width, "Progress text is clipped");
+          Assert.False(progress.Visible);
 
           string? output = Environment.GetEnvironmentVariable("SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
           if (!string.IsNullOrWhiteSpace(output))
