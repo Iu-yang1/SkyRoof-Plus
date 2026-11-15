@@ -705,4 +705,25 @@ Current: {0}</value></data>
   <data name="Onvif.SetSelectMpv" xml:space="preserve"><value>Select mpv.exe</value></data>
   <data name="Onvif.SetMpvFilter" xml:space="preserve"><value>mpv player (mpv.exe)|mpv.exe|Executables (*.exe)|*.exe</value></data>
   <data name="Onvif.SetInvalidAddress" xml:space="preserve"><value>Invalid ONVIF address</value></data>
+  <data name="PathOptimizer.NoPaths" xml:space="preserve"><value>Optimized Rotator Paths</value></data>
+  <data name="PathOptimizer.ForSatellite" xml:space="preserve"><value>Optimized Rotator Paths for {0}</value></data>
+  <data name="Control.AzElEntryDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Control.AzElEntryDialog.OkBtn" xml:space="preserve"><value>Go</value></data>
+  <data name="Control.AzElEntryDialog.ParkBtn" xml:space="preserve"><value>Park</value></data>
+  <data name="Control.AzElEntryDialog.label1" xml:space="preserve"><value>Azimuth</value></data>
+  <data name="Control.AzElEntryDialog.label2" xml:space="preserve"><value>Elevation</value></data>
+  <data name="AzEl.Title" xml:space="preserve"><value>Manual Rotator Control</value></data>
+  <data name="AzEl.TrackingLocked" xml:space="preserve"><value>Manual Rotator Control — locked during live tracking</value></data>
+  <data name="Park.Title" xml:space="preserve"><value>PARK Waypoints</value></data>
+  <data name="Park.Description" xml:space="preserve"><value>PARK follows the ordered waypoints. The next move begins only after the rotator confirms arrival. STOP cancels the route.</value></data>
+  <data name="Park.Coordinates" xml:space="preserve"><value>Selected waypoint coordinates</value></data>
+  <data name="Park.Update" xml:space="preserve"><value>Update</value></data>
+  <data name="Park.AddAfter" xml:space="preserve"><value>Add After</value></data>
+  <data name="Park.Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Park.Up" xml:space="preserve"><value>↑ Up</value></data>
+  <data name="Park.Down" xml:space="preserve"><value>↓ Down</value></data>
+  <data name="Park.UseCurrent" xml:space="preserve"><value>Use Current</value></data>
+  <data name="Park.Hint" xml:space="preserve"><value>Use Update to save edited AZ/EL into the selected row; Save persists the entire route.</value></data>
+  <data name="Park.Save" xml:space="preserve"><value>Save Route</value></data>
+  <data name="Park.MinOne" xml:space="preserve"><value>Add at least one PARK waypoint.</value></data>
 </root>
