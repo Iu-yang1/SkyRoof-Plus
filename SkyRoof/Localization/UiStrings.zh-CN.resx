@@ -216,4 +216,83 @@
   <data name="Spectrum.TipZoom" xml:space="preserve"><value>本地频谱缩放，不修改无线电 SPAN。</value></data>
   <data name="Spectrum.TipReadback" xml:space="preserve"><value>从 IC-9700 读取频谱设置，不将本地值当作已确认写入。</value></data>
   <data name="Spectrum.TipDiagnostics" xml:space="preserve"><value>查看完整连接详情、序列缺口、CAT 队列与帧率统计。</value></data>
+  <data name="Sstv.ImportWav" xml:space="preserve"><value>导入 WAV</value></data>
+  <data name="Sstv.ManualStart" xml:space="preserve"><value>手动开始</value></data>
+  <data name="Sstv.SaveImage" xml:space="preserve"><value>保存图片</value></data>
+  <data name="Sstv.CopyImage" xml:space="preserve"><value>复制图片</value></data>
+  <data name="Sstv.RxHistory" xml:space="preserve"><value>接收记录</value></data>
+  <data name="Sstv.OpenImage" xml:space="preserve"><value>打开图片</value></data>
+  <data name="Sstv.Paste" xml:space="preserve"><value>粘贴</value></data>
+  <data name="Sstv.Undo" xml:space="preserve"><value>撤销</value></data>
+  <data name="Sstv.Redo" xml:space="preserve"><value>重做</value></data>
+  <data name="Sstv.Rotate" xml:space="preserve"><value>旋转</value></data>
+  <data name="Sstv.Mirror" xml:space="preserve"><value>镜像</value></data>
+  <data name="Sstv.Crop" xml:space="preserve"><value>裁剪</value></data>
+  <data name="Sstv.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="Sstv.Gallery" xml:space="preserve"><value>图库</value></data>
+  <data name="Sstv.SaveWav" xml:space="preserve"><value>保存 WAV</value></data>
+  <data name="Sstv.SaveTemplate" xml:space="preserve"><value>保存模板</value></data>
+  <data name="Sstv.DeleteTemplate" xml:space="preserve"><value>删除模板</value></data>
+  <data name="Sstv.QsoLog" xml:space="preserve"><value>通联日志</value></data>
+  <data name="Sstv.AddLayer" xml:space="preserve"><value>新增</value></data>
+  <data name="Sstv.Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="Sstv.Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="Sstv.InsertVariable" xml:space="preserve"><value>插入变量</value></data>
+  <data name="Sstv.ImportImage" xml:space="preserve"><value>导入图片</value></data>
+  <data name="Sstv.ExportImage" xml:space="preserve"><value>导出图片</value></data>
+  <data name="Sstv.DeleteImage" xml:space="preserve"><value>删除图片</value></data>
+  <data name="Sstv.View" xml:space="preserve"><value>查看</value></data>
+  <data name="Sstv.UseForTx" xml:space="preserve"><value>用作发送图片</value></data>
+  <data name="Sstv.SaveQso" xml:space="preserve"><value>保存通联</value></data>
+  <data name="Sstv.ExportAdif" xml:space="preserve"><value>导出 ADIF</value></data>
+  <data name="Sstv.HeadingMode" xml:space="preserve"><value>模式与模板</value></data>
+  <data name="Sstv.HeadingStation" xml:space="preserve"><value>QSO / 台站信息</value></data>
+  <data name="Sstv.HeadingText" xml:space="preserve"><value>图片文字样式</value></data>
+  <data name="Sstv.HeadingAudio" xml:space="preserve"><value>音频与识别</value></data>
+  <data name="Sstv.FieldMode" xml:space="preserve"><value>模式</value></data>
+  <data name="Sstv.FieldTemplate" xml:space="preserve"><value>模板</value></data>
+  <data name="Sstv.FieldMy" xml:space="preserve"><value>MY</value></data>
+  <data name="Sstv.FieldHis" xml:space="preserve"><value>HIS</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RSV TX</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RSV RX</value></data>
+  <data name="Sstv.FieldName" xml:space="preserve"><value>姓名</value></data>
+  <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
+  <data name="Sstv.FieldNotes" xml:space="preserve"><value>备注</value></data>
+  <data name="Sstv.FieldText" xml:space="preserve"><value>文字</value></data>
+  <data name="Sstv.FieldObject" xml:space="preserve"><value>对象</value></data>
+  <data name="Sstv.FieldContent" xml:space="preserve"><value>内容</value></data>
+  <data name="Sstv.FieldSize" xml:space="preserve"><value>字号 %</value></data>
+  <data name="Sstv.FieldVariable" xml:space="preserve"><value>变量</value></data>
+  <data name="Sstv.FieldSoundcard" xml:space="preserve"><value>声卡</value></data>
+  <data name="Sstv.TabRx" xml:space="preserve"><value>接收 RX</value></data>
+  <data name="Sstv.TabTx" xml:space="preserve"><value>发送 TX</value></data>
+  <data name="Sstv.TabHistory" xml:space="preserve"><value>图库 / 历史</value></data>
+  <data name="Sstv.TabQso" xml:space="preserve"><value>通联日志</value></data>
+  <data name="Sstv.Transmit" xml:space="preserve"><value>发射图片</value></data>
+  <data name="Sstv.StopTransmit" xml:space="preserve"><value>停止发射</value></data>
+  <data name="Sstv.StartReceive" xml:space="preserve"><value>开始接收</value></data>
+  <data name="Sstv.StopReceive" xml:space="preserve"><value>停止接收</value></data>
+  <data name="Sstv.AutoVis" xml:space="preserve"><value>自动校频</value></data>
+  <data name="Sstv.TextColor" xml:space="preserve"><value>文字颜色</value></data>
+  <data name="Sstv.TuningHz" xml:space="preserve"><value>校频 Hz</value></data>
+  <data name="Sstv.ImageSlant" xml:space="preserve"><value>图像倾斜</value></data>
+  <data name="Sstv.GalleryGroup" xml:space="preserve"><value>图片库 / 最近图片</value></data>
+  <data name="Sstv.TxMode" xml:space="preserve"><value>TX 模式</value></data>
+  <data name="Sstv.DragText" xml:space="preserve"><value>拖动预览文字定位，滚轮调整大小</value></data>
+  <data name="Sstv.TheirCall" xml:space="preserve"><value>对方呼号</value></data>
+  <data name="Sstv.Notes" xml:space="preserve"><value>备注</value></data>
+  <data name="Sstv.MyCallPlaceholder" xml:space="preserve"><value>己方呼号</value></data>
+  <data name="Sstv.TheirCallPlaceholder" xml:space="preserve"><value>对方呼号</value></data>
+  <data name="Sstv.CaptionPlaceholder" xml:space="preserve"><value>支持 {MYCALL} 等变量</value></data>
+  <data name="Sstv.OverlayPlaceholder" xml:space="preserve"><value>呼号 / {MYGRID} / {SAT} / {UTC}</value></data>
+  <data name="Sstv.SourceAf" xml:space="preserve"><value>声卡 AF</value></data>
+  <data name="Sstv.SourceLoopbackAf" xml:space="preserve"><value>RS-BA1 回环 AF</value></data>
+  <data name="Sstv.SourceIf" xml:space="preserve"><value>声卡 12 kHz IF</value></data>
+  <data name="Sstv.SourceLoopbackIf" xml:space="preserve"><value>回环 12 kHz IF</value></data>
+  <data name="Sstv.IfFollow" xml:space="preserve"><value>IF: 跟随下行</value></data>
+  <data name="Sstv.AutoDetect" xml:space="preserve"><value>自动识别 SSTV</value></data>
+  <data name="Sstv.TemplateClassic" xml:space="preserve"><value>经典呼号</value></data>
+  <data name="Sstv.TemplateQsl" xml:space="preserve"><value>QSL 卡片</value></data>
+  <data name="Sstv.TemplateSatellite" xml:space="preserve"><value>卫星横幅</value></data>
+  <data name="Sstv.TemplatePlain" xml:space="preserve"><value>纯图片</value></data>
 </root>

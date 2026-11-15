@@ -319,6 +319,47 @@ namespace SkyRoof
       {
         "声卡 AF", "RS-BA1 回环 AF", "声卡 12 kHz IF", "回环 12 kHz IF"
       });
+      // Display source names through ComboBox.Format so selection indices,
+      // the active capture session and the device list remain unchanged.
+      rxSourceBox.FormattingEnabled = true;
+      rxSourceBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw switch
+          {
+            "声卡 AF" => UiLocalizationService.Get("Sstv.SourceAf"),
+            "RS-BA1 回环 AF" => UiLocalizationService.Get("Sstv.SourceLoopbackAf"),
+            "声卡 12 kHz IF" => UiLocalizationService.Get("Sstv.SourceIf"),
+            "回环 12 kHz IF" => UiLocalizationService.Get("Sstv.SourceLoopbackIf"),
+            _ => raw
+          };
+      };
+      rxIfDemodBox.FormattingEnabled = true;
+      rxIfDemodBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw == "IF: 跟随下行"
+            ? UiLocalizationService.Get("Sstv.IfFollow") : raw;
+      };
+      rxModeBox.FormattingEnabled = true;
+      rxModeBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw && raw == "自动识别 SSTV")
+          e.Value = UiLocalizationService.Get("Sstv.AutoDetect");
+      };
+      templateBox.FormattingEnabled = true;
+      templateBox.Format += (_, e) =>
+      {
+        if (e.ListItem is string raw)
+          e.Value = raw switch
+          {
+            "经典呼号" => UiLocalizationService.Get("Sstv.TemplateClassic"),
+            "QSL 卡片" => UiLocalizationService.Get("Sstv.TemplateQsl"),
+            "卫星横幅" => UiLocalizationService.Get("Sstv.TemplateSatellite"),
+            "纯图片" => UiLocalizationService.Get("Sstv.TemplatePlain"),
+            _ => raw
+          };
+      };
       rxSourceBox.SelectedIndexChanged += (_, _) => PopulateAudioDevices();
       rxSourceBox.SelectedIndex = 0;
       rxIfDemodBox.Items.AddRange(new object[]
@@ -376,11 +417,40 @@ namespace SkyRoof
       ReloadQsoLog();
     }
 
+    internal void RefreshLocalizedUi()
+    {
+      string[] pages = { "Sstv.TabRx", "Sstv.TabTx", "Sstv.TabHistory", "Sstv.TabQso" };
+      for (int i = 0; i < tabs.TabPages.Count && i < pages.Length; i++)
+        tabs.TabPages[i].Text = UiLocalizationService.Get(pages[i]);
+      void Translate(Control root)
+      {
+        if (root.Tag is string key && key.StartsWith("Sstv.", StringComparison.Ordinal))
+          root.Text = UiLocalizationService.Get(key);
+        foreach (Control child in root.Controls) Translate(child);
+      }
+      Translate(tabs);
+      txSendButton.Text = UiLocalizationService.Get("Sstv.Transmit");
+      txStopButton.Text = UiLocalizationService.Get("Sstv.StopTransmit");
+      rxToggleButton.Text = UiLocalizationService.Get(receiveSession.IsRunning
+        ? "Sstv.StopReceive" : "Sstv.StartReceive");
+      autoVisCorrection.Text = UiLocalizationService.Get("Sstv.AutoVis");
+      textColorButton.Text = UiLocalizationService.Get("Sstv.TextColor");
+      myCallInput.PlaceholderText = UiLocalizationService.Get("Sstv.MyCallPlaceholder");
+      theirCallInput.PlaceholderText = UiLocalizationService.Get("Sstv.TheirCallPlaceholder");
+      activeCaptionInput.PlaceholderText = UiLocalizationService.Get("Sstv.CaptionPlaceholder");
+      overlayText.PlaceholderText = UiLocalizationService.Get("Sstv.OverlayPlaceholder");
+      rxSourceBox.Refresh();
+      rxIfDemodBox.Refresh();
+      rxModeBox.Refresh();
+      templateBox.Refresh();
+    }
+
     private static Button Btn(string text, Action action, int width = 95)
     {
       var b = new Button
       {
-        Text = text, Width = width, Height = 30,
+        Text = UiLocalizationService.Get(text), Tag = text,
+        Width = width, Height = 30,
         Margin = new Padding(4, 4, 4, 4)
       };
       b.Click += (_, _) => action();
@@ -395,7 +465,7 @@ namespace SkyRoof
 
     private void BuildRxTab()
     {
-      var page = new TabPage("接收 RX");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabRx"));
       var bar = Toolbar();
       bar.Controls.Add(rxSourceBox);
       bar.Controls.Add(rxIfDemodBox);
@@ -405,26 +475,26 @@ namespace SkyRoof
       tuning.Controls.Add(rxModeBox);
       tuning.Controls.Add(new Label
       {
-        Text = "校频 Hz", Width = 57, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.TuningHz"), Tag = "Sstv.TuningHz", Width = 57, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       tuning.Controls.Add(pitchCorrection);
       tuning.Controls.Add(autoVisCorrection);
       tuning.Controls.Add(new Label
       {
-        Text = "图像倾斜", Width = 66, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.ImageSlant"), Tag = "Sstv.ImageSlant", Width = 66, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       tuning.Controls.Add(imageSlantCorrection);
       var actions = Toolbar();
-      actions.Controls.Add(Btn("导入 WAV", () => _ = ReplayWavAsync()));
-      actions.Controls.Add(Btn("手动开始", ManualStartReceive, 98));
-      actions.Controls.Add(Btn("保存图片", SaveReceivedImage));
-      actions.Controls.Add(Btn("复制图片", () =>
+      actions.Controls.Add(Btn("Sstv.ImportWav", () => _ = ReplayWavAsync()));
+      actions.Controls.Add(Btn("Sstv.ManualStart", ManualStartReceive, 98));
+      actions.Controls.Add(Btn("Sstv.SaveImage", SaveReceivedImage));
+      actions.Controls.Add(Btn("Sstv.CopyImage", () =>
       {
         if (rxPicture.Image != null) Clipboard.SetImage(rxPicture.Image);
       }));
-      actions.Controls.Add(Btn("接收记录", () => { ReloadHistory(); tabs.SelectedIndex = 2; }));
+      actions.Controls.Add(Btn("Sstv.RxHistory", () => { ReloadHistory(); tabs.SelectedIndex = 2; }));
       page.Controls.Add(rxPicture);
       page.Controls.Add(rxToneReference);
       page.Controls.Add(rxStatus);
@@ -442,21 +512,21 @@ namespace SkyRoof
     /// </summary>
     private void BuildTxTab()
     {
-      var page = new TabPage("发送 TX");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabTx"));
       var bar = Toolbar();
-      bar.Controls.Add(Btn("打开图片", LoadImage));
-      bar.Controls.Add(Btn("粘贴", PasteImage, 65));
-      bar.Controls.Add(Btn("撤销", UndoImage, 60));
-      bar.Controls.Add(Btn("重做", RedoImage, 60));
-      bar.Controls.Add(Btn("旋转", RotateImage, 60));
-      bar.Controls.Add(Btn("镜像", MirrorImage, 60));
-      bar.Controls.Add(Btn("裁剪", CropImage, 60));
+      bar.Controls.Add(Btn("Sstv.OpenImage", LoadImage));
+      bar.Controls.Add(Btn("Sstv.Paste", PasteImage, 65));
+      bar.Controls.Add(Btn("Sstv.Undo", UndoImage, 60));
+      bar.Controls.Add(Btn("Sstv.Redo", RedoImage, 60));
+      bar.Controls.Add(Btn("Sstv.Rotate", RotateImage, 60));
+      bar.Controls.Add(Btn("Sstv.Mirror", MirrorImage, 60));
+      bar.Controls.Add(Btn("Sstv.Crop", CropImage, 60));
 
       // The photo archive is always visible, as in the original MMSSTV
       // workspace. The height drops at narrow/minimized dock sizes.
       var galleryGroup = new GroupBox
       {
-        Text = "图片库 / 最近图片", Dock = DockStyle.Bottom, Height = 146
+        Text = UiLocalizationService.Get("Sstv.GalleryGroup"), Tag = "Sstv.GalleryGroup", Dock = DockStyle.Bottom, Height = 146
       };
       galleryGroup.Controls.Add(txThumbnailStrip);
       var galleryBar = new FlowLayoutPanel
@@ -464,8 +534,8 @@ namespace SkyRoof
         Dock = DockStyle.Right, Width = 65, WrapContents = false,
         FlowDirection = FlowDirection.TopDown, Padding = Padding.Empty
       };
-      galleryBar.Controls.Add(Btn("刷新", RefreshTxThumbnails, 56));
-      galleryBar.Controls.Add(Btn("图库", () => tabs.SelectedIndex = 2, 56));
+      galleryBar.Controls.Add(Btn("Sstv.Refresh", RefreshTxThumbnails, 56));
+      galleryBar.Controls.Add(Btn("Sstv.Gallery", () => tabs.SelectedIndex = 2, 56));
       galleryGroup.Controls.Add(galleryBar);
       page.Resize += (_, _) =>
       {
@@ -489,7 +559,7 @@ namespace SkyRoof
       };
       actions.Controls.Add(txSendButton);
       actions.Controls.Add(txStopButton);
-      actions.Controls.Add(Btn("保存 WAV", () => _ = ExportWaveAsync(), 82));
+      actions.Controls.Add(Btn("Sstv.SaveWav", () => _ = ExportWaveAsync(), 82));
       left.Controls.Add(txPicture);
       left.Controls.Add(actions);
       main.Controls.Add(left, 0, 0);
@@ -501,7 +571,7 @@ namespace SkyRoof
       var modeHeader = new Label
       {
         Dock = DockStyle.Top, Height = 27,
-        Text = "TX 模式", TextAlign = ContentAlignment.MiddleCenter,
+        Text = UiLocalizationService.Get("Sstv.TxMode"), Tag = "Sstv.TxMode", TextAlign = ContentAlignment.MiddleCenter,
         Font = new Font(Font, FontStyle.Bold)
       };
       modeColumn.Controls.Add(txQuickModes);
@@ -522,7 +592,8 @@ namespace SkyRoof
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 29));
         var header = new Label
         {
-          Text = text, Dock = DockStyle.Fill,
+          Text = UiLocalizationService.Get(text), Tag = text,
+          Dock = DockStyle.Fill,
           TextAlign = ContentAlignment.MiddleLeft,
           Font = new Font(Font, FontStyle.Bold)
         };
@@ -535,7 +606,8 @@ namespace SkyRoof
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         settingsGrid.Controls.Add(new Label
         {
-          Text = name, Dock = DockStyle.Fill,
+          Text = UiLocalizationService.Get(name), Tag = name,
+          Dock = DockStyle.Fill,
           TextAlign = ContentAlignment.MiddleLeft
         }, 0, r);
         input.Dock = DockStyle.Fill;
@@ -556,45 +628,45 @@ namespace SkyRoof
         settingsGrid.SetColumnSpan(row, 2);
       }
 
-      Heading("模式与模板");
-      Field("模式", modeBox);
-      Field("模板", templateBox);
-      Buttons(Btn("保存模板", SaveUserTemplate, 88),
-        Btn("删除模板", DeleteUserTemplate, 88));
+      Heading("Sstv.HeadingMode");
+      Field("Sstv.FieldMode", modeBox);
+      Field("Sstv.FieldTemplate", templateBox);
+      Buttons(Btn("Sstv.SaveTemplate", SaveUserTemplate, 88),
+        Btn("Sstv.DeleteTemplate", DeleteUserTemplate, 88));
 
-      Heading("QSO / 台站信息");
-      Field("MY", myCallInput);
-      Field("HIS", theirCallInput);
-      Field("RSV TX", txRstSent);
-      Field("RSV RX", txRstReceived);
-      Field("姓名", txContactName);
-      Field("QTH", txContactQth);
-      Field("备注", txQsoNote);
-      Field("文字", overlayText);
-      Buttons(Btn("通联日志", () =>
+      Heading("Sstv.HeadingStation");
+      Field("Sstv.FieldMy", myCallInput);
+      Field("Sstv.FieldHis", theirCallInput);
+      Field("Sstv.FieldRstTx", txRstSent);
+      Field("Sstv.FieldRstRx", txRstReceived);
+      Field("Sstv.FieldName", txContactName);
+      Field("Sstv.FieldQth", txContactQth);
+      Field("Sstv.FieldNotes", txQsoNote);
+      Field("Sstv.FieldText", overlayText);
+      Buttons(Btn("Sstv.QsoLog", () =>
       {
         qsoCall.Text = theirCallInput.Text;
         qsoNotes.Text = txQsoNote.Text;
         tabs.SelectedIndex = 3;
       }, 88));
 
-      Heading("图片文字样式");
-      Field("对象", textLayerBox);
-      Field("内容", activeCaptionInput);
-      Field("字号 %", textSizeBox);
-      Buttons(textColorButton, Btn("新增", AddTextLayer, 56),
-        Btn("复制", DuplicateTextLayer, 56), Btn("删除", RemoveTextLayer, 56));
-      Field("变量", macroSelector);
-      Buttons(Btn("插入变量", InsertSelectedMacro, 88));
+      Heading("Sstv.HeadingText");
+      Field("Sstv.FieldObject", textLayerBox);
+      Field("Sstv.FieldContent", activeCaptionInput);
+      Field("Sstv.FieldSize", textSizeBox);
+      Buttons(textColorButton, Btn("Sstv.AddLayer", AddTextLayer, 56),
+        Btn("Sstv.Copy", DuplicateTextLayer, 56), Btn("Sstv.Delete", RemoveTextLayer, 56));
+      Field("Sstv.FieldVariable", macroSelector);
+      Buttons(Btn("Sstv.InsertVariable", InsertSelectedMacro, 88));
       Buttons(new Label
       {
-        Text = "拖动预览文字定位，滚轮调整大小",
+        Text = UiLocalizationService.Get("Sstv.DragText"), Tag = "Sstv.DragText",
         Height = 30, AutoSize = true,
         TextAlign = ContentAlignment.MiddleLeft
       });
 
-      Heading("音频与识别");
-      Field("声卡", txOutputBox);
+      Heading("Sstv.HeadingAudio");
+      Field("Sstv.FieldSoundcard", txOutputBox);
       Buttons(txCwId, txFskId);
 
       // Fixed-height rows plus a fixed-width grid permit vertical scrolling
@@ -773,14 +845,14 @@ namespace SkyRoof
 
     private void BuildHistoryTab()
     {
-      var page = new TabPage("图库 / 历史");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabHistory"));
       var bar = Toolbar();
-      bar.Controls.Add(Btn("刷新", ReloadHistory, 70));
-      bar.Controls.Add(Btn("导入图片", ImportHistoryImage, 90));
-      bar.Controls.Add(Btn("导出图片", ExportHistoryImage, 90));
-      bar.Controls.Add(Btn("删除图片", DeleteHistoryImage, 90));
-      bar.Controls.Add(Btn("查看", ShowSelectedHistory, 70));
-      bar.Controls.Add(Btn("用作发送图片", UseSelectedHistoryForTx, 125));
+      bar.Controls.Add(Btn("Sstv.Refresh", ReloadHistory, 70));
+      bar.Controls.Add(Btn("Sstv.ImportImage", ImportHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.ExportImage", ExportHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.DeleteImage", DeleteHistoryImage, 90));
+      bar.Controls.Add(Btn("Sstv.View", ShowSelectedHistory, 70));
+      bar.Controls.Add(Btn("Sstv.UseForTx", UseSelectedHistoryForTx, 125));
       page.Controls.Add(archiveList);
       page.Controls.Add(bar);
       tabs.TabPages.Add(page);
@@ -928,23 +1000,23 @@ namespace SkyRoof
 
     private void BuildQsoTab()
     {
-      var page = new TabPage("通联日志");
+      var page = new TabPage(UiLocalizationService.Get("Sstv.TabQso"));
       var bar = Toolbar();
       bar.Controls.Add(new Label
       {
-        Text = "对方呼号", Width = 73, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.TheirCall"), Tag = "Sstv.TheirCall", Width = 73, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       bar.Controls.Add(qsoCall);
       bar.Controls.Add(new Label
       {
-        Text = "备注", Width = 40, Height = 30,
+        Text = UiLocalizationService.Get("Sstv.Notes"), Tag = "Sstv.Notes", Width = 40, Height = 30,
         TextAlign = ContentAlignment.MiddleCenter
       });
       bar.Controls.Add(qsoNotes);
       var actions = Toolbar();
-      actions.Controls.Add(Btn("保存通联", SaveQsoRecord, 96));
-      actions.Controls.Add(Btn("导出 ADIF", ExportQsoAdif, 106));
+      actions.Controls.Add(Btn("Sstv.SaveQso", SaveQsoRecord, 96));
+      actions.Controls.Add(Btn("Sstv.ExportAdif", ExportQsoAdif, 106));
       page.Controls.Add(qsoList);
       page.Controls.Add(actions);
       page.Controls.Add(bar);

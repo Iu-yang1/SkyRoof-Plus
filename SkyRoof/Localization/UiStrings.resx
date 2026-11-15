@@ -216,4 +216,83 @@
   <data name="Spectrum.TipZoom" xml:space="preserve"><value>Local spectrum zoom; does not change radio SPAN.</value></data>
   <data name="Spectrum.TipReadback" xml:space="preserve"><value>Read actual spectrum settings from IC-9700; do not treat local values as confirmed.</value></data>
   <data name="Spectrum.TipDiagnostics" xml:space="preserve"><value>Inspect connection, sequence gaps, CAT queue and frame rate.</value></data>
+  <data name="Sstv.ImportWav" xml:space="preserve"><value>Import WAV</value></data>
+  <data name="Sstv.ManualStart" xml:space="preserve"><value>Manual start</value></data>
+  <data name="Sstv.SaveImage" xml:space="preserve"><value>Save image</value></data>
+  <data name="Sstv.CopyImage" xml:space="preserve"><value>Copy image</value></data>
+  <data name="Sstv.RxHistory" xml:space="preserve"><value>RX history</value></data>
+  <data name="Sstv.OpenImage" xml:space="preserve"><value>Open image</value></data>
+  <data name="Sstv.Paste" xml:space="preserve"><value>Paste</value></data>
+  <data name="Sstv.Undo" xml:space="preserve"><value>Undo</value></data>
+  <data name="Sstv.Redo" xml:space="preserve"><value>Redo</value></data>
+  <data name="Sstv.Rotate" xml:space="preserve"><value>Rotate</value></data>
+  <data name="Sstv.Mirror" xml:space="preserve"><value>Mirror</value></data>
+  <data name="Sstv.Crop" xml:space="preserve"><value>Crop</value></data>
+  <data name="Sstv.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Sstv.Gallery" xml:space="preserve"><value>Gallery</value></data>
+  <data name="Sstv.SaveWav" xml:space="preserve"><value>Save WAV</value></data>
+  <data name="Sstv.SaveTemplate" xml:space="preserve"><value>Save template</value></data>
+  <data name="Sstv.DeleteTemplate" xml:space="preserve"><value>Delete template</value></data>
+  <data name="Sstv.QsoLog" xml:space="preserve"><value>QSO log</value></data>
+  <data name="Sstv.AddLayer" xml:space="preserve"><value>Add</value></data>
+  <data name="Sstv.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Sstv.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Sstv.InsertVariable" xml:space="preserve"><value>Insert variable</value></data>
+  <data name="Sstv.ImportImage" xml:space="preserve"><value>Import image</value></data>
+  <data name="Sstv.ExportImage" xml:space="preserve"><value>Export image</value></data>
+  <data name="Sstv.DeleteImage" xml:space="preserve"><value>Delete image</value></data>
+  <data name="Sstv.View" xml:space="preserve"><value>View</value></data>
+  <data name="Sstv.UseForTx" xml:space="preserve"><value>Use for TX</value></data>
+  <data name="Sstv.SaveQso" xml:space="preserve"><value>Save QSO</value></data>
+  <data name="Sstv.ExportAdif" xml:space="preserve"><value>Export ADIF</value></data>
+  <data name="Sstv.HeadingMode" xml:space="preserve"><value>Mode &amp; templates</value></data>
+  <data name="Sstv.HeadingStation" xml:space="preserve"><value>QSO / Station</value></data>
+  <data name="Sstv.HeadingText" xml:space="preserve"><value>Image text styling</value></data>
+  <data name="Sstv.HeadingAudio" xml:space="preserve"><value>Audio &amp; ID</value></data>
+  <data name="Sstv.FieldMode" xml:space="preserve"><value>Mode</value></data>
+  <data name="Sstv.FieldTemplate" xml:space="preserve"><value>Template</value></data>
+  <data name="Sstv.FieldMy" xml:space="preserve"><value>MY</value></data>
+  <data name="Sstv.FieldHis" xml:space="preserve"><value>HIS</value></data>
+  <data name="Sstv.FieldRstTx" xml:space="preserve"><value>RST TX</value></data>
+  <data name="Sstv.FieldRstRx" xml:space="preserve"><value>RST RX</value></data>
+  <data name="Sstv.FieldName" xml:space="preserve"><value>Name</value></data>
+  <data name="Sstv.FieldQth" xml:space="preserve"><value>QTH</value></data>
+  <data name="Sstv.FieldNotes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Sstv.FieldText" xml:space="preserve"><value>Text</value></data>
+  <data name="Sstv.FieldObject" xml:space="preserve"><value>Object</value></data>
+  <data name="Sstv.FieldContent" xml:space="preserve"><value>Content</value></data>
+  <data name="Sstv.FieldSize" xml:space="preserve"><value>Font %</value></data>
+  <data name="Sstv.FieldVariable" xml:space="preserve"><value>Variable</value></data>
+  <data name="Sstv.FieldSoundcard" xml:space="preserve"><value>Soundcard</value></data>
+  <data name="Sstv.TabRx" xml:space="preserve"><value>Receive RX</value></data>
+  <data name="Sstv.TabTx" xml:space="preserve"><value>Transmit TX</value></data>
+  <data name="Sstv.TabHistory" xml:space="preserve"><value>Gallery / History</value></data>
+  <data name="Sstv.TabQso" xml:space="preserve"><value>QSO log</value></data>
+  <data name="Sstv.Transmit" xml:space="preserve"><value>Transmit image</value></data>
+  <data name="Sstv.StopTransmit" xml:space="preserve"><value>Stop TX</value></data>
+  <data name="Sstv.StartReceive" xml:space="preserve"><value>Start RX</value></data>
+  <data name="Sstv.StopReceive" xml:space="preserve"><value>Stop RX</value></data>
+  <data name="Sstv.AutoVis" xml:space="preserve"><value>Auto tuning</value></data>
+  <data name="Sstv.TextColor" xml:space="preserve"><value>Text color</value></data>
+  <data name="Sstv.TuningHz" xml:space="preserve"><value>Tuning Hz</value></data>
+  <data name="Sstv.ImageSlant" xml:space="preserve"><value>Image slant</value></data>
+  <data name="Sstv.GalleryGroup" xml:space="preserve"><value>Gallery / recent images</value></data>
+  <data name="Sstv.TxMode" xml:space="preserve"><value>TX mode</value></data>
+  <data name="Sstv.DragText" xml:space="preserve"><value>Drag text to position; wheel to resize</value></data>
+  <data name="Sstv.TheirCall" xml:space="preserve"><value>Their call</value></data>
+  <data name="Sstv.Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="Sstv.MyCallPlaceholder" xml:space="preserve"><value>Your callsign</value></data>
+  <data name="Sstv.TheirCallPlaceholder" xml:space="preserve"><value>Other station callsign</value></data>
+  <data name="Sstv.CaptionPlaceholder" xml:space="preserve"><value>Supports {MYCALL} and other variables</value></data>
+  <data name="Sstv.OverlayPlaceholder" xml:space="preserve"><value>Callsign / {MYGRID} / {SAT} / {UTC}</value></data>
+  <data name="Sstv.SourceAf" xml:space="preserve"><value>Soundcard AF</value></data>
+  <data name="Sstv.SourceLoopbackAf" xml:space="preserve"><value>RS-BA1 loopback AF</value></data>
+  <data name="Sstv.SourceIf" xml:space="preserve"><value>Soundcard 12 kHz IF</value></data>
+  <data name="Sstv.SourceLoopbackIf" xml:space="preserve"><value>Loopback 12 kHz IF</value></data>
+  <data name="Sstv.IfFollow" xml:space="preserve"><value>IF: follow downlink</value></data>
+  <data name="Sstv.AutoDetect" xml:space="preserve"><value>Auto-detect SSTV</value></data>
+  <data name="Sstv.TemplateClassic" xml:space="preserve"><value>Classic callsigns</value></data>
+  <data name="Sstv.TemplateQsl" xml:space="preserve"><value>QSL card</value></data>
+  <data name="Sstv.TemplateSatellite" xml:space="preserve"><value>Satellite banner</value></data>
+  <data name="Sstv.TemplatePlain" xml:space="preserve"><value>Plain picture</value></data>
 </root>

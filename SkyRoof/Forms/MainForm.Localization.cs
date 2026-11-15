@@ -146,6 +146,7 @@ namespace SkyRoof
         UiLocalizationService.ApplyStaticControls(panel);
         if (panel is RecorderPanel recorder) recorder.RefreshLocalizedUi();
         if (panel is CwConsolePanel cw) cw.RefreshLocalizedUi();
+        if (panel is SstvConsolePanel sstv) sstv.RefreshLocalizedUi();
         if (panel is IcomLanSpectrumPanel spectrum) spectrum.RefreshLocalizedUi();
         if (panel is TelemetryPanel telemetry) telemetry.RefreshLocalizedUi();
         if (panel is AutoSelectionPanel autoSelection) autoSelection.UpdateStatus();
