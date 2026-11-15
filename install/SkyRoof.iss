@@ -51,6 +51,9 @@ Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\Rigs\*.json; DestDir: {app
 ; Avoid maintaining a brittle explicit DLL allowlist: new .NET runtime NuGet
 ; dependencies such as System.IO.Ports.dll must ship with SkyRoof.exe.
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\*.dll; DestDir: {app}; Flags: overwritereadonly ignoreversion
+; .NET localization resources are satellite assemblies in culture subdirectories,
+; not root *.dll. Their omission makes the UI silently fall back to English.
+Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\zh-CN\SkyRoof.resources.dll; DestDir: {app}\zh-CN; Flags: overwritereadonly ignoreversion
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\SkyRoof.deps.json; DestDir: {app}; Flags: overwritereadonly ignoreversion
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\SkyRoof.exe; DestDir: {app}; Flags: overwritereadonly ignoreversion
 Source: ..\SkyRoof\bin\x64\Release\net10.0-windows7.0\SkyRoof.pdb; DestDir: {app}; Flags: overwritereadonly ignoreversion
