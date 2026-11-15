@@ -171,4 +171,28 @@
   <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>录制：关闭</value></data>
   <data name="AutoSelection.Off" xml:space="preserve"><value>关闭</value></data>
   <data name="Ft4.TransmitDisabled" xml:space="preserve"><value>设置中尚未启用 FT4 发射功能。</value></data>
+  <data name="Cw.Settings" xml:space="preserve"><value>CW 设置…</value></data>
+  <data name="Cw.History" xml:space="preserve"><value>CW 历史记录…</value></data>
+  <data name="Cw.HistoryTitle" xml:space="preserve"><value>CW 接收历史（已确认 · UTC）</value></data>
+  <data name="Cw.Send" xml:space="preserve"><value>发送</value></data>
+  <data name="Cw.SetWpm" xml:space="preserve"><value>设置 WPM</value></data>
+  <data name="Cw.TxDisarmed" xml:space="preserve"><value>TX：未准备</value></data>
+  <data name="Cw.StartRx" xml:space="preserve"><value>开始 RX</value></data>
+  <data name="Cw.StopRx" xml:space="preserve"><value>停止 RX</value></data>
+  <data name="Cw.InputUnavailable" xml:space="preserve"><value>输入：不可用</value></data>
+  <data name="Cw.StateDisabled" xml:space="preserve"><value>已禁用</value></data>
+  <data name="Cw.StateRunning" xml:space="preserve"><value>运行中</value></data>
+  <data name="Cw.StateWaiting" xml:space="preserve"><value>等待中</value></data>
+  <data name="Cw.InputStatus" xml:space="preserve"><value>RX：{0} · {1}</value></data>
+  <data name="Cw.WorkerUnavailable" xml:space="preserve"><value>CW 解码器：工作线程不可用</value></data>
+  <data name="Cw.WorkerStopped" xml:space="preserve"><value>工作线程：已停止</value></data>
+  <data name="Cw.SpectrumRaw" xml:space="preserve"><value>频谱：原始</value></data>
+  <data name="Cw.DecodingSuffix" xml:space="preserve"><value> · 解码中</value></data>
+  <data name="Cw.TxUnavailable" xml:space="preserve"><value>TX 不可用</value></data>
+  <data name="Cw.TxSending" xml:space="preserve"><value>TX 发射中</value></data>
+  <data name="Cw.TxPreflight" xml:space="preserve"><value>TX 发送检查中</value></data>
+  <data name="Cw.TxReady" xml:space="preserve"><value>TX：就绪</value></data>
+  <data name="Cw.TxIdle" xml:space="preserve"><value>TX 空闲</value></data>
+  <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX：控制器不可用</value></data>
+  <data name="Cw.TxIdleHint" xml:space="preserve"><value>TX：空闲 · 发送时自动检查 SkyCAT</value></data>
 </root>

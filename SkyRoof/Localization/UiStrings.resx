@@ -171,4 +171,28 @@
   <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>Recording: Off</value></data>
   <data name="AutoSelection.Off" xml:space="preserve"><value>Off</value></data>
   <data name="Ft4.TransmitDisabled" xml:space="preserve"><value>FT4 transmit is not enabled in Settings.</value></data>
+  <data name="Cw.Settings" xml:space="preserve"><value>CW Settings…</value></data>
+  <data name="Cw.History" xml:space="preserve"><value>CW History…</value></data>
+  <data name="Cw.HistoryTitle" xml:space="preserve"><value>CW RX History (committed · UTC)</value></data>
+  <data name="Cw.Send" xml:space="preserve"><value>Send</value></data>
+  <data name="Cw.SetWpm" xml:space="preserve"><value>Set WPM</value></data>
+  <data name="Cw.TxDisarmed" xml:space="preserve"><value>TX: disarmed</value></data>
+  <data name="Cw.StartRx" xml:space="preserve"><value>Start RX</value></data>
+  <data name="Cw.StopRx" xml:space="preserve"><value>Stop RX</value></data>
+  <data name="Cw.InputUnavailable" xml:space="preserve"><value>Input: unavailable</value></data>
+  <data name="Cw.StateDisabled" xml:space="preserve"><value>disabled</value></data>
+  <data name="Cw.StateRunning" xml:space="preserve"><value>running</value></data>
+  <data name="Cw.StateWaiting" xml:space="preserve"><value>waiting</value></data>
+  <data name="Cw.InputStatus" xml:space="preserve"><value>RX: {0} · {1}</value></data>
+  <data name="Cw.WorkerUnavailable" xml:space="preserve"><value>CW decoder: worker unavailable</value></data>
+  <data name="Cw.WorkerStopped" xml:space="preserve"><value>Worker: stopped</value></data>
+  <data name="Cw.SpectrumRaw" xml:space="preserve"><value>Spectrum: Raw</value></data>
+  <data name="Cw.DecodingSuffix" xml:space="preserve"><value> · decoding</value></data>
+  <data name="Cw.TxUnavailable" xml:space="preserve"><value>TX unavailable</value></data>
+  <data name="Cw.TxSending" xml:space="preserve"><value>TX SENDING</value></data>
+  <data name="Cw.TxPreflight" xml:space="preserve"><value>TX preflight</value></data>
+  <data name="Cw.TxReady" xml:space="preserve"><value>TX: ready</value></data>
+  <data name="Cw.TxIdle" xml:space="preserve"><value>TX idle</value></data>
+  <data name="Cw.ControllerUnavailable" xml:space="preserve"><value>TX: controller unavailable</value></data>
+  <data name="Cw.TxIdleHint" xml:space="preserve"><value>TX: idle · Send automatically checks SkyCAT</value></data>
 </root>
