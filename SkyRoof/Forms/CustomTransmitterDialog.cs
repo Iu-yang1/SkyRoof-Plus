@@ -24,9 +24,9 @@ namespace SkyRoof
       SatnogsDbSatellite satellite,
       SatnogsDbTransmitter? existing = null)
     {
-      Text = existing == null
-        ? $"New Transmitter — {satellite.name}"
-        : $"Edit Local Transmitter — {satellite.name}";
+      Text = UiLocalizationService.Format(
+        existing == null ? "Transmitter.NewTitle" : "Transmitter.EditTitle",
+        satellite.name);
       FormBorderStyle = FormBorderStyle.FixedToolWindow;
       StartPosition = FormStartPosition.Manual;
       ShowInTaskbar = false;
@@ -40,32 +40,31 @@ namespace SkyRoof
         AutoSize = false,
         Location = new Point(12, 10),
         Size = new Size(332, 32),
-        Text = existing == null
-          ? "Create a local transmitter. Leave either frequency blank when only one direction exists."
-          : "Edit this local transmitter. Its UUID and saved corrections are preserved.",
+        Text = UiLocalizationService.Get(existing == null
+          ? "Transmitter.NewHint" : "Transmitter.EditHint"),
         TextAlign = ContentAlignment.MiddleLeft
       };
       Controls.Add(info);
 
-      AddLabel("Name", 12, 52, 96);
+      AddLabel(UiLocalizationService.Get("Transmitter.Name"), 12, 52, 96);
       NameBox.Location = new Point(116, 50);
       NameBox.Size = new Size(228, 23);
-      NameBox.PlaceholderText = "e.g. Linear transponder / Beacon";
+      NameBox.PlaceholderText = UiLocalizationService.Get("Transmitter.Placeholder");
       Controls.Add(NameBox);
 
-      AddLabel("Downlink (MHz)", 12, 84, 96);
+      AddLabel(UiLocalizationService.Get("Transmitter.Downlink"), 12, 84, 96);
       DownlinkBox.Location = new Point(116, 82);
       DownlinkBox.Size = new Size(110, 23);
-      DownlinkBox.PlaceholderText = "optional";
+      DownlinkBox.PlaceholderText = UiLocalizationService.Get("Transmitter.Optional");
       Controls.Add(DownlinkBox);
 
-      AddLabel("Uplink (MHz)", 12, 116, 96);
+      AddLabel(UiLocalizationService.Get("Transmitter.Uplink"), 12, 116, 96);
       UplinkBox.Location = new Point(116, 114);
       UplinkBox.Size = new Size(110, 23);
-      UplinkBox.PlaceholderText = "optional";
+      UplinkBox.PlaceholderText = UiLocalizationService.Get("Transmitter.Optional");
       Controls.Add(UplinkBox);
 
-      AddLabel("Mode", 12, 148, 96);
+      AddLabel(UiLocalizationService.Get("Transmitter.Mode"), 12, 148, 96);
       ModeBox.Location = new Point(116, 146);
       ModeBox.Size = new Size(110, 23);
       ModeBox.DropDownStyle = ComboBoxStyle.DropDown;
@@ -112,20 +111,20 @@ namespace SkyRoof
         ForeColor = SystemColors.GrayText,
         Location = new Point(236, 82),
         Size = new Size(108, 55),
-        Text = "Examples:\n145.900000\n435.250000",
+        Text = UiLocalizationService.Get("Transmitter.Examples"),
         TextAlign = ContentAlignment.TopLeft
       };
       Controls.Add(unitsHint);
 
       SaveButton.Location = new Point(185, 184);
       SaveButton.Size = new Size(75, 28);
-      SaveButton.Text = "Save";
+      SaveButton.Text = UiLocalizationService.Get("Common.Save");
       SaveButton.Click += SaveButton_Click;
       Controls.Add(SaveButton);
 
       CancelBtn.Location = new Point(269, 184);
       CancelBtn.Size = new Size(75, 28);
-      CancelBtn.Text = "Cancel";
+      CancelBtn.Text = UiLocalizationService.Get("Common.Cancel");
       CancelBtn.DialogResult = DialogResult.Cancel;
       Controls.Add(CancelBtn);
 
@@ -167,8 +166,8 @@ namespace SkyRoof
       {
         MessageBox.Show(
           this,
-          "Enter a transmitter name.",
-          "New Transmitter",
+          UiLocalizationService.Get("Transmitter.EnterName"),
+          UiLocalizationService.Get("Transmitter.New"),
           MessageBoxButtons.OK,
           MessageBoxIcon.Warning);
         NameBox.Focus();
@@ -184,8 +183,8 @@ namespace SkyRoof
       {
         MessageBox.Show(
           this,
-          "Enter frequencies in MHz, for example 145.900000 or 435.250000.\nLeave a field blank when that direction is not used.",
-          "New Transmitter",
+          UiLocalizationService.Get("Transmitter.InvalidFrequency"),
+          UiLocalizationService.Get("Transmitter.New"),
           MessageBoxButtons.OK,
           MessageBoxIcon.Warning);
         return;
@@ -196,8 +195,8 @@ namespace SkyRoof
       {
         MessageBox.Show(
           this,
-          "Enter at least one frequency: downlink, uplink, or both.",
-          "New Transmitter",
+          UiLocalizationService.Get("Transmitter.MissingFrequency"),
+          UiLocalizationService.Get("Transmitter.New"),
           MessageBoxButtons.OK,
           MessageBoxIcon.Warning);
         return;
