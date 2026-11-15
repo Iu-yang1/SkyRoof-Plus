@@ -382,4 +382,41 @@
   <data name="Control.LoqFt4QsoDialog.SaveBtn" xml:space="preserve"><value>Save</value></data>
   <data name="Control.LoqFt4QsoDialog.EditBtn" xml:space="preserve"><value>Edit</value></data>
   <data name="Control.LoqFt4QsoDialog.CancelBtn" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Sstv.StatusPreparingWave" xml:space="preserve"><value>Preparing SSTV recording…</value></data>
+  <data name="Sstv.StatusAnalyzingWave" xml:space="preserve"><value>Analyzing SSTV recording…</value></data>
+  <data name="Sstv.StatusAnalyzingProgress" xml:space="preserve"><value>Analyzing SSTV recording · {0}</value></data>
+  <data name="Sstv.StatusWaveDone" xml:space="preserve"><value>Recording analysis complete</value></data>
+  <data name="Sstv.StatusWaveStopped" xml:space="preserve"><value>Recording analysis stopped</value></data>
+  <data name="Sstv.StatusRecordedFsk" xml:space="preserve"><value>Station ID from recording: {0} (verify)</value></data>
+  <data name="Sstv.StatusNoAudioDevice" xml:space="preserve"><value>No RX soundcard; use Import WAV for offline decoding</value></data>
+  <data name="Sstv.StatusAudioUnavailable" xml:space="preserve"><value>RX soundcard unavailable; check Windows audio device</value></data>
+  <data name="Sstv.StatusRxStopped" xml:space="preserve"><value>Reception stopped</value></data>
+  <data name="Sstv.StatusRxWaiting" xml:space="preserve"><value>Waiting for SSTV signal…</value></data>
+  <data name="Sstv.StatusImageSaved" xml:space="preserve"><value>Image saved</value></data>
+  <data name="Sstv.StatusQsoUnavailable" xml:space="preserve"><value>QSO log temporarily unavailable</value></data>
+  <data name="Sstv.StatusTxAudioUnavailable" xml:space="preserve"><value>TX soundcard unavailable; check Windows audio device</value></data>
+  <data name="Sstv.StatusPttOff" xml:space="preserve"><value>CAT confirms the radio is receiving; TX can be resumed</value></data>
+  <data name="Sstv.StatusPttStopping" xml:space="preserve"><value>Stopping audio and requesting PTT OFF…</value></data>
+  <data name="Sstv.StatusPreparingImage" xml:space="preserve"><value>Preparing SSTV picture…</value></data>
+  <data name="Sstv.StatusImageLoaded" xml:space="preserve"><value>Image loaded; edit it or save SSTV audio</value></data>
+  <data name="Sstv.StatusTemplateUnavailable" xml:space="preserve"><value>Picture template unavailable</value></data>
+  <data name="Sstv.StatusCannotDeleteBuiltin" xml:space="preserve"><value>Built-in templates cannot be deleted; select a saved custom template</value></data>
+  <data name="Sstv.StatusTooManyLayers" xml:space="preserve"><value>A maximum of eight text layers is supported</value></data>
+  <data name="Sstv.StatusProtectedLayers" xml:space="preserve"><value>The three base layers cannot be removed; clear their text or delete an added layer</value></data>
+  <data name="Sstv.StatusTextLimit" xml:space="preserve"><value>Text length limit reached</value></data>
+  <data name="Sstv.StatusGeneratingAudio" xml:space="preserve"><value>Generating SSTV audio…</value></data>
+  <data name="Sstv.StatusAudioSaved" xml:space="preserve"><value>Audio saved</value></data>
+  <data name="Sstv.StatusSaveFailed" xml:space="preserve"><value>Save failed</value></data>
+  <data name="Sstv.StatusImageImported" xml:space="preserve"><value>Image imported into gallery</value></data>
+  <data name="Sstv.StatusImageExported" xml:space="preserve"><value>Image exported</value></data>
+  <data name="Sstv.StatusMissingImage" xml:space="preserve"><value>Image no longer exists</value></data>
+  <data name="Sstv.StatusImageDeleted" xml:space="preserve"><value>Image deleted from gallery</value></data>
+  <data name="Sstv.StatusImageOpenError" xml:space="preserve"><value>Cannot open image: {0}</value></data>
+  <data name="Sstv.StatusGalleryError" xml:space="preserve"><value>Cannot read gallery: {0}</value></data>
+  <data name="Sstv.StatusSkySignalsMode" xml:space="preserve"><value>{0}: SkySignals auto-decode; waiting for VIS synchronization</value></data>
+  <data name="Sstv.StatusManualMode" xml:space="preserve"><value>Manual start requested for {0}; waiting for scanlines</value></data>
+  <data name="Sstv.StatusFskStation" xml:space="preserve"><value>FSK station ID received: {0} (verify)</value></data>
+  <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>Template deleted: {0}</value></data>
+  <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>Reception complete · {0}</value></data>
+  <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>Receiving · {0}</value></data>
 </root>

@@ -417,6 +417,23 @@ namespace SkyRoof
       ReloadQsoLog();
     }
 
+    private (string Key, object?[] Args, string Text)? localizedRxStatus;
+    private (string Key, object?[] Args, string Text)? localizedTxStatus;
+
+    private void SetRxStatus(string key, params object?[] args)
+    {
+      string text = UiLocalizationService.Format(key, args);
+      localizedRxStatus = (key, args, text);
+      rxStatus.Text = text;
+    }
+
+    private void SetTxStatus(string key, params object?[] args)
+    {
+      string text = UiLocalizationService.Format(key, args);
+      localizedTxStatus = (key, args, text);
+      txStatus.Text = text;
+    }
+
     internal void RefreshLocalizedUi()
     {
       string[] pages = { "Sstv.TabRx", "Sstv.TabTx", "Sstv.TabHistory", "Sstv.TabQso" };
@@ -444,6 +461,10 @@ namespace SkyRoof
       rxIfDemodBox.Refresh();
       rxModeBox.Refresh();
       templateBox.Refresh();
+      if (localizedRxStatus is { } rx && rxStatus.Text == rx.Text)
+        SetRxStatus(rx.Key, rx.Args);
+      if (localizedTxStatus is { } tx && txStatus.Text == tx.Text)
+        SetTxStatus(tx.Key, tx.Args);
     }
 
     private static Button Btn(string text, Action action, int width = 95)
@@ -822,7 +843,7 @@ namespace SkyRoof
               catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                 or ArgumentException)
               {
-                txStatus.Text = $"图片无法打开：{ex.Message}";
+                SetTxStatus("Sstv.StatusImageOpenError", ex.Message);
               }
             });
           }
@@ -839,7 +860,7 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = $"图库无法读取：{ex.Message}";
+        SetTxStatus("Sstv.StatusGalleryError", ex.Message);
       }
       finally { txThumbnailStrip.ResumeLayout(); }
     }
@@ -873,13 +894,13 @@ namespace SkyRoof
       };
       if (dialog.ShowDialog(this) != DialogResult.OK) return;
       receiveSession.Stop();
-      rxToggleButton.Text = "开始接收";
+      rxToggleButton.Text = UiLocalizationService.Get("Sstv.StartReceive");
       var stop = new CancellationTokenSource();
       replayStop = stop;
       string? normalizedTemporaryFile = null;
       try
       {
-        rxStatus.Text = "正在准备 SSTV 录音...";
+        SetRxStatus("Sstv.StatusPreparingWave");
         string workingWave = dialog.FileName;
         bool convert = await Task.Run(
           () => SstvWavNormalizer.NeedsConversion(dialog.FileName), stop.Token);
@@ -893,7 +914,7 @@ namespace SkyRoof
           workingWave = output;
         }
         stop.Token.ThrowIfCancellationRequested();
-        rxStatus.Text = "正在解析 SSTV 录音...";
+        SetRxStatus("Sstv.StatusAnalyzingWave");
         double clockPpm = (double)imageSlantCorrection.Value;
         SstvVisModeIdentity? identified = await Task.Run(
           () => SstvVisModeIdentifier.DetectWave(workingWave), stop.Token);
@@ -938,7 +959,7 @@ namespace SkyRoof
               BeginInvoke((Action)(() =>
               {
                 if (!closed)
-                  rxStatus.Text = $"正在解析 SSTV 录音 · {progress:P0}";
+                  SetRxStatus("Sstv.StatusAnalyzingProgress", progress.ToString("P0"));
               }));
             }
             catch (InvalidOperationException)
@@ -949,13 +970,13 @@ namespace SkyRoof
           }, stop.Token);
         if (!closed)
         {
-          rxStatus.Text = "录音解析已完成";
+          SetRxStatus("Sstv.StatusWaveDone");
           await IdentifyRecordedFskIdAsync(workingWave, stop.Token);
         }
       }
       catch (OperationCanceledException)
       {
-        if (!closed) rxStatus.Text = "录音解析已停止";
+        if (!closed) SetRxStatus("Sstv.StatusWaveStopped");
       }
       catch (Exception ex)
       {
@@ -993,7 +1014,7 @@ namespace SkyRoof
         () => SstvFskIdDecoder.DecodeWaveSuffix(path), token);
       if (closed || IsDisposed || string.IsNullOrWhiteSpace(call)) return;
       qsoCall.Text = call;
-      rxStatus.Text = $"录音中的台站标识：{call}（请核对）";
+      SetRxStatus("Sstv.StatusRecordedFsk", call);
     }
 
     private string QsoLogPath =>
@@ -1035,7 +1056,7 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = "通联日志暂时无法读取";
+        SetTxStatus("Sstv.StatusQsoUnavailable");
       }
       finally { qsoList.EndUpdate(); }
     }
@@ -1119,7 +1140,7 @@ namespace SkyRoof
       catch (Exception ex)
       {
         Serilog.Log.Warning(ex, "Could not enumerate SSTV TX audio endpoints");
-        txStatus.Text = "发射声卡不可用，请检查 Windows 音频设备";
+        SetTxStatus("Sstv.StatusTxAudioUnavailable");
       }
     }
 
@@ -1137,7 +1158,7 @@ namespace SkyRoof
       }
       if (releaseWasUnconfirmed)
       {
-        txStatus.Text = "CAT 已确认电台返回接收状态，可重新发送。";
+        SetTxStatus("Sstv.StatusPttOff");
       }
       txSendButton.Enabled =
         txOperationStop == null &&
@@ -1151,7 +1172,7 @@ namespace SkyRoof
     {
       if (txOperationStop == null && !transmitSession.IsSending) return;
       txStopButton.Enabled = false; // prevent duplicate STOP clicks
-      txStatus.Text = "正在停止音频并请求 PTT OFF...";
+      SetTxStatus("Sstv.StatusPttStopping");
       txOperationStop?.Cancel();
       transmitSession.RequestStop();
     }
@@ -1182,7 +1203,7 @@ namespace SkyRoof
         // picture snapshot. STOP can also abort the entire WAV preparation.
         RefreshTxPreview();
         using var snapshot = new Bitmap(txPicture.Image!);
-        txStatus.Text = "正在准备 SSTV 图片...";
+        SetTxStatus("Sstv.StatusPreparingImage");
         SstvIdOptions? stationId = txCwId.Checked || txFskId.Checked
           ? new SstvIdOptions(myCallInput.Text.Trim(),
             txCwId.Checked, txFskId.Checked)
@@ -1266,12 +1287,12 @@ namespace SkyRoof
         if (rxDeviceBox.Items.Count > 0)
           rxDeviceBox.SelectedIndex = 0;
         else
-          rxStatus.Text = "未检测到接收声卡；可使用“导入 WAV”解码录音";
+          SetRxStatus("Sstv.StatusNoAudioDevice");
       }
       catch (Exception ex)
       {
         Serilog.Log.Warning(ex, "Could not enumerate SSTV RX audio endpoints");
-        rxStatus.Text = "接收声卡不可用，请检查 Windows 音频设备";
+        SetRxStatus("Sstv.StatusAudioUnavailable");
       }
     }
 
@@ -1280,8 +1301,8 @@ namespace SkyRoof
       if (receiveSession.IsRunning)
       {
         receiveSession.Stop();
-        rxToggleButton.Text = "开始接收";
-        rxStatus.Text = "接收已停止";
+        rxToggleButton.Text = UiLocalizationService.Get("Sstv.StartReceive");
+        SetRxStatus("Sstv.StatusRxStopped");
         return;
       }
       if (rxDeviceBox.SelectedItem is not DeviceEntry device)
@@ -1314,8 +1335,8 @@ namespace SkyRoof
         else
           receiveSession.Start((SstvReceiveSource)rxSourceBox.SelectedIndex,
             device.Id, ifMode);
-        rxToggleButton.Text = "停止接收";
-        rxStatus.Text = "正在等待 SSTV 信号...";
+        rxToggleButton.Text = UiLocalizationService.Get("Sstv.StopReceive");
+        SetRxStatus("Sstv.StatusRxWaiting");
       }
       catch (Exception ex)
       {
@@ -1341,11 +1362,11 @@ namespace SkyRoof
       }
       if (mode.Native != null)
       {
-        rxStatus.Text = $"{mode.Name} 由 SkySignals 自动识别解码，请等待 VIS 同步";
+        SetRxStatus("Sstv.StatusSkySignalsMode", mode.Name);
         return;
       }
       receiveSession.ManualStart(mode);
-      rxStatus.Text = $"已请求手动开始 {mode.Name}，等待扫描行";
+      SetRxStatus("Sstv.StatusManualMode", mode.Name);
     }
 
     private void OnLiveFskStationIdentified(string callsign)
@@ -1358,7 +1379,7 @@ namespace SkyRoof
           if (closed || IsDisposed) return;
           if (string.IsNullOrWhiteSpace(qsoCall.Text))
             qsoCall.Text = callsign;
-          rxStatus.Text = $"收到 FSK 台站标识：{callsign}（需核对）";
+          SetRxStatus("Sstv.StatusFskStation", callsign);
         }));
       }
       catch (InvalidOperationException)
@@ -1592,7 +1613,7 @@ namespace SkyRoof
       if (remember) RememberTxImage(image);
       ClearHistory(redoImages);
       RefreshTxPreview();
-      txStatus.Text = "图片已加载，可以编辑或保存 SSTV 音频";
+      SetTxStatus("Sstv.StatusImageLoaded");
       if (remember) RefreshTxThumbnails();
       tabs.SelectedIndex = 1;
     }
@@ -1612,7 +1633,7 @@ namespace SkyRoof
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        txStatus.Text = "图片模板无法读取";
+        SetTxStatus("Sstv.StatusTemplateUnavailable");
       }
     }
 
@@ -1706,7 +1727,7 @@ namespace SkyRoof
     {
       if (templateBox.SelectedItem is not SstvUserTemplate selected)
       {
-        txStatus.Text = "内置模板不可删除，请先选择已保存的自定义模板";
+        SetTxStatus("Sstv.StatusCannotDeleteBuiltin");
         return;
       }
       if (MessageBox.Show(this, $"删除自定义模板“{selected.Name}”？",
@@ -1718,7 +1739,7 @@ namespace SkyRoof
         {
           ReloadUserTemplates();
           templateBox.SelectedIndex = 0;
-          txStatus.Text = $"已删除模板：{selected.Name}";
+          SetTxStatus("Sstv.StatusTemplateDeleted", selected.Name);
         }
       }
       catch (Exception ex)
@@ -1779,7 +1800,7 @@ namespace SkyRoof
     {
       if (TextLayerCount >= MaxTextLayers)
       {
-        txStatus.Text = "最多可创建 8 个文字图层";
+        SetTxStatus("Sstv.StatusTooManyLayers");
         return;
       }
       int next = extraCaptions.Count;
@@ -1798,7 +1819,7 @@ namespace SkyRoof
     {
       if (TextLayerCount >= MaxTextLayers)
       {
-        txStatus.Text = "最多可创建 8 个文字图层";
+        SetTxStatus("Sstv.StatusTooManyLayers");
         return;
       }
       int selected = Math.Max(0, textLayerBox.SelectedIndex);
@@ -1815,7 +1836,7 @@ namespace SkyRoof
       int selected = textLayerBox.SelectedIndex;
       if (selected < 3)
       {
-        txStatus.Text = "三个基础图层不可删除，可清空文字或删除附加图层";
+        SetTxStatus("Sstv.StatusProtectedLayers");
         return;
       }
       textLayerBox.SelectedIndex = 0;
@@ -1835,7 +1856,7 @@ namespace SkyRoof
       string current = GetCaptionText(index);
       if (current.Length + macro.Token.Length > 512)
       {
-        txStatus.Text = "文字长度已达上限";
+        SetTxStatus("Sstv.StatusTextLimit");
         return;
       }
       int position = Math.Clamp(activeCaptionInput.SelectionStart, 0, current.Length);
@@ -2109,7 +2130,7 @@ namespace SkyRoof
       };
       if (save.ShowDialog(this) != DialogResult.OK) return;
       using var snapshot = new Bitmap(preview);
-      txStatus.Text = "正在生成 SSTV 音频...";
+      SetTxStatus("Sstv.StatusGeneratingAudio");
       try
       {
         SstvIdOptions? stationId = txCwId.Checked || txFskId.Checked
@@ -2118,13 +2139,13 @@ namespace SkyRoof
           : null;
         await Task.Run(() => SstvRgbWaveExporter.Export(
           snapshot, spec, save.FileName, default, stationId));
-        if (!closed) txStatus.Text = "音频已保存";
+        if (!closed) SetTxStatus("Sstv.StatusAudioSaved");
       }
       catch (Exception ex)
       {
         if (!closed)
         {
-          txStatus.Text = "保存失败";
+          SetTxStatus("Sstv.StatusSaveFailed");
           MessageBox.Show(this, ex.Message, "SSTV",
             MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
@@ -2139,7 +2160,7 @@ namespace SkyRoof
       var old = rxPicture.Image;
       rxPicture.Image = next;
       old?.Dispose();
-      rxStatus.Text = final ? $"接收完成 · {mode}" : $"正在接收 · {mode}";
+      SetRxStatus(final ? "Sstv.StatusRxCompleted" : "Sstv.StatusRxInProgress", mode);
       // Never associate a new partial picture with the previous received
       // image in QSO logging. Keep the actual RX mode for the next log.
       rxPicture.Tag = final ? savedFile : null;
@@ -2175,7 +2196,7 @@ namespace SkyRoof
           using var snapshot = new Bitmap(rxPicture.Image);
           await Task.Run(() => snapshot.Save(target, ImageFormat.Png));
         }
-        if (!closed) rxStatus.Text = "图片已保存";
+        if (!closed) SetRxStatus("Sstv.StatusImageSaved");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or System.Runtime.InteropServices.ExternalException or ArgumentException)
@@ -2211,7 +2232,7 @@ namespace SkyRoof
           }
         }
         RefreshTxThumbnails();
-        txStatus.Text = "图片已导入图库";
+        SetTxStatus("Sstv.StatusImageImported");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException or System.Runtime.InteropServices.ExternalException)
@@ -2240,7 +2261,7 @@ namespace SkyRoof
       try
       {
         SstvImageLibrary.Export(item.Path, dialog.FileName);
-        txStatus.Text = "图片已导出";
+        SetTxStatus("Sstv.StatusImageExported");
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
         or ArgumentException)
@@ -2266,11 +2287,11 @@ namespace SkyRoof
       {
         if (!SstvImageLibrary.Delete(HistoryFolder, item.Path))
         {
-          txStatus.Text = "图片已经不存在";
+          SetTxStatus("Sstv.StatusMissingImage");
         }
         else
         {
-          txStatus.Text = "图片已从图库删除";
+          SetTxStatus("Sstv.StatusImageDeleted");
         }
         ReloadHistory();
         RefreshTxThumbnails();

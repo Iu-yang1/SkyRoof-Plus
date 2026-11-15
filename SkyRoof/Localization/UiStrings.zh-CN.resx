@@ -382,4 +382,41 @@
   <data name="Control.LoqFt4QsoDialog.SaveBtn" xml:space="preserve"><value>保存</value></data>
   <data name="Control.LoqFt4QsoDialog.EditBtn" xml:space="preserve"><value>编辑</value></data>
   <data name="Control.LoqFt4QsoDialog.CancelBtn" xml:space="preserve"><value>取消</value></data>
+  <data name="Sstv.StatusPreparingWave" xml:space="preserve"><value>正在准备 SSTV 录音…</value></data>
+  <data name="Sstv.StatusAnalyzingWave" xml:space="preserve"><value>正在解析 SSTV 录音…</value></data>
+  <data name="Sstv.StatusAnalyzingProgress" xml:space="preserve"><value>正在解析 SSTV 录音 · {0}</value></data>
+  <data name="Sstv.StatusWaveDone" xml:space="preserve"><value>录音解析已完成</value></data>
+  <data name="Sstv.StatusWaveStopped" xml:space="preserve"><value>录音解析已停止</value></data>
+  <data name="Sstv.StatusRecordedFsk" xml:space="preserve"><value>录音中的台站标识：{0}（请核对）</value></data>
+  <data name="Sstv.StatusNoAudioDevice" xml:space="preserve"><value>未检测到接收声卡；可使用“导入 WAV”解码录音</value></data>
+  <data name="Sstv.StatusAudioUnavailable" xml:space="preserve"><value>接收声卡不可用，请检查 Windows 音频设备</value></data>
+  <data name="Sstv.StatusRxStopped" xml:space="preserve"><value>接收已停止</value></data>
+  <data name="Sstv.StatusRxWaiting" xml:space="preserve"><value>正在等待 SSTV 信号…</value></data>
+  <data name="Sstv.StatusImageSaved" xml:space="preserve"><value>图片已保存</value></data>
+  <data name="Sstv.StatusQsoUnavailable" xml:space="preserve"><value>通联日志暂时无法读取</value></data>
+  <data name="Sstv.StatusTxAudioUnavailable" xml:space="preserve"><value>发射声卡不可用，请检查 Windows 音频设备</value></data>
+  <data name="Sstv.StatusPttOff" xml:space="preserve"><value>CAT 已确认电台返回接收状态，可重新发送。</value></data>
+  <data name="Sstv.StatusPttStopping" xml:space="preserve"><value>正在停止音频并请求 PTT OFF…</value></data>
+  <data name="Sstv.StatusPreparingImage" xml:space="preserve"><value>正在准备 SSTV 图片…</value></data>
+  <data name="Sstv.StatusImageLoaded" xml:space="preserve"><value>图片已加载，可以编辑或保存 SSTV 音频</value></data>
+  <data name="Sstv.StatusTemplateUnavailable" xml:space="preserve"><value>图片模板无法读取</value></data>
+  <data name="Sstv.StatusCannotDeleteBuiltin" xml:space="preserve"><value>内置模板不可删除，请先选择已保存的自定义模板</value></data>
+  <data name="Sstv.StatusTooManyLayers" xml:space="preserve"><value>最多可创建 8 个文字图层</value></data>
+  <data name="Sstv.StatusProtectedLayers" xml:space="preserve"><value>三个基础图层不可删除，可清空文字或删除附加图层</value></data>
+  <data name="Sstv.StatusTextLimit" xml:space="preserve"><value>文字长度已达上限</value></data>
+  <data name="Sstv.StatusGeneratingAudio" xml:space="preserve"><value>正在生成 SSTV 音频…</value></data>
+  <data name="Sstv.StatusAudioSaved" xml:space="preserve"><value>音频已保存</value></data>
+  <data name="Sstv.StatusSaveFailed" xml:space="preserve"><value>保存失败</value></data>
+  <data name="Sstv.StatusImageImported" xml:space="preserve"><value>图片已导入图库</value></data>
+  <data name="Sstv.StatusImageExported" xml:space="preserve"><value>图片已导出</value></data>
+  <data name="Sstv.StatusMissingImage" xml:space="preserve"><value>图片已经不存在</value></data>
+  <data name="Sstv.StatusImageDeleted" xml:space="preserve"><value>图片已从图库删除</value></data>
+  <data name="Sstv.StatusImageOpenError" xml:space="preserve"><value>图片无法打开：{0}</value></data>
+  <data name="Sstv.StatusGalleryError" xml:space="preserve"><value>图库无法读取：{0}</value></data>
+  <data name="Sstv.StatusSkySignalsMode" xml:space="preserve"><value>{0} 由 SkySignals 自动识别解码，请等待 VIS 同步</value></data>
+  <data name="Sstv.StatusManualMode" xml:space="preserve"><value>已请求手动开始 {0}，等待扫描行</value></data>
+  <data name="Sstv.StatusFskStation" xml:space="preserve"><value>收到 FSK 台站标识：{0}（需核对）</value></data>
+  <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>已删除模板：{0}</value></data>
+  <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>接收完成 · {0}</value></data>
+  <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>正在接收 · {0}</value></data>
 </root>
