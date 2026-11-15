@@ -147,8 +147,12 @@ public sealed class BilingualUiDpiAndSessionTests
     });
   }
 
-  [Fact]
-  public void RealRecorderAndRotatorControlsPreserveSamplesAndManualInputs()
+  [Theory]
+  [InlineData(100)]
+  [InlineData(125)]
+  [InlineData(150)]
+  [InlineData(200)]
+  public void RealRecorderAndRotatorControlsPreserveSamplesAndManualInputs(int percent)
   {
     Sta(() =>
     {
@@ -170,6 +174,15 @@ public sealed class BilingualUiDpiAndSessionTests
           BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, iq.Length);
         UiLocalizationService.Bind(recorder, recorder.RefreshLocalizedUi);
         using var rotator = new RotatorControlCard();
+        using var recorderScale = new UniformControlScale(recorder,
+          scaleRootBounds: false);
+        using var rotatorScale = new UniformControlScale(rotator);
+        float ratio = percent / 100f;
+        recorder.Size = new Size((int)(612 * ratio), (int)(172 * ratio));
+        recorderScale.Apply(ratio);
+        rotatorScale.Apply(ratio);
+        recorder.CreateControl();
+        rotator.CreateControl();
         var az = Field<NumericUpDown>(rotator, "AzimuthSpinner");
         var el = Field<NumericUpDown>(rotator, "ElevationSpinner");
         var step = Field<NumericUpDown>(rotator, "StepSpinner");
@@ -197,10 +210,24 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal(language == UiLanguage.English
             ? "Manual Rotator" : "手动旋转器",
             rotator.Controls.OfType<Label>().First().Text);
+          string shortName = language == UiLanguage.English ? "en" : "zh";
+          SaveControlCapture(recorder, $"recorder-{shortName}-{percent}.png");
+          SaveControlCapture(rotator, $"rotator-{shortName}-{percent}.png");
         }
       }
       finally { UiLocalizationService.Apply(before); }
     });
+  }
+
+  private static void SaveControlCapture(Control control, string file)
+  {
+    string? directory = Environment.GetEnvironmentVariable(
+      "SKYROOF_BILINGUAL_UI_ARTIFACT_DIR");
+    if (string.IsNullOrWhiteSpace(directory)) return;
+    Directory.CreateDirectory(directory);
+    using var image = new Bitmap(control.Width, control.Height);
+    control.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+    image.Save(Path.Combine(directory, file));
   }
 
   [Fact]
