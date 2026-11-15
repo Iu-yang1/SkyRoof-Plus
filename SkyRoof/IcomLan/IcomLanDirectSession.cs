@@ -701,17 +701,10 @@ namespace SkyRoof
       AudioLinkConnected = false;
       AudioTxNegotiationComplete = false;
       IsStreaming = false;
-      // Even an incomplete media grant must release every stream that
-      // finished its handshake. CI-V close alone is NOT a UDP disconnect.
-      // Each radio slot uses its own session IDs; send the protocol's
-      // packet type 0x0005 before disposing the sockets.
-      if (AudioRemoteSid != 0)
-        await TryDisconnectStreamAsync(
-          audio, AudioLocalSid, AudioRemoteSid, audioStream: true);
-      if (CivRemoteSid != 0)
-        await TryDisconnectStreamAsync(
-          civ, CivLocalSid, CivRemoteSid, audioStream: false);
-
+      // Release the token before sending packet 0x05. This gives the
+      // radio a chance to answer the correlated logout request while
+      // its control session still exists; disconnect packets follow
+      // even when no logout reply arrives.
       if (IsAuthenticated)
       {
         byte[] logoutAuthId = AuthId.ToArray();
@@ -748,6 +741,14 @@ namespace SkyRoof
         IsAuthenticated = false;
       }
 
+      // An incomplete grant may have established only one or two
+      // media streams. Release each stream whose handshake succeeded.
+      if (AudioRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          audio, AudioLocalSid, AudioRemoteSid, audioStream: true);
+      if (CivRemoteSid != 0)
+        await TryDisconnectStreamAsync(
+          civ, CivLocalSid, CivRemoteSid, audioStream: false);
       if (ControlRemoteSid != 0)
         await TryDisconnectStreamAsync(
           control, ControlLocalSid, ControlRemoteSid, audioStream: false);
