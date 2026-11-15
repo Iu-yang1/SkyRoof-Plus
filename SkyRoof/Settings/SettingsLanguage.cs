@@ -336,6 +336,7 @@ namespace SkyRoof
       if (Current == language) return;
       Current = language;
       foreach (Type type in types) TypeDescriptor.Refresh(type);
+      UiLocalizationService.NotifyLanguageChanged();
     }
 
     internal static void EnsureRegistered()

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Menu.File" xml:space="preserve"><value>&amp;File</value></data>
+  <data name="Menu.Exit" xml:space="preserve"><value>E&amp;xit</value></data>
+  <data name="Menu.View" xml:space="preserve"><value>&amp;View</value></data>
+  <data name="Menu.Group" xml:space="preserve"><value>&amp;Group</value></data>
+  <data name="Menu.SatelliteDetails" xml:space="preserve"><value>Satellite &amp;Details</value></data>
+  <data name="Menu.Transmitters" xml:space="preserve"><value>Satellite &amp;Transmitters</value></data>
+  <data name="Menu.SatellitePasses" xml:space="preserve"><value>Satellite &amp;Passes</value></data>
+  <data name="Menu.Waterfall" xml:space="preserve"><value>Wideband &amp;Waterfall</value></data>
+  <data name="Menu.FrequencyControl" xml:space="preserve"><value>&amp;Frequency Control</value></data>
+  <data name="Menu.IcomLanSpectrum" xml:space="preserve"><value>Icom LAN S&amp;pectrum</value></data>
+  <data name="Menu.Timeline" xml:space="preserve"><value>T&amp;imeline</value></data>
+  <data name="Menu.SkyView" xml:space="preserve"><value>&amp;Sky View</value></data>
+  <data name="Menu.EarthView" xml:space="preserve"><value>&amp;Earth View</value></data>
+  <data name="Menu.QsoEntry" xml:space="preserve"><value>&amp;QSO Entry</value></data>
+  <data name="Menu.Ft4Console" xml:space="preserve"><value>&amp;FT4 Console</value></data>
+  <data name="Menu.CwConsole" xml:space="preserve"><value>&amp;CW Console (RX / TX)</value></data>
+  <data name="Menu.CwConsoleHelp" xml:space="preserve"><value>Manual CW transmit is available independently of satellite transponder selection; SkyCAT/radio CW readiness is checked when sending.</value></data>
+  <data name="Menu.SstvConsole" xml:space="preserve"><value>SSTV RX / TX</value></data>
+  <data name="Menu.Recorder" xml:space="preserve"><value>&amp;Recorder</value></data>
+  <data name="Menu.QsoScheduler" xml:space="preserve"><value>QSO &amp;Scheduler</value></data>
+  <data name="Menu.Telemetry" xml:space="preserve"><value>Te&amp;lemetry</value></data>
+  <data name="Menu.AutoSelection" xml:space="preserve"><value>&amp;Auto Selection</value></data>
+  <data name="Menu.ResetLayout" xml:space="preserve"><value>Reset Window &amp;Layout</value></data>
+  <data name="Menu.Tools" xml:space="preserve"><value>&amp;Tools</value></data>
+  <data name="Menu.SatellitesAndGroups" xml:space="preserve"><value>&amp;Satellites and Groups...</value></data>
+  <data name="Menu.SdrDevices" xml:space="preserve"><value>SD&amp;R Devices...</value></data>
+  <data name="Menu.Settings" xml:space="preserve"><value>S&amp;ettings...</value></data>
+  <data name="Menu.Theme" xml:space="preserve"><value>T&amp;heme</value></data>
+  <data name="Menu.ThemeSystem" xml:space="preserve"><value>&amp;System</value></data>
+  <data name="Menu.ThemeLight" xml:space="preserve"><value>&amp;Light · Pink / Blue</value></data>
+  <data name="Menu.ThemeDark" xml:space="preserve"><value>&amp;Dark</value></data>
+  <data name="Menu.Language" xml:space="preserve"><value>&amp;Language</value></data>
+  <data name="Menu.ToolbarScale" xml:space="preserve"><value>UI Scale</value></data>
+  <data name="Menu.DockScale" xml:space="preserve"><value>Dock &amp; Popup Scale</value></data>
+  <data name="Menu.DownloadSatelliteData" xml:space="preserve"><value>&amp;Download All Satellite Data</value></data>
+  <data name="Menu.DownloadOrbitElements" xml:space="preserve"><value>Download &amp;Orbit Elements</value></data>
+  <data name="Menu.DownloadAmsatStatuses" xml:space="preserve"><value>Download &amp;AMSAT Statuses</value></data>
+  <data name="Menu.LoadOrbitFile" xml:space="preserve"><value>Load Orbit Elements From &amp;File...</value></data>
+  <data name="Menu.Help" xml:space="preserve"><value>&amp;Help</value></data>
+  <data name="Menu.OnlineHelp" xml:space="preserve"><value>&amp;Online Help...</value></data>
+  <data name="Menu.SupportGroup" xml:space="preserve"><value>&amp;Support Group...</value></data>
+  <data name="Menu.DataFolder" xml:space="preserve"><value>&amp;Data Folder...</value></data>
+  <data name="Menu.About" xml:space="preserve"><value>&amp;About...</value></data>
+  <data name="Panel.Groups" xml:space="preserve"><value>Groups</value></data>
+  <data name="Panel.SatelliteDetails" xml:space="preserve"><value>Satellite Details</value></data>
+  <data name="Panel.Transmitters" xml:space="preserve"><value>Satellite Transmitters</value></data>
+  <data name="Panel.Passes" xml:space="preserve"><value>Satellite Passes</value></data>
+  <data name="Panel.Timeline" xml:space="preserve"><value>Timeline</value></data>
+  <data name="Panel.SkyView" xml:space="preserve"><value>Sky View</value></data>
+  <data name="Panel.EarthView" xml:space="preserve"><value>Earth View</value></data>
+  <data name="Panel.FrequencyControl" xml:space="preserve"><value>Frequency Control</value></data>
+  <data name="Panel.IcomLanSpectrum" xml:space="preserve"><value>Icom LAN Spectrum</value></data>
+  <data name="Panel.OnvifCamera" xml:space="preserve"><value>ONVIF Camera</value></data>
+  <data name="Panel.Waterfall" xml:space="preserve"><value>Wideband Waterfall</value></data>
+  <data name="Panel.QsoEntry" xml:space="preserve"><value>QSO Entry</value></data>
+  <data name="Panel.Ft4Console" xml:space="preserve"><value>FT4 Console</value></data>
+  <data name="Panel.CwConsole" xml:space="preserve"><value>CW Console [RX / TX]</value></data>
+  <data name="Panel.SstvConsole" xml:space="preserve"><value>SSTV</value></data>
+  <data name="Panel.Recorder" xml:space="preserve"><value>Recorder</value></data>
+  <data name="Panel.QsoScheduler" xml:space="preserve"><value>QSO Scheduler</value></data>
+  <data name="Panel.Telemetry" xml:space="preserve"><value>Telemetry</value></data>
+  <data name="Panel.AutoSelection" xml:space="preserve"><value>Auto Selection</value></data>
+  <data name="Common.Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Common.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="Common.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common.Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Common.Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Common.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Common.Load" xml:space="preserve"><value>Load</value></data>
+  <data name="Common.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="Common.ConnectionLost" xml:space="preserve"><value>Connection lost</value></data>
+</root>
