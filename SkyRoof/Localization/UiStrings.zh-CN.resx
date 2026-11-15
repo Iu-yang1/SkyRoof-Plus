@@ -782,7 +782,12 @@
   <data name="Yaesu.Connected" xml:space="preserve"><value>已连接</value></data>
   <data name="Yaesu.Target" xml:space="preserve"><value>目标     {0}</value></data>
   <data name="Yaesu.Satellite" xml:space="preserve"><value>卫星     {0}</value></data>
-  <data name="Yaesu.ManualHint" xml:space="preserve"><value>按住：连续转动\n松开：停止\n中心：停止</value></data>
-  <data name="Yaesu.LockedHint" xml:space="preserve"><value>自动跟踪中\n手动控制锁定\n先关闭跟踪</value></data>
-  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>正在停靠\n按停止取消</value></data>
+  <data name="Yaesu.ManualHint" xml:space="preserve"><value>按住：连续转动
+松开：停止
+中心：停止</value></data>
+  <data name="Yaesu.LockedHint" xml:space="preserve"><value>自动跟踪中
+手动控制锁定
+先关闭跟踪</value></data>
+  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>正在停靠
+按停止取消</value></data>
 </root>

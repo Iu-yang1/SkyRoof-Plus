@@ -782,7 +782,12 @@ Current: {0}</value></data>
   <data name="Yaesu.Connected" xml:space="preserve"><value>Connected</value></data>
   <data name="Yaesu.Target" xml:space="preserve"><value>Target    {0}</value></data>
   <data name="Yaesu.Satellite" xml:space="preserve"><value>Satellite {0}</value></data>
-  <data name="Yaesu.ManualHint" xml:space="preserve"><value>Hold = MOVE\nRelease = STOP\nCenter = STOP</value></data>
-  <data name="Yaesu.LockedHint" xml:space="preserve"><value>LIVE TRACK\nManual locked\nClear TRACK first</value></data>
-  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>PARK ACTIVE\nSTOP cancels</value></data>
+  <data name="Yaesu.ManualHint" xml:space="preserve"><value>Hold = MOVE
+Release = STOP
+Center = STOP</value></data>
+  <data name="Yaesu.LockedHint" xml:space="preserve"><value>LIVE TRACK
+Manual locked
+Clear TRACK first</value></data>
+  <data name="Yaesu.ParkingHint" xml:space="preserve"><value>PARK ACTIVE
+STOP cancels</value></data>
 </root>
