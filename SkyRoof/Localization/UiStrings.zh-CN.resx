@@ -649,4 +649,9 @@
   <data name="AmsatReport.TelemetryOnly" xml:space="preserve"><value>仅接收到遥测</value></data>
   <data name="AmsatReport.NotHeard" xml:space="preserve"><value>未收到信号</value></data>
   <data name="AmsatReport.CrewActive" xml:space="preserve"><value>航天员正在通信</value></data>
+  <data name="Menu.AutoSelectionConfigForm.SelectAllMnu" xml:space="preserve"><value>全选过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select5Mnu" xml:space="preserve"><value>选择最大仰角超过 5° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select10Mnu" xml:space="preserve"><value>选择最大仰角超过 10° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select15Mnu" xml:space="preserve"><value>选择最大仰角超过 15° 的过境</value></data>
+  <data name="Menu.AutoSelectionConfigForm.Select20Mnu" xml:space="preserve"><value>选择最大仰角超过 20° 的过境</value></data>
 </root>
