@@ -750,4 +750,18 @@ Current: {0}</value></data>
   <data name="Control.SstvDenoiseDialog.OkBtn" xml:space="preserve"><value>OK</value></data>
   <data name="Waterfall.CallsignRequired" xml:space="preserve"><value>Please set your callsign in Settings before sending a report.</value></data>
   <data name="Waterfall.CallsignNotSet" xml:space="preserve"><value>Callsign not set</value></data>
+  <data name="Recorder.LoadFilter" xml:space="preserve"><value>Audio Files (*.wav;*.mp3)|*.wav;*.mp3|All Files (*.*)|*.*</value></data>
+  <data name="Recorder.LoadTitle" xml:space="preserve"><value>Load Recording</value></data>
+  <data name="Recorder.LoadError" xml:space="preserve"><value>Error loading file: {0}</value></data>
+  <data name="Recorder.SaveError" xml:space="preserve"><value>Error saving file: {0}</value></data>
+  <data name="Telemetry.AudioSourceError" xml:space="preserve"><value>Telemetry RX: {0}</value></data>
+  <data name="Telemetry.OverrideSaved" xml:space="preserve"><value>Saved to transmitters-override.json.</value></data>
+  <data name="Telemetry.OverrideSaveFailed" xml:space="preserve"><value>Could not save the override: {0}</value></data>
+  <data name="Telemetry.SignalDetails" xml:space="preserve"><value>Signal Details</value></data>
+  <data name="Cw.MessageFull" xml:space="preserve"><value>The CW message is full.</value></data>
+  <data name="Cw.UseConfirmedCallsign" xml:space="preserve"><value>Use confirmed callsign</value></data>
+  <data name="Cw.MacroError" xml:space="preserve"><value>CW macro</value></data>
+  <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>Invalid SkyCAT CAT TCP port: use 1–65535 in Spectrum settings.</value></data>
+  <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>Save changes?</value></data>
+  <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>You can only add alive satellites to groups.</value></data>
 </root>

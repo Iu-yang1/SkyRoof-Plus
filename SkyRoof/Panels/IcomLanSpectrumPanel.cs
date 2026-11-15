@@ -2254,7 +2254,7 @@ namespace SkyRoof
         : settings.SkyCatControlPort;
       if (port is < 1 or > 65535)
       {
-        StatusLabel.Text = "Invalid SkyCAT CAT TCP port: use 1–65535 in Spectrum settings.";
+        StatusLabel.Text = UiLocalizationService.Get("Spectrum.InvalidSkycatPort");
         return;
       }
       SkyCatScopeControl = new IcomSkyCatScopeClient(port);

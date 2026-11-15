@@ -638,7 +638,7 @@ namespace SkyRoof
       {
         audioReceiverError = ex.Message;
         Serilog.Log.Warning(ex, "Telemetry audio source configuration failed");
-        StatusLabel.Text = "Telemetry RX: " + ex.Message;
+        StatusLabel.Text = UiLocalizationService.Format("Telemetry.AudioSourceError", ex.Message);
         StatusLabel.ForeColor = Color.DarkOrange;
       }
     }
@@ -1476,13 +1476,16 @@ namespace SkyRoof
         ParamsDialog.MarkSaved();
         // no frame is due to redraw the line, and it is still counting toward a decision now taken
         ParamsDialog.ShowConfirmingFrames(ConfirmingFrames, ConfirmFrames);
-        MessageBox.Show(ParamsDialog, "Saved to transmitters-override.json.", "Signal Details",
+        MessageBox.Show(ParamsDialog, UiLocalizationService.Get("Telemetry.OverrideSaved"),
+           UiLocalizationService.Get("Telemetry.SignalDetails"),
           MessageBoxButtons.OK, MessageBoxIcon.Information);
       }
       catch (Exception ex)
       {
         Log.Error(ex, "saving the transmitter override failed");
-        MessageBox.Show(ParamsDialog, "Could not save the override: " + ex.Message, "Signal Details",
+        MessageBox.Show(ParamsDialog,
+           UiLocalizationService.Format("Telemetry.OverrideSaveFailed", ex.Message),
+           UiLocalizationService.Get("Telemetry.SignalDetails"),
           MessageBoxButtons.OK, MessageBoxIcon.Warning);
       }
     }

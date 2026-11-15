@@ -287,9 +287,9 @@ namespace SkyRoof
     private void LoadBtn_Click(object sender, EventArgs e)
     {
       using var dialog = new OpenFileDialog();
-      dialog.Filter = "Audio Files (*.wav;*.mp3)|*.wav;*.mp3|All Files (*.*)|*.*";
+      dialog.Filter = UiLocalizationService.Get("Recorder.LoadFilter");
       dialog.InitialDirectory = GetRecordingsPath();
-      dialog.Title = "Load Recording";
+      dialog.Title = UiLocalizationService.Get("Recorder.LoadTitle");
 
       if (dialog.ShowDialog() != DialogResult.OK) return;
 
@@ -299,7 +299,8 @@ namespace SkyRoof
       }
       catch (Exception ex)
       {
-        MessageBox.Show($"Error loading file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show(UiLocalizationService.Format("Recorder.LoadError", ex.Message),
+          UiLocalizationService.Get("Common.Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         Log.Error(ex, "Error loading recording");
       }
     }
@@ -324,7 +325,7 @@ namespace SkyRoof
         RecordBtn.BackColor = Color.Transparent;
         SetLocalizedStatus("Recorder.Failed", ex.Message);
         Log.Warning(ex, "Recorder could not start {Kind} source", isAudio ? "AF" : "IQ");
-        MessageBox.Show(this, ex.Message, "Recorder", MessageBoxButtons.OK,
+        MessageBox.Show(this, ex.Message, UiLocalizationService.Get("Panel.Recorder"), MessageBoxButtons.OK,
           MessageBoxIcon.Warning);
         return;
       }
@@ -549,7 +550,8 @@ namespace SkyRoof
       catch (Exception ex)
       {
         if (!IsDisposed)
-          MessageBox.Show($"Error saving file: {ex.Message}", "Error",
+          MessageBox.Show(UiLocalizationService.Format("Recorder.SaveError", ex.Message),
+             UiLocalizationService.Get("Common.Error"),
             MessageBoxButtons.OK, MessageBoxIcon.Error);
         Log.Error(ex, "Error saving recording");
       }

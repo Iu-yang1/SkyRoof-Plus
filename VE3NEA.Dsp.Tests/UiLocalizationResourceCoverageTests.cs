@@ -98,6 +98,15 @@ public sealed class UiLocalizationResourceCoverageTests
     Assert.Equal("新增转发器 / 信标…", zh["Transmitter.New"]);
     Assert.Equal("Edit Local Entry...", en["Transmitter.Edit"]);
     foreach (string key in new[] {
+      "Recorder.LoadFilter", "Recorder.LoadError", "Telemetry.OverrideSaved",
+      "Telemetry.AudioSourceError", "Cw.MessageFull",
+      "Spectrum.InvalidSkycatPort", "SatelliteGroups.SaveConfirm"
+    })
+    {
+      Assert.Contains(key, zh.Keys);
+      Assert.Contains(key, en.Keys);
+    }
+    foreach (string key in new[] {
       "Dialog.SstvDenoiseDialog.Title", "SstvDenoise.TitleFor",
       "SstvDenoise.Failed", "Control.SstvDenoiseDialog.NlmGroupBox",
       "Waterfall.CallsignRequired", "Waterfall.CallsignNotSet"

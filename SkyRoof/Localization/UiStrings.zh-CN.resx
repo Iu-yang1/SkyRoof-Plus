@@ -750,4 +750,18 @@
   <data name="Control.SstvDenoiseDialog.OkBtn" xml:space="preserve"><value>确定</value></data>
   <data name="Waterfall.CallsignRequired" xml:space="preserve"><value>发送报告前请先在设置中填写本台呼号。</value></data>
   <data name="Waterfall.CallsignNotSet" xml:space="preserve"><value>尚未设置呼号</value></data>
+  <data name="Recorder.LoadFilter" xml:space="preserve"><value>音频文件 (*.wav;*.mp3)|*.wav;*.mp3|所有文件 (*.*)|*.*</value></data>
+  <data name="Recorder.LoadTitle" xml:space="preserve"><value>加载录音</value></data>
+  <data name="Recorder.LoadError" xml:space="preserve"><value>加载录音文件失败：{0}</value></data>
+  <data name="Recorder.SaveError" xml:space="preserve"><value>保存录音文件失败：{0}</value></data>
+  <data name="Telemetry.AudioSourceError" xml:space="preserve"><value>遥测接收音频源异常：{0}</value></data>
+  <data name="Telemetry.OverrideSaved" xml:space="preserve"><value>已保存至 transmitters-override.json。</value></data>
+  <data name="Telemetry.OverrideSaveFailed" xml:space="preserve"><value>保存发射机参数覆盖失败：{0}</value></data>
+  <data name="Telemetry.SignalDetails" xml:space="preserve"><value>信号参数</value></data>
+  <data name="Cw.MessageFull" xml:space="preserve"><value>CW 发送消息已达到长度上限。</value></data>
+  <data name="Cw.UseConfirmedCallsign" xml:space="preserve"><value>使用已确认的呼号</value></data>
+  <data name="Cw.MacroError" xml:space="preserve"><value>CW 宏</value></data>
+  <data name="Spectrum.InvalidSkycatPort" xml:space="preserve"><value>SkyCAT CAT TCP 端口无效，请在频谱设置中填写 1–65535。</value></data>
+  <data name="SatelliteGroups.SaveConfirm" xml:space="preserve"><value>保存已修改的卫星分组？</value></data>
+  <data name="SatelliteGroups.AliveOnly" xml:space="preserve"><value>仅可将仍在轨且正常工作的卫星添加到分组。</value></data>
 </root>

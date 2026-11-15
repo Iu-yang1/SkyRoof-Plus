@@ -48,7 +48,9 @@ namespace VE3NEA.Clock
     {
       DateTime now = Now;
       timeLabel.Text = now.ToString("HH:mm:ss");
-      dateLabel.Text = now.ToString("MMMM dd, yyyy");
+      dateLabel.Text = SkyRoof.UiLocalizationService.Current == SkyRoof.UiLanguage.SimplifiedChinese
+        ? now.ToString("yyyy-MM-dd", SkyRoof.UiLocalizationService.CurrentResourceCulture)
+        : now.ToString("MMMM dd, yyyy", SkyRoof.UiLocalizationService.CurrentResourceCulture);
     }
 
     private void dateLabel_Click(object sender, EventArgs e)
