@@ -908,24 +908,34 @@ namespace SkyRoof
       await PollModInputAsync(civ, now, token);
       ReportAudioDiagnostics(now);
 
-      if (AudioLinkConnected && AudioTxReady && AudioOptions.Transmit.Enabled &&
-          AudioHeartbeat.HasGoneStale(
-            now.Ticks, Interlocked.Read(ref AudioConnectedTicks),
-            Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12)))
+      if (AudioLinkConnected && AudioTxReady && AudioOptions.Transmit.Enabled)
       {
-        if (!AudioHeartbeatStale)
+        bool stale = AudioHeartbeat.HasGoneStale(
+          now.Ticks, Interlocked.Read(ref AudioConnectedTicks),
+          Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12));
+        if (!stale && AudioHeartbeatStale)
         {
-          AudioHeartbeatStale = true;
-          Log.Warning(
-            "Direct LAN TX audio remote heartbeat STALE: no correlated radio Audio UDP ping for 12s; TX sent={Sent}, pong={Pongs}. Recovery will occur after CAT PTT releases.",
-            Interlocked.Read(ref AudioTxDatagrams), AudioHeartbeat.MatchedReplies);
-          Publish("Direct LAN TX audio: remote media heartbeat lost; release PTT to recover authenticated audio/CI-V session.");
+          // A delayed but valid radio response may recover the link while
+          // PTT is still held. Do not leave the UI permanently red.
+          AudioHeartbeatStale = false;
+          Log.Information("Direct LAN TX audio remote heartbeat recovered in-place");
         }
-        // Do not interrupt an ongoing PTT transmission, even if radio
-        // audio has stopped accepting packets. Reconnect once unkeyed.
-        if (IsPttActive?.Invoke() != true)
-          throw new IOException(
-            "Direct LAN TX audio remote heartbeat expired; renewing authenticated media.");
+        if (stale)
+        {
+          if (!AudioHeartbeatStale)
+          {
+            AudioHeartbeatStale = true;
+            Log.Warning(
+              "Direct LAN TX audio remote heartbeat STALE: no correlated radio Audio UDP ping for 12s; TX sent={Sent}, pong={Pongs}. Recovery will occur after CAT PTT releases.",
+              Interlocked.Read(ref AudioTxDatagrams), AudioHeartbeat.MatchedReplies);
+            Publish("Direct LAN TX audio: remote media heartbeat lost; release PTT to recover authenticated audio/CI-V session.");
+          }
+          // Do not interrupt an ongoing PTT transmission, even if radio
+          // audio has stopped accepting packets. Reconnect once unkeyed.
+          if (IsPttActive?.Invoke() != true)
+            throw new IOException(
+              "Direct LAN TX audio remote heartbeat expired; renewing authenticated media.");
+        }
       }
 
       DateTime lastSweepUtc = new DateTime(
