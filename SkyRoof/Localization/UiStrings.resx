@@ -231,8 +231,8 @@
   <data name="Sstv.Refresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="Sstv.Gallery" xml:space="preserve"><value>Gallery</value></data>
   <data name="Sstv.SaveWav" xml:space="preserve"><value>Save WAV</value></data>
-  <data name="Sstv.SaveTemplate" xml:space="preserve"><value>Save template</value></data>
-  <data name="Sstv.DeleteTemplate" xml:space="preserve"><value>Delete template</value></data>
+  <data name="Sstv.SaveTemplate" xml:space="preserve"><value>Save tpl.</value></data>
+  <data name="Sstv.DeleteTemplate" xml:space="preserve"><value>Delete tpl.</value></data>
   <data name="Sstv.QsoLog" xml:space="preserve"><value>QSO log</value></data>
   <data name="Sstv.AddLayer" xml:space="preserve"><value>Add</value></data>
   <data name="Sstv.Copy" xml:space="preserve"><value>Copy</value></data>
@@ -268,7 +268,7 @@
   <data name="Sstv.TabTx" xml:space="preserve"><value>Transmit TX</value></data>
   <data name="Sstv.TabHistory" xml:space="preserve"><value>Gallery / History</value></data>
   <data name="Sstv.TabQso" xml:space="preserve"><value>QSO log</value></data>
-  <data name="Sstv.Transmit" xml:space="preserve"><value>Transmit image</value></data>
+  <data name="Sstv.Transmit" xml:space="preserve"><value>Transmit</value></data>
   <data name="Sstv.StopTransmit" xml:space="preserve"><value>Stop TX</value></data>
   <data name="Sstv.StartReceive" xml:space="preserve"><value>Start RX</value></data>
   <data name="Sstv.StopReceive" xml:space="preserve"><value>Stop RX</value></data>
@@ -473,4 +473,6 @@ Center = STOP</value></data>
   <data name="Sstv.TextLayerMy" xml:space="preserve"><value>My callsign</value></data>
   <data name="Sstv.TextLayerTheir" xml:space="preserve"><value>Their callsign</value></data>
   <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>Custom text</value></data>
+  <data name="Sstv.StatusChooseTxDevice" xml:space="preserve"><value>Select the radio TX audio endpoint; the system default speaker is never selected automatically.</value></data>
+  <data name="Sstv.StatusNoTxDevice" xml:space="preserve"><value>No TX audio device detected; you can still save the SSTV WAV.</value></data>
 </root>

@@ -67,6 +67,15 @@ public sealed class BilingualUiDpiAndSessionTests
         // The production panel constructs the real WinForms controls and
         // its receive/transmit sessions; no device starts in this fixture.
         using var panel = new SstvConsolePanel(ctx);
+        // Use an off-screen child-window host. Windows CI's desktop is
+        // 1024x768; a top-level Form is capped around 1044x788, which made
+        // old 125/150/200% pictures identical and falsely appear tested.
+        using var host = new Panel { Size = new Size(980, 720) };
+        panel.TopLevel = false;
+        panel.FormBorderStyle = FormBorderStyle.None;
+        panel.Dock = DockStyle.Fill;
+        host.Controls.Add(panel);
+        host.CreateControl();
         panel.Show();
         Application.DoEvents();
         using var scaler = new UniformControlScale(panel, scaleRootBounds: false);
@@ -86,9 +95,11 @@ public sealed class BilingualUiDpiAndSessionTests
         overlay.Text = "QSO {HISCALL}";
         var baseSize = new Size(980, 720);
         float ratio = percent / 100f;
-        panel.Size = new Size((int)(baseSize.Width * ratio),
+        Size target = new((int)(baseSize.Width * ratio),
           (int)(baseSize.Height * ratio));
+        host.Size = target;
         scaler.Apply(ratio);
+        Assert.Equal(target, panel.Size);
         foreach (UiLanguage language in new[]
         {
           UiLanguage.SimplifiedChinese, UiLanguage.English
@@ -112,7 +123,10 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal("QSO {HISCALL}", overlay.Text);
           Assert.Equal(templateIndex, templates.SelectedIndex);
           Assert.Equal(sourceIndex, source.SelectedIndex);
-
+          Assert.Equal(language == UiLanguage.English
+            ? "No TX audio device detected; you can still save the SSTV WAV."
+            : "未检测到发射声卡；仍可保存 SSTV WAV 音频",
+            Field<Label>(panel, "txStatus").Text);
           for (int tab = 0; tab < 2; tab++)
           {
             tabs.SelectedIndex = tab;

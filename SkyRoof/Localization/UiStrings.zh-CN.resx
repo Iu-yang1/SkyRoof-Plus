@@ -473,4 +473,6 @@
   <data name="Sstv.TextLayerMy" xml:space="preserve"><value>己方呼号</value></data>
   <data name="Sstv.TextLayerTheir" xml:space="preserve"><value>对方呼号</value></data>
   <data name="Sstv.TextLayerCustom" xml:space="preserve"><value>自定义文字</value></data>
+  <data name="Sstv.StatusChooseTxDevice" xml:space="preserve"><value>请选择实际连接电台的发射声卡；不会自动使用系统默认扬声器。</value></data>
+  <data name="Sstv.StatusNoTxDevice" xml:space="preserve"><value>未检测到发射声卡；仍可保存 SSTV WAV 音频</value></data>
 </root>
