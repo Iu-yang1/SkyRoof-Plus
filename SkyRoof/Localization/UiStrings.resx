@@ -419,4 +419,42 @@
   <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>Template deleted: {0}</value></data>
   <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>Reception complete · {0}</value></data>
   <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>Receiving · {0}</value></data>
+  <data name="Rotator.Title" xml:space="preserve"><value>Manual Rotator</value></data>
+  <data name="Rotator.TrackStep" xml:space="preserve"><value>Track step</value></data>
+  <data name="Rotator.Footer" xml:space="preserve"><value>Right-click Rotator status to open this panel.</value></data>
+  <data name="Rotator.StepTip" xml:space="preserve"><value>Automatic satellite-tracking step size; manual jog is continuous.</value></data>
+  <data name="Rotator.ParkTip" xml:space="preserve"><value>Left-click: follow PARK route; right-click: edit waypoints.</value></data>
+  <data name="Rotator.Antenna" xml:space="preserve"><value>Antenna</value></data>
+  <data name="Rotator.Command" xml:space="preserve"><value>Command</value></data>
+  <data name="Rotator.Satellite" xml:space="preserve"><value>Satellite</value></data>
+  <data name="Rotator.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Rotator.LiveTrack" xml:space="preserve"><value>Live Track</value></data>
+  <data name="Rotator.SafetyLock" xml:space="preserve"><value>Safety lock</value></data>
+  <data name="Rotator.PositionFault" xml:space="preserve"><value>POSITION FAULT</value></data>
+  <data name="Rotator.Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Rotator.Connecting" xml:space="preserve"><value>Connecting</value></data>
+  <data name="Rotator.ParkActive" xml:space="preserve"><value>PARK ACTIVE
+
+STOP cancels
+the route.</value></data>
+  <data name="Rotator.ParkReached" xml:space="preserve"><value>C2 PARK REACHED
+
+Mechanical home
+NOT verified.</value></data>
+  <data name="Rotator.ParkAborted" xml:space="preserve"><value>PARK ABORTED
+
+Check Logs
+and actual angle.</value></data>
+  <data name="Rotator.ManualLocked" xml:space="preserve"><value>LIVE TRACK
+
+Manual locked.
+Clear TRACK first.</value></data>
+  <data name="Rotator.PrePosition" xml:space="preserve"><value>PRE-POSITION
+
+Manual input will
+clear TRACK first.</value></data>
+  <data name="Rotator.ManualHint" xml:space="preserve"><value>Hold = move
+Release = STOP
+
+Center = STOP</value></data>
 </root>

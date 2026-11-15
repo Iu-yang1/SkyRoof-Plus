@@ -419,4 +419,42 @@
   <data name="Sstv.StatusTemplateDeleted" xml:space="preserve"><value>已删除模板：{0}</value></data>
   <data name="Sstv.StatusRxCompleted" xml:space="preserve"><value>接收完成 · {0}</value></data>
   <data name="Sstv.StatusRxInProgress" xml:space="preserve"><value>正在接收 · {0}</value></data>
+  <data name="Rotator.Title" xml:space="preserve"><value>手动旋转器</value></data>
+  <data name="Rotator.TrackStep" xml:space="preserve"><value>跟踪步进</value></data>
+  <data name="Rotator.Footer" xml:space="preserve"><value>右键单击旋转器状态打开此面板。</value></data>
+  <data name="Rotator.StepTip" xml:space="preserve"><value>自动卫星跟踪的步进大小；手动长按为连续运动。</value></data>
+  <data name="Rotator.ParkTip" xml:space="preserve"><value>左键：沿 PARK 路径停靠；右键：编辑停靠路径点。</value></data>
+  <data name="Rotator.Antenna" xml:space="preserve"><value>天线</value></data>
+  <data name="Rotator.Command" xml:space="preserve"><value>指令</value></data>
+  <data name="Rotator.Satellite" xml:space="preserve"><value>卫星</value></data>
+  <data name="Rotator.Disabled" xml:space="preserve"><value>已禁用</value></data>
+  <data name="Rotator.LiveTrack" xml:space="preserve"><value>实时追踪</value></data>
+  <data name="Rotator.SafetyLock" xml:space="preserve"><value>安全锁定</value></data>
+  <data name="Rotator.PositionFault" xml:space="preserve"><value>角度异常</value></data>
+  <data name="Rotator.Connected" xml:space="preserve"><value>已连接</value></data>
+  <data name="Rotator.Connecting" xml:space="preserve"><value>连接中</value></data>
+  <data name="Rotator.ParkActive" xml:space="preserve"><value>正在 PARK
+
+按 STOP 可取消
+停靠路径。</value></data>
+  <data name="Rotator.ParkReached" xml:space="preserve"><value>C2 已报告 PARK
+
+未确认实际
+机械原点。</value></data>
+  <data name="Rotator.ParkAborted" xml:space="preserve"><value>PARK 已中止
+
+请核对日志
+及实际角度。</value></data>
+  <data name="Rotator.ManualLocked" xml:space="preserve"><value>实时追踪中
+
+手动操作已锁定
+先取消 TRACK。</value></data>
+  <data name="Rotator.PrePosition" xml:space="preserve"><value>预定位
+
+手动操作将先
+取消 TRACK。</value></data>
+  <data name="Rotator.ManualHint" xml:space="preserve"><value>长按 = 转动
+松开 = STOP
+
+中心 = STOP</value></data>
 </root>
