@@ -18,6 +18,14 @@ foreach ($name in $mandatory) {
   }
 }
 
+# Verify the actual Chinese satellite resource, not merely the neutral fallback.
+# The DLL must exist in the build output AND survive the Inno Setup payload.
+$zhResourceRelative = 'zh-CN\SkyRoof.resources.dll'
+$zhBuildResource = Join-Path $build $zhResourceRelative
+if (-not (Test-Path -LiteralPath $zhBuildResource -PathType Leaf)) {
+  throw "Build output missing Chinese UI resource assembly: $zhResourceRelative"
+}
+
 if (Test-Path -LiteralPath $target) {
   Remove-Item -LiteralPath $target -Recurse -Force
 }
@@ -86,6 +94,17 @@ if (-not (Test-Path -LiteralPath (Join-Path $target $leapRelative))) {
 if ((Get-FileHash (Join-Path $build $leapRelative) -Algorithm SHA256).Hash -ne
     (Get-FileHash (Join-Path $target $leapRelative) -Algorithm SHA256).Hash) {
   throw 'Installed Orekit UTC-TAI data differs from the reviewed build data.'
+}
+
+# Installed resource DLLs are nested under culture folders, so the root-DLL
+# inventory below cannot detect their absence. Verify the actual copied bytes.
+$zhInstalledResource = Join-Path $target $zhResourceRelative
+if (-not (Test-Path -LiteralPath $zhInstalledResource -PathType Leaf)) {
+  throw "Installer omitted Chinese UI satellite assembly: $zhResourceRelative"
+}
+if ((Get-FileHash -LiteralPath $zhBuildResource -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath $zhInstalledResource -Algorithm SHA256).Hash) {
+  throw 'Installed Chinese resource DLL differs from build output.'
 }
 
 # Every top-level application .dll must survive packaging and installation.
