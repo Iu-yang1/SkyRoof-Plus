@@ -74,6 +74,55 @@ public sealed class NativeRotatorEnduranceTests
       $"Unexpected native rotator handle growth: {handleDelta}");
   }
 
+
+  [Fact]
+  public async Task SwitchingUiLanguageLeavesVirtualGs232PollingAndMotionUntouched()
+  {
+    UiLanguage previous = SettingsLanguage.Current;
+    try
+    {
+      using var simulator = new SimulatedGs232();
+      var settings = new RotatorSettings
+      {
+        UseNativeDriver = true,
+        Enabled = true,
+        NativeTransport = RotatorTransportKind.Tcp,
+        NativeProtocol = RotatorProtocolKind.Gs232,
+        Host = "127.0.0.1",
+        Port = (ushort)simulator.Port,
+        NativePollMs = 200,
+        NativeReadTimeout = 350,
+        SendTimeout = 500,
+        ReconnectDelay = 250
+      };
+      using var engine = new NativeRotatorControlEngine(settings);
+      await UntilAsync(() => engine.LastReadBearing != null);
+      int pollsBefore = simulator.Commands.Count(cmd => cmd == "C2");
+      int motionBefore = simulator.Commands.Count(cmd =>
+        cmd.StartsWith("W", StringComparison.Ordinal) ||
+        cmd is "L" or "R" or "U" or "D" or "S");
+      var bearingBefore = engine.LastReadBearing;
+      foreach (UiLanguage language in new[]
+      {
+        UiLanguage.English, UiLanguage.SimplifiedChinese, UiLanguage.English
+      })
+      {
+        UiLocalizationService.Apply(language);
+        Assert.True(engine.IsRunning);
+        Assert.Equal(bearingBefore, engine.LastReadBearing);
+      }
+      await Task.Delay(550);
+      int pollsAfter = simulator.Commands.Count(cmd => cmd == "C2");
+      Assert.True(pollsAfter > pollsBefore,
+        "Changing language stopped the virtual GS-232 feedback loop");
+      Assert.Equal(motionBefore, simulator.Commands.Count(cmd =>
+        cmd.StartsWith("W", StringComparison.Ordinal) ||
+        cmd is "L" or "R" or "U" or "D" or "S"));
+      Assert.True(engine.IsRunning);
+    }
+    finally { UiLocalizationService.Apply(previous); }
+  }
+
   private static async Task UntilAsync(Func<bool> condition)
   {
     for (int i=0;i<60;i++)

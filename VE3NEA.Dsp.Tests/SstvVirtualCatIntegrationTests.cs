@@ -16,6 +16,7 @@ namespace VE3NEA.Dsp.Tests
   /// No transceiver or audio output is involved. This tests actual command
   /// scheduling, STOP ordering and reconnection instead of a state-only mock.
   /// </summary>
+  [Collection("BilingualUiAcceptance")]
   public sealed class SstvVirtualCatIntegrationTests
   {
     private static bool Until(Func<bool> condition, int timeoutMs = 7000) =>
@@ -57,6 +58,50 @@ namespace VE3NEA.Dsp.Tests
       Assert.True(Until(() => !cat.Ptt &&
         cat.LastPttOffHardwareReadbackUtc > cat.LastPttOnHardwareReadbackUtc),
         "CAT worker did not confirm virtual RX after reconnect");
+    }
+
+
+    [Fact]
+    public void LanguageToggleDoesNotUnkeyOrReconnectVirtualRig()
+    {
+      // Real CAT engine, fake TCP rigctld/SkyCAT endpoint. PTT is held ON
+      // intentionally; the locale operation must neither cancel it nor
+      // issue a duplicate ON/OFF. No physical radio can transmit here.
+      UiLanguage previous = SettingsLanguage.Current;
+      try
+      {
+        using var rig = new VirtualRig();
+        using var cat = StartCat(rig);
+        cat.SetPtt(true);
+        Assert.True(Until(() => rig.IsTransmitting && cat.Ptt));
+        Assert.True(Until(() => cat.LastPttOnHardwareReadbackUtc > DateTime.MinValue));
+        int onBefore = rig.OnCommands;
+        int offBefore = rig.OffCommands;
+        int connectionBefore = rig.Connections;
+
+        using var operatorView = new Control { Name = "VirtualCATSession" };
+        UiLocalizationService.Bind(operatorView, () =>
+          operatorView.Text = UiLocalizationService.Get("Cw.TxSending"));
+        foreach (UiLanguage language in new[]
+        {
+          UiLanguage.English, UiLanguage.SimplifiedChinese, UiLanguage.English
+        })
+        {
+          UiLocalizationService.Apply(language);
+          Assert.Equal(language == UiLanguage.English
+            ? "TX SENDING" : "TX 发射中", operatorView.Text);
+          Assert.True(cat.IsRunning);
+          Assert.True(cat.Ptt);
+          Assert.True(rig.IsTransmitting);
+        }
+        Thread.Sleep(250);
+        Assert.Equal(onBefore, rig.OnCommands);
+        Assert.Equal(offBefore, rig.OffCommands);
+        Assert.Equal(connectionBefore, rig.Connections);
+        cat.ReleaseApplicationPtt();
+        Assert.True(Until(() => !rig.IsTransmitting && !cat.Ptt));
+      }
+      finally { UiLocalizationService.Apply(previous); }
     }
 
     private static CatControlEngine StartCat(VirtualRig rig)

@@ -8,6 +8,7 @@ using Xunit;
 
 namespace VE3NEA.Dsp.Tests;
 
+[Collection("BilingualUiAcceptance")]
 public sealed class UiLocalizationTests
 {
   [Fact]
