@@ -336,6 +336,9 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal(language == UiLanguage.English ? "OK" : "确定", ok.Text);
           Assert.Equal(language == UiLanguage.English ? "Apply" : "应用", apply.Text);
           Assert.Equal(language == UiLanguage.English ? "Cancel" : "取消", cancel.Text);
+          Assert.Equal(language == UiLanguage.English
+            ? "IERS EOP / JPL DE430 data" : "IERS EOP / JPL DE430 数据",
+            Field<Label>(dialog, "orekitDataHint").Text);
           foreach (Button button in new[] { ok, apply, cancel })
           {
             int needed = TextRenderer.MeasureText(button.Text, button.Font,
