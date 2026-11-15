@@ -144,4 +144,31 @@
   <data name="Recorder.FilterIq" xml:space="preserve"><value>I/Q WAV Files (*.iq.wav)|*.iq.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
   <data name="Recorder.FilterIf" xml:space="preserve"><value>Raw IF WAV Files (*.if.wav)|*.if.wav|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
   <data name="Recorder.FilterWav" xml:space="preserve"><value>WAV Files (*.wav)|*.wav|All Files (*.*)|*.*</value></data>
+  <data name="Telemetry.NoTerrestrialParams" xml:space="preserve"><value>terrestrial, signal parameters not set</value></data>
+  <data name="Telemetry.BelowHorizon" xml:space="preserve"><value>satellite below horizon</value></data>
+  <data name="Telemetry.Ready" xml:space="preserve"><value>ready to decode</value></data>
+  <data name="Telemetry.UnsupportedCw" xml:space="preserve"><value>CW decoding not supported</value></data>
+  <data name="Telemetry.UnsupportedFm" xml:space="preserve"><value>FM decoding not supported</value></data>
+  <data name="Telemetry.UnknownParams" xml:space="preserve"><value>signal parameters unknown</value></data>
+  <data name="Telemetry.UnsupportedFormat" xml:space="preserve"><value>telemetry format not supported</value></data>
+  <data name="Telemetry.Images" xml:space="preserve"><value>images</value></data>
+  <data name="Telemetry.FmSpeech" xml:space="preserve"><value>FM speech</value></data>
+  <data name="Telemetry.SaveAs" xml:space="preserve"><value>Save As...</value></data>
+  <data name="Telemetry.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Telemetry.OpenImage" xml:space="preserve"><value>Open in Viewer</value></data>
+  <data name="Telemetry.RepairImage" xml:space="preserve"><value>Repair Damaged Image</value></data>
+  <data name="Telemetry.DenoiseImage" xml:space="preserve"><value>Denoise Image...</value></data>
+  <data name="Telemetry.PlayVoice" xml:space="preserve"><value>Play</value></data>
+  <data name="Telemetry.OpenVoice" xml:space="preserve"><value>Open in Player</value></data>
+  <data name="Telemetry.ClearAll" xml:space="preserve"><value>Clear All</value></data>
+  <data name="Telemetry.Terrestrial" xml:space="preserve"><value>Terrestrial</value></data>
+  <data name="AutoSelection.Toggle" xml:space="preserve"><value>Auto Selection: {0}</value></data>
+  <data name="AutoSelection.Active" xml:space="preserve"><value>Active: {0} · LOS in {1}</value></data>
+  <data name="AutoSelection.ActiveNone" xml:space="preserve"><value>Active: none</value></data>
+  <data name="AutoSelection.Next" xml:space="preserve"><value>Next: {0} · in {1}</value></data>
+  <data name="AutoSelection.NextNone" xml:space="preserve"><value>Next: none</value></data>
+  <data name="AutoSelection.Recording" xml:space="preserve"><value>Recording: {0} ● {1}</value></data>
+  <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>Recording: Off</value></data>
+  <data name="AutoSelection.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Ft4.TransmitDisabled" xml:space="preserve"><value>FT4 transmit is not enabled in Settings.</value></data>
 </root>

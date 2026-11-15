@@ -145,6 +145,9 @@ namespace SkyRoof
         panel.TabText = title;
         UiLocalizationService.ApplyStaticControls(panel);
         if (panel is RecorderPanel recorder) recorder.RefreshLocalizedUi();
+        if (panel is TelemetryPanel telemetry) telemetry.RefreshLocalizedUi();
+        if (panel is AutoSelectionPanel autoSelection) autoSelection.UpdateStatus();
+        if (panel is Ft4ConsolePanel ft4Panel) ft4Panel.RefreshLocalizedUi();
 
       });
     }

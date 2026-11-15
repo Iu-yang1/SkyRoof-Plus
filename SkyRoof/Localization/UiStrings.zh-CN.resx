@@ -144,4 +144,31 @@
   <data name="Recorder.FilterIq" xml:space="preserve"><value>I/Q WAV 文件 (*.iq.wav)|*.iq.wav|WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
   <data name="Recorder.FilterIf" xml:space="preserve"><value>原始 IF WAV (*.if.wav)|*.if.wav|WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
   <data name="Recorder.FilterWav" xml:space="preserve"><value>WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</value></data>
+  <data name="Telemetry.NoTerrestrialParams" xml:space="preserve"><value>地面信号，尚未设置解码参数</value></data>
+  <data name="Telemetry.BelowHorizon" xml:space="preserve"><value>卫星位于地平线以下</value></data>
+  <data name="Telemetry.Ready" xml:space="preserve"><value>已就绪，等待解码</value></data>
+  <data name="Telemetry.UnsupportedCw" xml:space="preserve"><value>暂不支持 CW 遥测解码</value></data>
+  <data name="Telemetry.UnsupportedFm" xml:space="preserve"><value>暂不支持该 FM 语音解码</value></data>
+  <data name="Telemetry.UnknownParams" xml:space="preserve"><value>信号参数未知</value></data>
+  <data name="Telemetry.UnsupportedFormat" xml:space="preserve"><value>暂不支持此遥测格式</value></data>
+  <data name="Telemetry.Images" xml:space="preserve"><value>图像</value></data>
+  <data name="Telemetry.FmSpeech" xml:space="preserve"><value>FM 语音</value></data>
+  <data name="Telemetry.SaveAs" xml:space="preserve"><value>另存为…</value></data>
+  <data name="Telemetry.Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="Telemetry.OpenImage" xml:space="preserve"><value>在图像查看器中打开</value></data>
+  <data name="Telemetry.RepairImage" xml:space="preserve"><value>修复损坏的图像</value></data>
+  <data name="Telemetry.DenoiseImage" xml:space="preserve"><value>图像降噪…</value></data>
+  <data name="Telemetry.PlayVoice" xml:space="preserve"><value>播放</value></data>
+  <data name="Telemetry.OpenVoice" xml:space="preserve"><value>在播放器中打开</value></data>
+  <data name="Telemetry.ClearAll" xml:space="preserve"><value>全部清除</value></data>
+  <data name="Telemetry.Terrestrial" xml:space="preserve"><value>地面信号</value></data>
+  <data name="AutoSelection.Toggle" xml:space="preserve"><value>自动选择：{0}</value></data>
+  <data name="AutoSelection.Active" xml:space="preserve"><value>当前：{0} · {1} 后离开视野</value></data>
+  <data name="AutoSelection.ActiveNone" xml:space="preserve"><value>当前：无</value></data>
+  <data name="AutoSelection.Next" xml:space="preserve"><value>下一项：{0} · {1} 后</value></data>
+  <data name="AutoSelection.NextNone" xml:space="preserve"><value>下一项：无</value></data>
+  <data name="AutoSelection.Recording" xml:space="preserve"><value>录制：{0} ● {1}</value></data>
+  <data name="AutoSelection.RecordingOff" xml:space="preserve"><value>录制：关闭</value></data>
+  <data name="AutoSelection.Off" xml:space="preserve"><value>关闭</value></data>
+  <data name="Ft4.TransmitDisabled" xml:space="preserve"><value>设置中尚未启用 FT4 发射功能。</value></data>
 </root>

@@ -98,7 +98,8 @@ namespace SkyRoof
       bool canEnable = ctx.AutoSelector.CanEnable();
       EnableCheck.Enabled = canEnable;
       EnableCheck.Checked = ctx.AutoSelector.Enabled;
-      EnableCheck.Text = $"Auto Selection: {(ctx.AutoSelector.Enabled ? "ON" : "OFF")}";
+      EnableCheck.Text = UiLocalizationService.Format("AutoSelection.Toggle",
+        ctx.AutoSelector.Enabled ? "ON" : "OFF");
 
       // Highlight the toggle in lime while auto-selection is running, default look otherwise.
       // The lime is deliberately the same in both themes, but the themed button renderer paints
@@ -116,20 +117,24 @@ namespace SkyRoof
 
       var active = ctx.AutoSelector.ActivePass;
       if (active != null)
-        ActiveLabel.Text = $"Active:  {active.Satellite.name}   LOS in {Utils.TimespanToString(active.EndTime - now, true)}";
+        ActiveLabel.Text = UiLocalizationService.Format("AutoSelection.Active",
+          active.Satellite.name, Utils.TimespanToString(active.EndTime - now, true));
       else
-        ActiveLabel.Text = "Active:  none";
+        ActiveLabel.Text = UiLocalizationService.Get("AutoSelection.ActiveNone");
 
       var next = ctx.AutoSelector.GetNextSelection();
       if (next != null)
-        NextLabel.Text = $"Next:  {next.Value.Pass.Satellite.name}   in {Utils.TimespanToString(next.Value.When - now, true)}";
+        NextLabel.Text = UiLocalizationService.Format("AutoSelection.Next",
+          next.Value.Pass.Satellite.name, Utils.TimespanToString(next.Value.When - now, true));
       else
-        NextLabel.Text = "Next:  none";
+        NextLabel.Text = UiLocalizationService.Get("AutoSelection.NextNone");
 
       if (ctx.AutoSelector.IsRecording)
-        RecLabel.Text = $"Recording:  {RecordModeText(ctx.AutoSelector.SegmentRecordMode)}  ● {DateTime.Now - ctx.AutoSelector.SegmentStartLocal:mm\\:ss}";
+        RecLabel.Text = UiLocalizationService.Format("AutoSelection.Recording",
+          RecordModeText(ctx.AutoSelector.SegmentRecordMode),
+          (DateTime.Now - ctx.AutoSelector.SegmentStartLocal).ToString(@"mm\:ss"));
       else
-        RecLabel.Text = "Recording:  Off";
+        RecLabel.Text = UiLocalizationService.Get("AutoSelection.RecordingOff");
 
       updating = false;
     }
@@ -138,9 +143,9 @@ namespace SkyRoof
     {
       return mode switch
       {
-        RecordMode.Audio => "Audio",
+        RecordMode.Audio => UiLocalizationService.Get("Recorder.Audio"),
         RecordMode.Iq => "I/Q",
-        _ => "Off"
+        _ => UiLocalizationService.Get("AutoSelection.Off")
       };
     }
   }
