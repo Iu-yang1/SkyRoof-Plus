@@ -110,7 +110,7 @@ public sealed class BilingualUiDpiAndSessionTests
             ? "接收 RX" : "Receive RX";
           Assert.Equal(expected, tabs.TabPages[0].Text);
           Assert.Equal(language == UiLanguage.SimplifiedChinese
-            ? "发送 TX" : "Transmit TX", tabs.TabPages[1].Text);
+            ? "发射 TX" : "Transmit TX", tabs.TabPages[1].Text);
 
           // Physical decoder/transmitter objects and operator choices must
           // survive changes in text, even after control-scale layout.
@@ -242,7 +242,7 @@ public sealed class BilingualUiDpiAndSessionTests
           Assert.Equal(45m, el.Value);
           Assert.Equal(2.5m, step.Value);
           Assert.Equal(language == UiLanguage.English
-            ? "Manual Rotator" : "手动旋转器",
+            ? "Manual Rotator" : "旋转器手动控制",
             rotator.Controls.OfType<Label>().First().Text);
           var hint = Field<Label>(rotator, "ManualHintLabel");
           var track = Field<Button>(rotator, "TrackButton");
