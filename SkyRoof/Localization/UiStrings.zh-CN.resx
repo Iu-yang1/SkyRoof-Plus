@@ -811,4 +811,17 @@
   <data name="Sstv.SelectHistoryDelete" xml:space="preserve"><value>请在图库中选中要删除的图片。</value></data>
   <data name="Sstv.DeleteImageConfirm" xml:space="preserve"><value>确定删除图库图片“{0}”？</value></data>
   <data name="Sstv.DeleteImageTitle" xml:space="preserve"><value>删除 SSTV 图片</value></data>
+  <data name="Control.QsoSchedulerPanel.startUtcLabel" xml:space="preserve"><value>开始（UTC）</value></data>
+  <data name="Control.QsoSchedulerPanel.endUtcLabel" xml:space="preserve"><value>结束（UTC）</value></data>
+  <data name="QsoScheduler.Calculate" xml:space="preserve"><value>开始计算</value></data>
+  <data name="QsoScheduler.Cancel" xml:space="preserve"><value>取消计算</value></data>
+  <data name="QsoScheduler.Ready" xml:space="preserve"><value>选择卫星、网格和时间</value></data>
+  <data name="QsoScheduler.InputChanged" xml:space="preserve"><value>点击开始计算</value></data>
+  <data name="QsoScheduler.Cancelling" xml:space="preserve"><value>正在取消…</value></data>
+  <data name="QsoScheduler.Cancelled" xml:space="preserve"><value>计算已取消</value></data>
+  <data name="QsoScheduler.ProgressMe" xml:space="preserve"><value>本台过境 {0}%</value></data>
+  <data name="QsoScheduler.ProgressDx" xml:space="preserve"><value>对方过境 {0}%</value></data>
+  <data name="QsoScheduler.ProgressOverlap" xml:space="preserve"><value>匹配窗口 {0}%</value></data>
+  <data name="QsoScheduler.Completed" xml:space="preserve"><value>共 {0} 个共同窗口</value></data>
+  <data name="QsoScheduler.Failed" xml:space="preserve"><value>计算失败：{0}</value></data>
 </root>
