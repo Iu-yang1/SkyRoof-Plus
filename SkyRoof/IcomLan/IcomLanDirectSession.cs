@@ -2307,7 +2307,11 @@ namespace SkyRoof
           Interlocked.Increment(ref AudioTxLateTicks);
         lastTick = tick;
 
-        bool keyed = IsStreaming && IsPttActive?.Invoke() == true;
+        // A locally disabled TX endpoint must not continue emitting
+        // silent UDP audio during PTT. Keep the negotiated media grant so
+        // TX can be re-enabled without restarting the CI-V/scope session.
+        bool keyed = AudioOptions.Transmit.Enabled &&
+          IsStreaming && IsPttActive?.Invoke() == true;
         if (!keyed)
         {
           if (wasKeyed)
