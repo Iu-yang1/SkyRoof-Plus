@@ -353,6 +353,24 @@ public sealed class BilingualUiDpiAndSessionTests
     Directory.CreateDirectory(directory);
     using var image = new Bitmap(control.Width, control.Height);
     control.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+    if (file.StartsWith("settings-", StringComparison.Ordinal))
+    {
+      // A blank Settings screenshot used to pass because a Form's chrome
+      // painted successfully while its PropertyGrid never painted.
+      Color background = image.GetPixel(image.Width - 12, image.Height - 12);
+      int contentPixels = 0;
+      for (int y = 30; y < image.Height - 20; y += 7)
+        for (int x = 12; x < image.Width - 12; x += 7)
+        {
+          Color pixel = image.GetPixel(x, y);
+          if (Math.Abs(pixel.R - background.R) +
+              Math.Abs(pixel.G - background.G) +
+              Math.Abs(pixel.B - background.B) > 45)
+            contentPixels++;
+        }
+      Assert.True(contentPixels > 250,
+        $"Blank Settings/PropertyGrid capture at '{file}': {contentPixels} painted pixels");
+    }
     image.Save(Path.Combine(directory, file));
   }
 
