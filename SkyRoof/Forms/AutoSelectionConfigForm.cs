@@ -28,6 +28,7 @@ namespace SkyRoof
 
     // set while the form writes control state, so the resulting events are not read as user edits
     private bool updating;
+    private readonly VE3NEA.ToolTipEx tips = new();
 
     // the satellite whose details are shown in the right-hand pane, or null when a leaf is selected
     private SatnogsDbSatellite? currentSat;
@@ -36,7 +37,13 @@ namespace SkyRoof
     public AutoSelectionConfigForm(Context ctx)
     {
       InitializeComponent();
-      UiLocalizationService.Bind(this, () => UiLocalizationService.ApplyStaticControls(this));
+      UiLocalizationService.Bind(this, () =>
+      {
+        UiLocalizationService.ApplyStaticControls(this);
+        UiLocalizationService.ApplyToolStripItems(SelectAllPopupMenu.Items,
+          nameof(AutoSelectionConfigForm));
+        RefreshLocalizedTooltips();
+      });
 
       this.ctx = ctx;
       RotationTree.StateImageList = BuildStateImages();
@@ -55,24 +62,7 @@ namespace SkyRoof
       };
       TransmitterCombo.DisplayMember = "description";
 
-      var tips = new VE3NEA.ToolTipEx();
-      tips.SetToolTip(RotationTree, "Check the passes to include in the rotation");
-      tips.SetToolTip(MoveUpBtn, "Raise the selected satellite's priority");
-      tips.SetToolTip(MoveDownBtn, "Lower the selected satellite's priority");
-      tips.SetToolTip(TransmitterCombo, "Transmitter to tune when this satellite's pass is selected");
-      tips.SetToolTip(RecordCombo, "Record every selected pass as Audio, I/Q, or not at all");
-      tips.SetToolTip(SelectAllBtn, "Check all passes of the current group");
-      tips.SetToolTip(ClearBtn, "Uncheck all passes, clearing the schedule for the current group");
-
-      // the checkbox is always usable, but warns in red that it does nothing until the rotator is enabled
-      if (ctx.Settings.Rotator.Enabled)
-        tips.SetToolTip(TrackAntennaCheckbox, "Rotate the antenna to point at and follow each selected pass");
-      else
-      {
-        TrackAntennaCheckbox.ForeColor = Color.Red;
-        tips.SetToolTip(TrackAntennaCheckbox,
-          "Rotator control is disabled in Settings - antenna tracking will have no effect until you enable it");
-      }
+      RefreshLocalizedTooltips();
 
       LoadSchedule();
       UpdateDetails();
@@ -86,6 +76,24 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     // builds the tree and details state from the current group's schedule (an empty schedule when the
     // group has none yet), listing every non-geostationary group satellite as a parent in priority order
+    private void RefreshLocalizedTooltips()
+    {
+      tips.SetToolTip(RotationTree, UiLocalizationService.Get("AutoSelection.TipTree"));
+      tips.SetToolTip(MoveUpBtn, UiLocalizationService.Get("AutoSelection.TipMoveUp"));
+      tips.SetToolTip(MoveDownBtn, UiLocalizationService.Get("AutoSelection.TipMoveDown"));
+      tips.SetToolTip(TransmitterCombo, UiLocalizationService.Get("AutoSelection.TipTransmitter"));
+      tips.SetToolTip(RecordCombo, UiLocalizationService.Get("AutoSelection.TipRecord"));
+      tips.SetToolTip(SelectAllBtn, UiLocalizationService.Get("AutoSelection.TipSelectAll"));
+      tips.SetToolTip(ClearBtn, UiLocalizationService.Get("AutoSelection.TipClear"));
+      if (ctx == null) return;
+      if (!ctx.Settings.Rotator.Enabled)
+        TrackAntennaCheckbox.ForeColor = Color.Red;
+      tips.SetToolTip(TrackAntennaCheckbox, UiLocalizationService.Get(
+        ctx.Settings.Rotator.Enabled ? "AutoSelection.TipTrack" :
+        "AutoSelection.TipTrackDisabled"));
+      RecordCombo.Refresh();
+    }
+
     private void LoadSchedule()
     {
       var schedule = ctx.AutoSelector.CurrentSchedule ?? new GroupSchedule();
@@ -358,7 +366,8 @@ namespace SkyRoof
     // with no schedule there is no priority, so the satellites are re-listed alphabetically
     private void ClearBtn_Click(object sender, EventArgs e)
     {
-      if (MessageBox.Show(this, "Clear the schedule for the current group?", "Auto Selection",
+      if (MessageBox.Show(this, UiLocalizationService.Get("AutoSelection.ClearConfirm"),
+        UiLocalizationService.Get("AutoSelection.ScheduleTitle"),
         MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
       RotationTree.BeginUpdate();
