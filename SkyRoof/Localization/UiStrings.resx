@@ -623,4 +623,8 @@ Right-click downlink frequency to open AFC controls.</value></data>
   <data name="AutoSelection.TooltipToggle" xml:space="preserve"><value>Turn automatic satellite selection on or off for the current group</value></data>
   <data name="AutoSelection.TooltipEdit" xml:space="preserve"><value>Edit the schedule of passes for the current group</value></data>
   <data name="AutoSelection.StoppedOnClose" xml:space="preserve"><value>Auto-selection stopped because its panel was closed.</value></data>
+  <data name="FrequencyWidget.XitOffset" xml:space="preserve"><value>XIT offset: {0:n0} Hz</value></data>
+  <data name="FrequencyWidget.SdrTransverterIf" xml:space="preserve"><value>SDR transverter IF: {0:F6} MHz</value></data>
+  <data name="FrequencyWidget.ClickForManualEntry" xml:space="preserve"><value>Click for manual frequency entry</value></data>
+  <data name="FrequencyWidget.NoCatToneCommand" xml:space="preserve"><value>This radio does not support CAT setting of this CTCSS tone.</value></data>
 </root>
