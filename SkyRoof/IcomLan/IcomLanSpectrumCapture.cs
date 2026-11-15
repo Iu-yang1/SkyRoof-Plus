@@ -263,7 +263,10 @@ namespace SkyRoof
       // reaching the IC-9700 and leaves its remote-control slot occupied.
       if (worker != null && !worker.IsCompleted)
       {
-        try { worker.Wait(1000); }
+        // Token logout can take a correlated radio reply plus three
+        // independent UDP disconnect notifications. Do not force-close
+        // the sockets before normal teardown can finish.
+        try { worker.Wait(1800); }
         catch (AggregateException ex)
         {
           if (cancellation?.IsCancellationRequested != true)
