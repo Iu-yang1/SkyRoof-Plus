@@ -6,7 +6,7 @@ namespace SkyRoof
 
     private PttKeyCaptureForm(Keys current)
     {
-      Text = "Bind Physical PTT Key";
+      Text = UiLocalizationService.Get("PttKey.Title");
       StartPosition = FormStartPosition.CenterParent;
       FormBorderStyle = FormBorderStyle.FixedDialog;
       MaximizeBox = false;
@@ -21,15 +21,13 @@ namespace SkyRoof
         Location = new Point(18, 18),
         Size = new Size(394, 70),
         TextAlign = ContentAlignment.MiddleCenter,
-        Text =
-          "Press the physical key / USB foot-switch key to use as momentary PTT.\r\n" +
-          "Key down = TX, key up = RX.\r\n" +
-          $"Current: {(current == Keys.None ? "None" : current)}"
+        Text = UiLocalizationService.Format("PttKey.Instructions",
+          current == Keys.None ? UiLocalizationService.Get("PttKey.None") : current)
       };
 
       var cancel = new Button
       {
-        Text = "Cancel",
+        Text = UiLocalizationService.Get("Common.Cancel"),
         DialogResult = DialogResult.Cancel,
         Location = new Point(325, 102),
         Size = new Size(87, 28)
