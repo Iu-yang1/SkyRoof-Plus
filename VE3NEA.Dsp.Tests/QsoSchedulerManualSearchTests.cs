@@ -78,25 +78,26 @@ public sealed class QsoSchedulerManualSearchTests
   public void CommonWindowIsClippedToRequestedUtcRangeAndRequiresThirtySeconds()
   {
     DateTime t = new(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
-    Assert.True(QsoSchedulerPanel.TryCommonWindow(
-      t.AddMinutes(-4), t.AddMinutes(11),
-      t.AddMinutes(-2), t.AddMinutes(8),
-      t, t.AddMinutes(7), out var start, out var end));
-    Assert.Equal(t, start);
-    Assert.Equal(t.AddMinutes(7), end);
+    var result = QsoSchedulerPanel.IntersectVisibility(
+      new(t.AddMinutes(-4), t.AddMinutes(11)),
+      new(t.AddMinutes(-2), t.AddMinutes(8)),
+      new(t, t.AddMinutes(7)));
+    Assert.NotNull(result);
+    Assert.Equal(t, result.Value.Start);
+    Assert.Equal(t.AddMinutes(7), result.Value.End);
 
-    Assert.True(QsoSchedulerPanel.TryCommonWindow(
-      t.AddSeconds(-100), t.AddMinutes(5),
-      t.AddSeconds(-50), t.AddMinutes(5),
-      t, t.AddSeconds(30), out _, out _));
-    Assert.False(QsoSchedulerPanel.TryCommonWindow(
-      t.AddSeconds(-100), t.AddMinutes(5),
-      t.AddSeconds(-50), t.AddMinutes(5),
-      t, t.AddSeconds(29), out _, out _));
-    Assert.False(QsoSchedulerPanel.TryCommonWindow(
-      t, t.AddMinutes(2),
-      t.AddMinutes(3), t.AddMinutes(4),
-      t, t.AddHours(1), out _, out _));
+    Assert.NotNull(QsoSchedulerPanel.IntersectVisibility(
+      new(t.AddSeconds(-100), t.AddMinutes(5)),
+      new(t.AddSeconds(-50), t.AddMinutes(5)),
+      new(t, t.AddSeconds(30))));
+    Assert.Null(QsoSchedulerPanel.IntersectVisibility(
+      new(t.AddSeconds(-100), t.AddMinutes(5)),
+      new(t.AddSeconds(-50), t.AddMinutes(5)),
+      new(t, t.AddSeconds(29))));
+    Assert.Null(QsoSchedulerPanel.IntersectVisibility(
+      new(t, t.AddMinutes(2)),
+      new(t.AddMinutes(3), t.AddMinutes(4)),
+      new(t, t.AddHours(1))));
   }
 
   [Theory]
