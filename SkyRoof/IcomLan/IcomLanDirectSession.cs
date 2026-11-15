@@ -620,10 +620,12 @@ namespace SkyRoof
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+          audioLifetime.Cancel();
           throw;
         }
         catch (Exception ex)
         {
+          audioLifetime.Cancel();
           // A successful CI-V handshake is not a usable audio session.
           // Renew the *whole* authenticated media grant: merely keeping
           // scope/CI-V alive leaves LAN audio permanently disconnected.
@@ -638,17 +640,16 @@ namespace SkyRoof
       }
       AudioTxNegotiationComplete = true;
 
-      await SendScopeConfigurationAsync(civ, token);
-      if (PreferFastScopeSweep)
-      {
-        foreach (byte[] frame in BuildFastSweepCommands(
-                   RadioCivAddress, ExpectedScopeProfile.ReceiverCount))
-          await SendCivDataAsync(civ, frame, token);
-        Publish("Direct Icom LAN: FAST scope sweep requested (radio-side setting).");
-      }
-
       try
       {
+        await SendScopeConfigurationAsync(civ, token);
+        if (PreferFastScopeSweep)
+        {
+          foreach (byte[] frame in BuildFastSweepCommands(
+                     RadioCivAddress, ExpectedScopeProfile.ReceiverCount))
+            await SendCivDataAsync(civ, frame, token);
+          Publish("Direct Icom LAN: FAST scope sweep requested (radio-side setting).");
+        }
         await RunStreamingLoopsAsync(
           control,
           civ,
