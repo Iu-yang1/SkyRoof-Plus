@@ -11,22 +11,35 @@ Click **Record** to start recording audio. To choose what to record, click the *
 
 ![Record menu](../images/recorder_record_menu.png)
 
-- **Record Audio** — records the selected audio source as 48 kHz mono PCM;
-- **Record I/Q** — records the SDR complex baseband I/Q signal (stereo).
+- **Record Audio** — records the selected audio source as 48-kHz mono PCM,
+  including optional raw 12-kHz IF;
+- **Record I/Q** — records the selected complex IQ signal as 48-kHz stereo,
+  from either SDR or translated 12-kHz IF.
 
-The same drop-down now contains **Audio Source**. Choose **Auto** (the default:
-use SkyRoof SDR when running, otherwise capture the configured playback
-endpoint), **SkyRoof SDR**, **IC-9700 USB AF**, or **RS-BA1 playback loopback**.
-You can set the exact input or playback device in **Tools → Settings → Audio**:
+The same menu provides separate **Audio Source** and **I/Q Source** choices.
+Audio sources include **Auto** (SDR when running, otherwise IF→AF decoded
+PCM if that service is active, otherwise RS-BA1 playback), **SkyRoof SDR**,
+**Windows AF capture (USB / CABLE Output)**, **RS-BA1 playback loopback**,
+**IF→AF decoded PCM (direct)** and **Raw 12-kHz IF**. I/Q sources are
+**SkyRoof SDR I/Q** or **12-kHz IF → complex I/Q**.
 
-- **Recorder USB AF Capture Device**: choose the recording/capture endpoint,
-  normally `Microphone (USB Audio CODEC)`; the radio USB AF/IF output must
-  be set to **AF**.
+Configure the Windows endpoints in **Tools → Settings → Audio**:
+
+- **Recorder AF Capture Device (USB / VAC)**: choose the recording endpoint,
+  for example `Microphone (USB Audio CODEC)` or `CABLE Output`. This source
+  is demodulated **AF**, not real 12-kHz IF.
+- **Recorder 12-kHz IF Capture Device**: choose a USB capture endpoint at
+  **48 kHz**; set radio **USB AF/IF Output = IF** and select the correct
+  left/right channel in IF→AF settings. Recorder shares a running IF→AF raw
+  input if available, or captures this USB device independently.
+- **IF→AF decoded PCM (direct)** requires the IF→AF demodulator to be
+  running but does not need VAC loopback.
 - **Recorder RS-BA1 Playback Device**: choose the Windows **render/playback**
   device RS-BA1 is actually using. It must not be the USB microphone input.
   Loopback records the entire Windows endpoint mix, not just one process.
 - For a remote IC-9700 controlled via RS-BA1/SkyCAT without a local SDR,
-  select **RS-BA1 playback loopback** and its endpoint.
+  select **RS-BA1 playback loopback** and its endpoint for AF recording.
+  Raw IF is a different signal domain; do not interpret ordinary AF as IF.
 
 The Recorder audio source is independent of the **CW Console** source.
 If recording starts but no valid PCM samples arrive after a few seconds,
@@ -67,6 +80,9 @@ total duration, and progress percentage.
 ![Playback in progress](../images/recorder_playback.png)
 
 Click anywhere on the waveform during playback to seek to that position.
+When playing IQ into the Telemetry decoder, seeking resets modem and
+deframer state instead of joining nonadjacent recorded signal segments.
+Playback frames are never uploaded to SatNOGS.
 
 Click **Play Back** again to stop playback.
 
@@ -77,10 +93,24 @@ Click **Save** to save the recording. To choose the file format, click the **▼
 ![Save menu](../images/recorder_save_menu.png)
 
 - **Save .mp3** — available for audio recordings only; saves a compressed MP3 file resampled to 16 kHz;
-- **Save .wav** — saves a 48 kHz 32-bit float WAV file. Audio recordings are saved as mono;
-  I/Q recordings are saved as stereo (left channel = I, right channel = Q).
+- **Save .wav** — saves a 48-kHz 32-bit float WAV. Audio is mono;
+  I/Q is stereo (**left = I, right = Q**).
+- **Raw 12-kHz IF** audio saves as `*.if.wav` (48-kHz mono float).
+  This is real IF, **not decoded AF**, and cannot be exported as MP3.
+- **12-kHz IF translated to complex IQ** saves as `*.iq.wav`
+  (48-kHz stereo float). It is translated narrowband IQ, **not the
+  SDR's original wideband RF IQ**.
 
-Click **Load** to load a previously saved .wav or .mp3 file into the buffer for playback.
+Click **Load** to load a previously saved .wav or .mp3 file into the buffer
+for playback. A 48-kHz mono file named `*.if.wav` is automatically
+converted with the **same IF→IQ bridge** used for live telemetry, then
+routed to the Telemetry decoder while playing. Saved stereo `*.iq.wav`
+files are loaded as complex IQ directly. Other mono WAV files without
+the `.if.wav` suffix remain ordinary audio. Select the matching
+satellite/transmitter and signal parameters in Telemetry before replay;
+historical playback does not require the satellite currently to be
+above the horizon. See
+[Telemetry IF/AF and offline replay](../fork-guide/telemetry-if-af.md).
 
 The Save and Load dialogs open in the **Recordings** subfolder of the [data folder](data_folder.md) by default.
 
