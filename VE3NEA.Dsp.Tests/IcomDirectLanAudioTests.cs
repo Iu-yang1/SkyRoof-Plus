@@ -203,7 +203,8 @@ namespace VE3NEA.Dsp.Tests
 
       SetField("AudioLinkConnected", true);
       SetField("AudioTxReady", true);
-      SetField("IsStreaming", true);
+      typeof(IcomLanDirectSession).GetProperty("IsStreaming", flags)!
+        .SetValue(session, true);
       SetField("AudioConnectedTicks", DateTime.UtcNow.AddMinutes(-1).Ticks);
       SetField("AudioTxDatagrams", 25L);
 
