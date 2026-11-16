@@ -2,12 +2,12 @@
 
 **Language:** English | [简体中文](../zh-cn/fork-guide/overview.md)
 
-This guide documents **[Iu-yang1/SkyRoof](https://github.com/Iu-yang1/SkyRoof)** at the fork's `master` branch, based on the upstream **VE3NEA/SkyRoof v1.55** codebase. It describes the implemented fork additions; it does not imply they are available in [upstream VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof). The original [English user guide](../users_guide/overview.md) remains the reference for basic panels, SDR operation, telemetry, SSTV/SSDV, FT4, ADIF, satellite groups and general settings.
+This guide documents **[Iu-yang1/SkyRoof](https://github.com/Iu-yang1/SkyRoof)** at the fork's `master` branch, based on the upstream **VE3NEA/SkyRoof v1.59** codebase. It describes the implemented fork additions; it does not imply they are available in [upstream VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof). The original [English user guide](../users_guide/overview.md) remains the reference for basic panels, SDR operation, telemetry, SSTV/SSDV, FT4, ADIF, satellite groups and general settings.
 
 ## Installation and supported environment
 
-- **Platform:** SkyRoof is a Windows desktop application built with .NET 10 / Windows Forms. Build the `SkyRoof.sln` using the toolchain and Windows build configuration documented by the [repository](https://github.com/Iu-yang1/SkyRoof). Check the current [Compile Check](https://github.com/Iu-yang1/SkyRoof/actions/workflows/compile-check.yml) before using a particular commit.
-- **Distribution:** See the [fork's Releases](https://github.com/Iu-yang1/SkyRoof/releases), [Actions](https://github.com/Iu-yang1/SkyRoof/actions) and the original [Download](../download.md) page. A successful compile-check or unsigned test-installer artifact is **not necessarily a signed public release**. The upstream v1.55 installer does **not** include all fork additions.
+- **Platform:** SkyRoof is a Windows desktop application built with .NET 10 / Windows Forms. Build the `SkyRoof.sln` using the toolchain and Windows build configuration documented by the [repository](https://github.com/Iu-yang1/SkyRoof). Check the current [Compile Check](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/compile-check.yml) before using a particular commit.
+- **Distribution:** See the [fork's Releases](https://github.com/Iu-yang1/SkyRoof-Plus/releases), [Actions](https://github.com/Iu-yang1/SkyRoof-Plus/actions) and the original [Download](../download.md) page. A successful compile-check or unsigned test-installer artifact is **not necessarily a signed public release**. The upstream v1.55 installer does **not** include all fork additions.
 - **Optional dependencies:** [SkyCAT fork](https://github.com/Iu-yang1/SkyCAT) for CAT/CI-V, [RS-BA1](https://www.icomjapan.com/) for IC-9700 remote operation, Hamlib `rotctld` for a rotator, and **WinDivert** for passive LAN spectrum capture. Each feature has separate setup requirements.
 - **Before first launch:** Set the correct station location and radio interfaces. For TX or moving antennas, start with PTT disengaged and the rotator in a safe position.
 
@@ -20,6 +20,8 @@ This guide documents **[Iu-yang1/SkyRoof](https://github.com/Iu-yang1/SkyRoof)**
 | Transmitters | Locally defined, editable and removable transmitter records; uplink-only, downlink-only and two-way entries |
 | CAT and remote | SkyCAT integration, hardened CAT/PTT transitions, global physical/HID PTT key, CTCSS handling, FT4 safety updates and NAudio/WASAPI migration |
 | IC-9700 spectrum | New dockable scope with native SkyCAT source, RS-BA1 passive LAN capture and experimental independent Direct LAN; spectrum/waterfall and scope settings |
+| Telemetry IF/AF (v1.82) | USB / authenticated LAN real 12-kHz IF without VAC; post-FM AFSK audio handling; discontinuity recovery; CRC/CFO/SNR diagnostics and KISS virtual ports 0/1/2 |
+| Recorder replay (v1.82) | Record raw IF `.if.wav` or translated complex IQ `.iq.wav`; replay IF WAV into telemetry, reset decoder on seek and omit replay frames from SatNOGS uploads |
 | Rotator | Improved Hamlib rotctld state handling, manual direction-wheel card, tracking lockout and feedback-verified multi-waypoint PARK routes |
 | Interface | Light theme with blue/pink/white design (`#5BCEFA`, `#F5A9B8`, `#FFFFFF`), GitHub Light/Dark themes, RF gain via SkyCAT and selected RS-BA1 Windows playback AF gain |
 | Reliability | Recoverable settings backups, protected saved credentials, source validation and regression-tested packaging and Windows CI |
@@ -40,6 +42,6 @@ This guide documents **[Iu-yang1/SkyRoof](https://github.com/Iu-yang1/SkyRoof)**
 
 ## Guide navigation
 
-[Satellite data and tuning](satellite-data-and-tuning.md) · [CAT, FT4 and remote](radio-and-ft4.md) · [IC-9700 spectrum](spectrum.md) · [Rotator and interface](rotator-and-ui.md) · [Troubleshooting and PR history](troubleshooting-and-history.md).
+[Satellite data and tuning](satellite-data-and-tuning.md) · [CAT, FT4 and remote](radio-and-ft4.md) · [IC-9700 spectrum](spectrum.md) · [Rotator and interface](rotator-and-ui.md) · [Troubleshooting and PR history](troubleshooting-and-history.md) · [Telemetry IF/AF and recorder replay](telemetry-if-af.md).
 
 **Feature-status convention:** A capability described as **experimental** is present in source code but should not be treated as production-ready. Pages describe the current repository implementation, not a promise that every radio/firmware supports every command.

@@ -1,0 +1,76 @@
+# Telemetry IF/AF Reception and Offline Replay (v1.82)
+
+**Language:** English | [简体中文](../zh-cn/fork-guide/telemetry-if-af.md)
+
+SkyRoof Plus v1.82 extends the built-in [Telemetry panel](../users_guide/telemetry_panel.md) with a real 12-kHz intermediate-frequency (IF) receiver for the IC-9700 and a compatible path for already FM-demodulated AFSK audio. It preserves the original SDR IQ source. **Receiving telemetry does not require an IF→AF virtual-cable playback endpoint.** This is separate from the optional [IF→AF / WSJT-X voice/audio chain](if-af-test.md).
+
+## 1. Choose the correct signal domain
+
+| Telemetry RX Input in Tools → Settings → Telemetry | Actual input | Receiver behavior |
+|---|---|---|
+| `SdrIq` (default) | 48-kHz complex SDR baseband | Unchanged SDR telemetry path |
+| `Shared12kIf` | Raw 12-kHz real IF at 48 kHz | Shares a running IF→AF source, or receives independently from USB IF / authenticated Direct LAN according to **IF→AF input source** settings; **VAC is not required** |
+| `Capture12kIf` | Separate Windows USB capture endpoint with real IF | Independent 48-kHz USB capture; selects **12 kHz IF capture channel** |
+| `CaptureAf` | Windows AF recording endpoint (e.g. VB-CABLE **CABLE Output**) | Already-demodulated AF input |
+| `LoopbackAf` | Windows render endpoint carrying RS-BA1 or other AF playback | Captures the whole endpoint mix, not a dedicated program stream |
+| `IfAfDemodulatedAf` | AF PCM from a running SkyRoof IF→AF demodulator | Uses internal AF directly, no VAC loopback; **IF→AF processing must be running** |
+
+For real IF, the receiver forms an analytic complex signal with a Hilbert FIR and translates **12,000 Hz** to baseband using a continuous NCO. For **AFSK audio already recovered by FM discrimination**, v1.82 maps the AF to an FM-IQ representation expected by SkyTlm's AFSK demodulator, instead of discriminating analytic AF a second time. Select the transmitter's correct modulation, baud rate, framing, audio carrier and deviation in **Signal Details**. **AF tone center (Hz)** applies to the general analytic AF route; the AFSK branch instead uses the AFSK signal parameters.
+
+A 9600-bit/s GMSK/FSK discriminator output is **not** automatically Bell-202 AFSK audio. Use SDR IQ or raw IF for such downlinks; do not assume changing the AF center to 1700 Hz makes an arbitrary FM baseband decodable.
+
+## 2. IC-9700 USB IF configuration
+
+1. On the radio set **USB AF/IF Output = IF**, not AF. Select the radio's **USB Audio CODEC** Windows *capture* endpoint at **48 kHz**; disable Windows microphone effects/AGC where possible. Choose the actual IF-bearing left/right channel, not a sum of potentially inverted stereo channels.
+2. In SkyRoof, open **Tools → Settings → Telemetry → Receive input** and choose `Capture12kIf` for a dedicated input, or `Shared12kIf` to reuse an already-running IF→AF raw capture. If IF→AF is stopped and USB is the configured IF source, `Shared12kIf` can open its own capture endpoint.
+3. Select the desired satellite and **data transmitter** in Telemetry. Verify modulation, baud and framing in the signal-parameter dialog; the input selection alone does not identify the protocol.
+4. Hover over the Telemetry **status line** for input samples, dropped PCM blocks, discontinuities, input RMS in dBFS, frame counters, last CFO and last SNR.
+
+The IF receiver is a **receive-only** signal path: it does not route PCM to the transceiver's transmit audio playback device or take over CAT/PTT.
+
+## 3. Authenticated IC-9700 Direct LAN IF
+
+1. Configure authenticated **Direct LAN audio receive** and the IC-9700's separate **LAN AF/IF Output = IF**. The USB AF/IF setting does not configure LAN output.
+2. In SkyRoof IF→AF settings select the **Authenticated LAN IF** input source; in Telemetry select `Shared12kIf`. The telemetry receiver can attach to the Direct LAN media owner without starting IF→AF/VAC playback.
+3. Direct LAN PCM is reordered/resampled to **48 kHz**. Packet gaps, stream restarts and receive-queue drops are discontinuities: SkyRoof resets the Hilbert/NCO and rebuilds the stateful telemetry burst detector, modem and deframer instead of joining unrelated samples as one signal.
+4. Check the Telemetry status tooltip for rising **discontinuities** or **dropped PCM blocks**. Validate the actual receive PCM before interpreting a lack of CRC-valid frames as an incorrect modulation.
+
+**Limits:** The LAN source must deliver actual IF, not ordinary AF. Source reconfiguration, network continuity and application queue load all affect decoding. The decoder's live satellite mode still follows its selected satellite/pass horizon logic.
+
+## 4. Recorder: `.if.wav` and `.iq.wav`
+
+The [Recorder manual](../users_guide/recorder_panel.md) describes the common controls.
+
+- **Raw IF**: **Recorder → Record ▼ → Audio Source → Raw 12-kHz IF**, then **Record Audio**. Save as `*.if.wav`: **48-kHz, mono, 32-bit float** samples, containing the original 12-kHz real IF, **not AF**.
+- **Converted IQ**: **Recorder → Record ▼ → I/Q Source → 12-kHz IF → complex I/Q**, then **Record I/Q**. Save as `*.iq.wav`: **48-kHz, stereo, 32-bit float** (left=I, right=Q). This is translated narrowband complex IQ, **not wideband RF IQ**.
+
+For Recorder IF acquisition, running IF→AF may supply shared raw USB/LAN IF; otherwise use the configured **Recorder 12-kHz IF Capture Device** (USB). Recorder's independent LAN acquisition should not be inferred solely from the Telemetry Direct LAN option.
+
+**Offline telemetry decoding:**
+
+1. Open Telemetry, select the matching satellite/transmitter and verify its demodulator parameters.
+2. Recorder → **Load** a 48-kHz mono file named `*.if.wav`. SkyRoof detects this suffix and converts the entire raw IF recording via the **same 12-kHz IF→IQ converter used by live reception**. For a saved `*.iq.wav`, load the stereo IQ directly. An ordinary mono `*.wav` without the `.if.wav` suffix remains AF playback.
+3. Press **Play Back**. The replay IQ is routed to Telemetry even when its selected live RX input is not `SdrIq`; historical playback bypasses the normal live horizon gate. Seeking resets modem/decoder state before new samples are delivered.
+4. **Replay frames are not uploaded to SatNOGS.** Check the frame tree, diagnostics and KISS clients locally. Stop playback to return to live decoding.
+
+## 5. Decoder diagnostics and KISS output
+
+The Telemetry **status-line tooltip** reports input sample count, PCM-block drops, stream resets, IF/AF RMS (dBFS), total decoded frames, CRC pass/fail counts, reassembled inner packets and the most recently decoded CFO/SNR. These are receiver/decoder indicators, not measured BER, PER or calibrated RF sensitivity. A **CRC-valid** frame is required to mark a pass as carrying valid telemetry and to confirm manual demodulator overrides.
+
+The optional **KISS-over-TCP server** (default port **8100**) multiplexes protocol layers using the **KISS virtual port** in the command byte:
+
+| Virtual port | KISS command byte | Content |
+|---|---|---|
+| 0 | `0x00` | Outer decoded RF/transfer frame (CRC accepted or not explicitly failed) |
+| 1 | `0x10` | Reassembled inner packets, such as AO-123/ASRTU-1 TM/KISS Space Packets; their KISS payload has no separate FCS |
+| 2 | `0x20` | Outer frame with **explicitly failed** CRC |
+
+The bytes of a frame are KISS-escaped; the port number **is not another TCP listening port**. A downstream decoder that reads only KISS virtual port 0 will not see port 1/2. Only eligible **outer** radio frames may be submitted to SatNOGS; inner packets, replay and unconfirmed manual overrides are not submitted. For AO-123, a failed CCSDS TM frame flushes partial KISS packet assembly to avoid concatenating payload across missing data. For UNNE-1B, the dedicated HADES type-C frame/CRC/descrambling path remains in place.
+
+## 6. Verification and troubleshooting
+
+The v1.82 Windows release workflow built the application/installer and passed **1,632 xUnit tests** plus its pinned aislop gate. Tests include IF→IQ tone/stream consistency, AFSK FM-IQ audio reconstruction and KISS port framing. **No real IC-9700 USB/LAN capture, UNNE-1B 200 Bd FSK or AO-123 9600 Bd BPSK BER/PER measurements were performed as part of that release.**
+
+If decoding fails, check the signal domain first (USB/LAN **IF vs AF**), then sample rate/channel, input RMS and discontinuities, transmitter selection, modulation/baud/framing, and finally CRC results. A recovered network connection or green audio indicator alone does not prove a received satellite frame decoded successfully.
+
+See also: [Telemetry setup](../users_guide/setting_up_telemetry_decoding.md) · [Telemetry panel](../users_guide/telemetry_panel.md) · [Recorder](../users_guide/recorder_panel.md) · [IF→AF for WSJT-X](if-af-test.md) · [v1.82 Release](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.82).

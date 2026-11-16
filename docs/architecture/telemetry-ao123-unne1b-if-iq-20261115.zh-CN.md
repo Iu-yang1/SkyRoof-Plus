@@ -1,5 +1,7 @@
 # SkyRoof 遥测修复：AO-123、UNNE-1B 与 IF/IQ Recorder（P0–P3）
 
+> **历史设计记录（2026-11-14/15）：** 本页保留当时方案与测试假设，不作为 v1.82 现行操作说明。v1.82 已更新 `Shared12kIf` 的独立 USB/LAN IF 接收、AFSK 处理、连续性恢复及 `*.if.wav` 回放，见[当前中文遥测手册](../zh-cn/fork-guide/telemetry-if-af.md)或[English guide](../fork-guide/telemetry-if-af.md)。
+
 实施日期：2026-11-15。分支：`fix/telemetry-ao123-unne1b-recorder-if-iq-20261115`。
 
 ## 任务范围及独立验收边界

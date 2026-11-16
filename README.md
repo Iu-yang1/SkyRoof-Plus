@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](README.zh-CN.md)
 
-A Windows application for amateur radio and satellite operators. **SkyRoof Plus** is a community fork of [VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof), incorporating upstream v1.56 and additional features maintained in this repository. Features listed under **Fork extensions** belong to this fork; they are **not necessarily available upstream**.
+A Windows application for amateur radio and satellite operators. **SkyRoof Plus** is a community fork of [VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof), incorporating upstream v1.59 and additional features maintained in this repository. Features listed under **Fork extensions** belong to this fork; they are **not necessarily available upstream**.
 
 [**Download latest release**](https://github.com/Iu-yang1/SkyRoof-Plus/releases/latest) · [English fork guide](docs/fork-guide/overview.md) · [中文扩展文档](docs/zh-cn/fork-guide/overview.md) · [Published documentation](https://iu-yang1.github.io/SkyRoof/) · [Changelog](FORK-CHANGELOG.md) · [Build status](https://github.com/Iu-yang1/SkyRoof-Plus/actions)
 
@@ -12,7 +12,7 @@ A Windows application for amateur radio and satellite operators. **SkyRoof Plus*
 
 ## Fork extensions
 
-The following overview covers the features integrated through **SkyRoof Fork v1.64 (2 November 2026)**. See the linked guides for configuration, operational restrictions and validation status.
+The following overview covers the features integrated through **SkyRoof Fork v1.82 (16 November 2026)**. See the linked guides for configuration, operational restrictions and validation status.
 
 | Area | Added or enhanced in this fork | Details |
 |---|---|---|
@@ -21,6 +21,8 @@ The following overview covers the features integrated through **SkyRoof Fork v1.
 | **CAT and satellite remote operation** | SkyCAT/RS-BA1 integration for IC-9700, constrained WSJT-X CAT proxy, CI-V/PTT safeguards, CTCSS management, operator PTT controls and FT4 operating improvements. | [CAT & FT4](docs/fork-guide/radio-and-ft4.md) · [SkyCAT](docs/fork-guide/embedded-skycat.md) |
 | **IC-9700 LAN spectrum** | Dockable spectrum and waterfall, scope controls, passband overlay, averaging and zoom; SkyCAT stream or passive RS-BA1/WinDivert capture. Independent Direct LAN remains **experimental**. | [Spectrum guide](docs/fork-guide/spectrum.md) |
 | **IF → AF receiver for WSJT-X** | 48 kS/s **real 12-kHz IF** input, SSB/CW/FM DSP demodulation, mode-specific bandwidth/gain control, bounded buffering and virtual-cable AF output. Includes optional original basic VB-CABLE installer and IF/DDC/AF/V-MIC health indicators. | [IF → AF setup](docs/fork-guide/if-af-test.md) |
+| **Telemetry IF/AF reception (v1.82)** | Independent IC-9700 USB or authenticated LAN **12-kHz real IF → IQ** reception without mandatory IF→AF/VAC output; separate AFSK audio handling and downstream decoder recovery after PCM discontinuities. Displays input, CRC, CFO/SNR diagnostics and separates KISS frame layers. | [Telemetry IF/AF guide](docs/fork-guide/telemetry-if-af.md) · [Telemetry panel](docs/users_guide/telemetry_panel.md) |
+| **Recorder and telemetry replay (v1.82)** | Raw 48-kHz IF recording as `.if.wav`, complex baseband as `.iq.wav`; offline IF WAV telemetry replay through the live converter, decoder reset on seek and no SatNOGS upload during playback. | [Recorder manual](docs/users_guide/recorder_panel.md) · [IF/AF guide](docs/fork-guide/telemetry-if-af.md) |
 | **Doppler-assisted AFC** | FM and CW/pilot-based receive-frequency estimation, confidence gating, bounded **RX-only CAT** corrections, loss-of-signal HoldLast policy, spectrum and control diagnostics. It does **not** modify uplink/TX frequency. | [AFC guide](docs/fork-guide/afc.md) |
 | **CW Console / Pileup** | Skimmer-style horizontal waterfall, multi-signal tracking and up to eight receive lanes, DeepCW-assisted decoding, continuous transcripts, optional HamNoise cleanup, and operator-triggered CI-V CW keying with F1–F8 macros. | [CW Console](docs/users_guide/cw_console.md) |
 | **SSTV Console** | Dockable RX/TX, gallery and QSO log; 43 **transmit profiles**, VIS handling, AF/IF receive paths, editable images/templates with up to eight captions, UTC logging and ADIF export. Receive-mode support depends on the selected codec. | [SSTV guide](docs/fork-guide/sstv-console.md) |
@@ -34,6 +36,14 @@ The following overview covers the features integrated through **SkyRoof Fork v1.
 Set the radio's **USB AF/IF Output** to **IF** and select the correct Windows capture channel at 48 kHz. In SkyRoof Settings, enable **12 kHz IF → AF / WSJT-X**, select a dedicated virtual-cable render endpoint (for VB-CABLE, **CABLE Input**), then choose **CABLE Output** as the recording input in WSJT-X. **Never select the radio's transmit audio playback endpoint** for this route. The original basic VB-CABLE package is third-party Donationware; respect the [vendor's licensing terms](https://vb-audio.com/Services/licensing.htm).
 
 [Detailed IF → AF configuration and caveats](docs/fork-guide/if-af-test.md) · [SkyCAT CAT/port ownership](docs/fork-guide/embedded-skycat.md)
+
+### IC-9700 telemetry: direct IF input (v1.82)
+
+`IC-9700 USB IF / authenticated LAN IF → 48-kHz real 12-kHz IF → SkyRoof IF→IQ → telemetry modem → CRC/CCSDS/KISS`
+
+In **Tools → Settings → Telemetry**, choose **Shared12kIf**. With a compatible IF→AF service running, SkyRoof shares its raw IF; otherwise it can capture USB IF independently or use an authenticated Direct LAN IF source. Configure **USB AF/IF Output = IF** for USB, or **LAN AF/IF Output = IF** for Direct LAN, and verify the source carries genuine 48-kHz IF data. **This telemetry path requires no VAC render endpoint.** Already-FM-demodulated AFSK audio uses **CaptureAf**, **LoopbackAf** or **IfAfDemodulatedAf** instead. Hover over the Telemetry status line for stream and frame diagnostics.
+
+[Telemetry input modes, KISS ports and offline replay](docs/fork-guide/telemetry-if-af.md) · [Telemetry decoder settings](docs/users_guide/setting_up_telemetry_decoding.md)
 
 ### Availability and safety notes
 

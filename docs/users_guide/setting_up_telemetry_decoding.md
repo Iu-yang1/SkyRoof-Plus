@@ -9,8 +9,9 @@ server, and uploading them to the SatNOGS database.
 **Tools / Settings > Telemetry > Receive input** offers these sources:
 
 - **SdrIq** (default) — the original 48-kHz complex IQ stream from the SDR slicer;
-- **Shared12kIf** — reuses the raw real 12-kHz IF of the running IF→AF service
-  (USB capture or authenticated Icom LAN, without reopening the device);
+- **Shared12kIf** — shares real 12-kHz IF from IF→AF if it is already running;
+  otherwise, independently captures configured USB IF or authenticated Direct LAN IF.
+  This raw-IF telemetry mode does **not require IF→AF/VAC playback**;
 - **Capture12kIf** — reads a separate Windows recording endpoint carrying
   real 12-kHz IF sampled at 48 kHz (normally the radio's USB Audio CODEC);
 - **CaptureAf** — reads a Windows recording endpoint carrying audio tones,
@@ -20,19 +21,27 @@ server, and uploading them to the SatNOGS database.
 - **IfAfDemodulatedAf** — consumes the 48-kHz AF already demodulated by SkyRoof
   IF→AF, bypassing VAC and Windows loopback.
 
-The soundcard modes convert real PCM into *analytic complex IQ* (Hilbert FIR +
-frequency translation) before feeding the existing telemetry modem. **12-kHz
-IF is centered at 12000 Hz**, while an AF tone center can be configured under
-**AF tone center (Hz)**, 1700 Hz by default for 1200/2200-Hz AFSK.
-Modulation, baud and framing must still be set in the Telemetry signal
-parameters; an audio input does not automatically identify the protocol.
+Raw **12-kHz real IF** is converted to analytic IQ using a Hilbert FIR
+and continuous 12,000-Hz NCO. For **already FM-discriminated AFSK audio**,
+v1.82 instead uses an FM-IQ bridge compatible with the RF-input AFSK
+demodulator: analytic AF alone must not be discriminated as RF FM again.
+**AF tone center (Hz)** is the center for the general analytic AF path;
+the selected transmitter's AFSK signal parameters supply AFSK tone
+center and deviation. Modulation, baud and framing still come from
+**Signal Details** — selecting an input does not identify the protocol.
 
-**Important:** Discriminator-output 9600-bit/s FM audio is not equivalent
-to a 1700-Hz AFSK carrier. For direct FSK/GMSK use SDR IQ or raw 12-kHz IF;
-do not assume that generic AF input decodes all FM discriminator protocols.
-Actual real-device BER/PER measurements are not included in the simulated
-CI acceptance tests. Source switching discards queued samples from the
-previous input. Existing KISS/SatNOGS frame handling is unchanged.
+Set **USB AF/IF Output = IF** on the IC-9700 for USB capture, or the
+separate **LAN AF/IF Output = IF** for authenticated Direct LAN. Use a
+48-kHz input and the correct USB capture channel. **IfAfDemodulatedAf**
+still needs an active IF→AF demodulator; raw IF does not need its VAC output.
+A transport packet gap, stream restart or dropped PCM block resets the
+IF→IQ and stateful telemetry decoder.
+
+**Important:** 9600-bit/s FM-discriminator FSK/GMSK baseband is not
+automatically 1700-Hz AFSK. Use SDR IQ or raw IF for those modes.
+Automated CI has not established actual IC-9700 BER/PER. See the
+[Telemetry IF/AF operator guide](../fork-guide/telemetry-if-af.md) for
+configuration, troubleshooting and offline WAV replay.
 
 ## Decoder Settings
 
@@ -57,6 +66,13 @@ The outputs are configured on the **Telemetry** page of the [Settings window](se
 
   Point any program that reads KISS frames over TCP — for example a satellite telemetry decoder or a
   custom logging script — at `localhost` and this port to receive the frames as SkyRoof decodes them.
+
+  In v1.82 the **KISS command byte** distinguishes logical streams on the **same TCP port**:
+  `0x00` (virtual port 0) = outer radio/CCSDS transfer frames;
+  `0x10` (port 1) = reconstructed inner packets such as AO-123 TM/KISS Space Packets;
+  `0x20` (port 2) = explicitly failed-CRC outer frames.
+  A client listening to virtual port 0 only will not receive inner packets or CRC-failed frames.
+  Reassembled inner KISS packets do not gain a separate payload FCS from CCSDS RS verification.
 
 - **SatNOGS Upload** — forwards each decoded frame to the [SatNOGS DB](https://db.satnogs.org/),
   contributing your telemetry to the community database:
@@ -123,8 +139,9 @@ contribute the frames that SkyRoof decodes:
      API key into the **API Key** field.
 
 4. **Decode some frames.** Open the [Telemetry panel](telemetry_panel.md) and decode a pass of a
-   supported satellite. Each frame that passes its integrity (CRC) check is uploaded automatically;
-   frames that fail the check are not sent.
+   supported satellite. Eligible **outer** radio frames may be uploaded after integrity verification;
+   failed-CRC frames, inner reconstructed packets and Recorder replay frames are not submitted.
+   Unsaved manual demodulation overrides hold uploads until endorsed.
 
 5. **Verify on the server.** Confirm that your frames arrived, either way:
 
@@ -144,3 +161,5 @@ contribute the frames that SkyRoof decodes:
 ## See Also
 
 - [Telemetry Panel](telemetry_panel.md)
+- [Telemetry IF/AF, KISS ports and offline IF WAV replay](../fork-guide/telemetry-if-af.md)
+- [Recorder](recorder_panel.md)

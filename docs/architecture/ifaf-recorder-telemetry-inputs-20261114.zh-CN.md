@@ -1,5 +1,7 @@
 # SkyRoof：IF→AF 录音与遥测 IF/AF 输入
 
+> **历史设计记录（2026-11-14/15）：** 本页保留当时方案与测试假设，不作为 v1.82 现行操作说明。v1.82 已更新 `Shared12kIf` 的独立 USB/LAN IF 接收、AFSK 处理、连续性恢复及 `*.if.wav` 回放，见[当前中文遥测手册](../zh-cn/fork-guide/telemetry-if-af.md)或[English guide](../fork-guide/telemetry-if-af.md)。
+
 2026-11-14 · 针对 SkyRoof-Plus `feature/ifaf-recorder-telemetry-inputs`。
 
 ## 1. 截图中的设备与 Windows 音频方向
