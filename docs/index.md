@@ -4,7 +4,7 @@ _layout: landing
 
 <center>
 
-# SkyRoof fork v.1.57
+# SkyRoof Plus fork v.1.82
 
 A Windows application for Hams and satellite enthusiasts
 
@@ -59,16 +59,18 @@ The program can work without an SDR, or even without any radio at all, but many 
 ## Fork extensions · Fork 扩展文档
 
 This site includes the original SkyRoof user guide and the additional features
-implemented in the **[Iu-yang1/SkyRoof](https://github.com/Iu-yang1/SkyRoof)** fork,
-based on upstream v1.56. The fork-specific material covers custom orbit sources,
+implemented in the **[Iu-yang1/SkyRoof-Plus](https://github.com/Iu-yang1/SkyRoof-Plus)** fork,
+based on upstream v1.59. The fork-specific material covers custom orbit sources,
 JPL Moon/Sun/Venus targets, persisted Base frequencies, editable transmitters,
-SkyCAT/RS-BA1, IC-9700 scope, rotator PARK routes, themes, AF/RF gain and
-reliability improvements.
+SkyCAT/RS-BA1, IC-9700 scope, rotator PARK routes, themes, AF/RF gain,
+and v1.82 USB/LAN raw-IF telemetry, discontinuity recovery, KISS
+frame separation, receive diagnostics and offline IF WAV playback.
 
 - **[English: Fork Extensions guide](fork-guide/overview.md)**
+- [Telemetry IF/AF and Recorder replay (v1.82)](fork-guide/telemetry-if-af.md) · [中文：遥测 IF/AF 与离线回放](zh-cn/fork-guide/telemetry-if-af.md)
 - **[简体中文：Fork 扩展功能手册](zh-cn/fork-guide/overview.md)**
-- [Fork download/build information](https://github.com/Iu-yang1/SkyRoof/actions)
-- [GitHub Pages publishing history (Actions)](https://github.com/Iu-yang1/SkyRoof/actions/workflows/deploy-docfx.yml)
+- [Fork download/build information](https://github.com/Iu-yang1/SkyRoof-Plus/actions)
+- [GitHub Pages publishing history (Actions)](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/deploy-docfx.yml)
 
 > The upstream installer and documentation may not include these fork-only
 > additions. Direct IC-9700 authenticated LAN control is experimental; the

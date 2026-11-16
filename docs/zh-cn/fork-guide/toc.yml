@@ -16,6 +16,8 @@ items:
     href: if-af-test.md
   - name: IC-9700 频谱
     href: spectrum.md
+  - name: 遥测 IF/AF 与 Recorder 回放（v1.82）
+    href: telemetry-if-af.md
   - name: ONVIF 摄像机（GPU）
     href: onvif-camera.md
   - name: 转台、主题与操作

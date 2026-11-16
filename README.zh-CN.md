@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**SkyRoof Plus** 是面向业余无线电与卫星通信爱好者的 Windows 桌面软件，基于 [VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof) 开发。本 Fork 已整合上游 v1.56，并在此基础上持续增加新功能。下方 **Fork 扩展功能** 仅说明本仓库维护的扩展，**不代表上游版本全部具备**。
+**SkyRoof Plus** 是面向业余无线电与卫星通信爱好者的 Windows 桌面软件，基于 [VE3NEA/SkyRoof](https://github.com/VE3NEA/SkyRoof) 开发。本 Fork 已整合上游 v1.59，并在此基础上持续增加新功能。下方 **Fork 扩展功能** 仅说明本仓库维护的扩展，**不代表上游版本全部具备**。
 
 [**下载最新版本**](https://github.com/Iu-yang1/SkyRoof-Plus/releases/latest) · [中文扩展指南](docs/zh-cn/fork-guide/overview.md) · [English Guide](docs/fork-guide/overview.md) · [在线文档](https://iu-yang1.github.io/SkyRoof/) · [更新日志](FORK-CHANGELOG.md) · [构建状态](https://github.com/Iu-yang1/SkyRoof-Plus/actions)
 
@@ -12,7 +12,7 @@
 
 ## Fork 扩展功能
 
-以下内容汇总截至 **SkyRoof Fork v1.64（2026 年 11 月 2 日）** 已整合的主要能力。具体设备设置、使用限制及验收进度以各功能文档为准。
+以下内容汇总截至 **SkyRoof Fork v1.82（2026 年 11 月 16 日）** 已整合的主要能力。具体设备设置、使用限制及验收进度以各功能文档为准。
 
 | 领域 | 本 Fork 新增或改进的功能 | 详细文档 |
 |---|---|---|
@@ -21,6 +21,8 @@
 | **CAT 与卫星远控** | 集成 IC-9700 的 SkyCAT/RS-BA1、受限 WSJT-X CAT 代理、CI-V/PTT 安全处理、CTCSS、人工 PTT 控制及 FT4 操作优化。 | [CAT 与 FT4](docs/zh-cn/fork-guide/radio-and-ft4.md) · [SkyCAT](docs/zh-cn/fork-guide/embedded-skycat.md) |
 | **IC-9700 LAN 频谱** | 可停靠频谱与瀑布图、接收通带标记、平均与缩放等控制；支持 SkyCAT 数据源或通过 WinDivert 被动捕获 RS-BA1 数据。独立 Direct LAN 路径仍属**实验功能**。 | [频谱指南](docs/zh-cn/fork-guide/spectrum.md) |
 | **IF → AF 解调与 WSJT-X** | 将 48 kS/s、**12 kHz 实数 IF** 转换为 SSB/CW/FM 音频，提供对应带宽、增益、有界缓冲及虚拟声卡输出；支持可选安装原版基础 VB-CABLE，状态栏显示 IF/DDC/AF/V-MIC 链路状态。 | [IF → AF 使用指南](docs/zh-cn/fork-guide/if-af-test.md) |
+| **遥测 IF/AF 接收（v1.82）** | 可从 IC-9700 USB 或认证 LAN 独立接收 **12 kHz 实数 IF → IQ**，无需先启动 IF→AF/VAC；独立处理鉴频后 AFSK，PCM 断流后恢复解码状态。新增输入、CRC、CFO/SNR 诊断及 KISS 帧协议分层输出。 | [遥测 IF/AF 指南](docs/zh-cn/fork-guide/telemetry-if-af.md) · [遥测面板](docs/users_guide/telemetry_panel.md) |
+| **Recorder 与遥测离线回放（v1.82）** | 录制 48 kHz 原始 IF `.if.wav` 或复数 IQ `.iq.wav`；离线 IF WAV 使用实时同一转换器解码，回放跳转重置解码状态，回放帧不上传 SatNOGS。 | [Recorder 手册](docs/users_guide/recorder_panel.md) · [遥测 IF/AF 指南](docs/zh-cn/fork-guide/telemetry-if-af.md) |
 | **多普勒辅助 AFC** | 利用 FM 及 CW/导频信号进行接收频偏估计，提供置信度门控、受限的**仅接收 RX CAT** 频率修正、失号 HoldLast 机制与调试界面；不修改上行或 TX 频率。 | [AFC 指南](docs/zh-cn/fork-guide/afc.md) |
 | **CW Console / Pileup** | Skimmer 风格横向瀑布图、多信号跟踪、最多八路接收槽位、DeepCW 辅助解码、连续消息记录、可选 HamNoise 处理，以及人工触发的 CI-V CW 发报和 F1–F8 宏。 | [CW 控制台](docs/zh-cn/users_guide/cw_console.md) |
 | **SSTV Console** | 可停靠 SSTV 收发、图库和通联日志；提供 **43 种发射配置**、VIS 处理、AF/IF 接收、图片和多达八层文字模板、UTC 通联记录及 ADIF 导出。接收能力取决于相应制式解码器。 | [SSTV 指南](docs/zh-cn/fork-guide/sstv-console.md) |
@@ -34,6 +36,14 @@
 将电台 **USB AF/IF Output** 设置为 **IF**，并选定 48 kHz Windows 录音端点及正确声道。在 SkyRoof 设置中启用 **12 kHz IF → AF / WSJT-X**，选择独立的虚拟播放端点（使用 VB-CABLE 时为 **CABLE Input**），最后在 WSJT-X 的录音输入中选择 **CABLE Output**。**严禁将该音频链路输出到电台的发射音频播放设备。** VB-CABLE 基础版为第三方 Donationware，请遵守[原厂许可条款](https://vb-audio.com/Services/licensing.htm)。
 
 [IF → AF 详细配置与限制](docs/zh-cn/fork-guide/if-af-test.md) · [SkyCAT 端口与 CAT 归属](docs/zh-cn/fork-guide/embedded-skycat.md)
+
+### IC-9700 遥测：独立 IF 输入（v1.82）
+
+`IC-9700 USB IF / 认证 LAN IF → 48 kHz、12 kHz 实数 IF → SkyRoof IF→IQ → 遥测解调 → CRC/CCSDS/KISS`
+
+在 **Tools → Settings → Telemetry** 选择 **Shared12kIf**：兼容的 IF→AF 接收已运行时共享原始 IF，否则可独立使用 USB IF 采集或认证 Direct LAN IF。USB 使用 **USB AF/IF Output = IF**，Direct LAN 使用 **LAN AF/IF Output = IF**，核对输入为真实 48 kHz IF。**不必开启 IF→AF 的虚拟声卡输出。** 对已经 FM 鉴频的 AFSK 音频，应选择 **CaptureAf**、**LoopbackAf** 或 **IfAfDemodulatedAf**。悬停遥测状态栏可查看信号与解帧诊断。
+
+[遥测输入、KISS 端口和离线 IF 回放](docs/zh-cn/fork-guide/telemetry-if-af.md) · [Telemetry 设置手册（英文）](docs/users_guide/setting_up_telemetry_decoding.md)
 
 ### 功能状态与安全说明
 

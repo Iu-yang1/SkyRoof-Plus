@@ -16,6 +16,8 @@ items:
     href: if-af-test.md
   - name: IC-9700 spectrum
     href: spectrum.md
+  - name: Telemetry IF/AF and recorder replay (v1.82)
+    href: telemetry-if-af.md
   - name: ONVIF camera (GPU)
     href: onvif-camera.md
   - name: Rotator, themes and operations
