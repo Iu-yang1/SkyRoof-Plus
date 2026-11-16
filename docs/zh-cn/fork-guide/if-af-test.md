@@ -2,6 +2,8 @@
 
 SkyRoof 提供可选的 **48 kS/s、12 kHz 实数（非 I/Q）USB IF → SSB/CW/FM → 单声道 AF → Windows 虚拟声卡**接收链路。解调器不会将音频转接至电台发射端，也不会发送 CAT/PTT 指令。独立启用的 AFC 仅执行受限 RX CAT 频率校正。
 
+**v1.82 遥测接收为独立链路：** USB 或认证 Direct LAN 实数 IF 可直接经 IF→IQ 进入内置 Telemetry 解码器，**无需启动这里的 IF→AF/VAC 播放链路**。请参阅[遥测 IF/AF 与离线回放](telemetry-if-af.md)。
+
 ## 配置
 
 1. IC-9700：**USB AF/IF Output = IF**，Windows USB 录音端点设 48 kHz，关闭声音增强或系统自动麦克风增益。

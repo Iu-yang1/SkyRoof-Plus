@@ -2,6 +2,8 @@
 
 SkyRoof provides an optional 48 kS/s **real (non-I/Q) 12-kHz USB IF → SSB/CW/FM → mono AF → virtual cable** receive chain. The demodulator never routes receive audio to Icom transmit endpoints or commands CAT/PTT. Separately enabled AFC is bounded to RX-only frequency corrections.
 
+**Separate telemetry receive path (v1.82):** USB or authenticated Direct LAN IF may feed the built-in telemetry decoder directly as IF→IQ, **without starting this IF→AF/VAC playback route**. See [Telemetry IF/AF and offline replay](telemetry-if-af.md).
+
 ## Setup
 
 1. IC-9700: configure **USB AF/IF Output = IF**, Windows USB capture at 48 kHz, and disable Windows microphone enhancements.
