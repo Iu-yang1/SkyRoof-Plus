@@ -209,7 +209,22 @@ namespace SkyRoof
       worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz));
       try
       {
-        switch (config.InputSource)
+        ConnectSource(config, ifAf, ctx, device, cancel.Token);
+        Status = config.InputSource == TelemetryReceiveSource.Shared12kIf
+          ? $"IF {(lanOwner != null ? "Direct LAN" : sharedIf != null ? "shared USB" : "independent USB")}, {centerHz} Hz center, 48-kHz IQ"
+          : $"{config.InputSource}, {centerHz} Hz center, 48-kHz IQ bridge";
+      }
+      catch
+      {
+        Stop();
+        throw;
+      }
+    }
+
+    private void ConnectSource(TelemetrySettings config, IfAfService? ifAf,
+      Context? ctx, string? device, CancellationToken cancel)
+    {
+      switch (config.InputSource)
         {
           case TelemetryReceiveSource.Shared12kIf:
             if (ctx?.Settings.IfAf.InputSource == IfAfInputSource.AuthenticatedLanIf)
@@ -218,7 +233,7 @@ namespace SkyRoof
               lock (lanSync) lanPcm.Reset();
               lanOwner.RawAudioFrameReceived += OnLanIfFrame;
               lanOwner.GetOrStart();
-              lanFlush = Task.Run(() => FlushLanAsync(cancel.Token));
+              lanFlush = Task.Run(() => FlushLanAsync(cancel));
             }
             else if (ifAf?.IsRunning == true)
             {
@@ -229,9 +244,11 @@ namespace SkyRoof
             else StartCapture(config.IfCaptureDeviceId, config.IfCaptureChannel);
             break;
           case TelemetryReceiveSource.IfAfDemodulatedAf:
-            sharedIf = ifAf!;
+            var afService = ifAf ?? throw new InvalidOperationException(
+              "Start IF->AF before sharing demodulated audio.");
+            sharedIf = afService;
             sharedIsAf = true;
-            ifAf!.DemodulatedAfAvailable += OnSamples;
+            afService.DemodulatedAfAvailable += OnSamples;
             break;
           case TelemetryReceiveSource.Capture12kIf:
           case TelemetryReceiveSource.CaptureAf:
@@ -245,15 +262,6 @@ namespace SkyRoof
               throw new InvalidOperationException("Telemetry WASAPI playback loopback did not start.");
             break;
         }
-        Status = config.InputSource == TelemetryReceiveSource.Shared12kIf
-          ? $"IF {(lanOwner != null ? "Direct LAN" : sharedIf != null ? "shared USB" : "independent USB")}, {centerHz} Hz center, 48-kHz IQ"
-          : $"{config.InputSource}, {centerHz} Hz center, 48-kHz IQ bridge";
-      }
-      catch
-      {
-        Stop();
-        throw;
-      }
     }
 
     private void StartCapture(string? device, AudioChannelChoice channel)

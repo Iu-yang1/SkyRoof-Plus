@@ -56,7 +56,7 @@ namespace VE3NEA.Dsp.Tests
       using var client = new TcpClient();
       await client.ConnectAsync(IPAddress.Loopback, server.ListeningPort);
       Assert.True(await EventuallyAsync(() => server.ClientCount == 1));
-      var frame = new Frame { Bytes = new byte[] { 0xC0, 0xDB, 0x12 } };
+      var frame = new Frame { Bytes = new byte[] { 0xC0, 0xDB, 0x12 }, CrcValid = true };
       var stream = client.GetStream();
       using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
       foreach (int port in new[] { 0, 1, 2 })
