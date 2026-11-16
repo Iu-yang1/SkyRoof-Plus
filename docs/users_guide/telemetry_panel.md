@@ -1,11 +1,13 @@
 # Telemetry Panel
 
-The Telemetry panel shows the telemetry frames that SkyRoof decodes from the satellite signal.
-SkyRoof can decode the telemetry transmitted by many satellites without any external software: the
-built-in decoder demodulates and deframes the signal directly from the SDR, right inside the program.
-Unlike the [external decoder](decode_telemetry.md) and [sound modem](fsk_afsk_telemetry.md) workflows,
-it needs no separate program, no Virtual Audio Cable, and no output stream — SkyRoof feeds the
-Doppler-corrected receiver passband straight to the decoder.
+The Telemetry panel shows decoded satellite frames and their contents.
+The built-in decoder can process the SDR complex-IQ passband **or**, in
+SkyRoof Plus v1.82, real 12-kHz IC-9700 **USB / authenticated Direct LAN IF**
+and supported already-demodulated AF inputs. Unlike the
+[external decoder](decode_telemetry.md) and [sound modem](fsk_afsk_telemetry.md)
+workflows, the internal decoder does not need separate sound-modem software
+or a Virtual Audio Cable. The optional IF→AF → VAC receiver for WSJT-X is a
+**different** route. See [Telemetry IF/AF reception](../fork-guide/telemetry-if-af.md).
 
 The panel is opened from the **View / Telemetry** menu. Its optional outputs — saving to a file,
 sharing over a KISS server, and uploading to SatNOGS — are configured as described in
@@ -58,9 +60,12 @@ frequency may still be decoded — an SSTV image, or an FM voice transcript.
 
    Some satellites can transmit their telemetry at different Baud rates, selected by the ground station. Such satellites have multiple transmitters in the database, one per Baud rate. To switch to a different rate, just select the right transmitter.
 
-4. Make sure the SDR is running and tuned to the satellite. The decoder uses the same
-   Doppler-corrected passband as the receiver, so the satellite's signal must be visible on the
-   [waterfall](waterfall_display.md) at the tuned frequency.
+4. With `SdrIq` (the default), make sure the SDR is running and tuned to the
+   satellite: the decoder reads its Doppler-corrected passband. With
+   `Shared12kIf` or `Capture12kIf`, ensure the IC-9700 delivers **real
+   12-kHz IF at 48 kHz**, and select the correct USB channel or authenticated
+   Direct LAN input. For already FM-discriminated AFSK use the corresponding
+   AF source instead. See the [input-mode guide](../fork-guide/telemetry-if-af.md).
 
 That is all that is needed to start decoding. When the satellite is above the horizon and a
 supported transmitter is selected, frames are decoded automatically and appear in the panel.
@@ -71,7 +76,10 @@ supported transmitter is selected, frames are decoded automatically and appear i
   resolved signal parameters (modulation, baud rate, framing). The **gear button** to its right opens
   the [Signal Details](#signal-details) dialog.
 
-- The **status line** below the header shows the current state of the decoder, in color:
+- The **status line** below the header shows the current state of the decoder, in color.
+  **Hover over it** for the v1.82 diagnostic tooltip: received sample count,
+  PCM drops, continuity resets, IF/AF RMS (dBFS), decoded frames, CRC successes
+  and failures, inner packets, and most recent CFO/SNR.
 
   - **satellite below horizon** — the format is supported and the decoder is waiting for AOS;
     decoding starts when the satellite rises above the horizon;
@@ -200,7 +208,9 @@ save are not sent retroactively. Transmitters you have not edited are unaffected
 
 The frames are grouped by pass. Each top-level node in the tree is one pass of one transmitter,
 labeled with the start time, satellite name, and transmitter description. A pass node is created as
-soon as the first burst is detected and stays grayed out until the first valid frame is decoded.
+soon as the first burst is detected and stays grayed out until the first **CRC-valid**
+frame is decoded. An explicitly failed-CRC frame is not evidence that manual
+demodulation parameters work.
 
 Each child node is a single decoded frame, labeled with the time of arrival, the frame length in
 bytes, and, for AX.25 frames, the source and destination addresses. The newest pass is expanded
@@ -240,7 +250,25 @@ As each frame is decoded it is also, depending on the
 
 - appended to a log file in the `TelemetryDecodes` subfolder of the [data folder](data_folder.md);
 - sent to any client connected to the KISS-over-TCP server;
-- uploaded to the [SatNOGS DB](https://db.satnogs.org/).
+- uploaded to the [SatNOGS DB](https://db.satnogs.org/) if the original **outer**
+  radio frame meets the current upload requirements (never for replay or derived inner packets).
+
+The KISS server separates protocol layers on the **same** TCP port (8100 by
+default): virtual port **0** / command `0x00` for outer frames; port
+**1** / `0x10` for reconstructed inner packets, such as AO-123 CCSDS
+TM/KISS packets; and port **2** / `0x20` for explicitly failed-CRC outer
+frames. See [Telemetry setup](setting_up_telemetry_decoding.md#decoder-settings).
+
+### Offline IF WAV replay
+
+Use [Recorder](recorder_panel.md) to load a 48-kHz mono `*.if.wav`.
+It is converted through the same IF→IQ converter as live reception and
+routed to the Telemetry decoder, even when a different live source is
+configured. Stereo `*.iq.wav` replay also feeds Telemetry. Seeking
+rebuilds the stateful modem instead of splicing distant WAV samples;
+replay frames are not submitted to SatNOGS. In live operation, network
+gaps and audio-block drops likewise reset decoder continuity. See
+[Telemetry IF/AF and offline replay](../fork-guide/telemetry-if-af.md).
 
 ## Clearing the List
 
