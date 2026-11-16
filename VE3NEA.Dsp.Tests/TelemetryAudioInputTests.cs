@@ -85,6 +85,30 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void RecordedIfWavAndLiveIfChunksProduceEquivalentIq()
+    {
+      const int total = 48000;
+      var raw = new float[total];
+      for (int i = 0; i < total; i++)
+      {
+        double t = i / 48000.0;
+        raw[i] = (float)(0.4 * Math.Sin(2 * Math.PI * 12000 * t +
+          0.5 * Math.Sin(2 * Math.PI * 200 * t)));
+      }
+      var fileReplay = new TelemetryRealAudioIqConverter(12000).Convert(raw);
+      var live = new TelemetryRealAudioIqConverter(12000);
+      for (int offset = 0; offset < total; offset += 1600)
+      {
+        var chunk = live.Convert(raw.AsSpan(offset, Math.Min(1600, total - offset)));
+        for (int j = 0; j < chunk.Length; j++)
+        {
+          Assert.InRange(Math.Abs(chunk[j].Real - fileReplay[offset + j].Real), 0, 1e-6);
+          Assert.InRange(Math.Abs(chunk[j].Imaginary - fileReplay[offset + j].Imaginary), 0, 1e-6);
+        }
+      }
+    }
+
+    [Fact]
     public void ResetStartsFreshCarrierPhaseAndClearsHilbertHistory()
     {
       var decoder = new TelemetryRealAudioIqConverter(12000);

@@ -673,7 +673,7 @@ namespace SkyRoof
     {
       // This PCM has been translated to complex baseband exactly once.
       // The SDR IQ route is deliberately separate to avoid duplicate frames.
-      Decoder?.StartProcessing(args);
+      if (!replayIqActive) Decoder?.StartProcessing(args);
     }
 
     private void TelemetryPanel_Shown(object? sender, EventArgs e)
@@ -3341,7 +3341,7 @@ namespace SkyRoof
 
     internal void ProcessReplaySamples(DataEventArgs<Complex32> e)
     {
-      if (replayIqActive && ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
+      if (replayIqActive)
         Decoder?.StartProcessing(e);
     }
 
