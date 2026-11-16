@@ -59,6 +59,7 @@ namespace SkyRoof.IF
     private string detail = "Stopped";
     private bool disposed;
     public event EventHandler<DataEventArgs<float>>? RawIfAvailable;
+    public event Action<RawIfPcmFrame>? RawIfFrameAvailable;
     /// <summary>Post-demodulation, post-leveler 48-kHz mono RX PCM;
     /// delivered synchronously before the rented AF buffer is returned.
     /// Consumers must copy the data before returning from this event.
@@ -266,11 +267,13 @@ namespace SkyRoof.IF
       var target = queue;
       if (target == null) return;
       int count = Math.Min(e.Count, e.Data.Length);
-      try { RawIfAvailable?.Invoke(this, e); }
-      catch (Exception ex) { Log.Warning(ex, "IF shared consumer failed"); }
       var data = new float[count];
       Array.Copy(e.Data, data, count);
       long startIndex = Interlocked.Add(ref inputSamples, count) - count;
+      try { RawIfFrameAvailable?.Invoke(new RawIfPcmFrame(data, e.Utc, startIndex, false)); }
+      catch (Exception ex) { Log.Warning(ex, "IF continuity-aware consumer failed"); }
+      try { RawIfAvailable?.Invoke(this, e); }
+      catch (Exception ex) { Log.Warning(ex, "IF shared consumer failed"); }
       Interlocked.Exchange(ref lastUtcTicks, e.Utc.Ticks);
       if (!target.Writer.TryWrite(new Frame(data, e.Utc, generation, startIndex)))
       {

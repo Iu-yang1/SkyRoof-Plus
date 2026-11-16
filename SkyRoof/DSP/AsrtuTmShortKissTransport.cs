@@ -24,7 +24,17 @@ namespace SkyRoof
     internal IEnumerable<Frame> Push(Frame transfer)
     {
       if (transfer.CrcValid != true || transfer.Bytes.Length <= 5)
+      {
+        // Any lost or unverified TM frame may contain the missing middle
+        // fragment of a KISS packet; retaining partial bytes across it would
+        // concatenate unrelated Space Packets. Reset both VC streams.
+        foreach (Channel channel in channels.Values)
+        {
+          channel.Packet.Clear();
+          channel.Escaped = false;
+        }
         yield break;
+      }
 
       byte[] frame = transfer.Bytes;
       // Short TM primary header (BY02): version(2), SCID(10), VCID(3),

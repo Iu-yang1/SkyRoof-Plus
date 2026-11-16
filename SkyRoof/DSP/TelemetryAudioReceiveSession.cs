@@ -7,6 +7,7 @@ using NAudio.CoreAudioApi;
 using SkyRoof.IF;
 using Serilog;
 using VE3NEA;
+using VE3NEA.SkyTlm.Core;
 
 namespace SkyRoof
 {
@@ -85,6 +86,37 @@ namespace SkyRoof
   }
 
   /// <summary>
+  /// Compatibility bridge for already FM-discriminated AFSK audio.
+  /// The vendored SkyTlm AFSK modem expects IQ of an FM carrier and applies
+  /// its own FM discriminator. Frequency-modulating an ideal analytic carrier
+  /// with the existing AF waveform makes the discriminator recover that AF
+  /// once, instead of erroneously differentiating its Hilbert representation.
+  /// </summary>
+  public sealed class TelemetryAfskFmIqConverter
+  {
+    private const double Rate = 48000.0;
+    private const double MaxDeviationHz = 1800.0;
+    private double phase;
+
+    public Complex32[] Convert(ReadOnlySpan<float> audio)
+    {
+      var result = new Complex32[audio.Length];
+      int index = 0;
+      foreach (float value in audio)
+      {
+        double sample = float.IsFinite(value) ? Math.Clamp(value, -1f, 1f) : 0;
+        phase += 2 * Math.PI * MaxDeviationHz * sample / Rate;
+        if (phase > Math.PI) phase -= 2 * Math.PI;
+        if (phase < -Math.PI) phase += 2 * Math.PI;
+        result[index++] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
+      }
+      return result;
+    }
+
+    public void Reset() => phase = 0;
+  }
+
+  /// <summary>
   /// One selected telemetry audio input. Soundcard callbacks and the shared
   /// IF/AF stream only COPY PCM into a bounded queue. Hilbert and the
   /// existing IQ telemetry decoder run outside the capture callback.
@@ -95,6 +127,11 @@ namespace SkyRoof
     private readonly LoopbackInputSoundcard loopback = new();
     private IfAfService? sharedIf;
     private bool sharedIsAf;
+    private bool sharedIsRaw;
+    private IcomDirectLanMediaOwner? lanOwner;
+    private readonly IcomNetworkIfPcmPipeline lanPcm = new();
+    private readonly object lanSync = new();
+    private Task? lanFlush;
     private Channel<AudioBlock>? queue;
     private CancellationTokenSource? stop;
     private Task? worker;
@@ -102,18 +139,27 @@ namespace SkyRoof
     private long droppedBlocks;
     private long receivedSamples;
     private bool disposed;
-    private readonly record struct AudioBlock(float[] Samples, DateTime Utc);
+    private readonly record struct AudioBlock(float[] Samples, DateTime Utc, bool Discontinuity);
     internal event EventHandler<DataEventArgs<Complex32>>? IqAvailable;
+    internal event Action? IqDiscontinuity;
     internal string Status { get; private set; } = "SDR IQ";
     internal long DroppedBlocks => Interlocked.Read(ref droppedBlocks);
     internal long ReceivedSamples => Interlocked.Read(ref receivedSamples);
+    private long discontinuities;
+    private double inputRmsDbfs = double.NegativeInfinity;
+    internal double InputRmsDbfs => Volatile.Read(ref inputRmsDbfs);
+    private int afModulation = (int)Modulation.Unknown;
+    private bool isAfInput;
+    internal long Discontinuities => Interlocked.Read(ref discontinuities);
+    internal void SetAfModulation(Modulation modulation) =>
+      Volatile.Write(ref afModulation, (int)modulation);
 
     internal TelemetryAudioReceiveSession()
     {
       loopback.SamplesAvailable += OnSamples;
     }
 
-    internal void Start(TelemetrySettings config, IfAfService? ifAf)
+    internal void Start(TelemetrySettings config, IfAfService? ifAf, Context? ctx = null)
     {
       ObjectDisposedException.ThrowIf(disposed, this);
       Stop();
@@ -125,9 +171,10 @@ namespace SkyRoof
 
       bool shared = config.InputSource is TelemetryReceiveSource.Shared12kIf or
         TelemetryReceiveSource.IfAfDemodulatedAf;
-      if (shared && ifAf?.IsRunning != true)
+      if (config.InputSource == TelemetryReceiveSource.IfAfDemodulatedAf &&
+          ifAf?.IsRunning != true)
         throw new InvalidOperationException(
-          "Start IF->AF first to share its 48-kHz receiver PCM.");
+          "Start IF->AF first to share its demodulated AF.");
       string? device = config.InputSource switch
       {
         TelemetryReceiveSource.Capture12kIf => config.IfCaptureDeviceId,
@@ -141,6 +188,7 @@ namespace SkyRoof
         throw new ArgumentOutOfRangeException(nameof(config.InputSource));
       bool realIf = config.InputSource is TelemetryReceiveSource.Shared12kIf or
         TelemetryReceiveSource.Capture12kIf;
+      isAfInput = !realIf;
       int centerHz = realIf ? 12000 : config.AfCenterHz;
       if (centerHz <= 0 || centerHz >= 24000)
         throw new ArgumentOutOfRangeException(nameof(config.AfCenterHz));
@@ -157,42 +205,15 @@ namespace SkyRoof
       stop = cancel;
       Interlocked.Exchange(ref droppedBlocks, 0);
       Interlocked.Exchange(ref receivedSamples, 0);
+      Interlocked.Exchange(ref discontinuities, 0);
+      Volatile.Write(ref inputRmsDbfs, double.NegativeInfinity);
       worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz));
       try
       {
-        switch (config.InputSource)
-        {
-          case TelemetryReceiveSource.Shared12kIf:
-          case TelemetryReceiveSource.IfAfDemodulatedAf:
-            var sharedHub = ifAf ?? throw new InvalidOperationException(
-              "The shared IF-AF receiver is unavailable.");
-            sharedIf = sharedHub;
-            sharedIsAf = config.InputSource == TelemetryReceiveSource.IfAfDemodulatedAf;
-            if (sharedIsAf) sharedHub.DemodulatedAfAvailable += OnSamples;
-            else sharedHub.RawIfAvailable += OnSamples;
-            break;
-          case TelemetryReceiveSource.Capture12kIf:
-          case TelemetryReceiveSource.CaptureAf:
-            capture = config.InputSource == TelemetryReceiveSource.Capture12kIf
-              ? new InputSoundcard<float>(
-                  captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600,
-                  channelChoice: config.IfCaptureChannel)
-              : new InputSoundcard<float>(
-                  captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600);
-            capture.SamplesAvailable += OnSamples;
-            capture.SetDeviceId(device);
-            capture.Enabled = true;
-            if (!capture.IsRunning)
-              throw new InvalidOperationException("Telemetry WASAPI capture did not start.");
-            break;
-          case TelemetryReceiveSource.LoopbackAf:
-            loopback.SetDeviceId(device);
-            loopback.Enabled = true;
-            if (!loopback.IsRunning)
-              throw new InvalidOperationException("Telemetry WASAPI playback loopback did not start.");
-            break;
-        }
-        Status = $"{config.InputSource}, {centerHz} Hz center, 48-kHz IQ bridge";
+        ConnectSource(config, ifAf, ctx, device, cancel.Token);
+        Status = config.InputSource == TelemetryReceiveSource.Shared12kIf
+          ? $"IF {(lanOwner != null ? "Direct LAN" : sharedIf != null ? "shared USB" : "independent USB")}, {centerHz} Hz center, 48-kHz IQ"
+          : $"{config.InputSource}, {centerHz} Hz center, 48-kHz IQ bridge";
       }
       catch
       {
@@ -201,14 +222,106 @@ namespace SkyRoof
       }
     }
 
+    private void ConnectSource(TelemetrySettings config, IfAfService? ifAf,
+      Context? ctx, string? device, CancellationToken cancel)
+    {
+      switch (config.InputSource)
+        {
+          case TelemetryReceiveSource.Shared12kIf:
+            if (ctx?.Settings.IfAf.InputSource == IfAfInputSource.AuthenticatedLanIf)
+            {
+              lanOwner = ctx.DirectLanMediaOwner ??= new IcomDirectLanMediaOwner(ctx);
+              lock (lanSync) lanPcm.Reset();
+              lanOwner.RawAudioFrameReceived += OnLanIfFrame;
+              lanOwner.GetOrStart();
+              lanFlush = Task.Run(() => FlushLanAsync(cancel));
+            }
+            else if (ifAf?.IsRunning == true)
+            {
+              sharedIf = ifAf;
+              sharedIsRaw = true;
+              ifAf.RawIfFrameAvailable += OnRawIfFrame;
+            }
+            else StartCapture(config.IfCaptureDeviceId, config.IfCaptureChannel);
+            break;
+          case TelemetryReceiveSource.IfAfDemodulatedAf:
+            var afService = ifAf ?? throw new InvalidOperationException(
+              "Start IF->AF before sharing demodulated audio.");
+            sharedIf = afService;
+            sharedIsAf = true;
+            afService.DemodulatedAfAvailable += OnSamples;
+            break;
+          case TelemetryReceiveSource.Capture12kIf:
+          case TelemetryReceiveSource.CaptureAf:
+            StartCapture(device, config.InputSource == TelemetryReceiveSource.Capture12kIf
+              ? config.IfCaptureChannel : AudioChannelChoice.Mix);
+            break;
+          case TelemetryReceiveSource.LoopbackAf:
+            loopback.SetDeviceId(device);
+            loopback.Enabled = true;
+            if (!loopback.IsRunning)
+              throw new InvalidOperationException("Telemetry WASAPI playback loopback did not start.");
+            break;
+        }
+    }
+
+    private void StartCapture(string? device, AudioChannelChoice channel)
+    {
+      if (string.IsNullOrWhiteSpace(device))
+        throw new InvalidOperationException("Select a radio IF/AF capture endpoint.");
+      capture = new InputSoundcard<float>(
+        captureBufferMilliseconds: 40, readerBlockSizeSamples: 1600,
+        channelChoice: channel);
+      capture.SamplesAvailable += OnSamples;
+      capture.SetDeviceId(device);
+      capture.Enabled = true;
+      if (!capture.IsRunning)
+        throw new InvalidOperationException("Telemetry WASAPI capture did not start.");
+    }
+
     private void OnSamples(object? sender, DataEventArgs<float> e)
     {
-      var writer = queue?.Writer;
-      if (writer == null || e.Count <= 0) return;
+      if (e.Count <= 0) return;
       var samples = new float[e.Count];
       Array.Copy(e.Data, 0, samples, 0, e.Count);
-      Interlocked.Add(ref receivedSamples, e.Count);
-      if (!writer.TryWrite(new AudioBlock(samples, e.Utc)))
+      QueueAudio(samples, e.Utc, false);
+    }
+
+    private void OnRawIfFrame(RawIfPcmFrame frame) =>
+      QueueAudio(frame.Samples, frame.Utc, frame.Discontinuity);
+
+    private void OnLanIfFrame(int sampleRate, IcomLanLpcmAudioCodec.RxFrame frame)
+    {
+      lock (lanSync)
+        foreach (var block in lanPcm.Push(sampleRate, frame, DateTime.UtcNow))
+          QueueAudio(block.Samples, block.Utc, block.Discontinuity);
+    }
+
+    private async Task FlushLanAsync(CancellationToken token)
+    {
+      using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(25));
+      try
+      {
+        while (await timer.WaitForNextTickAsync(token))
+          lock (lanSync)
+            foreach (var block in lanPcm.Flush(DateTime.UtcNow))
+              QueueAudio(block.Samples, block.Utc, block.Discontinuity);
+      }
+      catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
+
+    private void QueueAudio(float[] input, DateTime utc, bool discontinuity)
+    {
+      var writer = queue?.Writer;
+      if (writer == null || input.Length == 0) return;
+      var samples = (float[])input.Clone();
+      Interlocked.Add(ref receivedSamples, samples.Length);
+      double power = 0;
+      foreach (float sample in samples)
+        if (float.IsFinite(sample)) power += (double)sample * sample;
+      Volatile.Write(ref inputRmsDbfs,
+        10 * Math.Log10(Math.Max(power / samples.Length, 1e-15)));
+      if (!writer.TryWrite(new AudioBlock(samples, utc, discontinuity)))
         Interlocked.Increment(ref droppedBlocks);
     }
 
@@ -216,6 +329,8 @@ namespace SkyRoof
       CancellationToken cancel, int version, int centerHz)
     {
       var converter = new TelemetryRealAudioIqConverter(centerHz);
+      var fmBridge = new TelemetryAfskFmIqConverter();
+      int appliedModulation = Volatile.Read(ref afModulation);
       long observedDrops = 0;
       try
       {
@@ -223,12 +338,19 @@ namespace SkyRoof
         {
           if (version != Volatile.Read(ref epoch)) return;
           long drops = Interlocked.Read(ref droppedBlocks);
-          if (drops != observedDrops)
+          int wantedModulation = Volatile.Read(ref afModulation);
+          if (drops != observedDrops || frame.Discontinuity ||
+              wantedModulation != appliedModulation)
           {
             converter.Reset();
+            fmBridge.Reset();
             observedDrops = drops;
+            appliedModulation = wantedModulation;
+            Interlocked.Increment(ref discontinuities);
+            IqDiscontinuity?.Invoke();
           }
-          Complex32[] iq = converter.Convert(frame.Samples);
+          Complex32[] iq = isAfInput && appliedModulation == (int)Modulation.AFSK
+            ? fmBridge.Convert(frame.Samples) : converter.Convert(frame.Samples);
           if (version != Volatile.Read(ref epoch)) return;
           IqAvailable?.Invoke(this, new DataEventArgs<Complex32>
           {
@@ -252,9 +374,17 @@ namespace SkyRoof
       if (sharedIf is IfAfService ifAf)
       {
         if (sharedIsAf) ifAf.DemodulatedAfAvailable -= OnSamples;
-        else ifAf.RawIfAvailable -= OnSamples;
+        if (sharedIsRaw) ifAf.RawIfFrameAvailable -= OnRawIfFrame;
         sharedIf = null;
       }
+      sharedIsAf = sharedIsRaw = false;
+      if (lanOwner != null)
+      {
+        lanOwner.RawAudioFrameReceived -= OnLanIfFrame;
+        lanOwner = null;
+        lock (lanSync) lanPcm.Reset();
+      }
+      lanFlush = null;
       if (capture != null)
       {
         capture.SamplesAvailable -= OnSamples;

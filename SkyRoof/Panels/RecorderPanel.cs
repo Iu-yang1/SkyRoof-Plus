@@ -485,6 +485,13 @@ namespace SkyRoof
         return;
       }
 
+      // Seeking changes sample continuity even when playback remains active.
+      // Rebuild the modem/framer to avoid splicing two unrelated WAV regions.
+      if (!recordingManager.IsRecordingAudio)
+      {
+        ctx.TelemetryPanel?.SetIqReplayActive(false);
+        ctx.TelemetryPanel?.SetIqReplayActive(true);
+      }
       UpdatePlaybackStatus();
       WaveformWidget.Invalidate();
       playbackTimer?.Start();

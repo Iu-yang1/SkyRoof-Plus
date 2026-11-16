@@ -68,6 +68,9 @@ namespace SkyRoof.IF
         Count = block.Samples.Length,
         Utc = block.Utc
       };
+      try { RawIfFrameAvailable?.Invoke(new RawIfPcmFrame(
+        block.Samples, block.Utc, -1, block.Discontinuity)); }
+      catch (Exception ex) { Log.Warning(ex, "Network IF continuity-aware consumer failed"); }
       try { RawIfAvailable?.Invoke(this, dataEvent); }
       catch (Exception ex) { Log.Warning(ex, "Network IF shared consumer failed"); }
 

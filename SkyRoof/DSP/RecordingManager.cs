@@ -491,14 +491,23 @@ namespace SkyRoof
         if (reader.WaveFormat.SampleRate != SdrConst.AUDIO_SAMPLING_RATE)
           throw new InvalidOperationException($"Unsupported sample rate: {reader.WaveFormat.SampleRate} Hz");
 
-        if (reader.WaveFormat.Channels == 1) audioBuffer = ReadAudioSamples(reader);
+        if (reader.WaveFormat.Channels == 1 &&
+            filename.EndsWith(".if.wav", StringComparison.OrdinalIgnoreCase))
+        {
+          // Real 12-kHz IF WAV is a demodulator input, not speaker AF.
+          // Reuse the very same analytic IF->IQ implementation as live RX.
+          float[] rawIf = ReadAudioSamples(reader);
+          iqBuffer = new TelemetryRealAudioIqConverter(12000).Convert(rawIf);
+        }
+        else if (reader.WaveFormat.Channels == 1) audioBuffer = ReadAudioSamples(reader);
         else if (reader.WaveFormat.Channels == 2) iqBuffer = ReadIqSamples(reader);
         else throw new InvalidOperationException($"Unsupported channel count: {reader.WaveFormat.Channels}");
       }
 
       activeAudioSource = filename.EndsWith(".if.wav", StringComparison.OrdinalIgnoreCase)
         ? RecordingAudioSource.IfRaw : RecordingAudioSource.Sdr;
-      activeIqSource = RecordingIqSource.Sdr;
+      activeIqSource = filename.EndsWith(".if.wav", StringComparison.OrdinalIgnoreCase)
+        ? RecordingIqSource.If12k : RecordingIqSource.Sdr;
       playbackPosition = 0;
       LoadRecordingEvents(filename);
       recordingStartTime = recordingEvents.StartUtc;

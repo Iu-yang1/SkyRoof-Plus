@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.82 / Telemetry IF-AF Reliability
+
+## v1.82 — 2026-11-16
+
+- P0: 遥测 12 kHz IF 接收不再依赖 IF→AF 的虚拟声卡成功启动。USB 可独立采集，Direct LAN 由媒体会话分发原始 PCM；新增数据断续事件并重置后续 IQ/解码状态。
+- P1: 调整已鉴频 AFSK AF 的解调输入域，避免对解析音频直接重复 FM 鉴频。
+- P2: 增加 IF 输入、RMS、丢样、断流、解帧 CRC、CFO/SNR 诊断；KISS 以端口 0/1/2 区分 RF 帧、内层业务包与校验失败帧。
+- P3: Recorder 支持 .if.wav 经过统一 IQ 桥接离线遥测解码，回放 Seek 时重建解调状态，修复 AO-123 的失败 TM 帧后内层包连续性。
+- 保留原有 SDR、IF→AF 和现有卫星协议栈。无 IC-9700 实机测试，真实 200 Bd/9k6 帧通过率仍需实录验证；自动验收结果以 v1.82 Actions 和发布安装包为准。
+
+**English:** Telemetry IF/AF reliability release with direct USB/LAN raw IF receive, state reset on discontinuities, corrected AFSK audio domain, channel-separated KISS output, telemetry diagnostics and offline IF WAV replay.
+
+---
+
 # SkyRoof Fork v.1.81 / Direct LAN 连续 PTT 稳定性
 
 ## v1.81 — 2026-11-16

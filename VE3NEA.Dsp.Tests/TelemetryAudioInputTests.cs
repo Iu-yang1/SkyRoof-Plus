@@ -55,6 +55,60 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void AfskAudioBridge_RestoresAudioAfterFmDiscrimination()
+    {
+      const int rate = 48000;
+      const int total = 4800;
+      var samples = new float[total];
+      for (int i = 0; i < total; i++)
+        samples[i] = (float)(0.35 * Math.Sin(2 * Math.PI * 1200 * i / rate));
+      var bridge = new TelemetryAfskFmIqConverter();
+      var iq = bridge.Convert(samples.AsSpan(0, 1333));
+      var tail = bridge.Convert(samples.AsSpan(1333));
+      var all = new Complex32[total];
+      iq.CopyTo(all, 0);
+      tail.CopyTo(all, iq.Length);
+      double mse = 0;
+      for (int i = 1; i < total; i++)
+      {
+        double re = all[i].Real * all[i - 1].Real +
+          all[i].Imaginary * all[i - 1].Imaginary;
+        double im = all[i].Imaginary * all[i - 1].Real -
+          all[i].Real * all[i - 1].Imaginary;
+        double recovered = Math.Atan2(im, re) * rate / (2 * Math.PI * 1800);
+        mse += Math.Pow(recovered - samples[i], 2);
+      }
+      Assert.InRange(Math.Sqrt(mse / (total - 1)), 0, 1e-5);
+      bridge.Reset();
+      var zero = bridge.Convert(new float[16]);
+      Assert.All(zero, s => Assert.InRange(s.Real, 0.99999f, 1.00001f));
+    }
+
+    [Fact]
+    public void RecordedIfWavAndLiveIfChunksProduceEquivalentIq()
+    {
+      const int total = 48000;
+      var raw = new float[total];
+      for (int i = 0; i < total; i++)
+      {
+        double t = i / 48000.0;
+        raw[i] = (float)(0.4 * Math.Sin(2 * Math.PI * 12000 * t +
+          0.5 * Math.Sin(2 * Math.PI * 200 * t)));
+      }
+      var fileReplay = new TelemetryRealAudioIqConverter(12000).Convert(raw);
+      var live = new TelemetryRealAudioIqConverter(12000);
+      for (int offset = 0; offset < total; offset += 1600)
+      {
+        var chunk = live.Convert(raw.AsSpan(offset, Math.Min(1600, total - offset)));
+        for (int j = 0; j < chunk.Length; j++)
+        {
+          Assert.InRange(Math.Abs(chunk[j].Real - fileReplay[offset + j].Real), 0, 1e-6);
+          Assert.InRange(Math.Abs(chunk[j].Imaginary - fileReplay[offset + j].Imaginary), 0, 1e-6);
+        }
+      }
+    }
+
+    [Fact]
     public void ResetStartsFreshCarrierPhaseAndClearsHilbertHistory()
     {
       var decoder = new TelemetryRealAudioIqConverter(12000);

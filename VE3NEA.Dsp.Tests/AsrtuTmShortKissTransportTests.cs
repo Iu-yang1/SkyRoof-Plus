@@ -41,11 +41,12 @@ public sealed class AsrtuTmShortKissTransportTests
     }
 
     [Fact]
-    public void RejectUnverifiedTransferButKeepPerVcState()
+    public void RejectUnverifiedTransferAndFlushPartialKissState()
     {
         var receiver = new AsrtuTmShortKissTransport();
         var bad = new Frame { Bytes = Transfer(0, 0xC0, 0xFF).Bytes,
             Framing = Framing.CCSDS, CrcValid = false };
+        Assert.Empty(receiver.Push(Transfer(0, 0xC0, 0x19)).ToArray());
         Assert.Empty(receiver.Push(bad));
         Assert.Empty(receiver.Push(Transfer(0, 0xC0, 0x31)).ToArray());
         Assert.Equal(new byte[] { 0x31 },
