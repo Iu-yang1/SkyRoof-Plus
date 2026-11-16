@@ -6,6 +6,9 @@ namespace SkyRoof
   /// Observes radio-originated audio control traffic independently from
   /// successful local UDP sends. Only replies to an outstanding random
   /// keepalive or requests with matching session IDs confirm the radio.
+  /// Some radio firmware does not echo every audio keepalive. A missing
+  /// response is diagnostic telemetry, NEVER sufficient to revoke media
+  /// ownership or restart a working TX session.
   /// </summary>
   internal sealed class IcomLanAudioHeartbeat
   {
@@ -59,7 +62,9 @@ namespace SkyRoof
       return true;
     }
 
-    internal bool HasGoneStale(long nowTicks, long connectedTicks,
+    // Reports an unconfirmed heartbeat gap for diagnostics only.
+    // Actual remote disconnect/transport failures are handled separately.
+    internal bool HasUnconfirmedReplyGap(long nowTicks, long connectedTicks,
       long transmittedDatagrams, TimeSpan timeout)
     {
       if (transmittedDatagrams < 20 || connectedTicks <= 0)
