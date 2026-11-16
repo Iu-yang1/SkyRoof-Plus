@@ -14,6 +14,7 @@ namespace SkyRoof
     private IcomDirectLanAudioDevices? devices;
     private IcomDirectLanSettings? appliedOptions;
     private Task priorAudioShutdown = Task.CompletedTask;
+    internal event Action<int, IcomLanLpcmAudioCodec.RxFrame>? RawAudioFrameReceived;
     private IcomMeterSnapshot meters = new();
     private readonly object meterSync = new();
 
@@ -57,7 +58,7 @@ namespace SkyRoof
           ctx.IcomLanSpectrumPanel?.HasRecentExternalMeterReadback == true);
       var localAudio = new IcomDirectLanAudioDevices(
         audio, current,
-        (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame),
+        (rate, frame) => ForwardRawAudioFrame(rate, frame),
         priorAudioShutdown);
       current.AudioFrameReceived += OnAudioFrame;
       current.MeterReceived += OnMeter;
@@ -86,6 +87,12 @@ namespace SkyRoof
 
     private void OnAudioFrame(int rate, IcomLanLpcmAudioCodec.RxFrame frame) =>
       devices?.AcceptReceiveAudio(rate, frame);
+
+    private void ForwardRawAudioFrame(int rate, IcomLanLpcmAudioCodec.RxFrame frame)
+    {
+      ctx.IfAf?.AcceptNetworkIfAudio(rate, frame);
+      RawAudioFrameReceived?.Invoke(rate, frame);
+    }
 
     private void OnMeter(IcomMeterReading reading)
     {
@@ -118,7 +125,7 @@ namespace SkyRoof
       priorAudioShutdown = old?.EndpointShutdown ?? priorAudioShutdown;
       var replacement = new IcomDirectLanAudioDevices(
         original, current,
-        (rate, frame) => ctx.IfAf?.AcceptNetworkIfAudio(rate, frame),
+        (rate, frame) => ForwardRawAudioFrame(rate, frame),
         priorAudioShutdown);
       devices = replacement;
       replacement.Start();

@@ -619,6 +619,7 @@ namespace SkyRoof
       // Purging the queue alone is insufficient: PLL/FIR/framer state from
       // the previous device would still contaminate the new capture stream.
       audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
+      audioReceiver.IqDiscontinuity -= AudioReceiver_IqDiscontinuity;
       audioReceiver.Stop();
       if (Decoder is TelemetryDecocder previous)
       {
@@ -628,9 +629,10 @@ namespace SkyRoof
         previous.Dispose();
       }
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
+      audioReceiver.IqDiscontinuity += AudioReceiver_IqDiscontinuity;
       try
       {
-        audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf);
+        audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf, ctx);
         audioReceiverError = null;
         UpdateTxStatus();
       }
@@ -641,6 +643,26 @@ namespace SkyRoof
         StatusLabel.Text = UiLocalizationService.Format("Telemetry.AudioSourceError", ex.Message);
         StatusLabel.ForeColor = Color.DarkOrange;
       }
+    }
+
+    private void AudioReceiver_IqDiscontinuity()
+    {
+      if (IsDisposed || !IsHandleCreated) return;
+      void ResetPipeline()
+      {
+        if (IsDisposed) return;
+        if (Decoder != null)
+        {
+          var prior = Decoder;
+          Decoder = null;
+          CurrentDecode = null;
+          prior.Purge();
+          prior.Dispose();
+        }
+        CreatDestroyPipeline();
+      }
+      if (InvokeRequired) Invoke((Action)ResetPipeline);
+      else ResetPipeline();
     }
 
     private void AudioReceiver_IqAvailable(object? sender,
@@ -677,6 +699,7 @@ namespace SkyRoof
       if (audioReceiver != null)
       {
         audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
+        audioReceiver.IqDiscontinuity -= AudioReceiver_IqDiscontinuity;
         audioReceiver.Dispose();
         audioReceiver = null;
       }
