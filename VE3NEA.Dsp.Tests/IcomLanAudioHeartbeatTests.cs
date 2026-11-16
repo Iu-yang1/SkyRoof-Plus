@@ -48,27 +48,27 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
-    public void StaleDetectorRequiresActualTransmittedFramesAndElapsedTimeout()
+    public void UnconfirmedReplyGapIsOnlyDiagnosticAndRequiresActualTxTraffic()
     {
       var heartbeat = new IcomLanAudioHeartbeat();
       long connected = new DateTime(2026, 11, 16, 0, 0, 0, DateTimeKind.Utc).Ticks;
       TimeSpan timeout = TimeSpan.FromSeconds(12);
-      Assert.False(heartbeat.HasGoneStale(
+      Assert.False(heartbeat.HasUnconfirmedReplyGap(
         connected + timeout.Ticks, connected, 0, timeout));
-      Assert.False(heartbeat.HasGoneStale(
+      Assert.False(heartbeat.HasUnconfirmedReplyGap(
         connected + timeout.Ticks, connected, 19, timeout));
-      Assert.False(heartbeat.HasGoneStale(
+      Assert.False(heartbeat.HasUnconfirmedReplyGap(
         connected + timeout.Ticks - 1, connected, 20, timeout));
-      Assert.True(heartbeat.HasGoneStale(
+      Assert.True(heartbeat.HasUnconfirmedReplyGap(
         connected + timeout.Ticks, connected, 20, timeout));
 
       heartbeat.RecordSent(8, 7);
       Assert.True(heartbeat.Observe(
         BuildAudioPing(1, 8, 7), LocalSid, RemoteSid,
         connected + TimeSpan.FromSeconds(10).Ticks));
-      Assert.False(heartbeat.HasGoneStale(
+      Assert.False(heartbeat.HasUnconfirmedReplyGap(
         connected + TimeSpan.FromSeconds(19).Ticks, connected, 200, timeout));
-      Assert.True(heartbeat.HasGoneStale(
+      Assert.True(heartbeat.HasUnconfirmedReplyGap(
         connected + TimeSpan.FromSeconds(22).Ticks, connected, 200, timeout));
     }
 
