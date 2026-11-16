@@ -61,7 +61,7 @@ namespace SkyRoof
 
     [Category("Receive input")]
     [DisplayName("AF tone center (Hz)")]
-    [Description("AFSK carrier midpoint used to translate real AF into complex baseband for the IQ telemetry pipeline. Typical Bell 202 AFSK: 1700 Hz; choose according to the satellite's modem tones.")]
+    [Description("Center frequency for analytic conversion of non-AFSK AF signals. For AFSK, preserve the already demodulated mark/space audio; the selected transmitter's AF carrier/deviation control the Bell-202 demodulator.")]
     [DefaultValue(1700)]
     public int AfCenterHz { get; set; } = 1700;
 

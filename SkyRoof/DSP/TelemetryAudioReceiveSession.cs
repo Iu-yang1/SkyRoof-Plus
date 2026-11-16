@@ -7,6 +7,7 @@ using NAudio.CoreAudioApi;
 using SkyRoof.IF;
 using Serilog;
 using VE3NEA;
+using VE3NEA.SkyTlm.Core;
 
 namespace SkyRoof
 {
@@ -85,6 +86,36 @@ namespace SkyRoof
   }
 
   /// <summary>
+  /// Compatibility bridge for already FM-discriminated AFSK audio.
+  /// The vendored SkyTlm AFSK modem expects IQ of an FM carrier and applies
+  /// its own FM discriminator. Frequency-modulating an ideal analytic carrier
+  /// with the existing AF waveform makes the discriminator recover that AF
+  /// once, instead of erroneously differentiating its Hilbert representation.
+  /// </summary>
+  public sealed class TelemetryAfskFmIqConverter
+  {
+    private const double Rate = 48000.0;
+    private const double MaxDeviationHz = 1800.0;
+    private double phase;
+
+    public Complex32[] Convert(ReadOnlySpan<float> audio)
+    {
+      var result = new Complex32[audio.Length];
+      for (int i = 0; i < audio.Length; i++)
+      {
+        double sample = float.IsFinite(audio[i]) ? Math.Clamp(audio[i], -1f, 1f) : 0;
+        phase += 2 * Math.PI * MaxDeviationHz * sample / Rate;
+        if (phase > Math.PI) phase -= 2 * Math.PI;
+        if (phase < -Math.PI) phase += 2 * Math.PI;
+        result[i] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
+      }
+      return result;
+    }
+
+    public void Reset() => phase = 0;
+  }
+
+  /// <summary>
   /// One selected telemetry audio input. Soundcard callbacks and the shared
   /// IF/AF stream only COPY PCM into a bounded queue. Hilbert and the
   /// existing IQ telemetry decoder run outside the capture callback.
@@ -114,7 +145,11 @@ namespace SkyRoof
     internal long DroppedBlocks => Interlocked.Read(ref droppedBlocks);
     internal long ReceivedSamples => Interlocked.Read(ref receivedSamples);
     private long discontinuities;
+    private int afModulation = (int)Modulation.Unknown;
+    private bool isAfInput;
     internal long Discontinuities => Interlocked.Read(ref discontinuities);
+    internal void SetAfModulation(Modulation modulation) =>
+      Volatile.Write(ref afModulation, (int)modulation);
 
     internal TelemetryAudioReceiveSession()
     {
@@ -150,6 +185,7 @@ namespace SkyRoof
         throw new ArgumentOutOfRangeException(nameof(config.InputSource));
       bool realIf = config.InputSource is TelemetryReceiveSource.Shared12kIf or
         TelemetryReceiveSource.Capture12kIf;
+      isAfInput = !realIf;
       int centerHz = realIf ? 12000 : config.AfCenterHz;
       if (centerHz <= 0 || centerHz >= 24000)
         throw new ArgumentOutOfRangeException(nameof(config.AfCenterHz));
@@ -276,6 +312,8 @@ namespace SkyRoof
       CancellationToken cancel, int version, int centerHz)
     {
       var converter = new TelemetryRealAudioIqConverter(centerHz);
+      var fmBridge = new TelemetryAfskFmIqConverter();
+      int appliedModulation = Volatile.Read(ref afModulation);
       long observedDrops = 0;
       try
       {
@@ -283,14 +321,19 @@ namespace SkyRoof
         {
           if (version != Volatile.Read(ref epoch)) return;
           long drops = Interlocked.Read(ref droppedBlocks);
-          if (drops != observedDrops || frame.Discontinuity)
+          int wantedModulation = Volatile.Read(ref afModulation);
+          if (drops != observedDrops || frame.Discontinuity ||
+              wantedModulation != appliedModulation)
           {
             converter.Reset();
+            fmBridge.Reset();
             observedDrops = drops;
+            appliedModulation = wantedModulation;
             Interlocked.Increment(ref discontinuities);
             IqDiscontinuity?.Invoke();
           }
-          Complex32[] iq = converter.Convert(frame.Samples);
+          Complex32[] iq = isAfInput && appliedModulation == (int)Modulation.AFSK
+            ? fmBridge.Convert(frame.Samples) : converter.Convert(frame.Samples);
           if (version != Volatile.Read(ref epoch)) return;
           IqAvailable?.Invoke(this, new DataEventArgs<Complex32>
           {
