@@ -19,7 +19,7 @@ namespace SkyRoof
     bool MutedLanLevel = false,
     long LastRemoteAudioTicks = 0,
     long AudioPingReplies = 0,
-    bool RemoteAudioStale = false);
+    bool HeartbeatReplyOverdue = false);
 
   internal enum IcomDirectLanTxLinkState
   {
@@ -151,10 +151,10 @@ namespace SkyRoof
     private volatile bool AudioTxNegotiationComplete;
     private readonly IcomLanAudioHeartbeat AudioHeartbeat = new();
     private long AudioConnectedTicks;
-    private volatile bool AudioHeartbeatStale;
+    // A radio may not echo every client-initiated audio ping. Missing a
+    // matching reply is diagnostic evidence only, not a revoked TX grant.
     internal bool IsTxUdpReady =>
-      AudioLinkConnected && AudioTxReady && !AudioHeartbeatStale &&
-      IsStreaming && !Disposed;
+      AudioLinkConnected && AudioTxReady && IsStreaming && !Disposed;
     internal bool HasCompletedTxNegotiation => AudioTxNegotiationComplete;
     private long AudioTxRejectedWithoutPtt;
     private long AudioRxDatagrams;
@@ -188,7 +188,10 @@ namespace SkyRoof
       ModInputState.ConfirmedZeroLanLevel,
       AudioHeartbeat.LastRemoteTicks,
       AudioHeartbeat.MatchedReplies,
-      AudioHeartbeatStale);
+      AudioLinkConnected && AudioTxReady &&
+        AudioHeartbeat.HasUnconfirmedReplyGap(
+          DateTime.UtcNow.Ticks, Interlocked.Read(ref AudioConnectedTicks),
+          Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12)));
     private DateTime LastAudioDiagnosticsUtc;
     internal Func<bool>? IsPttActive { get; init; }
 
@@ -603,7 +606,6 @@ namespace SkyRoof
           audio.Connect(RadioAddress, RemoteAudioPort);
           AudioRemoteSid = await StartAudioHandshakeAsync(audio, token);
           Interlocked.Exchange(ref AudioConnectedTicks, DateTime.UtcNow.Ticks);
-          AudioHeartbeatStale = false;
           AudioLinkConnected = true;
           audioDrain = DrainAudioAsync(
             audio, (int)NegotiatedRxRate, audioLifetime.Token);
@@ -908,35 +910,12 @@ namespace SkyRoof
       await PollModInputAsync(civ, now, token);
       ReportAudioDiagnostics(now);
 
-      if (AudioLinkConnected && AudioTxReady && AudioOptions.Transmit.Enabled)
-      {
-        bool stale = AudioHeartbeat.HasGoneStale(
-          now.Ticks, Interlocked.Read(ref AudioConnectedTicks),
-          Interlocked.Read(ref AudioTxDatagrams), TimeSpan.FromSeconds(12));
-        if (!stale && AudioHeartbeatStale)
-        {
-          // A delayed but valid radio response may recover the link while
-          // PTT is still held. Do not leave the UI permanently red.
-          AudioHeartbeatStale = false;
-          Log.Information("Direct LAN TX audio remote heartbeat recovered in-place");
-        }
-        if (stale)
-        {
-          if (!AudioHeartbeatStale)
-          {
-            AudioHeartbeatStale = true;
-            Log.Warning(
-              "Direct LAN TX audio remote heartbeat STALE: no correlated radio Audio UDP ping for 12s; TX sent={Sent}, pong={Pongs}. Recovery will occur after CAT PTT releases.",
-              Interlocked.Read(ref AudioTxDatagrams), AudioHeartbeat.MatchedReplies);
-            Publish("Direct LAN TX audio: remote media heartbeat lost; release PTT to recover authenticated audio/CI-V session.");
-          }
-          // Do not interrupt an ongoing PTT transmission, even if radio
-          // audio has stopped accepting packets. Reconnect once unkeyed.
-          if (IsPttActive?.Invoke() != true)
-            throw new IOException(
-              "Direct LAN TX audio remote heartbeat expired; renewing authenticated media.");
-        }
-      }
+      // Do not invalidate an authenticated audio stream merely because
+      // the IC-9700 has not echoed our optional audio UDP pings. v1.80
+      // treated an unconfirmed heartbeat as a revoked media grant and
+      // forced reauthentication after PTT OFF, causing a yellow TX light
+      // on the next PTT. Actual radio Disconnect (0x0005), socket/worker
+      // errors, and authenticated control failures still trigger recovery.
 
       DateTime lastSweepUtc = new DateTime(
         Math.Max(0, Interlocked.Read(ref LastNativeScopeTicks)),
@@ -1073,10 +1052,11 @@ namespace SkyRoof
           AudioOptions.Transmit.JitterPrefillMs,
           AudioOptions.Transmit.JitterMaximumMs);
         Log.Information(
-          "Direct LAN TX remote UDP heartbeat: confirmed={Confirmed} correlatedPongs={Pongs} lastRemoteUtcTicks={Ticks} stale={Stale}",
+          "Direct LAN TX heartbeat telemetry (no media reset): confirmed={Confirmed} correlatedPongs={Pongs} lastRemoteUtcTicks={Ticks} replyOverdue={Overdue}",
           AudioHeartbeat.LastRemoteTicks > 0,
           AudioHeartbeat.MatchedReplies,
-          AudioHeartbeat.LastRemoteTicks, AudioHeartbeatStale);
+          AudioHeartbeat.LastRemoteTicks,
+          TxAudioStatus.HeartbeatReplyOverdue);
         Log.Information(
           "Direct LAN TX modulation source: {Status}", ModInputState.Description);
         Log.Debug("Direct LAN scope writes sent={Writes}, queued={Queued}",
