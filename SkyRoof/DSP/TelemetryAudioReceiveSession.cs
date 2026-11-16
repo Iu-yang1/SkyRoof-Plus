@@ -101,13 +101,14 @@ namespace SkyRoof
     public Complex32[] Convert(ReadOnlySpan<float> audio)
     {
       var result = new Complex32[audio.Length];
-      for (int i = 0; i < audio.Length; i++)
+      int index = 0;
+      foreach (float value in audio)
       {
-        double sample = float.IsFinite(audio[i]) ? Math.Clamp(audio[i], -1f, 1f) : 0;
+        double sample = float.IsFinite(value) ? Math.Clamp(value, -1f, 1f) : 0;
         phase += 2 * Math.PI * MaxDeviationHz * sample / Rate;
         if (phase > Math.PI) phase -= 2 * Math.PI;
         if (phase < -Math.PI) phase += 2 * Math.PI;
-        result[i] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
+        result[index++] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
       }
       return result;
     }
