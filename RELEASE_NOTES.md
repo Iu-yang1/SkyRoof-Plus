@@ -1,3 +1,23 @@
+# SkyRoof-Plus v.1.81
+
+## v1.81 — 2026-11-16 Direct LAN 连续 PTT 误重连修复
+
+用户在 v1.80 观察到：第一次 PTT 绿灯，下一次 PTT 变黄（会话重新连接）。代码根因是 v1.80 将未确认的 Audio UDP 心跳回复错误地等同于远端撤销媒体授权。发送至少 20 个 TX UDP 数据包，且连接建立/最后心跳起经过 12 秒后，即使没有收到电台的明确断开响应，程序也会在 PTT 结束后重建整条 Control/CI-V/Audio 会话。
+
+- **不再因缺少 Audio Ping 回应而断开媒体。** 已完成的音频握手与协商不会被单方面的 12 秒计时器撤销；正常的 PTT OFF→ON、长时间待机及多次发射不再仅因此变黄或断开频谱。
+- **真正故障仍恢复。** IC-9700 发出的对应 Session ID 的明确 UDP Disconnect、音频工作线程异常、Control 鉴权失败等有独立证据的故障继续按原有事务恢复。
+- **心跳降级为诊断项。** 保留 SID/随机数/序号的远端音频响应统计。超过 12 秒未收到可关联回包只标注为“心跳应答未确认（仅诊断，不重置会话）”，不作为音频已失效、发射调制失败的证明。
+- **新增回归测试。** 模拟成功媒体授权、没有心跳回复、已经发送 TX 包以及连续三次 PTT 开关，验证媒体就绪状态保持一致；确保只有明确断开才进入未就绪状态。
+- 保留 v1.80 的正常 Logout、Audio/CI-V/Control 三路 UDP Disconnect、WASAPI TX ON/OFF 热切换、PTT 与 MOD 输入校验，未增加发射限制。
+
+**验收说明：** Windows CI、完整 xUnit、aislop 与发布安装包的实际结果以 v1.81 工作流为准。此测试不等同于 IC-9700 实机音频调制验证；需要在不同 TX 空闲间隔下测试实际发射。
+
+**English:** v1.81 fixes spurious TX media reauthentication between PTT bursts. Missing optional Audio UDP ping echoes are diagnostic only and must never revoke a negotiated TX grant. Explicit disconnect, failed transport workers and authenticated errors still recover normally. Repeated PTT regression tests added.
+
+---
+
+## Historical / 历史版本 v1.80
+
 # SkyRoof-Plus v.1.80
 
 ## v1.80 — 2026-11-16 ICOM LAN TX 发射音频重启恢复修复

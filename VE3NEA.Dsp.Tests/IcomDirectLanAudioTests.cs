@@ -180,6 +180,51 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void RepeatedPttBurstsDoNotInvalidateNegotiatedTxWhenAudioPingIsUnanswered()
+    {
+      bool ptt = false;
+      using var session = new IcomLanDirectSession(
+        "192.0.2.1", 50001, "operator", "test-password", "SkyRoof")
+      {
+        AudioOptions = new IcomDirectLanSettings
+        {
+          Transmit = new IcomDirectLanTransmitSettings { Enabled = true }
+        },
+        IsPttActive = () => ptt
+      };
+
+      // Model a successful authenticated media grant followed by the
+      // radio's ordinary non-echoed audio keepalive behavior. No socket or
+      // live radio is required for this state-machine regression.
+      var flags = System.Reflection.BindingFlags.Instance |
+        System.Reflection.BindingFlags.NonPublic;
+      void SetField(string name, object value) =>
+        typeof(IcomLanDirectSession).GetField(name, flags)!.SetValue(session, value);
+
+      SetField("AudioLinkConnected", true);
+      SetField("AudioTxReady", true);
+      typeof(IcomLanDirectSession).GetProperty("IsStreaming", flags)!
+        .SetValue(session, true);
+      SetField("AudioConnectedTicks", DateTime.UtcNow.AddMinutes(-1).Ticks);
+      SetField("AudioTxDatagrams", 25L);
+
+      session.TxAudioStatus.HeartbeatReplyOverdue.Should().BeTrue();
+      for (int attempt = 0; attempt < 3; attempt++)
+      {
+        ptt = true;
+        session.IsTxUdpReady.Should().BeTrue();
+        session.TryQueueTransmitAudio([0.2f, -0.2f], 2).Should().BeTrue();
+        ptt = false;
+        session.IsTxUdpReady.Should().BeTrue();
+      }
+
+      // Only a real transport teardown should change this state, not
+      // the elapsed time between two independent PTT transmissions.
+      SetField("AudioLinkConnected", false);
+      session.IsTxUdpReady.Should().BeFalse();
+    }
+
+    [Fact]
     public void AudioSampleRateFollowsRadioCapabilities()
     {
       IcomLanDirectSession.ChooseSampleRate(
