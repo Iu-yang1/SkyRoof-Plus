@@ -1,3 +1,16 @@
+# SkyRoof Fork v.1.81 / Direct LAN 连续 PTT 稳定性
+
+## v1.81 — 2026-11-16
+
+- 修复 v1.80 的 12 秒音频心跳误判：只有本机发送 TX 包、却没有电台回显 Audio Ping，并不代表媒体授权失效；不再因此触发整个 LAN 会话自动重建，造成下一次 PTT 黄灯。
+- 心跳继续提供诊断统计，但与媒体就绪判断解耦。明确的电台断开/Socket 错误/鉴权失败仍可触发恢复。
+- 添加多轮 PTT 仿真回归测试，保留既有三路 UDP 关闭、Logout、TX Audio 热切换与 CAT/PTT 安全语义。
+- 未执行 IC-9700 实机，Windows 自动测试和 aislop 结果以 v1.81 GitHub Actions 为准。
+
+**English:** Stop resetting healthy negotiated audio media on missing optional remote ping echoes. Maintain heartbeat counters for diagnostics and preserve evidence-based reconnection.
+
+---
+
 # SkyRoof Fork v.1.80 / Direct LAN TX 音频会话恢复
 
 ## v1.80 — 2026-11-16
