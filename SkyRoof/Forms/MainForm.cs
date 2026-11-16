@@ -1854,9 +1854,9 @@ namespace SkyRoof
     private async void DownloadAmsatMNU_Click(object sender, EventArgs e)
     {
       ctx.Settings.Amsat.Enabled = true;
-      bool ok = await ctx.AmsatStatusLoader.GetStatusesAsync();
+      bool ok = await ctx.AmsatStatusLoader.GetStatusesAsync(true);
       if (!ok)
-        MessageBox.Show("Failed to download AMSAT statuses",
+        MessageBox.Show($"Failed to download AMSAT statuses:\n\n{ctx.AmsatStatusLoader.LastError}",
           "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
@@ -2094,14 +2094,28 @@ namespace SkyRoof
         sett.LastDownloadTime < DateTime.UtcNow.AddDays(-LIST_DOWNLOAD_DAYS) &&
         sett.LastTleTime < DateTime.UtcNow.AddDays(-TLE_DOWNLOAD_DAYS);
 
+      // AMSAT status is optional: its failures turn the light gold, never red
+      var amsat = ctx.AmsatStatusLoader;
+      bool amsatEnabled = ctx.Settings.Amsat.Enabled;
+      bool amsatFailed = amsatEnabled && amsat.LastError != null;
+
       if (upToDate) SatDataLedLabel.ForeColor = Color.Red;
-      else if (!DownloadOk) SatDataLedLabel.ForeColor = Color.Gold;
+      else if (!DownloadOk || amsatFailed) SatDataLedLabel.ForeColor = Color.Gold;
       else SatDataLedLabel.ForeColor = Color.Lime;
 
       string tooltip =
         $"Satellite List:  {ClockWidget.Stamp(sett.LastDownloadTime, "yyyy-MM-dd HH:mm")}\n" +
-        $"TLE:                 {ClockWidget.Stamp(sett.LastTleTime, "yyyy-MM-dd HH:mm")}" +
-        (DownloadOk ? "" : "\nDownload failed");
+        $"TLE:                 {ClockWidget.Stamp(sett.LastTleTime, "yyyy-MM-dd HH:mm")}";
+
+      if (amsatEnabled)
+      {
+        string amsatTime = amsat.LastSuccessTime == null ? "n/a" :
+          ClockWidget.Stamp(amsat.LastSuccessTime.Value, "yyyy-MM-dd HH:mm") + (amsat.Expired ? " (expired)" : "");
+        tooltip += $"\nAMSAT Status:  {amsatTime}";
+      }
+
+      if (!DownloadOk) tooltip += "\nSatellite list / TLE download failed";
+      if (amsatFailed) tooltip += $"\nAMSAT status download failed: {amsat.LastError}";
 
       SatDataStatusLabel.ToolTipText = SatDataLedLabel.ToolTipText = tooltip;
     }
@@ -2565,6 +2579,7 @@ namespace SkyRoof
       ctx.SdrPasses.FullRebuild();
       ctx.PassesPanel?.ShowPasses();
       ctx.WaterfallPanel?.ScaleControl?.BuildLabels();
+      ctx.AmsatStatusLoader.OneMinuteTick();
       return Task.CompletedTask;
     }
 
@@ -2577,8 +2592,7 @@ namespace SkyRoof
       // Releasing an expired override here makes the already-persisted
       // automatic fallback active even when no network request is needed.
       ctx.SatnogsDb.ReleaseExpiredManualOrbitPriority(DateTime.UtcNow);
-
-      ctx.AmsatStatusLoader.GetStatusesAsync();
+      // AMSAT's own 15-minute timer is serviced from OneMinuteTick.
     }
 
 
@@ -2619,6 +2633,7 @@ namespace SkyRoof
       }
 
       ctx.SatnogsDb.Customize(ctx.Settings.Satellites.SatelliteCustomizations);
+      ctx.AmsatStatusLoader.ApplyCatalog();
       ctx.Settings.Satellites.EnsureSolarSystemGroup(ctx.SatnogsDb);
       ctx.Settings.Satellites.DeleteInvalidData(ctx.SatnogsDb);
 
