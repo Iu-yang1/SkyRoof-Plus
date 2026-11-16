@@ -1,3 +1,41 @@
+# SkyRoof-Plus v.1.82
+
+## v1.82 — 2026-11-16 遥测 IF/AF 接收可靠性修复（P0–P3）
+
+本次针对 IC-9700 USB/LAN 12 kHz 实数 IF 和 FM 鉴频后 AF 的遥测接收链路，修复来自两轮源码审查的问题。
+
+### P0 · 原始 IF 与数据连续性
+
+- Telemetry Shared12kIf 不再强制依赖 IF→AF 虚拟播放设备（VAC）成功启动：可直接采集 48 kHz USB IF，或订阅经过认证的 Direct LAN 音频流。
+- 为共享 IF 增加可携带不连续性状态的 PCM 事件，保留原有 IF→AF、Recorder、SDR 入口。
+- Direct LAN IF 独立使用 UDP 外层序号重排与 48 kHz 重采样，丢包、重同步及缓存掉块会通知遥测 Hilbert/NCO 与上层解码器重置。
+- 保留原始 IF 正常接收功能，未添加人为的发射/接收权限限制。
+
+### P1 · AF/AFSK 调制域
+
+- 为已进行 FM 鉴频的 AFSK 音频提供兼容 SkyTlm RF-IQ 解调入口的 FM-IQ 桥接，避免将解析 AF 误当射频 FM 信号再次鉴频。
+- 依据当前选中下行调制类型选择 AFSK 桥接或现有解析信号下变频；切换调制时重建流状态。
+- 保留 12 kHz Real IF 的 Hilbert + NCO 转换和已有 FSK/BPSK 解调路径。
+
+### P2 · 可观测性及输出分层
+
+- Telemetry 状态标签工具提示增加累计输入样本、PCM 丢块、数据中断、输入 RMS、已解码帧数、CRC 成功/失败、内层包数及最后一帧 CFO/SNR。
+- 只有 CRC 校验成功的遥测帧才标记当前过境的有效遥测及手动解调参数确认。
+- TCP KISS 使用虚拟通道区分：0=原始链路帧，1=TM/KISS 重组的内层包，2=CRC 失败的原始帧。原始链路帧仍按既有规则上报 SatNOGS，内层包不上报。
+
+### P3 · 录音、回归与数据安全
+
+- Recorder 可将 48 kHz 单声道 `.if.wav` 使用实时同一 IF→IQ 转换器读入，作为 IQ 进行离线遥测回放；任意实时输入模式下回放均暂时优先于实时信号。
+- 回放 Seek 后会重置遥测解码状态，避免历史样本跨不连续时间拼接。
+- AO-123/ASRTU-1 CCSDS TM 校验失败时清除正在重组的 KISS 包，避免跨缺失片段误拼。
+- 增加 AF→FM IQ 音频一致性、KISS 虚拟通道、IF 流式/离线一致性测试；修复已有 AMSAT UTC 测试由于 JSON 自动解析导致的文化区格式差异。
+
+**限制与验收边界：** Windows x64 编译、全部 xUnit、aislop、安装包及签名的最终结论以 v1.82 GitHub Actions 工作流实际结果为准。模拟/软件回放不等于 IC-9700 实机 USB/LAN IF 验收，仍需在真实 UNNE-1B 200 Bd FSK、AO-123 9600 Bd BPSK 信号上测量解码成功率、误码与丢包后的恢复时间。未经来源认证的样本不能据此宣称已经完成真实卫星整链路验证。
+
+**English:** v1.82 restores independent USB/LAN raw-IF telemetry ingress without mandatory VAC playback, propagates stream discontinuities to stateful demodulation, separates FM-discriminated AFSK audio from raw IF handling, exposes telemetry ingress and CRC diagnostics, separates KISS frame layers, and enables raw IF WAV offline replay. Hardware receive performance remains to be verified with actual IC-9700 captures.
+
+---
+
 # SkyRoof-Plus v.1.81
 
 ## v1.81 — 2026-11-16 Direct LAN 连续 PTT 误重连修复
