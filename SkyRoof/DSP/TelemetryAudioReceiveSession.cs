@@ -145,6 +145,8 @@ namespace SkyRoof
     internal long DroppedBlocks => Interlocked.Read(ref droppedBlocks);
     internal long ReceivedSamples => Interlocked.Read(ref receivedSamples);
     private long discontinuities;
+    private double inputRmsDbfs = double.NegativeInfinity;
+    internal double InputRmsDbfs => Volatile.Read(ref inputRmsDbfs);
     private int afModulation = (int)Modulation.Unknown;
     private bool isAfInput;
     internal long Discontinuities => Interlocked.Read(ref discontinuities);
@@ -203,6 +205,7 @@ namespace SkyRoof
       Interlocked.Exchange(ref droppedBlocks, 0);
       Interlocked.Exchange(ref receivedSamples, 0);
       Interlocked.Exchange(ref discontinuities, 0);
+      Volatile.Write(ref inputRmsDbfs, double.NegativeInfinity);
       worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz));
       try
       {
@@ -304,6 +307,11 @@ namespace SkyRoof
       if (writer == null || input.Length == 0) return;
       var samples = (float[])input.Clone();
       Interlocked.Add(ref receivedSamples, samples.Length);
+      double power = 0;
+      foreach (float sample in samples)
+        if (float.IsFinite(sample)) power += (double)sample * sample;
+      Volatile.Write(ref inputRmsDbfs,
+        10 * Math.Log10(Math.Max(power / samples.Length, 1e-15)));
       if (!writer.TryWrite(new AudioBlock(samples, utc, discontinuity)))
         Interlocked.Increment(ref droppedBlocks);
     }

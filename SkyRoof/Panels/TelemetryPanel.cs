@@ -128,6 +128,8 @@ namespace SkyRoof
     // consequence that cannot be withdrawn, so it waits for the click rather than for the countdown (§4.6).
     // Read on the decode thread and written on the UI thread, hence volatile.
     private volatile bool UploadHeld;
+    private long decodedFrames, goodFrames, badFrames, innerPackets;
+    private double lastFrameSnrDb, lastFrameCfoHz;
     // the parameters in use are the ones written to transmitters-override.json. Cleared by any further edit:
     // a set edited after saving is unendorsed again, and holds again.
     private bool OverrideSaved;
@@ -1178,7 +1180,14 @@ namespace SkyRoof
     private void FrameDecodedHandler(Frame frame, DecodeSnapshot snapshot, IImageAssembler? images,
       IAudioAssembler? voice, PushOutcome pushed, bool transportPacket = false)
     {
-      ctx.KissServer.SendToAll(frame);
+      Interlocked.Increment(ref decodedFrames);
+      if (frame.CrcValid == true) Interlocked.Increment(ref goodFrames);
+      if (frame.CrcValid == false) Interlocked.Increment(ref badFrames);
+      if (transportPacket) Interlocked.Increment(ref innerPackets);
+      Volatile.Write(ref lastFrameSnrDb, frame.SnrDb);
+      Volatile.Write(ref lastFrameCfoHz, frame.CfoHz);
+      ctx.KissServer.SendToAll(frame,
+        transportPacket ? 1 : frame.CrcValid == false ? 2 : 0);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
       // (§4.6). Parameters that were never edited are never held — the plain database path is untouched.
       // Nested TM/KISS packets are useful locally but are not the actual
@@ -1674,7 +1683,7 @@ namespace SkyRoof
       var (passNode, txPassInfo) = EnsureCurrentPassNode(snapshot);
 
       // un-gray the pass entry once the first valid frame of the pass is decoded
-      if (!txPassInfo.HasValidFrame)
+      if (frame.CrcValid == true && !txPassInfo.HasValidFrame)
       {
         txPassInfo.HasValidFrame = true;
         passNode.ForeColor = Color.Empty;
@@ -1683,7 +1692,8 @@ namespace SkyRoof
       // a frame decoded with the current (overridden) pipeline confirms the demod override worked. Gated on the
       // current decoder's snapshot so a late frame from a pre-override pipeline (or a different transmitter)
       // can't confirm it. Turns the user-changed demod dots and the gear button green.
-      if (ReferenceEquals(snapshot, CurrentDecode) && UserChangedFields.Count > 0 && !DemodValidated)
+      if (frame.CrcValid == true &&
+          ReferenceEquals(snapshot, CurrentDecode) && UserChangedFields.Count > 0 && !DemodValidated)
       {
         DemodValidated = true;
         UpdateGearButton();
@@ -3227,6 +3237,25 @@ namespace SkyRoof
         if (audioReceiverError != null)
           StatusLabel.ForeColor = Color.DarkOrange;
       }
+      toolTip1.SetToolTip(StatusLabel, TelemetryDiagnostics());
+    }
+
+    private string TelemetryDiagnostics()
+    {
+      string signal = audioReceiver == null || ctx.Settings.Telemetry.InputSource ==
+        TelemetryReceiveSource.SdrIq ? "SDR IQ" :
+        $"{audioReceiver.Status}\nInput samples: {audioReceiver.ReceivedSamples:N0}" +
+        $"\nDropped PCM blocks: {audioReceiver.DroppedBlocks:N0}" +
+        $"\nStream discontinuities: {audioReceiver.Discontinuities:N0}" +
+        $"\nIF/AF RMS: {audioReceiver.InputRmsDbfs:F1} dBFS";
+      return signal +
+        $"\nFrames: {Interlocked.Read(ref decodedFrames):N0}" +
+        $"\nCRC valid: {Interlocked.Read(ref goodFrames):N0}" +
+        $"\nCRC failed: {Interlocked.Read(ref badFrames):N0}" +
+        $"\nInner transport packets: {Interlocked.Read(ref innerPackets):N0}" +
+        $"\nLast SNR: {Volatile.Read(ref lastFrameSnrDb):F1} dB" +
+        $"\nLast CFO: {Volatile.Read(ref lastFrameCfoHz):F1} Hz" +
+        "\nKISS virtual ports: 0=RF, 1=inner packet, 2=failed CRC.";
     }
 
     internal void RefreshLocalizedUi()

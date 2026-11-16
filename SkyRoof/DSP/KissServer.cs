@@ -233,10 +233,10 @@ namespace SkyRoof
 
     // Non-blocking for the producer/DSP thread: slow clients are disconnected
     // when their complete-frame queue reaches capacity.
-    public void SendToAll(Frame frame)
+    public void SendToAll(Frame frame, int channel = 0)
     {
       if (!Active) return;
-      byte[] payload = Encode(frame.Bytes);
+      byte[] payload = Encode(frame.Bytes, channel);
       ClientSession[] snapshot;
       lock (gate) snapshot = clients.ToArray();
       foreach (ClientSession session in snapshot)
@@ -247,10 +247,14 @@ namespace SkyRoof
         }
     }
 
-    // KISS data frame, channel zero, without FCS.
-    private static byte[] Encode(byte[] data)
+    // KISS virtual port: 0 = decoded RF frame, 1 = reassembled packet,
+    // 2 = RF frame with failed CRC. Avoid interleaving different protocol
+    // layers on the same logical channel, without suppressing diagnostics.
+    private static byte[] Encode(byte[] data, int channel)
     {
-      var result = new List<byte>(data.Length + 4) { FEND, 0x00 };
+      if (channel is < 0 or > 15)
+        throw new ArgumentOutOfRangeException(nameof(channel));
+      var result = new List<byte>(data.Length + 4) { FEND, (byte)(channel << 4) };
       foreach (byte value in data)
       {
         if (value == FEND)
