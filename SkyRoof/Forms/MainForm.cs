@@ -1485,7 +1485,8 @@ namespace SkyRoof
         $"最近发送时间：{lastSent}\n" +
         $"音频会话最近有效远端响应：{audioHeartbeat}\n" +
         $"远端音频心跳应答累计：{tx.AudioPingReplies}\n" +
-        $"远端音频流超时：{(tx.RemoteAudioStale ? "是（将在 PTT 释放后重连）" : "否")}\n\n" +
+        $"远端音频心跳未确认超过 12 秒：{(tx.HeartbeatReplyOverdue ? "是（仅诊断，不重置会话）" : "否")}\n" +
+        "心跳未确认不等于电台撤销音频媒体授权；不会因此断开 TX 或频谱。\n\n" +
         $"电台 MOD 输入：{modSource}\n" +
         $"MOD 输入来源不匹配：{(tx.WrongModSource ? "已检测到" : "未检测到")}\n" +
         $"LAN MOD 电平为零：{(tx.MutedLanLevel ? "已检测到" : "未检测到")}\n\n" +
