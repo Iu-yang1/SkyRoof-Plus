@@ -226,7 +226,10 @@ namespace SkyRoof
     {
       string? message = null;
       try { message = JObject.Parse(json)["error"]?["message"]?.Value<string>(); }
-      catch { }
+      catch (JsonException ex)
+      {
+        Log.Debug(ex, "AMSAT HTTP error body has no parseable JSON message; falling back to HTTP status");
+      }
 
       return new ApiException(message ?? $"HTTP error {(int)status} {status}", status);
     }
