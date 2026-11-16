@@ -142,8 +142,10 @@ namespace SkyRoof
       if (HisCall != null)
       {
         messages[(int)Ft4MessageType.DE] = IsStandardCall(myCall) ? $"{CallsWithInfo(HisCall)} {mySquare}" : CallsWithoutInfo(HisCall);
-        messages[(int)Ft4MessageType.dB] = $"{CallsWithInfo(HisCall)} {IntToReport((int)HisSnr!)}";
-        messages[(int)Ft4MessageType.R_dB] = $"{CallsWithInfo(HisCall)} R{IntToReport((int)HisSnr!)}";
+        messages[(int)Ft4MessageType.dB] = HisSnr is int snr
+          ? $"{CallsWithInfo(HisCall)} {IntToReport(snr)}" : null;
+        messages[(int)Ft4MessageType.R_dB] = HisSnr is int replySnr
+          ? $"{CallsWithInfo(HisCall)} R{IntToReport(replySnr)}" : null;
         messages[(int)Ft4MessageType.RR73] = $"{CallsWithoutInfo(HisCall)} RR73";
         messages[(int)Ft4MessageType._73] = $"{CallsWithoutInfo(HisCall)} 73";
       }

@@ -47,8 +47,9 @@ namespace SkyRoof
 
       // match the list's native item tooltip: visual-styled in the light theme,
       // repainted in the dark one (see ListViewEx.ThemeTooltip)
-      AmsatToolTip = Theme.IsDark ? new ToolTipEx(components!) : new System.Windows.Forms.ToolTip(components!);
-      AmsatToolTipTimer = new System.Windows.Forms.Timer(components!) { Interval = AmsatToolTip.InitialDelay };
+      var componentContainer = components ??= new System.ComponentModel.Container();
+      AmsatToolTip = Theme.IsDark ? new ToolTipEx(componentContainer) : new System.Windows.Forms.ToolTip(componentContainer);
+      AmsatToolTipTimer = new System.Windows.Forms.Timer(componentContainer) { Interval = AmsatToolTip.InitialDelay };
       AmsatToolTipTimer.Tick += AmsatToolTipTimer_Tick;
       listView1.MouseMove += listView1_MouseMove;
       listView1.MouseLeave += listView1_MouseLeave;
@@ -347,15 +348,15 @@ namespace SkyRoof
 
     private void AmsatToolTipTimer_Tick(object? sender, EventArgs e)
     {
-      AmsatToolTipTimer!.Stop();
-      if (AmsatToolTipItem == null) return;
+      AmsatToolTipTimer?.Stop();
+      if (AmsatToolTipItem?.Tag is not ItemData itemData) return;
 
-      string text = MakeAmsatTooltip(((ItemData)AmsatToolTipItem.Tag!).Sat);
+      string text = MakeAmsatTooltip(itemData.Sat);
       if (text == "") return;
 
       var point = PointToClient(Cursor.Position);
       point.Offset(0, 20);
-      AmsatToolTip!.Show(text, this, point);
+      AmsatToolTip?.Show(text, this, point);
     }
 
     private void HideAmsatToolTip()

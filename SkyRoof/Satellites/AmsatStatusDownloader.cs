@@ -84,10 +84,7 @@ namespace SkyRoof
 
 
 
-    // ----------------------------------------------------------------------------------------------------
-    //                                          status download
-    // ----------------------------------------------------------------------------------------------------
-    // force: ignore the 15-minute schedule and re-download the satellite list
+      // force: ignore the 15-minute schedule and re-download the satellite list
     public async Task<bool> GetStatusesAsync(bool force = false)
     {
       if (!ctx.Settings.Amsat.Enabled || ctx.GroupViewPanel == null) return true;
@@ -181,7 +178,7 @@ namespace SkyRoof
       {
         string json = await GetJsonAsync("catalog.php");
         var names = ParseCatalog(json);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.Combine(Utils.GetUserDataFolder(), "Downloads"));
         File.WriteAllText(path, json);
         return names;
       }
@@ -237,10 +234,7 @@ namespace SkyRoof
 
 
 
-    // ----------------------------------------------------------------------------------------------------
-    //                                              parsing
-    // ----------------------------------------------------------------------------------------------------
-    // maps the AMSAT entries to the satellites; also called after the satellite list is re-imported
+      // maps the AMSAT entries to the satellites; also called after the satellite list is re-imported
     public void ApplyCatalog()
     {
       if (Catalog == null) return;
@@ -291,11 +285,13 @@ namespace SkyRoof
 
         bool isActive = lastActive != null && (lastInactive == null || lastActive > lastInactive);
 
+        DateTime? latest = isActive ? lastActive : lastInactive;
+        if (!latest.HasValue) continue;
         var status = new AmsatTxStatus
         {
           Mode = MakeModeLabel(group.Key),
           Active = isActive,
-          LatestTime = (isActive ? lastActive : lastInactive)!.Value,
+          LatestTime = latest.Value,
           ActiveCount = active.Sum(e => e.ReportCount),
         };
 
@@ -322,10 +318,7 @@ namespace SkyRoof
 
 
 
-    // ----------------------------------------------------------------------------------------------------
-    //                                            submission
-    // ----------------------------------------------------------------------------------------------------
-    // returns null on success, otherwise the error message
+      // returns null on success, otherwise the error message
     public async Task<string?> SendAmsatStatusAsync(string satName, string report,
       CancellationToken cancellationToken = default)
     {
@@ -362,8 +355,7 @@ namespace SkyRoof
       }
     }
 
-    // Pure builder used by both the real async submission and regression
-    // tests; keep UTC's one-minute margin from the original RS-BA1 client.
+    // Preserve the one-minute UTC timestamp margin in submitted reports.
     internal static string BuildAmsatReportPayload(string satName, string report,
       string callsign, string gridSquare, DateTime timestampUtc)
     {
