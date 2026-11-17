@@ -100,7 +100,9 @@ namespace SkyRoof.IF
     public IfAfFmPresetConverter() : base(typeof(IfAfFmBandwidth)) { }
   }
 
-  public enum IfAfFmVoiceProcessing { Off, Voice50us, Voice75us }
+  // Append only: persisted numeric settings 0/1/2 remain stable.
+  public enum IfAfFmVoiceProcessing { Off, Voice50us, Voice75us, Voice750us }
+  public enum IfAfFmSquelchSource { CarrierPower, NoiseQuieting }
   public enum IfAfSsbVoiceNotch { Off, Tone1000Hz, Tone1500Hz, AutoTracking }
   public enum IfAfSsbNoiseReduction { Off, Mild }
 
@@ -241,16 +243,41 @@ namespace SkyRoof.IF
 
     [Category("Audio enhancements")]
     [DisplayName("FM voice processing")]
-    [Description("Off preserves discriminator audio (digital/telemetry safe). Voice50us / Voice75us add the corresponding analog FM de-emphasis after AF filtering.")]
+    [Description("Voice-only FM de-emphasis: Off, 50, 75 or 750 us. Does not modify the clean AF telemetry tap.")]
     [DefaultValue(IfAfFmVoiceProcessing.Off)]
     public IfAfFmVoiceProcessing FmVoiceProcessing { get; set; } =
       IfAfFmVoiceProcessing.Off;
+
+    [Category("Audio enhancements")]
+    [DisplayName("FM voice high-pass 250 Hz")]
+    [Description("Optional 250-Hz Butterworth voice high-pass; suppresses CTCSS and low-frequency noise without altering telemetry AF.")]
+    [DefaultValue(false)]
+    public bool FmVoiceHighpassEnabled { get; set; } = false;
+
+    [Category("Audio enhancements")]
+    [DisplayName("FM fading impulse blanker")]
+    [Description("Optional 20-ms delayed FM speech-only interpolation of short carrier fades. Not applied to clean digital AF, and long fades remain unaltered.")]
+    [DefaultValue(false)]
+    public bool FmFadeBlankerEnabled { get; set; } = false;
 
     [Category("Audio enhancements")]
     [DisplayName("FM voice squelch")]
     [Description("Optional RF power-based voice squelch only. Off by default so weak-signal digital/FM data and AFC raw IF are never silently muted.")]
     [DefaultValue(false)]
     public bool FmVoiceSquelchEnabled { get; set; } = false;
+
+    [Category("Audio enhancements")]
+    [DisplayName("FM squelch detector")]
+    [Description("CarrierPower keeps the legacy behavior; NoiseQuieting additionally measures discriminator noise above 3.5 kHz before voice filtering. Voice only; does not mute clean AF.")]
+    [DefaultValue(IfAfFmSquelchSource.CarrierPower)]
+    public IfAfFmSquelchSource FmSquelchSource { get; set; } =
+      IfAfFmSquelchSource.CarrierPower;
+
+    [Category("Audio enhancements")]
+    [DisplayName("FM noise squelch open level (dBFS)")]
+    [Description("NoiseQuieting only: open when wideband discriminator noise is below this threshold, with 3 dB close hysteresis. Calibrate against actual IF receive conditions.")]
+    [DefaultValue(-18)]
+    public int FmNoiseOpenDbfs { get; set; } = -18;
 
     [Category("Audio enhancements")]
     [DisplayName("FM voice squelch threshold (dBFS)")]
