@@ -44,7 +44,10 @@ namespace SkyRoof.IF
       IfAfFmVoiceProcessing fmVoice = IfAfFmVoiceProcessing.Off,
       bool fmSquelch = false, int fmSquelchDbfs = -45,
       IfAfSsbVoiceNotch ssbVoiceNotch = IfAfSsbVoiceNotch.Off,
-      IfAfSsbNoiseReduction ssbNoiseReduction = IfAfSsbNoiseReduction.Off)
+      IfAfSsbNoiseReduction ssbNoiseReduction = IfAfSsbNoiseReduction.Off,
+      bool fmVoiceHighpass = false, bool fmFadeBlanker = false,
+      IfAfFmSquelchSource fmSquelchSource = IfAfFmSquelchSource.CarrierPower,
+      int fmNoiseOpenDbfs = -18)
     {
       // 6.25-kHz FM preset uses +/-900 Hz peak deviation. This guard
       // must cover every supported preset, or the receive worker faults
@@ -61,8 +64,16 @@ namespace SkyRoof.IF
       this.fmAfCutoffHz = fmAfCutoffHz;
       fmDeviation = fmDeviationHz;
       cwAudio = new IfAfCwAudioFilter(cwCenterHz, cwBandwidthHz);
-      voice = new IfAfVoiceEnhancements(fmVoice, fmSquelch,
-        fmSquelchDbfs, ssbVoiceNotch, ssbNoiseReduction);
+      voice = new IfAfVoiceEnhancements(new IfAfFmVoiceOptions
+      {
+        Deemphasis = fmVoice,
+        SquelchEnabled = fmSquelch,
+        PowerThresholdDbfs = fmSquelchDbfs,
+        HighpassEnabled = fmVoiceHighpass,
+        BlankerEnabled = fmFadeBlanker,
+        SquelchSource = fmSquelchSource,
+        NoiseOpenDbfs = fmNoiseOpenDbfs
+      }, ssbVoiceNotch, ssbNoiseReduction);
       Configure(mode);
     }
 
@@ -160,7 +171,10 @@ namespace SkyRoof.IF
 
     /// <summary>Does not allocate, clip, AGC or retune RF. Select FM deviation
     /// consistently with the receiver and stream configuration.</summary>
-    public float Process(float sample)
+    public float Process(float sample) => ProcessCore(sample, out _);
+
+    // The clean AF tap precedes all voice-only processing and host leveling.
+    private float ProcessCore(float sample, out float cleanAf)
     {
       if (!float.IsFinite(sample))
       {
@@ -171,7 +185,7 @@ namespace SkyRoof.IF
       // accumulation error and preserves exact phase across block boundaries.
       int phaseNow = phaseIndex++ & 3;
       rawDelay[write] = sample;
-      double value;
+      double value, cleanValue;
       if (mode != IfAfMode.Fm)
       {
         double sum = 0;
@@ -185,6 +199,7 @@ namespace SkyRoof.IF
         value = sum;
         if (mode is IfAfMode.CwUsb or IfAfMode.CwLsb)
           value = cwAudio.Process(value);
+        cleanValue = value;
         value = voice.Process(value, mode);
       }
       else
@@ -229,10 +244,12 @@ namespace SkyRoof.IF
           if (--idx < 0) idx = AfTaps - 1;
         }
         if (++audioWrite == AfTaps) audioWrite = 0;
-        value = voice.Process(value, mode, lastFmPower);
+        cleanValue = value;
+        value = voice.Process(value, mode, lastFmPower, raw);
       }
       if (++write == SsbTaps) write = 0;
       SamplesProcessed++;
+      cleanAf = (float)(double.IsFinite(cleanValue) ? cleanValue : 0);
       return (float)(double.IsFinite(value) ? value : 0);
     }
 
@@ -241,6 +258,22 @@ namespace SkyRoof.IF
       if (output.Length < input.Length)
         throw new ArgumentException("AF buffer too small.", nameof(output));
       for (int n = 0; n < input.Length; n++) output[n] = Process(input[n]);
+    }
+
+    /// <summary>Produce both voice AF and clean AF before de-emphasis,
+    /// blanking, squelch and output leveling. Both have 48-kHz sample counts;
+    /// optional voice blanking delays ONLY the voice path by 20 ms.</summary>
+    public void Process(ReadOnlySpan<float> input, Span<float> output,
+      Span<float> cleanAfOutput)
+    {
+      if (output.Length < input.Length || cleanAfOutput.Length < input.Length)
+        throw new ArgumentException("AF output buffer too small.");
+      int n = 0;
+      foreach (float sample in input)
+      {
+        output[n] = ProcessCore(sample, out cleanAfOutput[n]);
+        n++;
+      }
     }
 
     public void Reset()

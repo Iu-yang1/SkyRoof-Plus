@@ -145,6 +145,8 @@ namespace SkyRoof.IF
           config.SsbCwAgcTargetDbfs is < -36 or > -12 ||
           config.SsbCwAgcMaxGainDb is < 0 or > 36 ||
           config.FmVoiceSquelchDbfs is < -95 or > -10 ||
+          config.FmNoiseOpenDbfs is < -90 or > 20 ||
+          !Enum.IsDefined(typeof(IfAfFmSquelchSource), config.FmSquelchSource) ||
           !Enum.IsDefined(typeof(IfAfFmVoiceProcessing), config.FmVoiceProcessing) ||
           !Enum.IsDefined(typeof(IfAfSsbVoiceNotch), config.SsbVoiceNotch) ||
           !Enum.IsDefined(typeof(IfAfSsbNoiseReduction), config.SsbNoiseReduction))
@@ -183,6 +185,10 @@ namespace SkyRoof.IF
         CwBandwidth = config.CwBandwidth,
         FmBandwidth = config.FmBandwidth,
         FmVoiceProcessing = config.FmVoiceProcessing,
+        FmVoiceHighpassEnabled = config.FmVoiceHighpassEnabled,
+        FmFadeBlankerEnabled = config.FmFadeBlankerEnabled,
+        FmSquelchSource = config.FmSquelchSource,
+        FmNoiseOpenDbfs = config.FmNoiseOpenDbfs,
         FmVoiceSquelchEnabled = config.FmVoiceSquelchEnabled,
         FmVoiceSquelchDbfs = config.FmVoiceSquelchDbfs,
         SsbVoiceNotch = config.SsbVoiceNotch,
@@ -298,7 +304,9 @@ namespace SkyRoof.IF
         audioConfig.EffectiveFmIfCutoffHz, audioConfig.EffectiveFmAfCutoffHz,
         audioConfig.FmVoiceProcessing, audioConfig.FmVoiceSquelchEnabled,
         audioConfig.FmVoiceSquelchDbfs, audioConfig.SsbVoiceNotch,
-        audioConfig.SsbNoiseReduction);
+        audioConfig.SsbNoiseReduction,
+        audioConfig.FmVoiceHighpassEnabled, audioConfig.FmFadeBlankerEnabled,
+        audioConfig.FmSquelchSource, audioConfig.FmNoiseOpenDbfs);
       var leveler = new IfAfAudioLeveler(audioConfig);
       DateTime previous = default;
       int previousSamples = 0;
@@ -331,15 +339,22 @@ namespace SkyRoof.IF
           if (queueLagMs >= 0 && queueLagMs < 60000)
             Interlocked.Exchange(ref lastProcessingLagUs,
               (long)Math.Round(queueLagMs * 1000));
-          // Reuse scratch AF blocks: WASAPI's bounded ring copies PCM
-          // synchronously, so the rented array can be returned after Write.
-          // This eliminates a managed allocation per 10-ms IF block.
+          // WASAPI copies rented scratch AF before the buffer is returned.
           long startedTicks = Stopwatch.GetTimestamp();
           float[] af = ArrayPool<float>.Shared.Rent(frame.Data.Length);
+          var cleanListener = CleanDemodulatedAfAvailable;
+          float[]? cleanAf = cleanListener == null ? null :
+            ArrayPool<float>.Shared.Rent(frame.Data.Length);
           try
           {
             int count = frame.Data.Length;
-            dsp.Process(frame.Data, af.AsSpan(0, count));
+            if (cleanAf != null)
+            {
+              dsp.Process(frame.Data, af.AsSpan(0, count), cleanAf.AsSpan(0, count));
+              if (cleanListener != null)
+                PublishCleanAf(cleanListener, cleanAf, count, frame.Utc);
+            }
+            else dsp.Process(frame.Data, af.AsSpan(0, count));
             double inputPower = 0;
             for (int i = 0; i < count; i++)
               inputPower += (double)frame.Data[i] * frame.Data[i];
@@ -372,6 +387,7 @@ namespace SkyRoof.IF
           finally
           {
             ArrayPool<float>.Shared.Return(af);
+            if (cleanAf != null) ArrayPool<float>.Shared.Return(cleanAf);
             Volatile.Write(ref lastDspBlockMs,
               (Stopwatch.GetTimestamp() - startedTicks) *
               1000.0 / Stopwatch.Frequency);
