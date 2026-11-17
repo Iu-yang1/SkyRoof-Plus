@@ -170,6 +170,60 @@ public sealed class SatelliteRecordedAudioRegressionTests
             string.Join("; ", observations));
     }
 
+    [Theory]
+    [Trait("Category", "RecordedSatelliteAudio")]
+    [InlineData("ao73.wav", 1200, Modulation.BPSK, Framing.AO40FEC, 1700)]
+    [InlineData("ao27.wav", 1200, Modulation.AFSK, Framing.AX25G3RUH, 1800)]
+    [InlineData("aistechsat3.wav", 4800, Modulation.FSK, Framing.AX100ASM, 1200)]
+    [InlineData("suomi_100.wav", 9600, Modulation.GMSK, Framing.AX100ASM, 2400)]
+    public void RecordedAudio_BlockBoundariesPreserveIqPhaseAndVerifiedFrames(
+        string filename, double baud, Modulation modulation, Framing framing,
+        int centreOrDeviation)
+    {
+        string? folder = Environment.GetEnvironmentVariable("SKYROOF_SATELLITE_AUDIO_CORPUS");
+        if (string.IsNullOrWhiteSpace(folder)) return;
+        float[] pcm = ReadMono48k(Path.Combine(folder, filename));
+        bool toneAudio = modulation == Modulation.BPSK;
+        var reference = toneAudio
+            ? new TelemetryRealAudioIqConverter(centreOrDeviation).Convert(pcm)
+            : new TelemetryAfskFmIqConverter(centreOrDeviation).Convert(pcm);
+
+        var iq = new Complex32[pcm.Length];
+        var hilbert = toneAudio ? new TelemetryRealAudioIqConverter(centreOrDeviation) : null;
+        var fm = toneAudio ? null : new TelemetryAfskFmIqConverter(centreOrDeviation);
+        int[] blockSizes = { 1, 1600, 97, 4096, 17, 4800, 231, 4093 };
+        int at = 0, block = 0;
+        while (at < pcm.Length)
+        {
+            int n = Math.Min(blockSizes[block++ % blockSizes.Length], pcm.Length - at);
+            Complex32[] converted = toneAudio
+                ? hilbert!.Convert(pcm.AsSpan(at, n))
+                : fm!.Convert(pcm.AsSpan(at, n));
+            Array.Copy(converted, 0, iq, at, n);
+            at += n;
+        }
+
+        for (int i = 0; i < pcm.Length; i++)
+        {
+            Assert.InRange(Math.Abs(iq[i].Real - reference[i].Real), 0, 1e-5f);
+            Assert.InRange(Math.Abs(iq[i].Imaginary - reference[i].Imaginary), 0, 1e-5f);
+        }
+        var parameters = new SignalParams(baud, modulation, framing, SampleRate,
+            modulation switch
+            {
+                Modulation.AFSK => 500,
+                Modulation.FSK => centreOrDeviation,
+                _ => null
+            })
+        {
+            Differential = modulation == Modulation.BPSK ? true : null,
+            AfCarrier = modulation == Modulation.AFSK ? 1700 : null
+        };
+        var (bursts, verified) = DecodeFrames(iq, parameters);
+        Console.WriteLine($"SAT_STREAM {filename} blocks={block} bursts={bursts} verified={verified}");
+        Assert.True(verified > 0, "Chunked production audio bridge lost valid frames from " + filename);
+    }
+
     private static (int Bursts, int Verified) DecodeFrames(Complex32[] iq, SignalParams parameters)
     {
         int bursts = 0, verified = 0;
