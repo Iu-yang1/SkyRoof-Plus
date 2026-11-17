@@ -80,3 +80,37 @@ require a matching satellite clock and a CRC-verified frame.
 Until this stricter recorded-IQ gate passes, keep this PR in draft, do not
 merge as a proven UNNE-1B receiver fix and do not publish a release claiming
 that the receiver has passed real-IQ end-to-end validation.
+
+## Source-level SkyTlm fork integration (2026-11-17)
+
+The real-IQ Action now checks out a fixed commit of
+[Iu-yang1/VE3NEA.SkySignals-Plus](https://github.com/Iu-yang1/VE3NEA.SkySignals-Plus/pull/1),
+builds `VE3NEA.SkyTlm.dll` and `VE3NEA.Dsp.dll` from source, then builds and
+tests SkyRoof against those assemblies. A normal release currently still
+uses the old committed vendor DLL; **the fork changes have not been shipped**.
+
+Fixes in the fork include a strict native UNNE-1B `IDeframer`, an injected
+`DeframerOverride` used by all native baud/CFO/timing CRC trials, repaired
+early-exit shape-gate logic, `CorrectedBits` reporting, a weak-FSK
+`RecoverFadedTail` option and the AO-123 `Asrtu1Header` API compatibility.
+
+[Action #44036464827](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44036464827)
+passed **22/22 SkyTlm protocol tests** and recovered four real CODEC2
+subframes numbered 0–3 using the native UNNE decoder. The regression still
+failed: 4–5 absent, no type-1 or type-14 verified frame.
+
+The follow-up detector trace on the three excerpts showed type-1 peak Z
+**308.6** (onset threshold approx. **6.0**) and type-14 peak Z **252.1**
+(threshold **5.5**), both with over a hundred in-burst detector frames.
+Thus `BurstDecoded=0` here is **not evidence of zero raw detection**.
+`RecoverFadedTail` defers decoding for up to `MaxFrameBits / 200` seconds
+(about 5.48 s), but the older fixture fed only about 1.2 s of trailing
+silence and never invoked `StreamingPipeline.Flush()`, so pending decodes
+were lost. The test now primes the receiver's noise-floor history and calls
+`Flush()` explicitly; SkyRoof `TelemetryDecocder.Dispose()` also flushes
+before freeing the native DSP.
+
+The corrected real-IQ Action is
+[here](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/unne1b-real-iq.yml).
+Its completion, expected CRC-valid type1/type14 and six CODEC2 subframes,
+not compilation or just burst detection, remains the acceptance criterion.
