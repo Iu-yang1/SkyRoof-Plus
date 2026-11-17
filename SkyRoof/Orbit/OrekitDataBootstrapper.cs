@@ -96,7 +96,7 @@ internal static class OrekitDataBootstrapper
                 await using (var file = File.OpenRead(staging))
                 {
                     using var gitHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
-                    gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {info.Length}\\0"));
+                    gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {info.Length}\0"));
                     using var hash256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                     byte[] buffer = new byte[81920];
                     int read;
