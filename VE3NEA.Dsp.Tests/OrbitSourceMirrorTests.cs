@@ -64,7 +64,7 @@ public sealed class OrbitSourceMirrorTests
     public void CelestrakCacheKeyChangesWhenOperatorChangesPriorityOrGroup()
     {
         string amateurCsv = OrbitSourceSettings.DefaultCelestrakOmmCsvUrl;
-        string amateurJson = amateurCsv.Replace("FORMAT=csv", "FORMAT=JSON");
+        string amateurJson = amateurCsv.Replace("FORMAT=CSV", "FORMAT=JSON");
         Assert.Equal(16, OrbitSourceFetcher.CacheKey(amateurCsv).Length);
         Assert.Equal(OrbitSourceFetcher.CacheKey(amateurCsv),
             OrbitSourceFetcher.CacheKey(amateurCsv + "  "));
