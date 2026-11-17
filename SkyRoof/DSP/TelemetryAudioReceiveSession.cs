@@ -154,10 +154,30 @@ namespace SkyRoof
     private double inputRmsDbfs = double.NegativeInfinity;
     internal double InputRmsDbfs => Volatile.Read(ref inputRmsDbfs);
     private int afModulation = (int)Modulation.Unknown;
+    private SignalParams? afSignal;
     private bool isAfInput;
     internal long Discontinuities => Interlocked.Read(ref discontinuities);
     internal void SetAfModulation(Modulation modulation) =>
       Volatile.Write(ref afModulation, (int)modulation);
+
+    internal void SetAfSignalParams(SignalParams? signal)
+    {
+      Volatile.Write(ref afSignal, signal);
+      SetAfModulation(signal?.Modulation ?? Modulation.Unknown);
+    }
+
+    internal static bool UseDiscriminatorAf(bool isAf, Modulation modulation,
+      TelemetryFskAfInput fskAfInput) =>
+      isAf && (modulation == Modulation.AFSK ||
+        (fskAfInput == TelemetryFskAfInput.FmDiscriminator &&
+         modulation is Modulation.FSK or Modulation.GFSK or Modulation.GMSK));
+
+    internal static double FskAfPeakDeviation(SignalParams? signal, double overrideHz)
+    {
+      if (overrideHz > 0) return overrideHz;
+      return signal?.Deviation is double d && d > 0 ? d :
+        signal is { Baud: > 0 } p ? p.Baud / 4.0 : 1800;
+    }
 
     internal TelemetryAudioReceiveSession()
     {
@@ -212,7 +232,8 @@ namespace SkyRoof
       Interlocked.Exchange(ref receivedSamples, 0);
       Interlocked.Exchange(ref discontinuities, 0);
       Volatile.Write(ref inputRmsDbfs, double.NegativeInfinity);
-      worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz));
+      worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz,
+        config.FskAfInput, config.FskAfDeviationHz));
       try
       {
         ConnectSource(config, ifAf, ctx, device, cancel.Token);
@@ -331,10 +352,12 @@ namespace SkyRoof
     }
 
     private async Task RunAsync(ChannelReader<AudioBlock> reader,
-      CancellationToken cancel, int version, int centerHz)
+      CancellationToken cancel, int version, int centerHz,
+      TelemetryFskAfInput fskAfInput, double fskDeviationHz)
     {
       var converter = new TelemetryRealAudioIqConverter(centerHz);
       var fmBridge = new TelemetryAfskFmIqConverter();
+      double bridgeDeviationHz = 1800;
       int appliedModulation = Volatile.Read(ref afModulation);
       long observedDrops = 0;
       try
@@ -354,7 +377,23 @@ namespace SkyRoof
             Interlocked.Increment(ref discontinuities);
             IqDiscontinuity?.Invoke();
           }
-          Complex32[] iq = isAfInput && appliedModulation == (int)Modulation.AFSK
+          var modulation = (Modulation)appliedModulation;
+          bool fmDiscriminated = UseDiscriminatorAf(isAfInput, modulation, fskAfInput);
+          if (fmDiscriminated)
+          {
+            // Bell-202's existing 1800 Hz FM envelope stays unchanged.
+            // FSK/GMSK FM-discriminator input uses its own physical deviation.
+            double wantedDeviation = modulation == Modulation.AFSK ? 1800 :
+              FskAfPeakDeviation(Volatile.Read(ref afSignal), fskDeviationHz);
+            if (Math.Abs(wantedDeviation - bridgeDeviationHz) > 0.01)
+            {
+              fmBridge = new TelemetryAfskFmIqConverter(wantedDeviation);
+              bridgeDeviationHz = wantedDeviation;
+              Interlocked.Increment(ref discontinuities);
+              IqDiscontinuity?.Invoke();
+            }
+          }
+          Complex32[] iq = fmDiscriminated
             ? fmBridge.Convert(frame.Samples) : converter.Convert(frame.Samples);
           if (version != Volatile.Read(ref epoch)) return;
           IqAvailable?.Invoke(this, new DataEventArgs<Complex32>
