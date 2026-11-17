@@ -176,6 +176,31 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void SquelchGateTracksTheVoiceBlankerDelayAtCarrierDrop()
+    {
+      var raw = new IfAfVoiceEnhancements(new IfAfFmVoiceOptions
+      {
+        SquelchEnabled = true, PowerThresholdDbfs = -40
+      }, IfAfSsbVoiceNotch.Off, IfAfSsbNoiseReduction.Off);
+      var delayed = new IfAfVoiceEnhancements(new IfAfFmVoiceOptions
+      {
+        SquelchEnabled = true, PowerThresholdDbfs = -40, BlankerEnabled = true
+      }, IfAfSsbVoiceNotch.Off, IfAfSsbNoiseReduction.Off);
+      const int total = 12000;
+      double[] reference = new double[total];
+      for (int n = 0; n < total; n++)
+      {
+        double af = .2 * Math.Sin(2 * Math.PI * 850 * n / Rate);
+        double power = n < 6000 ? 1 : 0;
+        reference[n] = raw.Process(af, IfAfMode.Fm, power);
+        double withDelay = delayed.Process(af, IfAfMode.Fm, power);
+        double expected = n >= IfAfFmFadeBlanker.DelaySamples
+          ? reference[n - IfAfFmFadeBlanker.DelaySamples] : 0;
+        Assert.InRange(Math.Abs(withDelay - expected), 0, 1e-10);
+      }
+    }
+
+    [Fact]
     public void NewFmSettingsRoundTripAndDefaultToLegacyVoiceBehavior()
     {
       var defaults = new IfAfSettings();
