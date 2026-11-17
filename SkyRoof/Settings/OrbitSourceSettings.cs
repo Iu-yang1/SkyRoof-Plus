@@ -47,7 +47,7 @@ namespace SkyRoof
 
     [Category("Orekit ephemeris")]
     [DisplayName("JPL DE430 Download URL")]
-    [Description("Orekit-native DE430 data URL. Downloaded data must match the pinned upstream Git blob hash; NAIF BSP/SPK files are not interchangeable.")]
+    [Description("Ordered HTTPS mirror URLs or local-file paths for Orekit DE430 (semicolon/newline separated). Any downloaded file must match the pinned upstream Git blob SHA-1; NAIF BSP/SPK files are not interchangeable.")]
     [DefaultValue(DefaultOrekitDe430Url)]
     public string OrekitDe430Url { get; set; } = DefaultOrekitDe430Url;
 
