@@ -1,0 +1,102 @@
+name: UNNE-1B Real IQ FSK Regression
+
+on:
+  pull_request:
+    paths:
+      - 'SkyRoof/DSP/Unne1b*'
+      - 'SkyRoof/Panels/TelemetryPanel.cs'
+      - 'SkyRoof/DSP/TelemetryDecocder.cs'
+      - 'SkyRoof/Satellites/SignalParamsResolver.cs'
+      - 'VE3NEA.Dsp.Tests/Unne1bRecordedIqRegressionTests.cs'
+      - 'scripts/fetch-unne1b-real-iq.ps1'
+      - '.github/workflows/unne1b-real-iq.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-iq:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source and SkyCAT submodule
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@fd55a6f3b34392fa83fde1454582407d8c714123 # v4.0
+      - name: Build pinned HamNoise display backend
+        shell: pwsh
+        run: ./scripts/build-hamnoise.ps1
+      - name: Stage pinned WinDivert 2.2.2 x64
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'WinDivert-2.2.2-A.zip'
+          $url = 'https://github.com/basil00/WinDivert/releases/download/v2.2.2/WinDivert-2.2.2-A.zip'
+          for ($n = 1; $n -le 3; $n++) {
+            try { Invoke-WebRequest -Uri $url -OutFile $zip; break }
+            catch { if ($n -eq 3) { throw }; Start-Sleep -Seconds (2*$n) }
+          }
+          $expected = '63cb41763bb4b20f600b6de04e991a9c2be73279e317d4d82f237b150c5f3f15'
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'WinDivert archive digest mismatch'
+          }
+          $dir = Join-Path $env:RUNNER_TEMP 'windivert'
+          Expand-Archive $zip -DestinationPath $dir -Force
+          $dll = Get-ChildItem $dir -Recurse -File -Filter WinDivert.dll |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          $sys = Get-ChildItem $dir -Recurse -File -Filter WinDivert64.sys |
+            Select-Object -First 1
+          if (!$dll -or !$sys) { throw 'WinDivert x64 files missing' }
+          $target = Join-Path $env:GITHUB_WORKSPACE 'Vendor\WinDivert\x64'
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Copy-Item $dll.FullName (Join-Path $target 'WinDivert.dll')
+          Copy-Item $sys.FullName (Join-Path $target 'WinDivert64.sys')
+
+      - name: Restore locked project dependencies
+        shell: pwsh
+        run: |
+          dotnet restore Vendor/SkyCAT/skycatd/skycatd.csproj --locked-mode
+          nuget restore SkyRoof.sln -LockedMode
+
+      - name: Compile production FSK pipeline and real-IQ test
+        shell: pwsh
+        run: msbuild SkyRoof.sln /m /p:Configuration=Release /p:Platform=x64
+
+      - name: Download and verify actual satellite IQ recordings
+        shell: pwsh
+        run: ./scripts/fetch-unne1b-real-iq.ps1 -Destination artifacts/unne1b-real-iq
+
+      - name: Execute actual SkyRoof IQ to FSK to CRC regression
+        shell: pwsh
+        env:
+          SKYROOF_UNNE_REAL_IQ_DIR: artifacts/unne1b-real-iq
+          SKYROOF_UNNE_REAL_IQ_METRICS: artifacts/unne1b-real-iq-metrics.json
+        run: >
+          dotnet test VE3NEA.Dsp.Tests/VE3NEA.Dsp.Tests.csproj
+          -c Release -p:Platform=x64 --no-restore --no-build
+          --filter FullyQualifiedName~Unne1bRecordedIqRegressionTests
+          --logger "console;verbosity=normal"
+
+      - name: Print per-candidate burst, CFO, SNR and CRC evidence
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path artifacts/unne1b-real-iq-metrics.json) {
+            Get-Content artifacts/unne1b-real-iq-metrics.json
+          } else {
+            Write-Warning 'No real-IQ metrics. Check the preceding compilation/download step.'
+          }
+
+      - name: Upload unne1b-real-iq regression artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unne1b-real-iq-metrics
+          path: artifacts/unne1b-real-iq-metrics.json
+          if-no-files-found: warn
+          retention-days: 30
