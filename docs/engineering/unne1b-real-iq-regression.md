@@ -61,3 +61,22 @@ Next focused work: measure SkyTlm's detected burst onset and end relative to
 the real 128-bit alternating preamble, inspect its 200-Bd timing acquisition,
 minimum burst length, gating and pre-roll; validate any fix against all three
 recordings and preserve AO-123's already working CCSDS/IF route.
+
+
+## 2026-11-17 follow-up: UNNE-specific receive gate and stronger voice acceptance
+
+The production `TelemetryDecocder` now constructs the UNNE-1B
+`StreamingPipeline` with `GateByShape = false`, while preserving the
+previous default options for every other satellite. In the initial real-IQ
+matrix, the default gate rejected all three captures; the gate-off
+configuration recovered some type-14 soft symbols (up to 271), still fewer
+than a complete type-14 packet. This is a targeted partial receive-path
+correction, **not** proof of successful on-air or IQ-to-CRC decoding.
+
+The acceptance test now requires all six published CODEC2 subframe numbers
+0–5 in a single tuning/demodulation attempt. Type-1 and type-14 still
+require a matching satellite clock and a CRC-verified frame.
+
+Until this stricter recorded-IQ gate passes, keep this PR in draft, do not
+merge as a proven UNNE-1B receiver fix and do not publish a release claiming
+that the receiver has passed real-IQ end-to-end validation.
