@@ -442,15 +442,31 @@ namespace SkyRoof
         ? string.Join(";", OrbitSourceFetcher.Candidates(source)
             .Select(OrbitSourceSettings.ResolveAutoTleUrl))
         : source;
+
+      // CelesTrak GP sets are updated at most once every two hours. Cache the
+      // validated response per configured source list so repeated manual
+      // refreshes neither waste upstream bandwidth nor trigger rate limits.
+      string? cachePath = label == "CelesTrak OMM CSV"
+        ? Path.Combine(DownloadsFolder,
+            "celestrak-gp-" + OrbitSourceFetcher.CacheKey(options) + ".cache")
+        : null;
+      SatnogsDbTleList? cached = ReadOrbitCache(cachePath, forcedExtension, label);
+      if (cached != null &&
+          DateTime.UtcNow - File.GetLastWriteTimeUtc(cachePath!) < TimeSpan.FromHours(2))
+      {
+        Log.Information("Using cached CelesTrak OMM, within upstream 2-hour GP update cadence");
+        return ApplyTles(cached, createMissingSatellites: true);
+      }
       try
       {
         var downloaded = await OrbitSourceFetcher.GetTextAsync(
           DownloadHttpClient, options, OrbitSources.SourceTimeoutSeconds,
           text => ParseTleContent(text, forcedExtension, label).Count > 0,
           cancellationToken);
-
         var records = ParseTleContent(
           downloaded.Content, downloaded.Extension, label);
+        if (cachePath != null)
+          OrbitSourceFetcher.WriteTextAtomically(cachePath, downloaded.Content);
         int applied = ApplyTles(records, createMissingSatellites: true);
         Log.Information("{OrbitSource} imported {Count} orbital records from {Mirror}",
           label, applied, downloaded.Source);
@@ -459,8 +475,34 @@ namespace SkyRoof
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
       catch (Exception ex)
       {
-        Log.Warning(ex, "{OrbitSource} failed; retaining previously selected orbital elements", label);
+        // A brief international outage can retain a still-useful verified GP
+        // cache. Beyond 24 hours prefer the other already imported automatic
+        // sources rather than silently prioritize old OMM over fresh TLEs.
+        if (cached != null && DateTime.UtcNow -
+            File.GetLastWriteTimeUtc(cachePath!) < TimeSpan.FromHours(24))
+        {
+          Log.Warning(ex, "CelesTrak unavailable: using validated GP cache within 24 hours");
+          return ApplyTles(cached, createMissingSatellites: true);
+        }
+        Log.Warning(ex, "{OrbitSource} failed; retaining lower-priority orbital elements", label);
         return 0;
+      }
+    }
+
+    private SatnogsDbTleList? ReadOrbitCache(string? path,
+      string? extension, string label)
+    {
+      if (path == null || !File.Exists(path)) return null;
+      try
+      {
+        SatnogsDbTleList parsed = ParseTleContent(
+          File.ReadAllText(path), extension, label);
+        return parsed.Count > 0 ? parsed : null;
+      }
+      catch (Exception ex)
+      {
+        Log.Warning(ex, "CelesTrak OMM cache invalid, downloading a fresh feed");
+        return null;
       }
     }
 
