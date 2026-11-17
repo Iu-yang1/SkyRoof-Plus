@@ -47,7 +47,13 @@ namespace SkyRoof
     {
       if (telemetry)
       {
-        Pipeline = new StreamingPipeline(signalParams);
+        // UNNE-1B's 200 Bd FSK packets are not reliably classified by SkyTlm's
+        // default burst-shape detector. The published real-IQ fading capture
+        // recovers symbols with this gate disabled; keep normal shape gating
+        // for all other satellites, including AO-123's CCSDS path.
+        Pipeline = noradId == Unne1bDeframer.NoradId
+          ? new StreamingPipeline(signalParams, new StreamingOptions { GateByShape = false })
+          : new StreamingPipeline(signalParams);
         // HADES-SA voice/SSDV factories are NOT compatible with UNNE-1B.
         Images = noradId == Unne1bDeframer.NoradId ? null :
           ImageAssemblerFactory.Create(signalParams, noradId);
