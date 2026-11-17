@@ -114,3 +114,20 @@ The corrected real-IQ Action is
 [here](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/unne1b-real-iq.yml).
 Its completion, expected CRC-valid type1/type14 and six CODEC2 subframes,
 not compilation or just burst detection, remains the acceptance criterion.
+
+
+### Reproducible production and installer path
+
+The fork is no longer consumed only by the real-IQ Action. Normal Compile
+Check and Build and Release Actions independently check out its pinned
+commit and execute scripts/stage-skytlm-fork.ps1 before compiling SkyRoof.
+That script verifies the exact Git SHA and copies the newly built SkyTlm
+and DSP DLLs into the vendor locations. The installed-payload smoke test
+compares the installer-extracted SkyTlm SHA-256 to the exact fork build.
+A local build without the staging step still uses the historical vendor copy.
+
+The real-IQ workflow downloads the SkySignals Git-LFS off-air corpus and
+runs the full SkyTlm test suite (FSK, GFSK, GMSK, BPSK, CCSDS, HADES and
+USP) before three UNNE-1B IQ excerpts. The normal SkyRoof Compile Check
+runs its own test suite and the unsigned installer smoke. Neither test
+constitutes hardware-on-air validation of the operator's own radio.
