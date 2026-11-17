@@ -28,7 +28,8 @@ public sealed class Unne1bRecordedIqRegressionTests
         double CenterHz, bool DefaultShapeGate, double Gain,
         double InputRms,
         int Bursts, int SoftBits, FrameMetric[] Frames,
-        double[] CfoHz, double[] SnrDb);
+        double[] CfoHz, double[] SnrDb,
+        double PeakDetectorZ, double ThresholdAtPeak, int DetectorBurstFrames);
 
     [Fact]
     [Trait("Category", "RecordedRealIq")]
@@ -101,7 +102,8 @@ public sealed class Unne1bRecordedIqRegressionTests
                 $"center={a.CenterHz} defaultGate={a.DefaultShapeGate} " +
                 $"gain={a.Gain:F2} rms={a.InputRms:E3} " +
                 $"bursts={a.Bursts} soft={a.SoftBits} " +
-                $"frames={string.Join(",", a.Frames.Select(f => $"{f.Type}:crc={f.Crc}:clk={f.Clock}:voice={f.VoiceNumber}"))}");
+                $"frames={string.Join(",", a.Frames.Select(f => $"{f.Type}:crc={f.Crc}:clk={f.Clock}:voice={f.VoiceNumber}"))} " +
+                $"zPeak={a.PeakDetectorZ:F1} onZ={a.ThresholdAtPeak:F1} detectorFrames={a.DetectorBurstFrames}");
         Assert.True(failures.Count == 0,
             string.Join("; ", failures) + ". See uploaded real-IQ JSON metrics.");
     }
@@ -113,6 +115,8 @@ public sealed class Unne1bRecordedIqRegressionTests
         var cfo = new List<double>();
         var snr = new List<double>();
         int bursts = 0, softBits = 0;
+        double peakZ = 0, thresholdAtPeak = 0;
+        int framesInBurst = 0;
         object sync = new();
         var parameters = new SignalParams(200, Modulation.FSK, Framing.HADES,
             ReceiverRate, deviation);
@@ -141,6 +145,18 @@ public sealed class Unne1bRecordedIqRegressionTests
         typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(opts, true);
         using (var pipeline = new StreamingPipeline(parameters, opts))
         {
+            // One diagnostic group per candidate frequency/deviation at native
+            // gain: locate missed onset versus demod/deframing failure.
+            if (!defaultGate && Math.Abs(gain - 1.0) < 1e-6)
+              pipeline.DetectionFrameProcessed += frame =>
+              {
+                  if (frame.InBurst) framesInBurst++;
+                  if (frame.ZStat > peakZ)
+                  {
+                      peakZ = frame.ZStat;
+                      thresholdAtPeak = pipeline.OnSigma;
+                  }
+              };
             pipeline.BurstDecoded += report =>
             {
                 lock (sync)
@@ -173,7 +189,8 @@ public sealed class Unne1bRecordedIqRegressionTests
         lock (sync)
             return new Attempt(name, deviation, center, defaultGate, gain, rms,
                 bursts, softBits,
-                frames.ToArray(), cfo.ToArray(), snr.ToArray());
+                frames.ToArray(), cfo.ToArray(), snr.ToArray(),
+                peakZ, thresholdAtPeak, framesInBurst);
     }
 
     private static Complex32[] LoadIq(string path)
