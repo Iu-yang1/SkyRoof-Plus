@@ -77,6 +77,27 @@ public sealed class SatelliteRecordedAudioRegressionTests
             string.Join("; ", measurements));
     }
 
+    [Fact]
+    [Trait("Category", "RecordedSatelliteAudio")]
+    public void Ao73_AnalogTranslated12kIf_RetainsVerifiedFecFrame()
+    {
+        string? folder = Environment.GetEnvironmentVariable("SKYROOF_SATELLITE_AUDIO_CORPUS");
+        if (string.IsNullOrWhiteSpace(folder)) return;
+        float[] pcm = ReadMono48k(Path.Combine(folder, "ao73.wav"));
+        // Reposition the actual 1700-Hz recorded carrier to a 12-kHz real IF
+        // in the analogue domain. Symbols and packet data are not synthesized.
+        Complex32[] analytic = new TelemetryRealAudioIqConverter(1).Convert(pcm);
+        Complex32[] translated = Translate(analytic, -10300);
+        float[] ifPcm = translated.Select(x => x.Real).ToArray();
+        Complex32[] ifIq = new TelemetryRealAudioIqConverter(12000).Convert(ifPcm);
+        var signal = new SignalParams(1200, Modulation.BPSK,
+            Framing.AO40FEC, SampleRate) { Differential = true };
+        var (bursts, verified) = DecodeFrames(ifIq, signal);
+        Console.WriteLine($"SAT_IF AO73 real12kHz bursts={bursts} verified={verified}");
+        Assert.True(verified > 0,
+            "AO-73 real-audio translated 12-kHz IF failed to recover AO-40 FEC.");
+    }
+
     [Theory]
     [Trait("Category", "RecordedSatelliteAudio")]
     [InlineData("ao27.wav", 1200, Modulation.AFSK, Framing.AX25G3RUH)]
