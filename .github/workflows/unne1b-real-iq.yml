@@ -87,7 +87,7 @@ jobs:
         run: >
           dotnet test SkySignals-Plus/VE3NEA.SkyTlm.Tests/VE3NEA.SkyTlm.Tests.csproj
           -c Release -p:Platform=x64
-          --filter "FullyQualifiedName~Unne1bDeframerTests|FullyQualifiedName~Asrtu1HeaderTests"
+          --filter "FullyQualifiedName~Unne1bDeframerTests|FullyQualifiedName~Asrtu1HeaderTests|FullyQualifiedName~StreamingPipelineTests|FullyQualifiedName~CcsdsDeframerTests"
           --logger "console;verbosity=minimal"
 
       - name: Compile production FSK pipeline and real-IQ test
