@@ -2,6 +2,7 @@
 using System.DirectoryServices.ActiveDirectory;
 using System.Globalization;
 using System.IO.Compression;
+using System.Net;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -23,7 +24,11 @@ namespace SkyRoof
 
     private readonly string DataFolder, DownloadsFolder;
     private Dictionary<string, SatnogsDbSatellite> SatelliteList = new();
-    private readonly HttpClient DownloadHttpClient = new();
+    private readonly HttpClient DownloadHttpClient = new(new HttpClientHandler
+    {
+      AutomaticDecompression = DecompressionMethods.GZip |
+        DecompressionMethods.Deflate | DecompressionMethods.Brotli
+    });
     private OrbitSourceSettings OrbitSources = new();
     private CancellationTokenSource cts;
     private JsonSerializerSettings JsonSettings = new();
