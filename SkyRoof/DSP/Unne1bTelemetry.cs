@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 namespace SkyRoof
 {
   /// <summary>
@@ -18,36 +20,73 @@ namespace SkyRoof
       yield return ("Satellite", "UNNE-1B");
       yield return ("Packet type", type.ToString());
 
-      // Packet types 6/8/9 do not begin with a 32-bit clock; do not
-      // mislabel their first sensor bits as a satellite time value.
+      // The AMSAT-EA native x86 packet structures contain little-endian
+      // 32-bit sclock values although each *byte* is transmitted MSB-first.
+      // It is an onboard counter, not an absolute UTC timestamp.
+      // Packet types 6/8/9 do not begin with this clock.
       if (type is 1 or 2 or 3 or 4 or 5 or 10 or 12 or 14 &&
           bytes.Length >= 5)
-        yield return ("Satellite clock / UTC raw", ReadBits(bytes, 8, 32).ToString());
+        yield return ("Satellite clock (seconds since boot)",
+          ReadU32(bytes, 1).ToString());
 
       if (type == 1 && bytes.Length >= 29)
       {
+        // Direct parity with AMSAT-EA's unne1b.dll v1.14 (Bytes)
+        // visualiza_powerpacket / GENESIS power_packet:
+        // power values are 2 mW/LSB, 16-bit members are native little-
+        // endian, and 12-bit fields are split across those members.
         string[] powerNames = { "Panel A power", "Panel B power",
           "Panel C power", "Panel D power" };
         for (int i = 0; i < powerNames.Length; i++)
-          yield return (powerNames[i], bytes[5 + i] + " mW");
-        yield return ("Instant panel power", ReadBits(bytes, 72, 16) + " mW");
+          yield return (powerNames[i], bytes[5 + i] * 2 + " mW");
+        yield return ("Instant panel power", ReadU16(bytes, 9) * 2 + " mW");
 
-        string[] analogNames = { "VBUS1", "VBAT1", "VCPU", "VBUS2",
-          "VBUS3", "VBAT2", "IBAT", "ICPU", "Payload current" };
-        int[] widths = { 12, 12, 12, 16, 12, 12, 12, 12, 12 };
-        int offset = 88;
-        for (int i = 0; i < analogNames.Length; i++)
-        {
-          uint raw = ReadBits(bytes, offset, widths[i]);
-          yield return (analogNames[i], raw +
-            (i < 6 ? " mV" : " mA"));
-          offset += widths[i];
-        }
-        string[] levels = { "Peak signal", "Mean noise", "Last command signal",
-          "Last command noise" };
-        for (int i = 0; i < levels.Length; i++)
-          yield return (levels[i], (ReadBits(bytes, offset + i * 8, 8) * 0.5)
-            .ToString("0.0") + " dB");
+        uint vbusVbat = ReadU16(bytes, 11);
+        uint vbatVcpu = ReadU16(bytes, 13);
+        uint vcpuVbus2 = ReadU16(bytes, 15);
+        uint vbus3Vbat2 = ReadU16(bytes, 17);
+        uint vbat2Ibat = ReadU16(bytes, 19);
+        uint ibatIcpu = ReadU16(bytes, 21);
+        uint icpuIpl = ReadU16(bytes, 23);
+
+        uint vbus1 = (vbusVbat >> 4) * 1400 / 1000;
+        uint vbat1Raw = ((vbusVbat << 8) & 0x0F00) |
+          ((vbatVcpu >> 8) & 0xFF);
+        uint vbat1 = vbat1Raw * 1400 / 1000;
+        uint vbus2 = (vcpuVbus2 & 0x0FFF) * 4;
+        uint vbus3 = (vbus3Vbat2 >> 4) * 4;
+        uint vbat2Raw = ((vbus3Vbat2 << 8) & 0x0F00) |
+          (vbat2Ibat >> 8);
+        uint vbat2 = vbat2Raw * 4;
+
+        yield return ("VBUS1", vbus1 + " mV");
+        yield return ("VBAT1", vbat1 + " mV");
+        yield return ("VBUS2", vbus2 + " mV");
+        yield return ("VBUS3", vbus3 + " mV");
+        yield return ("VBAT2", vbat2 + " mV");
+
+        uint vcpuRaw = ((vbatVcpu << 4) & 0x0FF0) |
+          (vcpuVbus2 >> 12);
+        if (vcpuRaw != 0)
+          yield return ("VCPU", 1210u * 4096 / vcpuRaw + " mV");
+
+        int ibat = Signed12(((vbat2Ibat << 8) & 0x0F00) |
+          (ibatIcpu >> 8));
+        int icpuRaw = Signed12(((ibatIcpu << 4) & 0x0FF0) |
+          (icpuIpl >> 12));
+        // AMSAT-EA documents the CPU-current sensor sign as reversed.
+        int icpu = icpuRaw < 0 ? -icpuRaw : icpuRaw;
+        int ipl = Signed12(icpuIpl & 0x0FFF);
+        yield return ("IBAT", ibat + " mA");
+        yield return ("ICPU", icpu + " mA");
+        yield return ("Payload current", ipl + " mA");
+
+        string[] levelNames = { "Peak signal", "Mean noise",
+          "Last command signal", "Last command noise" };
+        for (int i = 0; i < levelNames.Length; i++)
+          yield return (levelNames[i],
+            (bytes[25 + i] * 0.5).ToString("0.0") +
+            (i < 2 ? " dBm" : " dB"));
       }
 
       if (type is 2 or 5)
@@ -65,8 +104,8 @@ namespace SkyRoof
 
       if (type == 3 && bytes.Length >= 27)
       {
-        yield return ("Uptime", ReadBits(bytes, 40, 32) + " s");
-        yield return ("CPU runs", ReadBits(bytes, 72, 16).ToString());
+        yield return ("Uptime", ReadU32(bytes, 5) + " s");
+        yield return ("CPU runs", ReadU16(bytes, 9).ToString());
         yield return ("Payload starts", bytes[11].ToString());
         yield return ("Antenna deploy attempts", bytes[12].ToString());
         yield return ("Repeater starts", bytes[13].ToString());
@@ -157,6 +196,18 @@ namespace SkyRoof
 
       if (type == 15 && bytes.Length >= 2)
         yield return ("CODEC2 subframe index", bytes[1].ToString());
+    }
+
+    private static ushort ReadU16(byte[] data, int offset) =>
+      BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(offset, 2));
+
+    private static uint ReadU32(byte[] data, int offset) =>
+      BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(offset, 4));
+
+    private static int Signed12(uint value)
+    {
+      int raw = (int)(value & 0x0FFF);
+      return (raw & 0x0800) != 0 ? raw - 0x1000 : raw;
     }
 
     private static uint ReadBits(byte[] data, int offset, int width)
