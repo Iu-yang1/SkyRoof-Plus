@@ -28,27 +28,7 @@ namespace SkyRoof.Satellites
       Modulation mod = ResolveModulation(tx, je9pel);
       Framing framing = ResolveFraming(tx, je9pel);
 
-      // AO-73's 145.935 MHz beacon uses the published 1200 Bd DBPSK
-      // AO-40 FEC protocol. SatNOGS does not specify that custom framing:
-      // without an installed/matched SatYAML entry a valid BPSK transmitter
-      // was silently marked "unsupported". Infer the documented protocol
-      // only for this exact NORAD + beacon frequency, never its nearby
-      // linear transponder or a transmitter with manual framing.
-      if (IsAo73BeaconWithoutFraming(tx, framing, mod))
-      {
-        framing = Framing.AO40FEC;
-        if (baud <= 0) baud = 1200;
-      }
-      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
-      // from HADES-SA. The app handles that table after the FSK soft modem.
-      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
-      {
-        if (mod == Modulation.FSK && framing == Framing.Unknown)
-          framing = Framing.HADES;
-        if (mod == Modulation.FSK && baud <= 0)
-          baud = 200;
-      }
+      ResolveSpecialSatelliteParams(tx, mod, ref framing, ref baud);
 
       double? devOverride = mod == Modulation.GMSK ? null : Field(layers, l => l.deviation);
       // AFSK (Bell-202 audio subcarrier over FM, e.g. 1k2 telemetry): the demod's "deviation" is the audio tone
@@ -98,6 +78,34 @@ namespace SkyRoof.Satellites
         : sp;
     }
 
+
+    private static void ResolveSpecialSatelliteParams(
+      SatnogsDbTransmitter tx, Modulation modulation,
+      ref Framing framing, ref double baud)
+    {
+      // AO-73's 145.935 MHz beacon uses the published 1200 Bd DBPSK
+      // AO-40 FEC protocol. SatNOGS does not specify that custom framing:
+      // without an installed/matched SatYAML entry a valid BPSK transmitter
+      // was silently marked "unsupported". Infer the documented protocol
+      // only for this exact NORAD + beacon frequency, never its nearby
+      // linear transponder or a transmitter with manual framing.
+      if (IsAo73BeaconWithoutFraming(tx, framing, modulation))
+      {
+        framing = Framing.AO40FEC;
+        if (baud <= 0) baud = 1200;
+      }
+      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
+      // from HADES-SA. The app handles that table after the FSK soft modem.
+      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
+          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
+      {
+        if (modulation == Modulation.FSK && framing == Framing.Unknown)
+          framing = Framing.HADES;
+        if (modulation == Modulation.FSK && baud <= 0)
+          baud = 200;
+      }
+
+    }
 
     private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
       Framing framing, Modulation modulation) =>
