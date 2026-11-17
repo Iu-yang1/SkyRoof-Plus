@@ -181,6 +181,23 @@ public sealed class Unne1bDeframerTests
     }
 
     [Fact]
+    public void ExactCodec2SizedFrameStillDecodesWithoutCrcRepair()
+    {
+        byte[] stream = new byte[4 + 1 + 37];
+        stream[0] = 0xAA; stream[1] = 0xAA;
+        stream[2] = 0xBF; stream[3] = 0x35;
+        stream[4] = 37; stream[5] = 0xFC; stream[6] = 7;
+        for (int k = 7; k < stream.Length; k++)
+            stream[k] = (byte)(k * 3);
+        Frame frame = Assert.Single(Unne1bDeframer.Decode(MakeSoft(stream)));
+        Assert.Null(frame.CrcValid);
+        Assert.Equal("UNNE-1B CODEC2 subframe", frame.Note);
+        Assert.Equal(37, frame.Bytes.Length);
+        Assert.Equal(7, frame.Bytes[1]);
+        Assert.Equal(stream.Length * 8, frame.SoftBitEnd);
+    }
+
+    [Fact]
     public void UnverifiedCodec2MustNotAcceptApproximateSync()
     {
         byte[] stream = new byte[4 + 1 + 37];
