@@ -81,6 +81,29 @@ namespace SkyRoof
     [Description("Orekit time and IERS Earth orientation data coverage status.")]
     public string ActiveDataQuality => OrbitBackendRegistry.CurrentDataQuality;
 
+    public const string DefaultJe9pelSources =
+      "https://www.ne.jp/asahi/hamradio/je9pel/satslist.csv";
+    public const string DefaultSatyamlZipSources =
+      "https://codeload.github.com/daniestevez/gr-satellites/zip/refs/heads/main";
+
+    [Category("Satellite database")]
+    [DisplayName("Source mirror timeout (seconds)")]
+    [Description("Time allowed per source before trying the next ordered HTTPS or local-file mirror. Applies to satellite metadata and orbit-element downloads, not the large JPL kernel.")]
+    [DefaultValue(45)]
+    public int SourceTimeoutSeconds { get; set; } = 45;
+
+    [Category("Satellite database")]
+    [DisplayName("JE9PEL CSV Sources")]
+    [Description("Optional JE9PEL metadata. Ordered HTTPS/local-file mirrors separated by semicolons or new lines. Download failures retain cached metadata and never prevent the satellite database from loading.")]
+    [DefaultValue(DefaultJe9pelSources)]
+    public string Je9pelSources { get; set; } = DefaultJe9pelSources;
+
+    [Category("Satellite database")]
+    [DisplayName("SatYAML ZIP Sources")]
+    [Description("Optional gr-satellites SatYAML archive. Ordered HTTPS/local-file mirror URLs; invalid archives cannot replace existing profile definitions.")]
+    [DefaultValue(DefaultSatyamlZipSources)]
+    public string SatyamlZipSources { get; set; } = DefaultSatyamlZipSources;
+
     public const string DefaultSatellitesUrl =
       "https://db.satnogs.org/api/satellites/?format=json";
     public const string DefaultTransmittersUrl =
@@ -107,7 +130,7 @@ namespace SkyRoof
 
     [Category("Satellite database")]
     [DisplayName("Satellite List URL")]
-    [Description("Primary satellite-list endpoint. The default is SatNOGS. You may replace it with a compatible SatNOGS JSON endpoint. Leave blank to keep the last cached file instead of updating it.")]
+    [Description("Primary satellite-list endpoint. The default is SatNOGS. Add ordered, semicolon/newline-separated compatible HTTPS mirrors or local JSON files; first valid source wins. Last good cache survives a download failure.")]
     [DefaultValue(DefaultSatellitesUrl)]
     public string SatellitesUrl { get; set; } = DefaultSatellitesUrl;
 
@@ -119,7 +142,7 @@ namespace SkyRoof
 
     [Category("Orbit elements")]
     [DisplayName("CelesTrak OMM CSV URL")]
-    [Description("Highest-priority automatic orbit source. The default is CelesTrak's amateur GP/OMM CSV feed. OMM is propagated directly; it is not converted back to legacy TLE.")]
+    [Description("Highest-priority automatic orbit source. The default is CelesTrak's amateur GP/OMM CSV feed. Ordered HTTPS/local-file mirror alternatives and OMM JSON are accepted; first valid response wins and OMM is propagated directly.")]
     [DefaultValue(DefaultCelestrakOmmCsvUrl)]
     public string CelestrakOmmCsvUrl { get; set; } = DefaultCelestrakOmmCsvUrl;
 
@@ -130,13 +153,13 @@ namespace SkyRoof
 
     [Category("Orbit elements")]
     [DisplayName("AutoTLE URL")]
-    [Description("Built-in AutoTLE fallback source. It is below Manual Orbit Source URLs and CelesTrak OMM CSV, but above the original SatNOGS orbit source. Leave blank to disable it.")]
+    [Description("Built-in AutoTLE fallback source, below custom sources and CelesTrak but above SatNOGS. Multiple semicolon/newline-separated HTTPS or local mirror paths are attempted in order; blank disables it.")]
     [DefaultValue(DefaultAutoTleUrl)]
     public string AutoTleUrl { get; set; } = DefaultAutoTleUrl;
 
     [Category("Orbit elements")]
     [DisplayName("SatNOGS Orbit URL")]
-    [Description("Lowest-priority automatic orbit source. The default is the original SatNOGS TLE endpoint. Leave blank to disable updates from this source.")]
+    [Description("Lowest-priority automatic orbit source. Ordered HTTPS/local JSON mirror alternatives are supported; blank disables updates.")]
     [DefaultValue(DefaultTleUrl)]
     public string TleUrl { get; set; } = DefaultTleUrl;
 
