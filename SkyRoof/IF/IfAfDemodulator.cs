@@ -254,7 +254,8 @@ namespace SkyRoof.IF
     }
 
     /// <summary>Produce both voice AF and clean AF before de-emphasis,
-    /// blanking, squelch and output leveling; sample-aligned at 48 kHz.</summary>
+    /// blanking, squelch and output leveling. Both have 48-kHz sample counts;
+    /// optional voice blanking delays ONLY the voice path by 20 ms.</summary>
     public void Process(ReadOnlySpan<float> input, Span<float> output,
       Span<float> cleanAfOutput)
     {
