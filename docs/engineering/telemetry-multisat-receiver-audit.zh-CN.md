@@ -14,11 +14,11 @@
 
 | 卫星或代表族 | NORAD | 调制 / 速率 | 帧/FEC | 实录候选 | 初始证据 |
 |---|---:|---|---|---|---|
-| AO-73 / FUNcube-1 | 39444 | DBPSK 1200 Bd | AO-40 FEC；256 B；Viterbi+RS | satellite-recordings/ao73.wav | D；正在补 A |
+| AO-73 / FUNcube-1 | 39444 | DBPSK 1200 Bd | AO-40 FEC；256 B；Viterbi+RS | satellite-recordings/ao73.wav | A：实录有效 RS 帧；IF 变频仿真 |
 | JO-97 / JY1Sat、EO-88 | 按 SatYAML | DBPSK 1200 Bd | AO-40 FEC | 尚需按卫星独立验证 | C |
-| AO-27 | 22825 | AFSK 1200 Bd | AX.25（Bell-202） | satellite-recordings/ao27.wav | D |
-| AISTECHSAT-3 | 44103 | FSK 4800/9600 Bd | AX100 ASM+Golay | satellite-recordings/aistechsat3.wav | D；SkyTlm 家族 C |
-| Suomi 100 | 按 SatYAML | GMSK（现场速率取 SatYAML） | AX100 | satellite-recordings/suomi_100.wav；SkyTlm off-air corpus | B |
+| AO-27 | 22825 | AFSK 1200 Bd | AX.25（Bell-202） | satellite-recordings/ao27.wav | A：实录 2 帧 |
+| AISTECHSAT-3 | 44103 | FSK 4800/9600 Bd | AX100 ASM+Golay | satellite-recordings/aistechsat3.wav | A：4800 Bd FM 鉴频 AF 重建 5 帧 |
+| Suomi 100 | 按 SatYAML | GMSK（现场速率取 SatYAML） | AX100 | satellite-recordings/suomi_100.wav；SkyTlm off-air corpus | A：实录 2 帧；独立 SkyTlm corpus B |
 | GOMX-3 | 40949 | FSK 19200 Bd | AX100 Reed Solomon | satellite-recordings/gomx_3.wav | D |
 | CAS-4A、XW-2A | 42761、40903 | FSK 4800 / 9600 Bd | AX.25 G3RUH | 公开录音需对应链路 | C |
 | MONITOR-1 / RS32S | 53374 | FSK 1200–9600 Bd | USP | SkyTlm USP 参考帧/录音 | B/C |
@@ -99,3 +99,34 @@ AO-73/FUNcube 的 256 字节 AO-40 FEC 帧解码已经有真实录音证据；
 定义，因而 SkyRoof 即使成功出帧，也可能只显示 RAW HEX/ASCII 与
 CRC/RS 元信息，而不显示温度、电压和姿态等字段。必须在取得经过验证的
 FUNcube 专用字段映射后再新增工程量解析，不能凭猜测解释位域。
+
+
+## AO-73 解帧后的业务显示
+
+新增的 `SkyRoof/DSP/Funcube1Telemetry.cs` 为 RS 完整校验的 **256 字节**
+AO-73/FUNcube-1 帧提供最小的确定性遥测解释，并接入
+`TelemetryPanel.BuildFrameText`。已定义：
+
+- Header：最高 2 bit 为卫星/平台类型，低 6 bit 为帧类型；标准 FC1
+  的 WO1–WO12、HR、FM 采用公开类型表；Nayif 等 extended 类型不套用 FC1 表。
+- FC1 飞行型号/工程型号：实时 EPS 的光伏板原始 ADC、光电流、电池电压、
+  系统电流、重启/软件异常计数、温度传感器原始值、复位原因、MPPT 原始值。
+- 固定 SW 位域：24 bit 序列号以及食/安全模式标志。其偏移严格来自
+  FC1 实时记录的 EPS 192 bit + BOB 100 bit + RF 48 bit + PA 32 bit +
+  Ants 20 bit，SW 从物理帧 byte 50 开始。
+
+这些字段仅在结构正确的 FC1 帧上解释；对 FC2/extended 保留通用头部，
+避免把其他卫星的字节误读为 FC1 的电源电压。原始 ADC 值不擅自换算为
+电压/电流或摄氏度，官方完整校准和 Whole Orbit 多包重组仍属于后续能力。
+
+独立结构参考：`daniestevez/gr-satellites/python/telemetry/funcube.py`
+（GPL-3.0-or-later；本仓库仅实现公开的字节/位域功能事实，不移植其程序代码）。
+
+## 流式输入块边界验收
+
+新增 `SatelliteRecordedAudioRegressionTests.RecordedAudio_BlockBoundariesPreserveIqPhaseAndVerifiedFrames`：
+对 AO-73 的 Hilbert/NCO 和另外三个样本的 FM-IQ 桥接分别采用混合大小块
+（1、17、97、231、1600、4093、4096、4800 采样）逐块输入，
+与同一整段 PCM 的单次转换逐样本比较 IQ，并再次要求实际
+CRC/RS 有效帧。这直接检验 Windows/WASAPI 真实采集块长度不规则时，
+Hilbert 滤波器、NCO 与 FM 相位累积是否连续；它不代替硬件接收验证。
