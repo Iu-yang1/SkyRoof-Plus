@@ -25,7 +25,8 @@ public sealed class Unne1bRecordedIqRegressionTests
     private sealed record FrameMetric(int Type, bool? Crc, uint? Clock,
         int? VoiceNumber, int Length);
     private sealed record Attempt(string Name, double DeviationHz,
-        double CenterHz, bool DefaultShapeGate, double InputRms,
+        double CenterHz, bool DefaultShapeGate, double Gain,
+        double InputRms,
         int Bursts, int SoftBits, FrameMetric[] Frames,
         double[] CfoHz, double[] SnrDb);
 
@@ -49,16 +50,28 @@ public sealed class Unne1bRecordedIqRegressionTests
             {
                 double center = fixture.RecordedCenterHz + residual;
                 Complex32[] tuned = ResampleIq(recording, center);
-                foreach (bool defaultGate in new[] { true, false })
+                double initialRms = Math.Sqrt(tuned.Average(x =>
+                    (double)x.Real * x.Real + (double)x.Imaginary * x.Imaginary));
+                // Receiver gain is a linear scaling of the unchanged over-
+                // the-air IQ waveform, not manufactured modulation.
+                foreach (double gain in new[] { 1.0,
+                    0.1 / Math.Max(initialRms, 1e-10),
+                    0.3 / Math.Max(initialRms, 1e-10) })
                 {
-                    Attempt result = Decode(fixture.Name, tuned, deviation, center,
-                        defaultGate);
-                    attempts.Add(result);
-                    found |= result.Frames.Any(frame =>
-                        frame.Type == fixture.Type &&
-                        (fixture.Type == 15
-                            ? frame.VoiceNumber is >= 0 and <= 5
-                            : frame.Crc == true && frame.Clock == fixture.Clock));
+                    Complex32[] input = gain == 1 ? tuned :
+                        tuned.Select(x => new Complex32((float)(x.Real * gain),
+                            (float)(x.Imaginary * gain))).ToArray();
+                    foreach (bool defaultGate in new[] { true, false })
+                    {
+                        Attempt result = Decode(fixture.Name, input, deviation,
+                            center, defaultGate, gain);
+                        attempts.Add(result);
+                        found |= result.Frames.Any(frame =>
+                            frame.Type == fixture.Type &&
+                            (fixture.Type == 15
+                                ? frame.VoiceNumber is >= 0 and <= 5
+                                : frame.Crc == true && frame.Clock == fixture.Clock));
+                    }
                 }
             }
             if (!found) failures.Add("No expected verified frame in " + fixture.Name);
@@ -80,14 +93,15 @@ public sealed class Unne1bRecordedIqRegressionTests
         foreach (Attempt a in attempts)
             Console.WriteLine($"REAL_IQ {a.Name} dev={a.DeviationHz} " +
                 $"center={a.CenterHz} defaultGate={a.DefaultShapeGate} " +
-                $"rms={a.InputRms:E3} bursts={a.Bursts} soft={a.SoftBits} " +
+                $"gain={a.Gain:F2} rms={a.InputRms:E3} " +
+                $"bursts={a.Bursts} soft={a.SoftBits} " +
                 $"frames={string.Join(",", a.Frames.Select(f => $"{f.Type}:crc={f.Crc}:clk={f.Clock}:voice={f.VoiceNumber}"))}");
         Assert.True(failures.Count == 0,
             string.Join("; ", failures) + ". See uploaded real-IQ JSON metrics.");
     }
 
     private static Attempt Decode(string name, Complex32[] iq,
-        double deviation, double center, bool defaultGate)
+        double deviation, double center, bool defaultGate, double gain)
     {
         var frames = new List<FrameMetric>();
         var cfo = new List<double>();
@@ -135,7 +149,7 @@ public sealed class Unne1bRecordedIqRegressionTests
                 pipeline.Push(new Complex32[4096]);
         }
         lock (sync)
-            return new Attempt(name, deviation, center, defaultGate, rms,
+            return new Attempt(name, deviation, center, defaultGate, gain, rms,
                 bursts, softBits,
                 frames.ToArray(), cfo.ToArray(), snr.ToArray());
     }
