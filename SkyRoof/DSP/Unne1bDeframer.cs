@@ -63,7 +63,7 @@ namespace SkyRoof
           // CRC. Do not use weak-bit repair or approximate sync for voice.
           int headerStart = dataStart + 8;
           const int voiceLength = 37;
-          if (dataStart + 16 + voiceLength * 8 > n ||
+          if (headerStart + voiceLength * 8 > n ||
               ReadByte(soft, headerStart, invert) != 0xFC) continue;
           var wire = ReadPacket(soft, headerStart, voiceLength, invert);
           Frame? frame = TryParsePacket(wire, voice: true);
