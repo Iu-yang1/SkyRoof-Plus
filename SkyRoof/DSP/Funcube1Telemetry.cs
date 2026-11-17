@@ -32,8 +32,10 @@ internal static class Funcube1Telemetry
             2 => "FUNcube-1 (flight)",
             _ => "FUNcube extended"
         });
-        yield return ("Frame type", frameId < FrameTypes.Length
-            ? FrameTypes[frameId] : "Unknown (" + frameId + ")");
+        yield return ("Frame type", satId == 3
+            ? "Extended (" + frameId + ")"
+            : frameId < FrameTypes.Length
+                ? FrameTypes[frameId] : "Unknown (" + frameId + ")");
         yield return ("Frame header", "0x" + data[0].ToString("X2"));
 
         // The standard FC1 real-time record occupies bytes 1..55. FC2 and
