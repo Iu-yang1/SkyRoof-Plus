@@ -9,6 +9,11 @@ namespace SkyRoof.IF
     private readonly IfAfFmVoiceProcessing fmVoice;
     private readonly bool fmSquelch;
     private readonly double fmPowerThreshold;
+    private readonly IfAfFmSquelchSource fmSquelchSource;
+    private readonly double fmNoiseOpenDbfs;
+    private readonly IfAfFmFadeBlanker? fmBlanker;
+    private readonly IfAfFmVoiceHighpass? fmHighpass;
+    private readonly IfAfFmNoiseQuieting? fmQuieting;
     private readonly IfAfSsbVoiceNotch ssbNotch;
     private readonly IfAfAdaptiveNotch? adaptiveNotch;
     private readonly IfAfSpectralNoiseReducer? noiseReducer;
@@ -19,16 +24,27 @@ namespace SkyRoof.IF
 
     internal IfAfVoiceEnhancements(IfAfFmVoiceProcessing fmVoice,
       bool fmSquelch, int fmSquelchDbfs, IfAfSsbVoiceNotch ssbNotch,
-      IfAfSsbNoiseReduction noiseReduction)
+      IfAfSsbNoiseReduction noiseReduction,
+      bool fmHighpassEnabled = false, bool fmBlankerEnabled = false,
+      IfAfFmSquelchSource fmSquelchSource = IfAfFmSquelchSource.CarrierPower,
+      int fmNoiseOpenDbfs = -18)
     {
       if (!Enum.IsDefined(typeof(IfAfFmVoiceProcessing), fmVoice) ||
           !Enum.IsDefined(typeof(IfAfSsbVoiceNotch), ssbNotch) ||
           !Enum.IsDefined(typeof(IfAfSsbNoiseReduction), noiseReduction) ||
+          !Enum.IsDefined(typeof(IfAfFmSquelchSource), fmSquelchSource) ||
+          fmNoiseOpenDbfs is < -90 or > 20 ||
           fmSquelchDbfs is < -95 or > -10)
         throw new ArgumentOutOfRangeException(nameof(fmSquelchDbfs));
       this.fmVoice = fmVoice;
       this.fmSquelch = fmSquelch;
       fmPowerThreshold = Math.Pow(10, fmSquelchDbfs / 10.0);
+      this.fmSquelchSource = fmSquelchSource;
+      this.fmNoiseOpenDbfs = fmNoiseOpenDbfs;
+      if (fmBlankerEnabled) fmBlanker = new IfAfFmFadeBlanker();
+      if (fmHighpassEnabled) fmHighpass = new IfAfFmVoiceHighpass();
+      if (fmSquelch && fmSquelchSource == IfAfFmSquelchSource.NoiseQuieting)
+        fmQuieting = new IfAfFmNoiseQuieting();
       this.ssbNotch = ssbNotch;
       if (ssbNotch == IfAfSsbVoiceNotch.AutoTracking)
         adaptiveNotch = new IfAfAdaptiveNotch();
@@ -59,9 +75,13 @@ namespace SkyRoof.IF
       previousMode = null;
       adaptiveNotch?.Reset();
       noiseReducer?.Reset();
+      fmBlanker?.Reset();
+      fmHighpass?.Reset();
+      fmQuieting?.Reset();
     }
 
-    internal double Process(double sample, IfAfMode mode, double fmIqPower = 0)
+    internal double Process(double sample, IfAfMode mode, double fmIqPower = 0,
+      double fmWidebandDiscriminator = 0)
     {
       if (mode != previousMode)
       {
@@ -82,16 +102,25 @@ namespace SkyRoof.IF
         return noiseReducer?.Process(sample) ?? sample;
       }
       if (mode != IfAfMode.Fm) return sample;
+      // Applied only after the clean discriminator-AF tap. Optional blanking
+      // delays voice by 20 ms but cannot change telemetry AF or raw IF.
+      if (fmBlanker != null) sample = fmBlanker.Process(sample, fmIqPower);
       if (fmVoice != IfAfFmVoiceProcessing.Off)
       {
-        // First-order FM voice de-emphasis (50/75 us). Keep the gain at DC
-        // unity; optional voice-only path, never applied to data.
-        double tau = fmVoice == IfAfFmVoiceProcessing.Voice50us
-          ? 50e-6 : 75e-6;
+        // First-order FM voice de-emphasis. No processing in the data tap.
+        double tau = fmVoice switch
+        {
+          IfAfFmVoiceProcessing.Voice50us => 50e-6,
+          IfAfFmVoiceProcessing.Voice75us => 75e-6,
+          IfAfFmVoiceProcessing.Voice750us => 750e-6,
+          _ => 0
+        };
         double alpha = 1 - Math.Exp(-1 / (tau * IfAfDemodulator.Rate));
         deemph += alpha * (sample - deemph);
         sample = deemph;
       }
+
+      if (fmHighpass != null) sample = fmHighpass.Process(sample);
 
       if (fmSquelch)
       {
@@ -100,9 +129,13 @@ namespace SkyRoof.IF
         double a = 1 - Math.Exp(-1.0 / (0.05 * IfAfDemodulator.Rate));
         fmSmoothPower += a * (Math.Max(0, fmIqPower) - fmSmoothPower);
         double closePower = fmPowerThreshold / 2;
-        bool opening = fmGate > 0.01
+        bool carrierPresent = fmGate > 0.01
           ? fmSmoothPower >= closePower
           : fmSmoothPower >= fmPowerThreshold;
+        double noiseDbfs = fmQuieting?.Process(fmWidebandDiscriminator) ?? 0;
+        bool quietEnough = fmQuieting == null ||
+          noiseDbfs <= fmNoiseOpenDbfs + (fmGate > 0.01 ? 3 : 0);
+        bool opening = carrierPresent && quietEnough;
         double target = opening ? 1 : 0;
         double step = 1.0 / (0.010 * IfAfDemodulator.Rate);
         fmGate = Math.Clamp(fmGate + Math.Sign(target - fmGate) * step, 0, 1);
