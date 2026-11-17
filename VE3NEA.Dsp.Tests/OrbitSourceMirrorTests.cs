@@ -61,6 +61,20 @@ public sealed class OrbitSourceMirrorTests
     }
 
     [Fact]
+    public void CelestrakCacheKeyChangesWhenOperatorChangesPriorityOrGroup()
+    {
+        string amateurCsv = OrbitSourceSettings.DefaultCelestrakOmmCsvUrl;
+        string amateurJson = amateurCsv.Replace("FORMAT=csv", "FORMAT=JSON");
+        Assert.Equal(16, OrbitSourceFetcher.CacheKey(amateurCsv).Length);
+        Assert.Equal(OrbitSourceFetcher.CacheKey(amateurCsv),
+            OrbitSourceFetcher.CacheKey(amateurCsv + "  "));
+        Assert.NotEqual(OrbitSourceFetcher.CacheKey(amateurCsv),
+            OrbitSourceFetcher.CacheKey(amateurJson));
+        Assert.NotEqual(OrbitSourceFetcher.CacheKey(amateurCsv + ";" + amateurJson),
+            OrbitSourceFetcher.CacheKey(amateurJson + ";" + amateurCsv));
+    }
+
+    [Fact]
     public void SixDigitCelestrakOmmJsonIsDetectedEvenWhenConfiguredAsCsv()
     {
         var database = new SatnogsDb();
