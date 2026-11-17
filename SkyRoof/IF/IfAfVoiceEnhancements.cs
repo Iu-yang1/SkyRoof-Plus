@@ -2,6 +2,18 @@ using System;
 
 namespace SkyRoof.IF
 {
+  // Group voice-specific tuning without expanding the decoder constructor ABI.
+  internal sealed class IfAfFmVoiceOptions
+  {
+    internal IfAfFmVoiceProcessing Deemphasis { get; init; }
+    internal bool SquelchEnabled { get; init; }
+    internal int PowerThresholdDbfs { get; init; }
+    internal bool HighpassEnabled { get; init; }
+    internal bool BlankerEnabled { get; init; }
+    internal IfAfFmSquelchSource SquelchSource { get; init; }
+    internal int NoiseOpenDbfs { get; init; }
+  }
+
   /// <summary>Optional local voice-only enhancements. Digital USB-D/LSB-D,
   /// CW, AFC and raw IF never pass through this processor.</summary>
   internal sealed class IfAfVoiceEnhancements
@@ -9,7 +21,6 @@ namespace SkyRoof.IF
     private readonly IfAfFmVoiceProcessing fmVoice;
     private readonly bool fmSquelch;
     private readonly double fmPowerThreshold;
-    private readonly IfAfFmSquelchSource fmSquelchSource;
     private readonly double fmNoiseOpenPower;
     private readonly IfAfFmFadeBlanker? fmBlanker;
     private readonly IfAfFmVoiceHighpass? fmHighpass;
@@ -22,28 +33,23 @@ namespace SkyRoof.IF
     private double fmSmoothPower, fmGate = 1, deemph;
     private IfAfMode? previousMode;
 
-    internal IfAfVoiceEnhancements(IfAfFmVoiceProcessing fmVoice,
-      bool fmSquelch, int fmSquelchDbfs, IfAfSsbVoiceNotch ssbNotch,
-      IfAfSsbNoiseReduction noiseReduction,
-      bool fmHighpassEnabled = false, bool fmBlankerEnabled = false,
-      IfAfFmSquelchSource fmSquelchSource = IfAfFmSquelchSource.CarrierPower,
-      int fmNoiseOpenDbfs = -18)
+    internal IfAfVoiceEnhancements(IfAfFmVoiceOptions fm,
+      IfAfSsbVoiceNotch ssbNotch, IfAfSsbNoiseReduction noiseReduction)
     {
-      if (!Enum.IsDefined(typeof(IfAfFmVoiceProcessing), fmVoice) ||
+      if (!Enum.IsDefined(typeof(IfAfFmVoiceProcessing), fm.Deemphasis) ||
           !Enum.IsDefined(typeof(IfAfSsbVoiceNotch), ssbNotch) ||
           !Enum.IsDefined(typeof(IfAfSsbNoiseReduction), noiseReduction) ||
-          !Enum.IsDefined(typeof(IfAfFmSquelchSource), fmSquelchSource) ||
-          fmNoiseOpenDbfs is < -90 or > 20 ||
-          fmSquelchDbfs is < -95 or > -10)
-        throw new ArgumentOutOfRangeException(nameof(fmSquelchDbfs));
-      this.fmVoice = fmVoice;
-      this.fmSquelch = fmSquelch;
-      fmPowerThreshold = Math.Pow(10, fmSquelchDbfs / 10.0);
-      this.fmSquelchSource = fmSquelchSource;
-      fmNoiseOpenPower = Math.Pow(10, fmNoiseOpenDbfs / 10.0);
-      if (fmBlankerEnabled) fmBlanker = new IfAfFmFadeBlanker();
-      if (fmHighpassEnabled) fmHighpass = new IfAfFmVoiceHighpass();
-      if (fmSquelch && fmSquelchSource == IfAfFmSquelchSource.NoiseQuieting)
+          !Enum.IsDefined(typeof(IfAfFmSquelchSource), fm.SquelchSource) ||
+          fm.NoiseOpenDbfs is < -90 or > 20 ||
+          fm.PowerThresholdDbfs is < -95 or > -10)
+        throw new ArgumentOutOfRangeException(nameof(fm));
+      fmVoice = fm.Deemphasis;
+      fmSquelch = fm.SquelchEnabled;
+      fmPowerThreshold = Math.Pow(10, fm.PowerThresholdDbfs / 10.0);
+      fmNoiseOpenPower = Math.Pow(10, fm.NoiseOpenDbfs / 10.0);
+      if (fm.BlankerEnabled) fmBlanker = new IfAfFmFadeBlanker();
+      if (fm.HighpassEnabled) fmHighpass = new IfAfFmVoiceHighpass();
+      if (fm.SquelchEnabled && fm.SquelchSource == IfAfFmSquelchSource.NoiseQuieting)
         fmQuieting = new IfAfFmNoiseQuieting();
       this.ssbNotch = ssbNotch;
       if (ssbNotch == IfAfSsbVoiceNotch.AutoTracking)
