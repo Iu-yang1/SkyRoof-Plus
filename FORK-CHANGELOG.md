@@ -1,3 +1,18 @@
+# SkyRoof Fork v.1.83 / Telemetry Real-WAV and OMM Source Reliability
+
+## v1.83 — 2026-11-17
+
+- 合并已通过回归的遥测 PR #240：修正池化 IQ 有效长度；恢复 AO-73 差分 BPSK + AO-40 FEC 默认解码；为 FSK/GFSK/GMSK 增加已鉴频 FM-AF 可选输入；保留 SDR IQ / 12 kHz IF。
+- 真实 WAV 回放：AO-73 1×256 B RS、AO-27 2×AX.25/FCS、AISTECHSAT-3 5×AX100/FEC、Suomi 100 2×AX100/FEC；SkyTlm fork 823 通过、3 跳过、0 失败。UNNE-1B 真实 IQ/CRC 通过原有独立回归；Suomi 100 其它三 burst 数据组仍为 2/3，未宣称修复。
+- 合并星历 PR #241：支持官方 CelesTrak OMM CSV/JSON 内容自动识别与六位 NORAD；官方 amateur 在线对比 99/99 一致。
+- 轨道要素优先级仍为 72 h 手动文件 > CelesTrak OMM > 自定义源（第一项优先） > AutoTLE > SatNOGS；区分独立的卫星/发射机元数据、IERS EOP 和 Orekit DE430。网络优化提供多镜像/本地文件、结构校验、原子缓存、源键 2 h CelesTrak GP 缓存与故障回退；无默认未经验证公共镜像。
+- 发布基线：2026-11-17 合并后 master Windows x64 Release 编译、xUnit、Orekit Smoke、安装包依赖测试及 aislop 均通过。此次 v1.83 Release 的安装包签名、SHA-256 和发布完整性以后续 Actions 实际结果为准。
+- 不声称完成 IC-9700 实机接收、旋转器/多普勒闭环、自动 AFC 实测或中国大陆 ISP 连通性实测。保留独立 v.1.82 资产；详细变更参见 `RELEASE_NOTES.md`。
+
+**English:** v1.83 bundles recorded-audio-validated AO-73/AO-40 telemetry and pooled-IQ fixes with CelesTrak CSV/JSON OMM, source priorities, regional/offline mirrors, and Orekit data safeguards. RF hardware and mainland network verification remain outstanding.
+
+---
+
 # SkyRoof Fork v.1.82 / Telemetry IF-AF Reliability
 
 ## v1.82 — 2026-11-16
