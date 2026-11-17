@@ -64,9 +64,16 @@ namespace SkyRoof.IF
       this.fmAfCutoffHz = fmAfCutoffHz;
       fmDeviation = fmDeviationHz;
       cwAudio = new IfAfCwAudioFilter(cwCenterHz, cwBandwidthHz);
-      voice = new IfAfVoiceEnhancements(fmVoice, fmSquelch,
-        fmSquelchDbfs, ssbVoiceNotch, ssbNoiseReduction,
-        fmVoiceHighpass, fmFadeBlanker, fmSquelchSource, fmNoiseOpenDbfs);
+      voice = new IfAfVoiceEnhancements(new IfAfFmVoiceOptions
+      {
+        Deemphasis = fmVoice,
+        SquelchEnabled = fmSquelch,
+        PowerThresholdDbfs = fmSquelchDbfs,
+        HighpassEnabled = fmVoiceHighpass,
+        BlankerEnabled = fmFadeBlanker,
+        SquelchSource = fmSquelchSource,
+        NoiseOpenDbfs = fmNoiseOpenDbfs
+      }, ssbVoiceNotch, ssbNoiseReduction);
       Configure(mode);
     }
 
@@ -261,8 +268,12 @@ namespace SkyRoof.IF
     {
       if (output.Length < input.Length || cleanAfOutput.Length < input.Length)
         throw new ArgumentException("AF output buffer too small.");
-      for (int n = 0; n < input.Length; n++)
-        output[n] = ProcessCore(input[n], out cleanAfOutput[n]);
+      int n = 0;
+      foreach (float sample in input)
+      {
+        output[n] = ProcessCore(sample, out cleanAfOutput[n]);
+        n++;
+      }
     }
 
     public void Reset()
