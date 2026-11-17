@@ -120,10 +120,25 @@ public sealed class Unne1bRecordedIqRegressionTests
             (double)x.Real * x.Real + (double)x.Imaginary * x.Imaginary));
         // Compare production gate defaults with the diagnostic shape gate
         // bypass. If only bypass works, fix UNNE production configuration.
-        using (var pipeline = defaultGate
-            ? new StreamingPipeline(parameters)
-            : new StreamingPipeline(parameters,
-                new StreamingOptions { GateByShape = false }))
+        // The pinned SkySignals fork has a native UNNE-1B framing override;
+        // use reflection solely so the regular SkyRoof compile job (which
+        // builds against its existing vendor DLL) can still compile this
+        // draft integration test. The real-IQ job replaces that DLL first.
+        var opts = defaultGate ? new StreamingOptions() : new StreamingOptions
+        {
+            GateByShape = false,
+            DecodeRejected = true,
+            MaxBurstSeconds = 16,
+            HangoverMs = 250,
+            GuardMs = 160
+        };
+        Type? decoderType = typeof(StreamingPipeline).Assembly.GetType(
+            "VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
+        var overrideProp = typeof(StreamingOptions).GetProperty("DeframerOverride");
+        Assert.NotNull(decoderType);
+        Assert.NotNull(overrideProp);
+        overrideProp!.SetValue(opts, Activator.CreateInstance(decoderType!));
+        using (var pipeline = new StreamingPipeline(parameters, opts))
         {
             pipeline.BurstDecoded += report =>
             {
@@ -133,7 +148,7 @@ public sealed class Unne1bRecordedIqRegressionTests
                     softBits += report.Soft.Soft.Length;
                     cfo.Add(report.Burst.CfoHz);
                     snr.Add(report.Burst.SnrDb);
-                    foreach (Frame frame in Unne1bDeframer.Decode(report.Soft))
+                    foreach (Frame frame in report.Frames)
                     {
                         int type = frame.Bytes[0] >> 4;
                         uint? clock = type == 15 || frame.Bytes.Length < 5
