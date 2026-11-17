@@ -68,6 +68,35 @@ public sealed class SatelliteTelemetryChainTests
         Assert.NotEqual(true, p.Manchester);
     }
 
+    [Fact]
+    public void Ao73BeaconCanReceiveWithoutSatyamlEnrichment()
+    {
+        var noSatyaml = new SatnogsDbTransmitter
+        {
+            uuid = "ao73-beacon", norad_cat_id = 39444,
+            downlink_low = 145935000, baud = 1200,
+            description = "1k2 BPSK telemetry",
+            mode = "BPSK", DownlinkMode = "USB"
+        };
+        var result = SignalParamsResolver.Resolve(noSatyaml);
+        Assert.NotNull(result);
+        Assert.Equal(Framing.AO40FEC, result!.Framing);
+        Assert.True(result.Differential);
+        Assert.True(SignalParamsResolver.IsTelemetryDecodable(result));
+
+        // Same spacecraft, different RF transmitter: never mistake the
+        // 145.95-145.97 MHz analogue transponder for the FEC beacon.
+        var otherDownlink = new SatnogsDbTransmitter
+        {
+            uuid = "ao73-linear", norad_cat_id = 39444,
+            downlink_low = 145960000, baud = 1200,
+            description = "1k2 BPSK",
+            mode = "BPSK", DownlinkMode = "USB"
+        };
+        Assert.Equal(Framing.Unknown,
+            SignalParamsResolver.Resolve(otherDownlink)!.Framing);
+    }
+
     private sealed class ReceiverProbe : TelemetryDecocder
     {
         internal ReceiverProbe(SignalParams p) : base(p, 39444, true, false, null) { }
