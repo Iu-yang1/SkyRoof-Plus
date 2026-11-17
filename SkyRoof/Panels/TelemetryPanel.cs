@@ -1934,11 +1934,14 @@ namespace SkyRoof
         hex += $"  {i:X3}  " + string.Join(" ", payload.Skip(i).Take(8).Select(b => b.ToString("X2"))) + "\n";
       hex = "HEX:\n" + hex + "\n";
 
+      string integrityCheck = frame.Framing is Framing.AO40FEC or
+        Framing.AX100ASM or Framing.AX100RS or Framing.CCSDS or Framing.USP
+          ? "FEC/RS" : "CRC";
       string meta = "META:\n" +
         $"  Bytes: {frame.Length}\n" +
         $"  CFO: {frame.CfoHz:F1} Hz\n" +
         $"  SNR: {frame.SnrDb:F1} dB\n" +
-        $"  CRC: {frame.CrcValid switch { true => "OK", false => "FAIL", null => "n/a" }}\n" +
+        $"  {integrityCheck}: {frame.CrcValid switch { true => "OK", false => "FAIL", null => "n/a" }}\n" +
         ssdvMeta +
         $"  Corrections: {frame.CorrectedBits}\n" +
         $"  Erasures: {frame.ErasedBytes}\n\n" +
