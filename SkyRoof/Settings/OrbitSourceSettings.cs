@@ -41,12 +41,12 @@ namespace SkyRoof
 
     [Category("Orekit ephemeris")]
     [DisplayName("IERS EOP Download Sources")]
-    [Description("Ordered HTTPS URLs for finals2000A.all, separated by semicolons or new lines. Used for initial download and seven-day EOP refresh.")]
+    [Description("Ordered HTTPS/local-file sources for IERS finals2000A.all, separated by semicolons or new lines. Used for startup and seven-day EOP refresh.")]
     [DefaultValue(DefaultOrekitEopSources)]
     public string OrekitEopSources { get; set; } = DefaultOrekitEopSources;
 
     [Category("Orekit ephemeris")]
-    [DisplayName("JPL DE430 Download URL")]
+    [DisplayName("JPL DE430 Download Sources")]
     [Description("Ordered HTTPS mirror URLs or local-file paths for Orekit DE430 (semicolon/newline separated). Any downloaded file must match the pinned upstream Git blob SHA-1; NAIF BSP/SPK files are not interchangeable.")]
     [DefaultValue(DefaultOrekitDe430Url)]
     public string OrekitDe430Url { get; set; } = DefaultOrekitDe430Url;
@@ -141,7 +141,7 @@ namespace SkyRoof
     public string TransmittersUrl { get; set; } = DefaultTransmittersUrl;
 
     [Category("Orbit elements")]
-    [DisplayName("CelesTrak OMM CSV URL")]
+    [DisplayName("CelesTrak OMM CSV/JSON Sources")]
     [Description("Highest-priority automatic orbit source. The default is CelesTrak's amateur GP/OMM CSV feed. Ordered HTTPS/local-file mirror alternatives and OMM JSON are accepted; first valid response wins and OMM is propagated directly.")]
     [DefaultValue(DefaultCelestrakOmmCsvUrl)]
     public string CelestrakOmmCsvUrl { get; set; } = DefaultCelestrakOmmCsvUrl;
