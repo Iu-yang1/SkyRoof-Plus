@@ -69,26 +69,19 @@ jobs:
           repository: Iu-yang1/VE3NEA.SkySignals-Plus
           ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
           path: SkySignals-Plus
+          lfs: true
 
-      - name: Build modified SkyTlm and stage its DLL
+      - name: Build and stage source-pinned SkyTlm with production script
+        shell: pwsh
+        run: ./scripts/stage-skytlm-fork.ps1
+
+      - name: Verify full fork telemetry and modulation regression suite
         shell: pwsh
         run: |
-          dotnet build SkySignals-Plus/VE3NEA.SkyTlm/VE3NEA.SkyTlm.csproj -c Release -p:Platform=x64
-          $tlm = 'SkySignals-Plus/VE3NEA.SkyTlm/bin/x64/Release/net10.0-windows/VE3NEA.SkyTlm.dll'
-          $dsp = 'SkySignals-Plus/VE3NEA.Dsp/bin/x64/Release/net10.0/VE3NEA.Dsp.dll'
-          if (!(Test-Path $tlm) -or !(Test-Path $dsp)) { throw 'Expected SkySignals build output missing' }
-          Copy-Item $tlm Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll -Force
-          Copy-Item $dsp Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll -Force
-          Write-Host "SkyTlm fork commit: $(git -C SkySignals-Plus rev-parse HEAD)"
-          Write-Host "SkyTlm SHA256: $((Get-FileHash Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll -Algorithm SHA256).Hash)"
-
-      - name: Verify forked UNNE link framing and AO-123 compatibility
-        shell: pwsh
-        run: >
-          dotnet test SkySignals-Plus/VE3NEA.SkyTlm.Tests/VE3NEA.SkyTlm.Tests.csproj
-          -c Release -p:Platform=x64
-          --filter "FullyQualifiedName~Unne1bDeframerTests|FullyQualifiedName~Asrtu1HeaderTests|FullyQualifiedName~StreamingPipelineTests|FullyQualifiedName~CcsdsDeframerTests"
-          --logger "console;verbosity=minimal"
+          $corpus = 'SkySignals-Plus/VE3NEA.SkyTlm.Tests/Data/Wav/fsk_hades_HADES-SA.wav'
+          if ((Get-Item $corpus).Length -lt 10000) { throw 'SkyTlm off-air FSK/GMSK/BPSK corpus not downloaded from Git LFS' }
+          dotnet test SkySignals-Plus/VE3NEA.SkyTlm.Tests/VE3NEA.SkyTlm.Tests.csproj -c Release -p:Platform=x64 --logger "console;verbosity=minimal"
+          if ($LASTEXITCODE -ne 0) { throw 'SkyTlm full modulation suite failed' }
 
       - name: Compile production FSK pipeline and real-IQ test
         shell: pwsh
