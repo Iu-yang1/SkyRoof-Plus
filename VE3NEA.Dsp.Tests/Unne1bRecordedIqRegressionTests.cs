@@ -66,11 +66,17 @@ public sealed class Unne1bRecordedIqRegressionTests
                         Attempt result = Decode(fixture.Name, input, deviation,
                             center, defaultGate, gain);
                         attempts.Add(result);
-                        found |= result.Frames.Any(frame =>
-                            frame.Type == fixture.Type &&
-                            (fixture.Type == 15
-                                ? frame.VoiceNumber is >= 0 and <= 5
-                                : frame.Crc == true && frame.Clock == fixture.Clock));
+                        // A single valid voice header does not prove a working CODEC2
+                        // stream. The reference capture contains all six
+                        // consecutive subframes, which must be recovered
+                        // within the SAME tuning/demodulation attempt.
+                        found |= fixture.Type == 15
+                            ? Enumerable.Range(0, 6).All(number =>
+                                result.Frames.Any(frame =>
+                                    frame.Type == 15 && frame.VoiceNumber == number))
+                            : result.Frames.Any(frame =>
+                                frame.Type == fixture.Type &&
+                                frame.Crc == true && frame.Clock == fixture.Clock);
                     }
                 }
             }
