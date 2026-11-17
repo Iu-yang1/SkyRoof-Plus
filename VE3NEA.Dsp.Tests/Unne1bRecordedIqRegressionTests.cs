@@ -176,15 +176,22 @@ public sealed class Unne1bRecordedIqRegressionTests
                     }
                 }
             };
+            // The operational receiver is already running when a satellite
+            // burst arrives. Prime its 16-frame noise-estimation warm-up
+            // without changing a single captured IQ sample.
+            pipeline.Push(new Complex32[ReceiverRate / 2]);
             for (int i = 0; i < iq.Length; i += 4096)
             {
                 var samples = new Complex32[Math.Min(4096, iq.Length - i)];
                 Array.Copy(iq, i, samples, 0, samples.Length);
                 pipeline.Push(samples);
             }
-            // Simulate silence between satellite's 30-second transmissions.
+            // Post-burst silence and explicit EOF flush are BOTH important:
+            // one UNNE max frame needs up to 5.48 s of deferred tail, so
+            // Dispose() alone would leave pending soft-bit decodes unreported.
             for (int i = 0; i < 14; i++)
                 pipeline.Push(new Complex32[4096]);
+            pipeline.Flush();
         }
         lock (sync)
             return new Attempt(name, deviation, center, defaultGate, gain, rms,
