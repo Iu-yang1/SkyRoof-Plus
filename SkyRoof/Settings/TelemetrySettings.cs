@@ -25,6 +25,15 @@ namespace SkyRoof
     IfAfDemodulatedAf = 5
   }
 
+  // AF recordings of a digital transmitter can be either SSB audio
+  // containing the carrier tones or a receiver's already-discriminated
+  // FM baseband. Both are valid and require different IQ front ends.
+  public enum TelemetryFskAfInput
+  {
+    ToneAudio = 0,
+    FmDiscriminator = 1
+  }
+
   public class TelemetrySettings
   {
     [Category("Receive input")]
@@ -64,6 +73,18 @@ namespace SkyRoof
     [Description("Center frequency for analytic conversion of non-AFSK AF signals. For AFSK, preserve the already demodulated mark/space audio; the selected transmitter's AF carrier/deviation control the Bell-202 demodulator.")]
     [DefaultValue(1700)]
     public int AfCenterHz { get; set; } = 1700;
+
+    [Category("Receive input")]
+    [DisplayName("FSK/GMSK AF waveform")]
+    [Description("Tone audio (SSB/USB recording) or FM discriminator output from a receiver already tuned to FM. Only affects FSK, GFSK and GMSK AF capture/loopback; 12-kHz IF and SDR IQ stay unchanged.")]
+    [DefaultValue(TelemetryFskAfInput.ToneAudio)]
+    public TelemetryFskAfInput FskAfInput { get; set; } = TelemetryFskAfInput.ToneAudio;
+
+    [Category("Receive input")]
+    [DisplayName("FM discriminator deviation (Hz)")]
+    [Description("Deviation used to reconstruct IQ from FM-discriminated FSK/GMSK audio. 0 uses transmitter metadata or the 0.5 modulation-index default (baud/4); nonzero values allow manual calibration.")]
+    [DefaultValue(0.0)]
+    public double FskAfDeviationHz { get; set; }
 
     [DisplayName("Save to File")]
     [Description("Save decoded frames to a file")]
