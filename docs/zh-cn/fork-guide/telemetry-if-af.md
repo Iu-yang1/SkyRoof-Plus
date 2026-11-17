@@ -19,7 +19,7 @@ SkyRoof Plus v1.82 为原有 [Telemetry 遥测面板](../../users_guide/telemetr
 
 **原始 IF** 经 Hilbert FIR 形成解析复数信号，再由连续 NCO 将 **12,000 Hz** 混频至零频。**已 FM 鉴频的 AFSK 音频** 不适合再被当成 RF FM 信号直接鉴频；v1.82 提供 FM-IQ 兼容桥接，以匹配现有 SkyTlm AFSK 解调器的输入域。正确的 AFSK 音调中心、频偏、波特率、调制和帧格式仍由 **Telemetry → Signal Details** 中的发射机参数决定；普通 AF 解析变换使用另行设置的 **AF tone center (Hz)**。
 
-特别注意：**9600 Bd FSK/GMSK 的 FM 鉴频后基带并不自动等于 Bell 202 AFSK**。此类信号建议使用真实 IF 或 SDR IQ，不能靠把 AF 中心频率设为 1700 Hz 就保证解码。
+特别注意：**9600 Bd FSK/GMSK 的 FM 鉴频后基带并不是 Bell 202 AFSK**。在新的 **FSK/GMSK AF 波形类型**中，选择 **ToneAudio**（SSB/USB 音调音频，默认保持兼容）或 **FmDiscriminator**（接收机已完成 FM 鉴频的基带音频）。后者通过连续相位 FM→IQ 桥接送入 SkyTlm。**FM 鉴频重构频偏 (Hz)** 设为 0 时使用发射机已有频偏或 `baud/4`；也可以填入实测值。该设置仅作用于 AF 采集/回环，不改变原始 IF 和 SDR IQ。公开 48 kHz WAV 实录已验证：AISTECHSAT-3 4800 Bd/1200 Hz 恢复 5 个有效 AX100 帧、Suomi 100 9600 Bd/2400 Hz 恢复 2 个有效帧、AO-27 AFSK 恢复 2 个 AX.25 帧。AO-73 的 1200 Bd DBPSK 应继续使用 **ToneAudio** 与 1700 Hz 中心，成功恢复一个 256 字节 AO-40 FEC/RS 有效帧。上述固定录音验证不等于整次过境实机 AFC 验证。
 
 ## 2. IC-9700 USB IF 接收步骤
 

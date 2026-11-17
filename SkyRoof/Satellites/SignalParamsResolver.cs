@@ -27,16 +27,8 @@ namespace SkyRoof.Satellites
 
       Modulation mod = ResolveModulation(tx, je9pel);
       Framing framing = ResolveFraming(tx, je9pel);
-      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
-      // from HADES-SA. The app handles that table after the FSK soft modem.
-      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
-      {
-        if (mod == Modulation.FSK && framing == Framing.Unknown)
-          framing = Framing.HADES;
-        if (mod == Modulation.FSK && baud <= 0)
-          baud = 200;
-      }
+
+      ResolveSpecialSatelliteParams(tx, mod, ref framing, ref baud);
 
       double? devOverride = mod == Modulation.GMSK ? null : Field(layers, l => l.deviation);
       // AFSK (Bell-202 audio subcarrier over FM, e.g. 1k2 telemetry): the demod's "deviation" is the audio tone
@@ -45,15 +37,26 @@ namespace SkyRoof.Satellites
       // centre (AfCarrier below) is pinned to 1700 Hz the same way.
       if (mod == Modulation.AFSK) devOverride = 500;
 
-      // Differential (PSK only): taken from the satyaml precoding — unlike the DB's unreliable
-      // BPSK/DBPSK labels, satyaml states it explicitly (e.g. ASRTU-1 "precoding: differential").
-      // Default to coherent: every off-air PSK signal in the corpus (TEVEL2-1, Eaglet-1) is coherent,
-      // so we resolve coherent unless precoding explicitly says "differential".
+      // Differential (PSK only): explicit SatYAML/manual precoding wins.
+      // For ordinary BPSK with no precoding metadata, keep null so SkyTlm
+      // can trial coherent/DBPSK and lock on a CRC/FEC-valid frame.
+      // AO-40 FEC is DBPSK by protocol. For CCSDS this same flag instead
+      // selects NRZ-I bit precoding INSIDE the deframer (not RF differential
+      // demodulation); preserve the no-precoding default unless declared.
       bool? differential = null;
       if (mod == Modulation.BPSK || mod == Modulation.QPSK)
       {
         string? precoding = Field(layers, l => l.precoding);
-        differential = precoding != null && precoding.Contains("differential", StringComparison.OrdinalIgnoreCase);
+        // FUNcube (AO-73/EO-88/JO-97) uses differential BPSK with AO-40
+        // FEC. Its SatYAML and SatNOGS records can omit the optional
+        // "precoding" key: interpreting absence as explicit coherent BPSK
+        // prevents the AO-40 FEC decoder from ever receiving valid symbols.
+        // Explicit precoding from a user override remains authoritative.
+        differential = precoding != null
+          ? precoding.Contains("differential", StringComparison.OrdinalIgnoreCase)
+          : framing == Framing.AO40FEC ? true
+          : framing == Framing.CCSDS ? false
+          : null;
       }
 
       var sp = new SignalParams(baud, mod, framing, AudioSampleRate, devOverride)
@@ -75,6 +78,43 @@ namespace SkyRoof.Satellites
         : sp;
     }
 
+
+    private static void ResolveSpecialSatelliteParams(
+      SatnogsDbTransmitter tx, Modulation modulation,
+      ref Framing framing, ref double baud)
+    {
+      // AO-73's 145.935 MHz beacon uses the published 1200 Bd DBPSK
+      // AO-40 FEC protocol. SatNOGS does not specify that custom framing:
+      // without an installed/matched SatYAML entry a valid BPSK transmitter
+      // was silently marked "unsupported". Infer the documented protocol
+      // only for this exact NORAD + beacon frequency, never its nearby
+      // linear transponder or a transmitter with manual framing.
+      if (IsAo73BeaconWithoutFraming(tx, framing, modulation))
+      {
+        framing = Framing.AO40FEC;
+        if (baud <= 0) baud = 1200;
+      }
+      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
+      // from HADES-SA. The app handles that table after the FSK soft modem.
+      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
+          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
+      {
+        if (modulation == Modulation.FSK && framing == Framing.Unknown)
+          framing = Framing.HADES;
+        if (modulation == Modulation.FSK && baud <= 0)
+          baud = 200;
+      }
+
+    }
+
+    private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
+      Framing framing, Modulation modulation) =>
+      framing == Framing.Unknown &&
+      tx.manual?.framing == null &&
+      (tx.norad_cat_id == 39444 || tx.Satellite?.norad_cat_id == 39444) &&
+      tx.downlink_low is long beaconHz &&
+      Math.Abs(beaconHz - 145935000L) <= 5000 &&
+      modulation == Modulation.BPSK;
 
     // Wrap today's SatNOGS DB fields into a GrSatsInfo so the base case is just "the lowest layer",
     // keeping Resolve a single uniform loop. The DB carries no deviation/precoding/RS, so those stay null.

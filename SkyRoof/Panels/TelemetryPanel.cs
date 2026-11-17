@@ -632,7 +632,7 @@ namespace SkyRoof
       }
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
       audioReceiver.IqDiscontinuity += AudioReceiver_IqDiscontinuity;
-      audioReceiver.SetAfModulation(TelemetrySource?.Params.Modulation ?? Modulation.Unknown);
+      audioReceiver.SetAfSignalParams(TelemetrySource?.Params);
       try
       {
         audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf, ctx);
@@ -920,7 +920,7 @@ namespace SkyRoof
       // unless an SSTV transmitter is selected; the SSTV branch follows the whole downlink, not the
       // selection. Both may name a transmitter other than the selected one.
       var telemetrySource = TelemetrySource;
-      audioReceiver?.SetAfModulation(telemetrySource?.Params.Modulation ?? Modulation.Unknown);
+      audioReceiver?.SetAfSignalParams(telemetrySource?.Params);
       bool telemetry = telemetrySource != null;
       bool sstv = IsSstvBranchWanted();
       // the FM branch runs only with the model downloaded; the engine loads lazily here (once per session,
@@ -1894,6 +1894,10 @@ namespace SkyRoof
                snapshot.SignalParams.Framing == Framing.HADES)
         geo = string.Join("", Unne1bTelemetry.Describe(frame.Bytes)
           .Select(f => $"  {f.Name}: {f.Value}\n"));
+      else if (snapshot.Satellite?.norad_cat_id == 39444 &&
+               snapshot.SignalParams.Framing == Framing.AO40FEC)
+        geo = string.Join("", Funcube1Telemetry.Describe(frame.Bytes)
+          .Select(f => $"  {f.Name}: {f.Value}\n"));
 
       // an SSDV packet carries a CRC-32 and RS of its own, and the framings that carry it — HADES, AO-40
       // FEC — carry no frame CRC at all, so the "CRC:" line below reads "n/a" on precisely the frames whose
@@ -1930,11 +1934,14 @@ namespace SkyRoof
         hex += $"  {i:X3}  " + string.Join(" ", payload.Skip(i).Take(8).Select(b => b.ToString("X2"))) + "\n";
       hex = "HEX:\n" + hex + "\n";
 
+      string integrityCheck = frame.Framing is Framing.AO40FEC or
+        Framing.AX100ASM or Framing.AX100RS or Framing.CCSDS or Framing.USP
+          ? "FEC/RS" : "CRC";
       string meta = "META:\n" +
         $"  Bytes: {frame.Length}\n" +
         $"  CFO: {frame.CfoHz:F1} Hz\n" +
         $"  SNR: {frame.SnrDb:F1} dB\n" +
-        $"  CRC: {frame.CrcValid switch { true => "OK", false => "FAIL", null => "n/a" }}\n" +
+        $"  {integrityCheck}: {frame.CrcValid switch { true => "OK", false => "FAIL", null => "n/a" }}\n" +
         ssdvMeta +
         $"  Corrections: {frame.CorrectedBits}\n" +
         $"  Erasures: {frame.ErasedBytes}\n\n" +

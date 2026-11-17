@@ -97,10 +97,14 @@ namespace SkyRoof
 
     protected override void Process(DataEventArgs<Complex32> args)
     {
-      Pipeline?.Push(args.Data);
-      Detector?.Push(args.Data);
-      Sstv?.Process(args.Data.AsSpan(0, args.Count));
-      Fm?.Process(args.Data.AsSpan(0, args.Count));
+      // DataEventArgs from the pooled worker may have a backing array larger
+      // than Count. Its unused tail contains samples from the previous rental
+      // and must not be appended to the demodulator's continuous IQ timeline.
+      var iq = args.Data.AsSpan(0, args.Count);
+      Pipeline?.Push(iq);
+      Detector?.Push(iq);
+      Sstv?.Process(iq);
+      Fm?.Process(iq);
     }
 
     public override void Dispose()

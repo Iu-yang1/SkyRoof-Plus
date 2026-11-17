@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'SkyRoof/DSP/Unne1b*'
+      - 'SkyRoof/Satellites/SignalParamsResolver.cs'
+      - 'SkyRoof/DSP/TelemetryDecocder.cs'
+      - 'VE3NEA.Dsp.Tests/SatelliteRecordedAudioRegressionTests.cs'
+      - 'VE3NEA.Dsp.Tests/SatelliteTelemetryChainTests.cs'
       - 'SkyRoof/Panels/TelemetryPanel.cs'
       - 'SkyRoof/DSP/TelemetryDecocder.cs'
       - 'SkyRoof/Satellites/SignalParamsResolver.cs'
@@ -86,6 +90,55 @@ jobs:
       - name: Compile production FSK pipeline and real-IQ test
         shell: pwsh
         run: msbuild SkyRoof.sln /m /p:Configuration=Release /p:Platform=x64
+
+      - name: Checkout public amateur satellite audio corpus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: daniestevez/satellite-recordings
+          ref: 952ddfe53f62a150c53559249c83370630254cab
+          path: satellite-recordings
+          lfs: true
+          sparse-checkout: |
+            ao73.wav
+            ao27.wav
+            suomi_100.wav
+            aistechsat3.wav
+            gomx_3.wav
+            aalto1.wav
+            by02.wav
+          sparse-checkout-cone-mode: false
+
+      - name: Record authentic audio corpus revision and verify AO-73 sample
+        shell: pwsh
+        run: |
+          Write-Host "Satellite corpus SHA: $(git -C satellite-recordings rev-parse HEAD)"
+          $audio = 'satellite-recordings/ao73.wav'
+          if (!(Test-Path $audio) -or (Get-Item $audio).Length -lt 100000) {
+            throw 'Missing real 48-kHz AO-73 WAV sample'
+          }
+          Write-Host "AO73 WAV SHA256: $((Get-FileHash $audio -Algorithm SHA256).Hash)"
+
+      - name: Save public representative satellite WAV samples for DSP inspection
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: representative-satellite-audio
+          path: |
+            satellite-recordings/ao73.wav
+            satellite-recordings/ao27.wav
+            satellite-recordings/aistechsat3.wav
+            satellite-recordings/suomi_100.wav
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run authentic AO-73 audio through SkyRoof receiver and AO-40 FEC
+        shell: pwsh
+        env:
+          SKYROOF_SATELLITE_AUDIO_CORPUS: ${{ github.workspace }}/satellite-recordings
+        run: >
+          dotnet test VE3NEA.Dsp.Tests/VE3NEA.Dsp.Tests.csproj
+          -c Release -p:Platform=x64 --no-restore --no-build
+          --filter FullyQualifiedName~SatelliteRecordedAudioRegressionTests
+          --logger "console;verbosity=normal"
 
       - name: Download and verify actual satellite IQ recordings
         shell: pwsh

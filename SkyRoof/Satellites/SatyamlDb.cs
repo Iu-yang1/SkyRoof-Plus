@@ -51,11 +51,15 @@ namespace SkyRoof
           Math.Abs(f - frequencyHz.Value) <= 5000).ToList();
         if (list.Count == 0) return null;
       }
+      // SatNOGS uses both null and 0 for an unknown baud. Treat neither as
+      // a hard 0-Bd modem request: one frequency-matched SatYAML transmitter
+      // should still supply its published symbol rate and framing.
+      double? knownBaud = baud is double positive && positive > 0 ? positive : null;
       if (list.Count == 1)
-        return baud is not double requested || !list[0].baudrate.HasValue ||
+        return knownBaud is not double requested || !list[0].baudrate.HasValue ||
           Math.Abs(list[0].baudrate.Value - requested) <= Math.Max(1, requested * 0.02)
           ? list[0] : null;
-      if (baud is not double b) return null;
+      if (knownBaud is not double b) return null;
 
       var nearest = list
         .Where(t => t.baudrate.HasValue)

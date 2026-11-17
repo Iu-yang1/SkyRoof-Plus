@@ -12,111 +12,6 @@ using VE3NEA.SkyTlm.Core;
 namespace SkyRoof
 {
   /// <summary>
-  /// Converts 48-kHz REAL AF or a REAL 12-kHz IF into positive-frequency
-  /// analytic IQ, then frequency-translates its selected carrier to zero.
-  /// A centered Hilbert FIR and a continuous NCO preserve phase across
-  /// arbitrary WASAPI block boundaries. Raw IF is not FM/SSB-demodulated:
-  /// the existing SkySignals IQ modem performs the final modem demodulation.
-  /// </summary>
-  public sealed class TelemetryRealAudioIqConverter
-  {
-    private const int Rate = 48000;
-    private const int Taps = 129;
-    private const int Delay = (Taps - 1) / 2;
-    private readonly float[] history = new float[Taps];
-    private readonly double[] hilbert = new double[Taps];
-    private readonly double omega;
-    private int next;
-    private double phase;
-
-    public int CenterFrequencyHz { get; }
-
-    public TelemetryRealAudioIqConverter(int centerFrequencyHz)
-    {
-      if (centerFrequencyHz <= 0 || centerFrequencyHz >= Rate / 2)
-        throw new ArgumentOutOfRangeException(nameof(centerFrequencyHz));
-      CenterFrequencyHz = centerFrequencyHz;
-      omega = 2.0 * Math.PI * centerFrequencyHz / Rate;
-      foreach (int i in Enumerable.Range(0, Taps))
-      {
-        int lag = i - Delay;
-        if (lag == 0 || (lag & 1) == 0) continue;
-        double window = 0.54 - 0.46 * Math.Cos(2 * Math.PI * i / (Taps - 1));
-        // Positive-frequency analytic representation: cos(wt) + j sin(wt).
-        hilbert[i] = 2.0 * window / (Math.PI * lag);
-      }
-    }
-
-    public Complex32[] Convert(ReadOnlySpan<float> input)
-    {
-      var result = new Complex32[input.Length];
-      int i = 0;
-      foreach (float sample in input)
-      {
-        history[next] = float.IsFinite(sample) ? sample : 0;
-        int delayed = next - Delay;
-        if (delayed < 0) delayed += Taps;
-        double real = history[delayed];
-        double imaginary = 0;
-        int read = next;
-        for (int k = 0; k < Taps; k++)
-        {
-          imaginary += hilbert[k] * history[read];
-          if (--read < 0) read = Taps - 1;
-        }
-        if (++next == Taps) next = 0;
-        double c = Math.Cos(phase), sin = Math.Sin(phase);
-        result[i++] = new Complex32(
-          (float)(real * c + imaginary * sin),
-          (float)(imaginary * c - real * sin));
-        // The mixer below multiplies IQ by exp(-j*phase), so the
-        // NCO phase must INCREASE to translate positive carrier to DC.
-        phase += omega;
-        if (phase > Math.PI) phase -= 2 * Math.PI;
-      }
-      return result;
-    }
-
-    public void Reset()
-    {
-      Array.Clear(history);
-      next = 0;
-      phase = 0;
-    }
-  }
-
-  /// <summary>
-  /// Compatibility bridge for already FM-discriminated AFSK audio.
-  /// The vendored SkyTlm AFSK modem expects IQ of an FM carrier and applies
-  /// its own FM discriminator. Frequency-modulating an ideal analytic carrier
-  /// with the existing AF waveform makes the discriminator recover that AF
-  /// once, instead of erroneously differentiating its Hilbert representation.
-  /// </summary>
-  public sealed class TelemetryAfskFmIqConverter
-  {
-    private const double Rate = 48000.0;
-    private const double MaxDeviationHz = 1800.0;
-    private double phase;
-
-    public Complex32[] Convert(ReadOnlySpan<float> audio)
-    {
-      var result = new Complex32[audio.Length];
-      int index = 0;
-      foreach (float value in audio)
-      {
-        double sample = float.IsFinite(value) ? Math.Clamp(value, -1f, 1f) : 0;
-        phase += 2 * Math.PI * MaxDeviationHz * sample / Rate;
-        if (phase > Math.PI) phase -= 2 * Math.PI;
-        if (phase < -Math.PI) phase += 2 * Math.PI;
-        result[index++] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
-      }
-      return result;
-    }
-
-    public void Reset() => phase = 0;
-  }
-
-  /// <summary>
   /// One selected telemetry audio input. Soundcard callbacks and the shared
   /// IF/AF stream only COPY PCM into a bounded queue. Hilbert and the
   /// existing IQ telemetry decoder run outside the capture callback.
@@ -149,10 +44,30 @@ namespace SkyRoof
     private double inputRmsDbfs = double.NegativeInfinity;
     internal double InputRmsDbfs => Volatile.Read(ref inputRmsDbfs);
     private int afModulation = (int)Modulation.Unknown;
+    private SignalParams? afSignal;
     private bool isAfInput;
     internal long Discontinuities => Interlocked.Read(ref discontinuities);
     internal void SetAfModulation(Modulation modulation) =>
       Volatile.Write(ref afModulation, (int)modulation);
+
+    internal void SetAfSignalParams(SignalParams? signal)
+    {
+      Volatile.Write(ref afSignal, signal);
+      SetAfModulation(signal?.Modulation ?? Modulation.Unknown);
+    }
+
+    internal static bool UseDiscriminatorAf(bool isAf, Modulation modulation,
+      TelemetryFskAfInput fskAfInput) =>
+      isAf && (modulation == Modulation.AFSK ||
+        (fskAfInput == TelemetryFskAfInput.FmDiscriminator &&
+         modulation is Modulation.FSK or Modulation.GFSK or Modulation.GMSK));
+
+    internal static double FskAfPeakDeviation(SignalParams? signal, double overrideHz)
+    {
+      if (overrideHz > 0) return overrideHz;
+      return signal?.Deviation is double d && d > 0 ? d :
+        signal is { Baud: > 0 } p ? p.Baud / 4.0 : 1800;
+    }
 
     internal TelemetryAudioReceiveSession()
     {
@@ -207,7 +122,8 @@ namespace SkyRoof
       Interlocked.Exchange(ref receivedSamples, 0);
       Interlocked.Exchange(ref discontinuities, 0);
       Volatile.Write(ref inputRmsDbfs, double.NegativeInfinity);
-      worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz));
+      worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz,
+        config.FskAfInput, config.FskAfDeviationHz));
       try
       {
         ConnectSource(config, ifAf, ctx, device, cancel.Token);
@@ -326,10 +242,12 @@ namespace SkyRoof
     }
 
     private async Task RunAsync(ChannelReader<AudioBlock> reader,
-      CancellationToken cancel, int version, int centerHz)
+      CancellationToken cancel, int version, int centerHz,
+      TelemetryFskAfInput fskAfInput, double fskDeviationHz)
     {
       var converter = new TelemetryRealAudioIqConverter(centerHz);
       var fmBridge = new TelemetryAfskFmIqConverter();
+      double bridgeDeviationHz = 1800;
       int appliedModulation = Volatile.Read(ref afModulation);
       long observedDrops = 0;
       try
@@ -349,7 +267,23 @@ namespace SkyRoof
             Interlocked.Increment(ref discontinuities);
             IqDiscontinuity?.Invoke();
           }
-          Complex32[] iq = isAfInput && appliedModulation == (int)Modulation.AFSK
+          var modulation = (Modulation)appliedModulation;
+          bool fmDiscriminated = UseDiscriminatorAf(isAfInput, modulation, fskAfInput);
+          if (fmDiscriminated)
+          {
+            // Bell-202's existing 1800 Hz FM envelope stays unchanged.
+            // FSK/GMSK FM-discriminator input uses its own physical deviation.
+            double wantedDeviation = modulation == Modulation.AFSK ? 1800 :
+              FskAfPeakDeviation(Volatile.Read(ref afSignal), fskDeviationHz);
+            if (Math.Abs(wantedDeviation - bridgeDeviationHz) > 0.01)
+            {
+              fmBridge = new TelemetryAfskFmIqConverter(wantedDeviation);
+              bridgeDeviationHz = wantedDeviation;
+              Interlocked.Increment(ref discontinuities);
+              IqDiscontinuity?.Invoke();
+            }
+          }
+          Complex32[] iq = fmDiscriminated
             ? fmBridge.Convert(frame.Samples) : converter.Convert(frame.Samples);
           if (version != Volatile.Read(ref epoch)) return;
           IqAvailable?.Invoke(this, new DataEventArgs<Complex32>
