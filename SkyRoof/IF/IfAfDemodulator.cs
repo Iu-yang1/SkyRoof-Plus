@@ -44,7 +44,10 @@ namespace SkyRoof.IF
       IfAfFmVoiceProcessing fmVoice = IfAfFmVoiceProcessing.Off,
       bool fmSquelch = false, int fmSquelchDbfs = -45,
       IfAfSsbVoiceNotch ssbVoiceNotch = IfAfSsbVoiceNotch.Off,
-      IfAfSsbNoiseReduction ssbNoiseReduction = IfAfSsbNoiseReduction.Off)
+      IfAfSsbNoiseReduction ssbNoiseReduction = IfAfSsbNoiseReduction.Off,
+      bool fmVoiceHighpass = false, bool fmFadeBlanker = false,
+      IfAfFmSquelchSource fmSquelchSource = IfAfFmSquelchSource.CarrierPower,
+      int fmNoiseOpenDbfs = -18)
     {
       // 6.25-kHz FM preset uses +/-900 Hz peak deviation. This guard
       // must cover every supported preset, or the receive worker faults
@@ -62,7 +65,8 @@ namespace SkyRoof.IF
       fmDeviation = fmDeviationHz;
       cwAudio = new IfAfCwAudioFilter(cwCenterHz, cwBandwidthHz);
       voice = new IfAfVoiceEnhancements(fmVoice, fmSquelch,
-        fmSquelchDbfs, ssbVoiceNotch, ssbNoiseReduction);
+        fmSquelchDbfs, ssbVoiceNotch, ssbNoiseReduction,
+        fmVoiceHighpass, fmFadeBlanker, fmSquelchSource, fmNoiseOpenDbfs);
       Configure(mode);
     }
 
@@ -234,7 +238,7 @@ namespace SkyRoof.IF
         }
         if (++audioWrite == AfTaps) audioWrite = 0;
         cleanValue = value;
-        value = voice.Process(value, mode, lastFmPower);
+        value = voice.Process(value, mode, lastFmPower, raw);
       }
       if (++write == SsbTaps) write = 0;
       SamplesProcessed++;
