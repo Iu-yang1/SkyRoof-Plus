@@ -25,6 +25,8 @@ namespace SkyRoof.IF
     private readonly IfAfFmFadeBlanker? fmBlanker;
     private readonly IfAfFmVoiceHighpass? fmHighpass;
     private readonly IfAfFmNoiseQuieting? fmQuieting;
+    private readonly double[]? fmGateDelay;
+    private int fmGateDelayWrite;
     private readonly IfAfSsbVoiceNotch ssbNotch;
     private readonly IfAfAdaptiveNotch? adaptiveNotch;
     private readonly IfAfSpectralNoiseReducer? noiseReducer;
@@ -48,6 +50,8 @@ namespace SkyRoof.IF
       fmPowerThreshold = Math.Pow(10, fm.PowerThresholdDbfs / 10.0);
       fmNoiseOpenPower = Math.Pow(10, fm.NoiseOpenDbfs / 10.0);
       if (fm.BlankerEnabled) fmBlanker = new IfAfFmFadeBlanker();
+      if (fm.BlankerEnabled && fm.SquelchEnabled)
+        fmGateDelay = new double[IfAfFmFadeBlanker.DelaySamples + 1];
       if (fm.HighpassEnabled) fmHighpass = new IfAfFmVoiceHighpass();
       if (fm.SquelchEnabled && fm.SquelchSource == IfAfFmSquelchSource.NoiseQuieting)
         fmQuieting = new IfAfFmNoiseQuieting();
@@ -84,6 +88,8 @@ namespace SkyRoof.IF
       fmBlanker?.Reset();
       fmHighpass?.Reset();
       fmQuieting?.Reset();
+      if (fmGateDelay != null) Array.Clear(fmGateDelay);
+      fmGateDelayWrite = 0;
     }
 
     internal double Process(double sample, IfAfMode mode, double fmIqPower = 0,
@@ -145,7 +151,17 @@ namespace SkyRoof.IF
         double target = opening ? 1 : 0;
         double step = 1.0 / (0.010 * IfAfDemodulator.Rate);
         fmGate = Math.Clamp(fmGate + Math.Sign(target - fmGate) * step, 0, 1);
-        sample *= fmGate;
+        // The blanker delays audio by 20 ms; delay the squelch gain by
+        // exactly the same number of samples to preserve speech onsets.
+        double gate = fmGate;
+        if (fmGateDelay != null)
+        {
+          int read = (fmGateDelayWrite + 1) % fmGateDelay.Length;
+          fmGateDelay[fmGateDelayWrite] = fmGate;
+          gate = fmGateDelay[read];
+          fmGateDelayWrite = read;
+        }
+        sample *= gate;
       }
       return sample;
     }
