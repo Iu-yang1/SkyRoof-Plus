@@ -90,6 +90,123 @@ public sealed class Unne1bDeframerTests
         }
     }
 
+
+    // N6RFM's independently implemented HADESx demodulator also uses the
+    // type-C legacy lengths below (TOTAL_BYTES minus 16-byte preamble and
+    // two-byte sync). Exercise every actual packet duration, including
+    // the long 135-byte sun-sensor telemetry, not just type 2.
+    [Theory]
+    [InlineData(1, 31)]
+    [InlineData(2, 17)]
+    [InlineData(3, 29)]
+    [InlineData(4, 35)]
+    [InlineData(5, 27)]
+    [InlineData(6, 135)]
+    [InlineData(8, 31)]
+    [InlineData(9, 123)]
+    [InlineData(10, 17)]
+    [InlineData(12, 64)]
+    [InlineData(14, 38)]
+    public void LegacyPacketLengthsPassCrcAndRecoverCompleteFrame(int type, int length)
+    {
+        byte[] plain = new byte[length - 2];
+        plain[0] = (byte)((type << 4) | 0xC);
+        for (int k = 1; k < plain.Length; k++) plain[k] = (byte)(k * 7 + type);
+        byte[] wire = Encode(plain);
+        ushort crc = Crc16CcittFalse.Compute(wire);
+        var packet = wire.Concat(new[] { (byte)(crc >> 8), (byte)crc }).ToArray();
+        byte[] stream = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(packet).ToArray();
+
+        Frame frame = Assert.Single(Unne1bDeframer.Decode(MakeSoft(stream)));
+        Assert.True(frame.CrcValid);
+        Assert.Equal(plain, frame.Bytes);
+        Assert.Equal(type, frame.Bytes[0] >> 4);
+        Assert.Equal(stream.Length * 8, frame.SoftBitEnd);
+    }
+
+    [Fact]
+    public void OneSyncErrorStillDecodesCrcVerifiedTelemetry()
+    {
+        byte[] stream = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(MakeType2()).ToArray();
+        var soft = MakeSoft(stream);
+        FlipSoftBit(soft, byteIndex: 2, bitFromMsb: 4);
+
+        Frame frame = Assert.Single(Unne1bDeframer.Decode(soft));
+        Assert.True(frame.CrcValid);
+        Assert.Equal("UNNE-1B type 2", frame.Note);
+    }
+
+    [Fact]
+    public void UncertainTypeCHeaderAndDataCanBeRecoveredOnlyWithCorrectCrc()
+    {
+        byte[] stream = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(MakeType2()).ToArray();
+        var soft = MakeSoft(stream);
+        FlipSoftBit(soft, byteIndex: 4, bitFromMsb: 7); // 0x2C -> 0x2D
+        FlipSoftBit(soft, byteIndex: 10, bitFromMsb: 3);
+
+        Frame frame = Assert.Single(Unne1bDeframer.Decode(soft));
+        Assert.True(frame.CrcValid);
+        Assert.Equal(0x2C, frame.Bytes[0]);
+        Assert.Contains("soft repair (2 bit(s))", frame.Note);
+    }
+
+    [Fact]
+    public void ThreeLeastReliablePayloadAndFcsBitsCanBeRepaired()
+    {
+        byte[] stream = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(MakeType2()).ToArray();
+        var soft = MakeSoft(stream);
+        FlipSoftBit(soft, byteIndex: 7, bitFromMsb: 2);
+        FlipSoftBit(soft, byteIndex: 11, bitFromMsb: 5);
+        FlipSoftBit(soft, byteIndex: stream.Length - 1, bitFromMsb: 7);
+
+        Frame frame = Assert.Single(Unne1bDeframer.Decode(soft));
+        Assert.True(frame.CrcValid);
+        Assert.Contains("soft repair (3 bit(s))", frame.Note);
+        Assert.Equal(0x25, frame.Bytes[4]);
+    }
+
+    [Fact]
+    public void FourBitErrorsAreNotSilentlyReclassifiedAsCrcValid()
+    {
+        byte[] stream = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(MakeType2()).ToArray();
+        var soft = MakeSoft(stream);
+        foreach (int byteIndex in new[] { 7, 9, 12, 16 })
+            FlipSoftBit(soft, byteIndex, bitFromMsb: 4);
+        Assert.Empty(Unne1bDeframer.Decode(soft));
+    }
+
+    [Fact]
+    public void UnverifiedCodec2MustNotAcceptApproximateSync()
+    {
+        byte[] stream = new byte[4 + 1 + 37];
+        stream[0] = 0xAA; stream[1] = 0xAA;
+        stream[2] = 0xBF; stream[3] = 0x35;
+        stream[4] = 37; stream[5] = 0xFC;
+        var soft = MakeSoft(stream);
+        FlipSoftBit(soft, byteIndex: 2, bitFromMsb: 2);
+        Assert.Empty(Unne1bDeframer.Decode(soft));
+    }
+
+    private static SoftSymbols MakeSoft(byte[] stream)
+    {
+        float[] soft = new float[stream.Length * 8];
+        for (int j = 0; j < stream.Length; j++)
+            for (int b = 0; b < 8; b++)
+                soft[j * 8 + b] = ((stream[j] >> (7 - b)) & 1) != 0 ? 1f : -1f;
+        return new SoftSymbols { Soft = soft, SymbolRate = 200 };
+    }
+
+    private static void FlipSoftBit(SoftSymbols symbols, int byteIndex, int bitFromMsb)
+    {
+        int offset = byteIndex * 8 + bitFromMsb;
+        symbols.Soft[offset] = -symbols.Soft[offset] * 0.0001f;
+    }
+
     [Fact]
     public void VoiceType15UsesSizeByteAndDoesNotPretendToHaveCrc()
     {
