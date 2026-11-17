@@ -64,59 +64,76 @@ internal static class OrekitDataBootstrapper
             return;
 
         string staging = target + ".download";
-        try
+        foreach (string source in SatnogsDb.SplitSourceList(settings.OrekitDe430Url))
         {
-            using var response = await Client.GetAsync(
-                settings.OrekitDe430Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-            await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None))
-                await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-
-            var info = new FileInfo(staging);
-            if (info.Length != De430FileSize)
-                throw new InvalidDataException("Orekit DE430 ephemeris length does not match the pinned release.");
-
-            // Verify the exact upstream Git blob, not merely its filename/content length.
-            string blobSha1;
-            string sha256;
-            await using (var file = File.OpenRead(staging))
+            try
             {
-                using var gitHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
-                gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {info.Length}\0"));
-                using var hash256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                byte[] buffer = new byte[81920];
-                int read;
-                while ((read = await file.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                // The identical, pinned Orekit-native file may be mirrored to
+                // a domestic HTTPS origin or preinstalled from a local folder.
+                // The size and official Git blob hash are always verified
+                // before it can replace the active ephemeris.
+                if (Uri.TryCreate(source, UriKind.Absolute, out Uri? url) &&
+                    url.Scheme is "http" or "https")
                 {
-                    gitHash.AppendData(buffer.AsSpan(0, read));
-                    hash256.AppendData(buffer.AsSpan(0, read));
+                    using var response = await Client.GetAsync(
+                        url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                        .ConfigureAwait(false);
+                    response.EnsureSuccessStatusCode();
+                    await using var input = await response.Content.ReadAsStreamAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    await using var output = new FileStream(
+                        staging, FileMode.Create, FileAccess.Write, FileShare.None);
+                    await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
                 }
-                blobSha1 = Convert.ToHexString(gitHash.GetHashAndReset()).ToLowerInvariant();
-                sha256 = Convert.ToHexString(hash256.GetHashAndReset()).ToLowerInvariant();
-            }
-            if (blobSha1 != De430BlobSha1)
-                throw new InvalidDataException("Orekit DE430 ephemeris hash does not match the upstream Git blob.");
+                else
+                    File.Copy(Environment.ExpandEnvironmentVariables(source), staging, overwrite: true);
 
-            File.Move(staging, target, overwrite: true);
-            verifiedDe430 = new VerifiedFile(target, info.Length, File.GetLastWriteTimeUtc(target));
-            await File.WriteAllTextAsync(
-                Path.Combine(directory, "lnxp1990.430.manifest.json"),
-                JsonSerializer.Serialize(new { sourceUrl = settings.OrekitDe430Url, gitBlobSha1 = blobSha1,
-                    sha256, bytes = info.Length, downloadedUtc = DateTimeOffset.UtcNow },
-                    new JsonSerializerOptions { WriteIndented = true }), cancellationToken).ConfigureAwait(false);
-            Log.Information("Orekit DE430 planetary data installed: {File} SHA256={Hash}", target, sha256);
+                var info = new FileInfo(staging);
+                if (info.Length != De430FileSize)
+                    throw new InvalidDataException("Orekit DE430 data length does not match the pinned release.");
+
+                string blobSha1, sha256;
+                await using (var file = File.OpenRead(staging))
+                {
+                    using var gitHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+                    gitHash.AppendData(Encoding.ASCII.GetBytes($"blob {info.Length}\\0"));
+                    using var hash256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                    byte[] buffer = new byte[81920];
+                    int read;
+                    while ((read = await file.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                    {
+                        gitHash.AppendData(buffer.AsSpan(0, read));
+                        hash256.AppendData(buffer.AsSpan(0, read));
+                    }
+                    blobSha1 = Convert.ToHexString(gitHash.GetHashAndReset()).ToLowerInvariant();
+                    sha256 = Convert.ToHexString(hash256.GetHashAndReset()).ToLowerInvariant();
+                }
+                if (blobSha1 != De430BlobSha1)
+                    throw new InvalidDataException("DE430 data hash does not match the pinned upstream Git blob.");
+
+                File.Move(staging, target, overwrite: true);
+                verifiedDe430 = new VerifiedFile(target, info.Length, File.GetLastWriteTimeUtc(target));
+                await File.WriteAllTextAsync(
+                    Path.Combine(directory, "lnxp1990.430.manifest.json"),
+                    JsonSerializer.Serialize(new { sourceUrl = source, gitBlobSha1 = blobSha1,
+                        sha256, bytes = info.Length, downloadedUtc = DateTimeOffset.UtcNow },
+                        new JsonSerializerOptions { WriteIndented = true }), cancellationToken).ConfigureAwait(false);
+                Log.Information("Orekit DE430 installed from {Source}: SHA256={Hash}", source, sha256);
+                return;
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                Log.Warning(ex,
+                    "Orekit DE430 mirror {Source} failed validation; trying next location", source);
+            }
+            finally
+            {
+                if (File.Exists(staging)) File.Delete(staging);
+            }
         }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            Log.Warning(ex, "Orekit DE430 planetary data download failed; solar-system targets need a compatible local ephemeris.");
-        }
-        finally
-        {
-            if (File.Exists(staging))
-                File.Delete(staging);
-        }
+        Log.Warning("No DE430 mirror yielded a valid pinned ephemeris; keeping existing cache unchanged.");
     }
+
     private static async Task<bool> IsVerifiedDe430Async(string path, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
