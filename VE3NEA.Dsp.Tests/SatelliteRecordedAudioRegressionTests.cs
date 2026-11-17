@@ -114,13 +114,25 @@ public sealed class SatelliteRecordedAudioRegressionTests
         bool recovered = false;
         foreach (var p in profiles)
         {
-            if (modulation == Modulation.AFSK)
+            // These public audio clips may be already FM-discriminated
+            // baseband, unlike AO-73's SSB carrier audio. Re-synthesizing
+            // the FM carrier is necessary to test that input interpretation.
+            // Sweep the physical peak deviation, without changing the
+            // recorded PCM or bypassing the production SkyTlm deframer.
+            double[] deviations = modulation == Modulation.AFSK
+                ? new[] { 1800.0 }
+                : new[] { p.Baud / 4.0, p.Baud / 2.0, p.Baud * 0.75, 1800.0 };
+            foreach (double peak in deviations)
             {
-                var bridge = new TelemetryAfskFmIqConverter().Convert(pcm);
-                var (bursts, crc) = DecodeFrames(bridge, p);
-                observations.Add($"AF-bridge {p.Baud}Bd bursts={bursts} verified={crc}");
-                recovered |= crc > 0;
+                var fmIq = new TelemetryAfskFmIqConverter(peak).Convert(pcm);
+                var candidate = modulation == Modulation.FSK
+                    ? p with { Deviation = peak }
+                    : p;
+                var (bursts, crc) = DecodeFrames(fmIq, candidate);
+                observations.Add($"FM-audio bridge dev={peak}Hz {p.Baud}Bd bursts={bursts} verified={crc}");
+                if (crc > 0) { recovered = true; break; }
             }
+            if (recovered) break;
             foreach (int hz in centres)
             {
                 var iq = Translate(analytic, hz - 1);
