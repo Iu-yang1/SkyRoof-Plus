@@ -27,6 +27,23 @@ namespace SkyRoof.Satellites
 
       Modulation mod = ResolveModulation(tx, je9pel);
       Framing framing = ResolveFraming(tx, je9pel);
+
+      // AO-73's 145.935 MHz beacon uses the published 1200 Bd DBPSK
+      // AO-40 FEC protocol. SatNOGS does not specify that custom framing:
+      // without an installed/matched SatYAML entry a valid BPSK transmitter
+      // was silently marked "unsupported". Infer the documented protocol
+      // only for this exact NORAD + beacon frequency, never its nearby
+      // linear transponder or a transmitter with manual framing.
+      if (framing == Framing.Unknown &&
+          tx.manual?.framing == null &&
+          (tx.norad_cat_id == 39444 || tx.Satellite?.norad_cat_id == 39444) &&
+          tx.downlink_low is long beaconHz &&
+          Math.Abs(beaconHz - 145935000L) <= 5000 &&
+          mod == Modulation.BPSK)
+      {
+        framing = Framing.AO40FEC;
+        if (baud <= 0) baud = 1200;
+      }
       // UNNE-1B uses the GENESIS family, but its type-C packet table differs
       // from HADES-SA. The app handles that table after the FSK soft modem.
       if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
