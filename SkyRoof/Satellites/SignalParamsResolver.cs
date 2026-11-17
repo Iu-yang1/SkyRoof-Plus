@@ -53,7 +53,14 @@ namespace SkyRoof.Satellites
       if (mod == Modulation.BPSK || mod == Modulation.QPSK)
       {
         string? precoding = Field(layers, l => l.precoding);
-        differential = precoding != null && precoding.Contains("differential", StringComparison.OrdinalIgnoreCase);
+        // FUNcube (AO-73/EO-88/JO-97) uses differential BPSK with AO-40
+        // FEC. Its SatYAML and SatNOGS records can omit the optional
+        // "precoding" key: interpreting absence as explicit coherent BPSK
+        // prevents the AO-40 FEC decoder from ever receiving valid symbols.
+        // Explicit precoding from a user override remains authoritative.
+        differential = precoding != null
+          ? precoding.Contains("differential", StringComparison.OrdinalIgnoreCase)
+          : framing == Framing.AO40FEC;
       }
 
       var sp = new SignalParams(baud, mod, framing, AudioSampleRate, devOverride)
