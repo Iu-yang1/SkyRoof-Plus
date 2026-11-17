@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Iu-yang1/VE3NEA.SkySignals-Plus
-          ref: 2edf2186bef2d758f8e5395ee8cafe2aadb2d5d7
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
           path: SkySignals-Plus
 
       - name: Build modified SkyTlm and stage its DLL
