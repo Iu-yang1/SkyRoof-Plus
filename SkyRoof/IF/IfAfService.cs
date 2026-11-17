@@ -148,6 +148,8 @@ namespace SkyRoof.IF
           config.SsbCwAgcTargetDbfs is < -36 or > -12 ||
           config.SsbCwAgcMaxGainDb is < 0 or > 36 ||
           config.FmVoiceSquelchDbfs is < -95 or > -10 ||
+          config.FmNoiseOpenDbfs is < -90 or > 20 ||
+          !Enum.IsDefined(typeof(IfAfFmSquelchSource), config.FmSquelchSource) ||
           !Enum.IsDefined(typeof(IfAfFmVoiceProcessing), config.FmVoiceProcessing) ||
           !Enum.IsDefined(typeof(IfAfSsbVoiceNotch), config.SsbVoiceNotch) ||
           !Enum.IsDefined(typeof(IfAfSsbNoiseReduction), config.SsbNoiseReduction))
@@ -186,6 +188,10 @@ namespace SkyRoof.IF
         CwBandwidth = config.CwBandwidth,
         FmBandwidth = config.FmBandwidth,
         FmVoiceProcessing = config.FmVoiceProcessing,
+        FmVoiceHighpassEnabled = config.FmVoiceHighpassEnabled,
+        FmFadeBlankerEnabled = config.FmFadeBlankerEnabled,
+        FmSquelchSource = config.FmSquelchSource,
+        FmNoiseOpenDbfs = config.FmNoiseOpenDbfs,
         FmVoiceSquelchEnabled = config.FmVoiceSquelchEnabled,
         FmVoiceSquelchDbfs = config.FmVoiceSquelchDbfs,
         SsbVoiceNotch = config.SsbVoiceNotch,
@@ -301,7 +307,9 @@ namespace SkyRoof.IF
         audioConfig.EffectiveFmIfCutoffHz, audioConfig.EffectiveFmAfCutoffHz,
         audioConfig.FmVoiceProcessing, audioConfig.FmVoiceSquelchEnabled,
         audioConfig.FmVoiceSquelchDbfs, audioConfig.SsbVoiceNotch,
-        audioConfig.SsbNoiseReduction);
+        audioConfig.SsbNoiseReduction,
+        audioConfig.FmVoiceHighpassEnabled, audioConfig.FmFadeBlankerEnabled,
+        audioConfig.FmSquelchSource, audioConfig.FmNoiseOpenDbfs);
       var leveler = new IfAfAudioLeveler(audioConfig);
       DateTime previous = default;
       int previousSamples = 0;
