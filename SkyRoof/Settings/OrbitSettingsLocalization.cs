@@ -23,7 +23,13 @@ internal static class OrbitSettingsLocalization
         "OrbitSourceSettings.OrekitEopSources" =>
             "IERS finals2000A.all 官方下载源，多个网址使用分号或换行分隔；按顺序尝试。",
         "OrbitSourceSettings.OrekitDe430Url" =>
-            "Orekit 原生格式 DE430 星历下载网址；文件必须通过固定 Git Blob 校验，不支持直接填写 NAIF BSP 文件。",
+            "Orekit 原生 DE430 星历来源，可按顺序填写 HTTPS 镜像或本地文件路径（分号、换行分隔）；每份文件必须通过固定 Git Blob 校验，不可直接使用 NAIF BSP。",
+        "OrbitSourceSettings.SourceTimeoutSeconds" =>
+            "每个卫星数据源镜像的请求超时秒数；超时后继续尝试下一镜像，下载错误不会覆盖已验证缓存。此配置不限制大型 JPL 星历的独立下载。",
+        "OrbitSourceSettings.Je9pelSources" =>
+            "JE9PEL 卫星频率辅助资料来源，可填多个 HTTPS URL 或本地 CSV 文件；下载失败保留已有数据，不会阻断卫星列表导入。",
+        "OrbitSourceSettings.SatyamlZipSources" =>
+            "gr-satellites 卫星数字遥测协议资料 ZIP 镜像；按顺序选择有效压缩包，完整提取成功后才替换本地 SatYAML 文件。",
         "OrbitSourceSettings.DataStatus" =>
             "当前设置目录下 UTC、EOP、DE430 文件的存在状态；星历质量和实际加载状态需另查轨道数据质量，更新后重启。",
         _ => null
