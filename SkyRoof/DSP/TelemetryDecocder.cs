@@ -108,6 +108,10 @@ namespace SkyRoof
       // stop and join the worker thread BEFORE freeing the pipeline's native FFTW memory, otherwise an
       // in-flight Push() on that thread runs an FFT against freed buffers and corrupts the native heap.
       base.Dispose();
+      // All IQ pushes have joined. Finalize the current partial burst and
+      // any deferred low-baud FSK tail before destroying its FFT buffers.
+      // Otherwise UNNE frames still pending at LOS / receiver switch vanish.
+      Pipeline?.Flush();
       Pipeline?.Dispose();
       Pipeline = null;
       Detector?.Dispose();
