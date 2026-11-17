@@ -111,7 +111,7 @@ namespace SkyRoof
     public const string DefaultTleUrl =
       "https://db.satnogs.org/api/tle/?format=json";
     public const string DefaultCelestrakOmmCsvUrl =
-      "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=csv";
+      "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=CSV";
     public const string LegacyAutoTleUrl =
       "http://autotle.bi4pym.cn/AutoTLE.txt";
     // The old domain responds with HTTP 302 on some client paths.
