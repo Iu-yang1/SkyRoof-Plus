@@ -161,6 +161,17 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@fd55a6f3b34392fa83fde1454582407d8c714123 # v4.0
 
+      - name: Checkout pinned SkySignals-Plus telemetry engine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
+          path: SkySignals-Plus
+
+      - name: Stage forked SkyTlm and DSP before production build
+        shell: pwsh
+        run: ./scripts/stage-skytlm-fork.ps1
+
       - name: Build pinned HamNoise display backend
         shell: pwsh
         run: ./scripts/build-hamnoise.ps1

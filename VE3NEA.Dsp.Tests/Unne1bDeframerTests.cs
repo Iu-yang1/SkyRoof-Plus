@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MathNet.Numerics;
 using SkyRoof;
+using Unne1bDeframer = SkyRoof.Unne1bDeframer;
 using VE3NEA.SkyTlm.Core;
 using VE3NEA.SkyTlm.Deframing;
 using Xunit;
