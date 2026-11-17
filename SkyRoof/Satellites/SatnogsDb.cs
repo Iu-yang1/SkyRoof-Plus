@@ -456,8 +456,8 @@ namespace SkyRoof
             "celestrak-gp-" + OrbitSourceFetcher.CacheKey(options) + ".cache")
         : null;
       SatnogsDbTleList? cached = ReadOrbitCache(cachePath, forcedExtension, label);
-      if (cached != null &&
-          DateTime.UtcNow - File.GetLastWriteTimeUtc(cachePath!) < TimeSpan.FromHours(2))
+      if (cached != null && cachePath != null &&
+          DateTime.UtcNow - File.GetLastWriteTimeUtc(cachePath) < TimeSpan.FromHours(2))
       {
         Log.Information("Using cached CelesTrak OMM, within upstream 2-hour GP update cadence");
         return ApplyTles(cached, createMissingSatellites: true);
@@ -483,8 +483,8 @@ namespace SkyRoof
         // A brief international outage can retain a still-useful verified GP
         // cache. Beyond 24 hours prefer the other already imported automatic
         // sources rather than silently prioritize old OMM over fresh TLEs.
-        if (cached != null && DateTime.UtcNow -
-            File.GetLastWriteTimeUtc(cachePath!) < TimeSpan.FromHours(24))
+        if (cached != null && cachePath != null && DateTime.UtcNow -
+            File.GetLastWriteTimeUtc(cachePath) < TimeSpan.FromHours(24))
         {
           Log.Warning(ex, "CelesTrak unavailable: using validated GP cache within 24 hours");
           return ApplyTles(cached, createMissingSatellites: true);
