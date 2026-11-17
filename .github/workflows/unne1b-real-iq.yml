@@ -95,7 +95,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: daniestevez/satellite-recordings
-          ref: master
+          ref: 952ddfe53f62a150c53559249c83370630254cab
           path: satellite-recordings
           lfs: true
           sparse-checkout: |
@@ -104,7 +104,7 @@ jobs:
             suomi_100.wav
             aistechsat3.wav
             gomx_3.wav
-            alto1.wav
+            aalto1.wav
             by02.wav
           sparse-checkout-cone-mode: false
 
@@ -117,6 +117,18 @@ jobs:
             throw 'Missing real 48-kHz AO-73 WAV sample'
           }
           Write-Host "AO73 WAV SHA256: $((Get-FileHash $audio -Algorithm SHA256).Hash)"
+
+      - name: Save public representative satellite WAV samples for DSP inspection
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: representative-satellite-audio
+          path: |
+            satellite-recordings/ao73.wav
+            satellite-recordings/ao27.wav
+            satellite-recordings/aistechsat3.wav
+            satellite-recordings/suomi_100.wav
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Run authentic AO-73 audio through SkyRoof receiver and AO-40 FEC
         shell: pwsh
