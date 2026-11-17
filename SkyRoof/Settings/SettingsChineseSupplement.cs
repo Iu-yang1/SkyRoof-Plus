@@ -149,7 +149,7 @@ namespace SkyRoof
       ["IfAfSettings.SsbBandwidth"] = "USB/LSB 解调音频带通宽度，预设 1.2–3.3 kHz；通常语音可选 2.7 kHz，数字音频按需选择。",
       ["IfAfSettings.CwBandwidth"] = "以 700 Hz 为中心的 CW 带通滤波，支持 100–1000 Hz；窄带更适合稳定、精确调谐的 CW 信号。",
       ["IfAfSettings.FmBandwidth"] = "FM 信道带宽预设：6.25 kHz（窄带）与 12.5 kHz（常规）；对应不同的 IF/AF 带宽和最大频偏。",
-      ["IfAfSettings.FmVoiceProcessing"] = "仅对模拟 FM 语音施加 50/75/750 μs 去加重；关闭时保留原始音频，不影响遥测共享的干净 AF 数据。",
+      ["IfAfSettings.FmVoiceProcessing"] = "仅对模拟 FM 语音施加 50/75/750 μs 去加重；关闭时保留原始音频，且不影响数字遥测共享的干净 AF 数据。",
       ["IfAfSettings.FmVoiceHighpassEnabled"] = "可选 250 Hz 二阶 Butterworth 语音高通，抑制 67 Hz CTCSS 和低频噪声；不改变数字遥测的干净 AF。",
       ["IfAfSettings.FmFadeBlankerEnabled"] = "可选 20 ms 语音延迟及短暂载波包络衰落插值，长于 20 ms 的失锁不虚构恢复内容；仅作用于语音。",
       ["IfAfSettings.FmSquelchSource"] = "CarrierPower 使用原有 IF 信号功率判定；NoiseQuieting 同时根据鉴频后 3.5 kHz 以上噪声开关静噪，仅用于语音。",
