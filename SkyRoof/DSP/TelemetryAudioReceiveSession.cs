@@ -165,7 +165,7 @@ namespace SkyRoof
               "Start IF->AF before sharing demodulated audio.");
             sharedIf = afService;
             sharedIsAf = true;
-            afService.DemodulatedAfAvailable += OnSamples;
+            afService.CleanDemodulatedAfAvailable += OnSamples;
             break;
           case TelemetryReceiveSource.Capture12kIf:
           case TelemetryReceiveSource.CaptureAf:
@@ -307,7 +307,7 @@ namespace SkyRoof
       Interlocked.Increment(ref epoch);
       if (sharedIf is IfAfService ifAf)
       {
-        if (sharedIsAf) ifAf.DemodulatedAfAvailable -= OnSamples;
+        if (sharedIsAf) ifAf.CleanDemodulatedAfAvailable -= OnSamples;
         if (sharedIsRaw) ifAf.RawIfFrameAvailable -= OnRawIfFrame;
         sharedIf = null;
       }
