@@ -34,12 +34,7 @@ namespace SkyRoof.Satellites
       // was silently marked "unsupported". Infer the documented protocol
       // only for this exact NORAD + beacon frequency, never its nearby
       // linear transponder or a transmitter with manual framing.
-      if (framing == Framing.Unknown &&
-          tx.manual?.framing == null &&
-          (tx.norad_cat_id == 39444 || tx.Satellite?.norad_cat_id == 39444) &&
-          tx.downlink_low is long beaconHz &&
-          Math.Abs(beaconHz - 145935000L) <= 5000 &&
-          mod == Modulation.BPSK)
+      if (IsAo73BeaconWithoutFraming(tx, framing, mod))
       {
         framing = Framing.AO40FEC;
         if (baud <= 0) baud = 1200;
@@ -99,6 +94,15 @@ namespace SkyRoof.Satellites
         : sp;
     }
 
+
+    private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
+      Framing framing, Modulation modulation) =>
+      framing == Framing.Unknown &&
+      tx.manual?.framing == null &&
+      (tx.norad_cat_id == 39444 || tx.Satellite?.norad_cat_id == 39444) &&
+      tx.downlink_low is long beaconHz &&
+      Math.Abs(beaconHz - 145935000L) <= 5000 &&
+      modulation == Modulation.BPSK;
 
     // Wrap today's SatNOGS DB fields into a GrSatsInfo so the base case is just "the lowest layer",
     // keeping Resolve a single uniform loop. The DB carries no deviation/precoding/RS, so those stay null.
