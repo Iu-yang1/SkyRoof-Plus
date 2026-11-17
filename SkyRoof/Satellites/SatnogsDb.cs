@@ -603,8 +603,7 @@ namespace SkyRoof
       // clear that URL and rely entirely on Manual Orbit Source URLs.
       return
         File.Exists(Path.Combine(DownloadsFolder, "satellites.json")) &&
-        File.Exists(Path.Combine(DownloadsFolder, "transmitters.json")) &&
-        File.Exists(Path.Combine(DownloadsFolder, "JE9PEL.csv"));
+        File.Exists(Path.Combine(DownloadsFolder, "transmitters.json"));
     }
     public void ImportAll()
     {
@@ -624,7 +623,11 @@ namespace SkyRoof
           Log.Information(
             "Primary TLE source disabled or unavailable; custom TLE overlays will be applied after the base database import.");
 
-        ImportJE9PEL();
+        if (File.Exists(Path.Combine(DownloadsFolder, "JE9PEL.csv")))
+        {
+          try { ImportJE9PEL(); }
+          catch (Exception ex) { Log.Warning(ex, "Optional JE9PEL cache invalid; importing without JE9PEL names"); }
+        }
 
         // enrichment only — never let a satyaml problem abort the import
         try { ImportSatyaml(); }
@@ -1485,26 +1488,16 @@ namespace SkyRoof
 
         try
         {
-          string content;
-          string extension;
-          string label;
+          string label = Uri.TryCreate(source, UriKind.Absolute, out Uri? uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+              ? $"URL: {uri.Host}" : $"File: {Path.GetFileName(source)}";
 
-          if (Uri.TryCreate(source, UriKind.Absolute, out Uri? uri) &&
-              (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-          {
-            content = await DownloadHttpClient.GetStringAsync(uri, cancellationToken);
-            extension = Path.GetExtension(uri.AbsolutePath);
-            label = $"URL: {uri.Host}";
-          }
-          else
-          {
-            string path = Environment.ExpandEnvironmentVariables(source);
-            content = await File.ReadAllTextAsync(path, cancellationToken);
-            extension = Path.GetExtension(path);
-            label = $"File: {Path.GetFileName(path)}";
-          }
-
-          SatnogsDbTleList tles = ParseTleContent(content, extension, label);
+          var fetched = await OrbitSourceFetcher.GetTextAsync(
+            DownloadHttpClient, source, OrbitSources.SourceTimeoutSeconds,
+            text => ParseTleContent(text, Path.GetExtension(uri?.AbsolutePath ?? source), label).Count > 0,
+            cancellationToken);
+          SatnogsDbTleList tles = ParseTleContent(
+            fetched.Content, fetched.Extension, label);
           loadedSources[source] = tles;
           Log.Information(
             $"Manual orbit URL source fetched: {source} ({tles.Count} records)");
@@ -1583,7 +1576,10 @@ namespace SkyRoof
       string ext = (extension ?? string.Empty).ToLowerInvariant();
       SatnogsDbTleList records;
 
-      if (ext == ".csv" || LooksLikeOmmCsv(content))
+      // Identify the actual response by content, not a URL suffix or the
+      // configured source name. A JSON-format CelesTrak mirror may still be
+      // entered in the historical "OMM CSV URL" setting.
+      if (LooksLikeOmmCsv(content))
       {
         var parser = new OmmCsvParser();
         records = TlesFromOmm(parser.Parse(content), sourceLabel);
@@ -1603,6 +1599,10 @@ namespace SkyRoof
               JsonSettings)
             ?? new SatnogsDbTleList();
         }
+      }
+      else if (ext == ".csv")
+      {
+        throw new InvalidDataException("CSV source is not CelesTrak OMM CSV");
       }
       else
       {
