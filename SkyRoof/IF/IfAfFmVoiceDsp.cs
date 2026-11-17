@@ -131,7 +131,8 @@ namespace SkyRoof.IF
     {
       double high = highpass.Process(discriminator);
       power += alpha * (high * high - power);
-      return 10 * Math.Log10(Math.Max(power, 1e-15));
+      // Return linear power: no 48-kHz per-sample Math.Log10 in the DSP worker.
+      return Math.Max(0, power);
     }
 
     internal void Reset()
