@@ -160,7 +160,10 @@ namespace SkyRoof.IF
 
     /// <summary>Does not allocate, clip, AGC or retune RF. Select FM deviation
     /// consistently with the receiver and stream configuration.</summary>
-    public float Process(float sample)
+    public float Process(float sample) => ProcessCore(sample, out _);
+
+    // The clean AF tap precedes all voice-only processing and host leveling.
+    private float ProcessCore(float sample, out float cleanAf)
     {
       if (!float.IsFinite(sample))
       {
@@ -171,7 +174,7 @@ namespace SkyRoof.IF
       // accumulation error and preserves exact phase across block boundaries.
       int phaseNow = phaseIndex++ & 3;
       rawDelay[write] = sample;
-      double value;
+      double value, cleanValue;
       if (mode != IfAfMode.Fm)
       {
         double sum = 0;
@@ -185,6 +188,7 @@ namespace SkyRoof.IF
         value = sum;
         if (mode is IfAfMode.CwUsb or IfAfMode.CwLsb)
           value = cwAudio.Process(value);
+        cleanValue = value;
         value = voice.Process(value, mode);
       }
       else
@@ -229,10 +233,12 @@ namespace SkyRoof.IF
           if (--idx < 0) idx = AfTaps - 1;
         }
         if (++audioWrite == AfTaps) audioWrite = 0;
+        cleanValue = value;
         value = voice.Process(value, mode, lastFmPower);
       }
       if (++write == SsbTaps) write = 0;
       SamplesProcessed++;
+      cleanAf = (float)(double.IsFinite(cleanValue) ? cleanValue : 0);
       return (float)(double.IsFinite(value) ? value : 0);
     }
 
@@ -241,6 +247,17 @@ namespace SkyRoof.IF
       if (output.Length < input.Length)
         throw new ArgumentException("AF buffer too small.", nameof(output));
       for (int n = 0; n < input.Length; n++) output[n] = Process(input[n]);
+    }
+
+    /// <summary>Produce both voice AF and clean AF before de-emphasis,
+    /// blanking, squelch and output leveling; sample-aligned at 48 kHz.</summary>
+    public void Process(ReadOnlySpan<float> input, Span<float> output,
+      Span<float> cleanAfOutput)
+    {
+      if (output.Length < input.Length || cleanAfOutput.Length < input.Length)
+        throw new ArgumentException("AF output buffer too small.");
+      for (int n = 0; n < input.Length; n++)
+        output[n] = ProcessCore(input[n], out cleanAfOutput[n]);
     }
 
     public void Reset()
