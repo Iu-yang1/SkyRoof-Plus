@@ -65,9 +65,6 @@ namespace SkyRoof.IF
     /// Consumers must copy the data before returning from this event.
     /// Does not include virtual-cable transport, endpoint mix or TX audio.</summary>
     public event EventHandler<DataEventArgs<float>>? DemodulatedAfAvailable;
-    /// <summary>48-kHz pre-voice and pre-leveler demodulated AF.
-    /// Listeners must copy the pooled samples synchronously.</summary>
-    public event EventHandler<DataEventArgs<float>>? CleanDemodulatedAfAvailable;
     private readonly record struct Frame(float[] Data, DateTime Utc,
       int Version, long FirstSampleIndex, bool Discontinuity = false);
 
@@ -356,14 +353,7 @@ namespace SkyRoof.IF
             if (cleanAf != null)
             {
               dsp.Process(frame.Data, af.AsSpan(0, count), cleanAf.AsSpan(0, count));
-              try
-              {
-                cleanListener?.Invoke(this, new DataEventArgs<float>
-                {
-                  Data = cleanAf, Count = count, Utc = frame.Utc
-                });
-              }
-              catch (Exception ex) { Log.Warning(ex, "IF-AF clean PCM subscriber failed"); }
+              PublishCleanAf(cleanListener!, cleanAf, count, frame.Utc);
             }
             else dsp.Process(frame.Data, af.AsSpan(0, count));
             double inputPower = 0;
