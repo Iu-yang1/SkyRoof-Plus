@@ -1024,7 +1024,9 @@ namespace SkyRoof
           Decoder.Pipeline.BurstDecoded += report =>
           {
             if (unne)
-              foreach (Frame frame in Unne1bDeframer.Decode(report.Soft))
+              foreach (Frame frame in Decoder.UnneNative
+                ? report.Frames
+                : Unne1bDeframer.Decode(report.Soft))
               {
                 var tagged = frame with
                 {
