@@ -57,10 +57,12 @@ namespace SkyRoof.Satellites
       // centre (AfCarrier below) is pinned to 1700 Hz the same way.
       if (mod == Modulation.AFSK) devOverride = 500;
 
-      // Differential (PSK only): trust an explicit SatYAML/manual precoding value.
-      // Missing precoding is genuinely unknown, not a coherent-BPSK declaration:
-      // SkyTlm can trial coherent and differential receivers and lock only after
-      // a CRC/FEC-valid frame. AO-40 FEC is the protocol-specific DBPSK case.
+      // Differential (PSK only): explicit SatYAML/manual precoding wins.
+      // For ordinary BPSK with no precoding metadata, keep null so SkyTlm
+      // can trial coherent/DBPSK and lock on a CRC/FEC-valid frame.
+      // AO-40 FEC is DBPSK by protocol. For CCSDS this same flag instead
+      // selects NRZ-I bit precoding INSIDE the deframer (not RF differential
+      // demodulation); preserve the no-precoding default unless declared.
       bool? differential = null;
       if (mod == Modulation.BPSK || mod == Modulation.QPSK)
       {
@@ -72,7 +74,9 @@ namespace SkyRoof.Satellites
         // Explicit precoding from a user override remains authoritative.
         differential = precoding != null
           ? precoding.Contains("differential", StringComparison.OrdinalIgnoreCase)
-          : framing == Framing.AO40FEC ? true : null;
+          : framing == Framing.AO40FEC ? true
+          : framing == Framing.CCSDS ? false
+          : null;
       }
 
       var sp = new SignalParams(baud, mod, framing, AudioSampleRate, devOverride)
