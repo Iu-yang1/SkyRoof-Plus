@@ -14,12 +14,12 @@ public sealed class SatelliteTelemetryChainTests
     [InlineData("AO-40 FEC", null, true)]
     [InlineData("AO-40 FEC", "differential", true)]
     [InlineData("AO-40 FEC", "none", false)]
-    [InlineData("CCSDS Reed-Solomon", null, null)]
+    [InlineData("CCSDS Reed-Solomon", null, false)]
     [InlineData("CCSDS Reed-Solomon", "differential", true)]
     [InlineData("CCSDS Reed-Solomon", "none", false)]
     [InlineData("AX.25 G3RUH", null, null)]
     [InlineData("AX.25 G3RUH", "none", false)]
-    public void UnknownPskPrecodingEnablesCrcVerifiedAutoSubmode_AndAo40DefaultsToDbpsk(
+    public void UnspecifiedPskPrecodingHonorsEachProtocolAndPreservesAutodetectWhereSupported(
         string framing, string? precoding, bool? expected)
     {
         var sat = new SatnogsDbSatellite
@@ -46,8 +46,9 @@ public sealed class SatelliteTelemetryChainTests
         Assert.Equal(1200, result!.Baud);
         Assert.Equal(Modulation.BPSK, result.Modulation);
         Assert.Equal(expected, result.Differential);
-        // A null here intentionally tells SkyTlm to trial both PSK
-        // detectors and to commit only once a CRC/RS frame confirms one.
+        // For AX.25, null allows the modem's CRC-gated coherent/DBPSK
+        // trial; for CCSDS, this flag controls post-demodulation NRZ-I
+        // precoding and defaults to false, not a physical DBPSK trial.
         Assert.True(SignalParamsResolver.IsTelemetryDecodable(result));
     }
 
