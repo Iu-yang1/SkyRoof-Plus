@@ -74,8 +74,8 @@ jobs:
       - name: Execute actual SkyRoof IQ to FSK to CRC regression
         shell: pwsh
         env:
-          SKYROOF_UNNE_REAL_IQ_DIR: artifacts/unne1b-real-iq
-          SKYROOF_UNNE_REAL_IQ_METRICS: artifacts/unne1b-real-iq-metrics.json
+          SKYROOF_UNNE_REAL_IQ_DIR: ${{ github.workspace }}/artifacts/unne1b-real-iq
+          SKYROOF_UNNE_REAL_IQ_METRICS: ${{ github.workspace }}/artifacts/unne1b-real-iq-metrics.json
         run: >
           dotnet test VE3NEA.Dsp.Tests/VE3NEA.Dsp.Tests.csproj
           -c Release -p:Platform=x64 --no-restore --no-build
