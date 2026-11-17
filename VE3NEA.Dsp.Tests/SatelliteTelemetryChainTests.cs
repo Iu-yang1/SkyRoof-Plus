@@ -97,6 +97,37 @@ public sealed class SatelliteTelemetryChainTests
             SignalParamsResolver.Resolve(otherDownlink)!.Framing);
     }
 
+    [Theory]
+    [InlineData(Modulation.FSK, TelemetryFskAfInput.ToneAudio, false)]
+    [InlineData(Modulation.GFSK, TelemetryFskAfInput.ToneAudio, false)]
+    [InlineData(Modulation.GMSK, TelemetryFskAfInput.ToneAudio, false)]
+    [InlineData(Modulation.FSK, TelemetryFskAfInput.FmDiscriminator, true)]
+    [InlineData(Modulation.GFSK, TelemetryFskAfInput.FmDiscriminator, true)]
+    [InlineData(Modulation.GMSK, TelemetryFskAfInput.FmDiscriminator, true)]
+    [InlineData(Modulation.AFSK, TelemetryFskAfInput.ToneAudio, true)]
+    [InlineData(Modulation.BPSK, TelemetryFskAfInput.FmDiscriminator, false)]
+    public void AfSignalInterpretationKeepsOriginalToneAudioByDefault(
+        Modulation modulation, TelemetryFskAfInput mode, bool usesDiscriminator)
+    {
+        Assert.Equal(usesDiscriminator,
+            TelemetryAudioReceiveSession.UseDiscriminatorAf(true, modulation, mode));
+        // Even for a user-selected FM discriminator, raw 12-kHz IF
+        // must never be treated as already-demodulated AF.
+        Assert.False(TelemetryAudioReceiveSession.UseDiscriminatorAf(false, modulation, mode));
+    }
+
+    [Fact]
+    public void FskDiscriminatorDeviationFollowsBaudOrExplicitMetadata()
+    {
+        var gmsk = new SignalParams(9600, Modulation.GMSK,
+            Framing.AX100ASM, 48000);
+        Assert.Equal(2400, TelemetryAudioReceiveSession.FskAfPeakDeviation(gmsk, 0));
+        Assert.Equal(3200, TelemetryAudioReceiveSession.FskAfPeakDeviation(gmsk, 3200));
+        var custom = gmsk with { Deviation = 4100 };
+        Assert.Equal(4100, TelemetryAudioReceiveSession.FskAfPeakDeviation(custom, 0));
+        Assert.Equal(1800, TelemetryAudioReceiveSession.FskAfPeakDeviation(null, 0));
+    }
+
     private sealed class ReceiverProbe : TelemetryDecocder
     {
         internal ReceiverProbe(SignalParams p) : base(p, 39444, true, false, null) { }
