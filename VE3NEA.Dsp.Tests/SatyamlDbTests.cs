@@ -87,6 +87,31 @@ namespace VE3NEA.Dsp.Tests
 
 
     [Fact]
+    public void ZeroSatnogsBaudStillLoadsFrequencyMatchedFecProfile()
+    {
+      string dir = CreateDb(
+        """
+        norad: 39444
+        name: FUNcube-1
+        transmitters:
+          1k2 BPSK downlink:
+            frequency: 145.935e+6
+            baudrate: 1200
+            modulation: BPSK
+            framing: AO-40 FEC
+        """);
+      try
+      {
+        GrSatsInfo? match = SatyamlDb.Load(dir)!.Find(39444, 0, 145935000);
+        Assert.NotNull(match);
+        Assert.Equal(1200, match!.baudrate);
+        Assert.Equal("AO-40 FEC", match.framing);
+        Assert.Null(SatyamlDb.Load(dir)!.Find(39444, 0, 145960000));
+      }
+      finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
     public void AsrtuTransportAndFrequency_DoNotLeakIntoUnrelatedDownlink()
     {
       string dir = CreateDb(
