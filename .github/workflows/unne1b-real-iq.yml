@@ -100,3 +100,50 @@ jobs:
           path: artifacts/unne1b-real-iq-metrics.json
           if-no-files-found: warn
           retention-days: 30
+
+
+  reference-baseline:
+    # Independent proof that the original public captures contain the
+    # stated CRC-checked packets. This job never patches SkyRoof test data.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pinned N6RFM reference decoder and true IQ samples
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: N6RFM/HADESx-Decoder
+          ref: 238386904c44a60657bac0039c2edb681446d2c0
+
+      - name: Verify reference inputs and install pinned-source decoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object examples/iq/pass_t032s_type14.iq)" = "a64b1b466baadc1dacfdf7ac7804a0015935a4ed"
+          test "$(git hash-object examples/iq/pass_t211s_type01.iq)" = "be9264d9f76a0d904b62132e410b1cae5b9cdb11"
+          test "$(git hash-object examples/iq/pass_t122s_voice.iq)" = "18c4ddaa0d5d82872f7842ae4c55ebd1504f7ca4"
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -q -e .
+          mkdir -p reference-results
+
+      - name: Recover independent 200-baud FSK/GENESIS frames
+        shell: bash
+        run: |
+          set -euo pipefail
+          .venv/bin/hadesx-decode examples/iq/pass_t211s_type01.iq --fs 50000 --baud 200 > reference-results/type01.txt
+          .venv/bin/hadesx-decode examples/iq/pass_t032s_type14.iq --fs 50000 --baud 200 > reference-results/type14.txt
+          .venv/bin/hadesx-decode examples/iq/pass_t122s_voice.iq --fs 50000 --baud 200 > reference-results/voice.txt
+          cat reference-results/type01.txt
+          cat reference-results/type14.txt
+          cat reference-results/voice.txt
+          grep -Eqi 'UNNE-1B packet type 1 ' reference-results/type01.txt
+          grep -Eqi 'UNNE-1B packet type 14 ' reference-results/type14.txt
+          grep -Eqi 'UNNE-1B.*(CODEC2|packet type 15)' reference-results/voice.txt
+
+      - name: Attach independent reference decode evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unne1b-hadesx-reference-results
+          path: reference-results/*.txt
+          if-no-files-found: warn
+          retention-days: 30
