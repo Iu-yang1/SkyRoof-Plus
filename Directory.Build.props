@@ -3,12 +3,12 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.82: telemetry IF/AF reliability with audited upstream UI and AMSAT quality findings. -->
+  <!-- SkyRoof Plus v1.83: verified multi-satellite telemetry and CelesTrak OMM mirror import. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
     <!-- v1.78-satellite-terminology-20261115: independent release; preserve v.1.77. -->
     <!-- v1.78-zh-toolbar-padding-replacement-20261115: user-authorized one-time rebuild of existing v.1.78. -->
-    <Version>1.82</Version>
+    <Version>1.83</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

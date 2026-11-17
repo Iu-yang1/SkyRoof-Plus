@@ -1,3 +1,33 @@
+# SkyRoof-Plus v.1.83
+
+## v1.83 — 2026-11-17 遥测真实样本修复与星历导入回归
+
+基于 `v.1.82` 的两项已合并变更：[#240](https://github.com/Iu-yang1/SkyRoof-Plus/pull/240)（遥测）和 [#241](https://github.com/Iu-yang1/SkyRoof-Plus/pull/241)（星历）。本版不改写以前 Release 的 tag 或安装包。
+
+### 遥测链路：SkyRoof + 源码固定的 SkyTlm fork
+
+- SkyRoof 遥测输入严格按照 `DataEventArgs.Count` 处理有效 IQ 样本；不再将池化缓冲区的无效尾部样本送入接收链。
+- 修复 AO-73 / FUNcube-1 AO-40 FEC 的差分 BPSK 默认元数据解释，保留显式手动覆盖。提供已鉴频 FM 音频的 FSK/GFSK/GMSK 可选输入，保留 SDR IQ、12 kHz IF、模拟音频的既有路径。
+- FM/AF 输入支持连续解调状态及不等长块；AO-73 经过 RS 验证的 256 字节帧显示实时类型/序号/EPS 原始字段，不伪造校准数值。
+- 软件回放回归（[Actions #44045074478](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44045074478)）：AO-73 1 帧 AO-40 FEC/RS、AO-27 2 帧 AX.25/FCS、AISTECHSAT-3 5 帧 AX100/FEC、Suomi 100 2 帧 AX100/FEC；SkyTlm 离线测试 823 通过、3 跳过、0 失败。UNNE-1B 保留已合并的真实 IQ/CRC 回归及源码固定集成。
+- 注意：Suomi 100 的**独立三 burst 样本**仍为 2/3 成功，是已知 burst 分割缺陷；不得宣称已经修复。以上回放不是 IC-9700 实机、实时 AFC 或过境测试。
+
+### 星历：CelesTrak OMM、来源优先级、镜像及离线恢复
+
+- 认可 CelesTrak **同一官方** `gp.php` 的 `FORMAT=CSV` 与 `FORMAT=JSON`：依照正文识别，保留六位及更长 NORAD catalog ID；默认保留官方 `GROUP=amateur&FORMAT=CSV`。
+- 在线独立核对（[Actions #44053914187](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44053914187)）：官方 CSV 99 条、JSON 99 条；NORAD **99/99** 一致，含 AO-27 (22825)；说明核对当时的接口状态，不是中国大陆连通率证明。
+- 优先级维持为：**72 h 手动文件 > CelesTrak OMM > 用户自定义来源（列表第一项优先） > AutoTLE > SatNOGS**。SatNOGS 卫星/发射机、JE9PEL、SatYAML 元数据及 IERS EOP/JPL DE430 不混入轨道来源排序。
+- 每个来源支持校验后的区域 HTTPS 或本地镜像候选、独立超时与原子缓存；无效 HTML/JSON/ZIP 不能覆盖有效数据。CelesTrak GP 的源键隔离 2 h 缓存及 24 h 有限故障回退，支持压缩与官方错误退避；实时双格式验证 Action 改为手动执行。
+- IERS EOP 可用本地/官方备用来源；Orekit-native DE430 仍严格验证固定哈希，禁止将其它 SPK 误认为匹配文件。部署参见 [中国大陆星历源与镜像指南](docs/engineering/orbit-source-mirrors.zh-CN.md)。
+
+### 发布验收边界
+
+合并后的 `master` 在 [Compile Check #44057474744](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44057474744) 已通过 Windows x64 Release 编译、xUnit、Orekit Smoke 和安装包依赖测试；[aislop #44057474657](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44057474657) 通过。**v1.83 正式构建、SignPath 签名状态、安装程序 SHA-256、Release 完整性**仍以本次实际 GitHub Actions 构建及发布后校验为准；没有签名则现有流水线自动标为预发布。未完成真实 IC-9700 接收、云台/多普勒联动与中国大陆运营商链路实测，不能把模拟或 GitHub Runner 结果等同于实机验证。
+
+**English:** v1.83 combines real-recording-verified SkyRoof/SkyTlm telemetry ingress and AO-73/AO-40 FEC recovery with content-validated CelesTrak OMM CSV/JSON, six-digit NORAD handling, ordered orbit sources, resilient regional/offline mirrors and Orekit data checks. Real RF/hardware and mainland ISP connectivity remain unverified.
+
+---
+
 # SkyRoof-Plus v.1.82
 
 ## v1.82 — 2026-11-16 遥测 IF/AF 接收可靠性修复（P0–P3）
