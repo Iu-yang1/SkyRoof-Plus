@@ -1005,6 +1005,7 @@ namespace SkyRoof
           var voice = Decoder.Voice;
           bool unne = snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
             snapshot.SignalParams.Framing == Framing.HADES;
+          bool unneNative = unne && Decoder.UnneNative;
           var asrtuTransport = snapshot.Satellite?.norad_cat_id == 61781 &&
             snapshot.SignalParams.Framing == Framing.CCSDS &&
             snapshot.Transmitter?.downlink_low == 435400000
@@ -1024,7 +1025,7 @@ namespace SkyRoof
           Decoder.Pipeline.BurstDecoded += report =>
           {
             if (unne)
-              foreach (Frame frame in Decoder.UnneNative
+              foreach (Frame frame in unneNative
                 ? report.Frames
                 : Unne1bDeframer.Decode(report.Soft))
               {
