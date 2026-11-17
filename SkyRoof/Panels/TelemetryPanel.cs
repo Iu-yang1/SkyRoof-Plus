@@ -632,7 +632,7 @@ namespace SkyRoof
       }
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
       audioReceiver.IqDiscontinuity += AudioReceiver_IqDiscontinuity;
-      audioReceiver.SetAfModulation(TelemetrySource?.Params.Modulation ?? Modulation.Unknown);
+      audioReceiver.SetAfSignalParams(TelemetrySource?.Params);
       try
       {
         audioReceiver.Start(ctx.Settings.Telemetry, ctx.IfAf, ctx);
@@ -920,7 +920,7 @@ namespace SkyRoof
       // unless an SSTV transmitter is selected; the SSTV branch follows the whole downlink, not the
       // selection. Both may name a transmitter other than the selected one.
       var telemetrySource = TelemetrySource;
-      audioReceiver?.SetAfModulation(telemetrySource?.Params.Modulation ?? Modulation.Unknown);
+      audioReceiver?.SetAfSignalParams(telemetrySource?.Params);
       bool telemetry = telemetrySource != null;
       bool sstv = IsSstvBranchWanted();
       // the FM branch runs only with the model downloaded; the engine loads lazily here (once per session,
