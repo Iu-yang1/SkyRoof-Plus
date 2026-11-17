@@ -65,6 +65,9 @@ namespace SkyRoof.IF
     /// Consumers must copy the data before returning from this event.
     /// Does not include virtual-cable transport, endpoint mix or TX audio.</summary>
     public event EventHandler<DataEventArgs<float>>? DemodulatedAfAvailable;
+    /// <summary>48-kHz pre-voice and pre-leveler demodulated AF.
+    /// Listeners must copy the pooled samples synchronously.</summary>
+    public event EventHandler<DataEventArgs<float>>? CleanDemodulatedAfAvailable;
     private readonly record struct Frame(float[] Data, DateTime Utc,
       int Version, long FirstSampleIndex, bool Discontinuity = false);
 
@@ -336,10 +339,25 @@ namespace SkyRoof.IF
           // This eliminates a managed allocation per 10-ms IF block.
           long startedTicks = Stopwatch.GetTimestamp();
           float[] af = ArrayPool<float>.Shared.Rent(frame.Data.Length);
+          var cleanListener = CleanDemodulatedAfAvailable;
+          float[]? cleanAf = cleanListener == null ? null :
+            ArrayPool<float>.Shared.Rent(frame.Data.Length);
           try
           {
             int count = frame.Data.Length;
-            dsp.Process(frame.Data, af.AsSpan(0, count));
+            if (cleanAf != null)
+            {
+              dsp.Process(frame.Data, af.AsSpan(0, count), cleanAf.AsSpan(0, count));
+              try
+              {
+                cleanListener?.Invoke(this, new DataEventArgs<float>
+                {
+                  Data = cleanAf, Count = count, Utc = frame.Utc
+                });
+              }
+              catch (Exception ex) { Log.Warning(ex, "IF-AF clean PCM subscriber failed"); }
+            }
+            else dsp.Process(frame.Data, af.AsSpan(0, count));
             double inputPower = 0;
             for (int i = 0; i < count; i++)
               inputPower += (double)frame.Data[i] * frame.Data[i];
@@ -372,6 +390,7 @@ namespace SkyRoof.IF
           finally
           {
             ArrayPool<float>.Shared.Return(af);
+            if (cleanAf != null) ArrayPool<float>.Shared.Return(cleanAf);
             Volatile.Write(ref lastDspBlockMs,
               (Stopwatch.GetTimestamp() - startedTicks) *
               1000.0 / Stopwatch.Frequency);
