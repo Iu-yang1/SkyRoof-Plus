@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
 using Newtonsoft.Json.Linq;
 using Serilog;
 
@@ -15,6 +17,11 @@ internal static class OrbitSourceFetcher
 
     internal static string[] Candidates(string? urls) =>
         SatnogsDb.SplitSourceList(urls);
+
+    internal static string CacheKey(string sources) =>
+        Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(sources.Trim())).AsSpan(0, 8))
+            .ToLowerInvariant();
 
     internal static bool LooksLikeSatnogsArray(string content, string requiredKey)
     {
@@ -51,9 +58,13 @@ internal static class OrbitSourceFetcher
         Func<string, bool> validate, CancellationToken cancellationToken)
     {
         Exception? last = null;
+        var rejectedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string source in Candidates(sources))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (Uri.TryCreate(source, UriKind.Absolute, out Uri? candidateUrl) &&
+                rejectedHosts.Contains(candidateUrl.Host))
+                continue;
             try
             {
                 using var request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -81,7 +92,12 @@ internal static class OrbitSourceFetcher
             catch (Exception ex)
             {
                 last = ex;
-                Log.Warning(ex, "Orbit source {OrbitSource} failed; attempting next configured mirror", source);
+                // Do not hammer the same origin after a non-200 HTTP response:
+                // the CelesTrak policy explicitly requires stopping requests.
+                if (ex is HttpRequestException { StatusCode: not null } &&
+                    Uri.TryCreate(source, UriKind.Absolute, out Uri? rejected))
+                    rejectedHosts.Add(rejected.Host);
+                Log.Warning(ex, "Orbit source {OrbitSource} failed; attempting a different mirror", source);
             }
         }
         throw new InvalidOperationException(
