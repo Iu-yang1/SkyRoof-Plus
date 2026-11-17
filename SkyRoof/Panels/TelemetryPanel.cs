@@ -1897,7 +1897,7 @@ namespace SkyRoof
       else if (snapshot.Satellite?.norad_cat_id == 39444 &&
                snapshot.SignalParams.Framing == Framing.AO40FEC)
         geo = string.Join("", Funcube1Telemetry.Describe(frame.Bytes)
-          .Select(f => $"  {f.Name}: {f.Value}\\n"));
+          .Select(f => $"  {f.Name}: {f.Value}\n"));
 
       // an SSDV packet carries a CRC-32 and RS of its own, and the framings that carry it — HADES, AO-40
       // FEC — carry no frame CRC at all, so the "CRC:" line below reads "n/a" on precisely the frames whose
