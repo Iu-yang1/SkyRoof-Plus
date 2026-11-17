@@ -63,6 +63,25 @@ jobs:
           dotnet restore Vendor/SkyCAT/skycatd/skycatd.csproj --locked-mode
           nuget restore SkyRoof.sln -LockedMode
 
+      - name: Checkout pinned SkySignals-Plus SkyTlm source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: b3948d303555f17e1f85504d48e56d7e54451cf1
+          path: SkySignals-Plus
+
+      - name: Build modified SkyTlm and stage its DLL
+        shell: pwsh
+        run: |
+          dotnet build SkySignals-Plus/VE3NEA.SkyTlm/VE3NEA.SkyTlm.csproj -c Release -p:Platform=x64
+          $tlm = 'SkySignals-Plus/VE3NEA.SkyTlm/bin/x64/Release/net10.0-windows/VE3NEA.SkyTlm.dll'
+          $dsp = 'SkySignals-Plus/VE3NEA.Dsp/bin/x64/Release/net10.0/VE3NEA.Dsp.dll'
+          if (!(Test-Path $tlm) -or !(Test-Path $dsp)) { throw 'Expected SkySignals build output missing' }
+          Copy-Item $tlm Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll -Force
+          Copy-Item $dsp Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll -Force
+          Write-Host "SkyTlm fork commit: $(git -C SkySignals-Plus rev-parse HEAD)"
+          Write-Host "SkyTlm SHA256: $((Get-FileHash Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll -Algorithm SHA256).Hash)"
+
       - name: Compile production FSK pipeline and real-IQ test
         shell: pwsh
         run: msbuild SkyRoof.sln /m /p:Configuration=Release /p:Platform=x64
