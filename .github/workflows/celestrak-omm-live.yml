@@ -1,0 +1,26 @@
+name: CelesTrak OMM GP Live Contract
+
+# Manual-only because CelesTrak updates GP data once every two hours.
+# Re-running this external source check on every PR push would waste upstream bandwidth.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: celestrak-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Official amateur CSV vs JSON
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout SkyRoof source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch and compare official CelesTrak GP OMM feeds
+        shell: pwsh
+        run: ./scripts/check-celestrak-omm.ps1

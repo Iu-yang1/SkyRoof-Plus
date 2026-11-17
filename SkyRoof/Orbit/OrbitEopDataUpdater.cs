@@ -28,13 +28,19 @@ internal static class OrbitEopDataUpdater
         {
             try
             {
-                using var response = await Client.GetAsync(
-                    url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                response.EnsureSuccessStatusCode();
-                await using (var output = new FileStream(
-                    staging, FileMode.Create, FileAccess.Write, FileShare.None))
-                await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+                if (Uri.TryCreate(url, UriKind.Absolute, out Uri? remote) &&
+                    remote.Scheme is "http" or "https")
+                {
+                    using var response = await Client.GetAsync(
+                        remote, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                    await using var output = new FileStream(
+                        staging, FileMode.Create, FileAccess.Write, FileShare.None);
+                    await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
                     await input.CopyToAsync(output, cancellationToken);
+                }
+                else
+                    File.Copy(Environment.ExpandEnvironmentVariables(url), staging, overwrite: true);
 
                 // A partial HTTP download or an HTML error page must not replace
                 // previously working EOP records.

@@ -2,22 +2,23 @@
 
 **Language:** English | [简体中文](../zh-cn/fork-guide/satellite-data-and-tuning.md)
 
-## Multiple satellite/orbit sources (PRs #8, #17–18 and #24)
+## Multiple satellite/orbit sources
 
-Open **Tools → Orbit / TLE Sources → Edit Source URLs** or the **Orbit / Ephemeris Sources** settings section. The current precedence, from highest to lowest, is:
+Open **Tools → Orbit / TLE Sources → Edit Source URLs** or **Orbit / Ephemeris Sources**. Highest to lowest **orbit-element** precedence:
 
-1. **CelesTrak amateur OMM CSV** (default). Propagated as OMM rather than being converted back to a legacy TLE.
-2. **Manually configured orbit URLs or local files** in listed order (TLE text, SatNOGS JSON, CelesTrak OMM JSON/CSV). Manual overrides can remain effective for **72 hours** as described by the source-selection implementation.
-3. **AutoTLE** fallback, configurable and independently disableable.
-4. **SatNOGS** orbit endpoint, the last automatic fallback.
+1. **Explicit manual file import** — highest for 72 hours, then falls back automatically.
+2. **CelesTrak GP OMM CSV/JSON** — highest automatic source; official amateur CSV by default, optional JSON and independently hosted mirrors.
+3. **Configured custom orbit URLs/local files** — first entry wins; these persistent custom sources are **not** 72-hour manual file overrides.
+4. **AutoTLE** automatic fallback.
+5. **SatNOGS TLE** lowest automatic fallback.
 
-Satellite-list and transmitter-list URLs can also be customized, but their data must be compatible with the supported SatNOGS JSON formats. The download UI reports JPL progress; validation prevents malformed or stale data from silently replacing working orbit data. Check [upstream satellite data](../users_guide/satellite_data.md) for general fields.
+The independent [CelesTrak contract workflow](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44053914187) confirmed 99 amateur GP records in each official CSV/JSON format, with identical NORAD IDs. New downloads use validated source failover, a two-hour GP cache, and compression; invalid responses do not replace existing valid data. SatNOGS satellite/transmitter metadata, JE9PEL frequencies, and SatYAML profiles are *not* competing orbit sources.
+
+See [Chinese network and source mirror deployment guide](../engineering/orbit-source-mirrors.zh-CN.md).
 
 ### Lunar and solar-system tracking
 
-**JPL Ephemeris Kernel** supports **DE440s** (recommended default), **DE421**, or a compatible **Custom BSP File**. When enabled and the kernel is available, SkyRoof adds the Moon, Sun and Venus to its target database. Automatic download uses configurable JPL/NAIF or JPL/SSD URLs, in order; a local custom BSP is never downloaded automatically.
-
-A JPL kernel makes target tracking available; it does **not** by itself calculate EME link budgets, predict a completed QSO, or perform celestial polarization correction.
+The active Orekit engine uses UTC/TAI, IERS EOP, and the **Orekit-native JPL DE430** file. It supports verified HTTPS/local mirror locations and an upstream-pinned Git blob integrity check. A NAIF DE440/DE421 BSP/SPK file cannot directly replace `lnxp1990.430`. These data support Moon, Sun and Venus tracking, but do not alone establish EME links or model polarization rotations.
 
 ## Persistent base frequency and the tuning bar (PRs #2, #4–6 and #33)
 
