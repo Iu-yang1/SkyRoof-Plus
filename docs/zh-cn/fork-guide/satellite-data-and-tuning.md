@@ -2,22 +2,25 @@
 
 **语言：** [English](../../fork-guide/satellite-data-and-tuning.md) | 简体中文
 
-## 多来源轨道数据（PR #8、#17–18、#24）
+## 多来源轨道数据（2026-11 星历导入审查）
 
-进入 **Tools → Orbit / TLE Sources → Edit Source URLs** 或设置中的 **Orbit / Ephemeris Sources**。当前来源优先级从高到低：
+进入 **Tools → Orbit / TLE Sources → Edit Source URLs** 或 **Orbit / Ephemeris Sources**。轨道要素优先级从高到低：
 
-1. **CelesTrak amateur OMM CSV**（默认最高）：直接传播 OMM 数据，不再反向转换为旧 TLE。
-2. **手动指定的网址或本地轨道文件**：按填写顺序排序，支持 TLE 文本、SatNOGS JSON、CelesTrak OMM JSON/CSV；手动来源的覆盖有效期可按实现维持约 **72 小时**。
-3. **AutoTLE** 后备来源，可以单独修改或禁用。
-4. **SatNOGS** 原始 TLE 来源，作为自动数据的最后后备。
+1. **手动导入的本地文件**：72 小时临时最高优先级，到期后恢复自动来源。
+2. **CelesTrak OMM CSV/JSON**：最高自动优先级。默认官方 Amateur CSV，支持以 JSON 或地区镜像作为同一优先级的来源备选；支持六位 NORAD。
+3. **用户配置的轨道 URL / 本地文件列表**：前面的条目优先级更高，支持 TLE 文本、SatNOGS JSON、OMM CSV/JSON。此类持久源**不是** 72 小时手动导入覆盖。
+4. **AutoTLE** 后备来源。
+5. **SatNOGS TLE** 最低自动优先级。
 
-卫星列表和转发器列表 URL 也可修改，但必须使用兼容的 SatNOGS JSON 数据格式。下载窗口提供 JPL 下载进度；数据读取加入了合法性检查和容错，避免错误轨道覆盖已缓存的有效信息。通用数据库说明见[卫星数据](../../users_guide/satellite_data.md)。
+CelesTrak 官方 CSV 和 JSON 均通过 2026-11-17 在线 Action 实测（各 99 条，NORAD 集合完全一致）。为遵守上游两小时更新间隔，软件增加缓存、按源失败回退、gzip/Brotli 和无效数据拒绝。卫星/发射机数据库、JE9PEL、SatYAML 可以独立设置 HTTPS 镜像或本地文件，并保留有效缓存；它们不竞争上述轨道优先级。
+
+**[完整星历来源、优先级和中国大陆镜像/离线部署说明](../../engineering/orbit-source-mirrors.zh-CN.md)**。
 
 ### 月球与太阳系天体
 
-**JPL Ephemeris Kernel** 支持 **DE440s**（推荐默认）、**DE421** 以及兼容的 **Custom BSP File**。星历可用时，可将月球、太阳和金星纳入跟踪目标。自动下载按用户配置的 JPL/NAIF、SSD 地址顺序尝试；自定义本地 BSP 不会被自动下载替代。
+当前 **Orekit** 轨道引擎需要统一的 UTC、IERS EOP 和 **Orekit 原生 JPL DE430** 星历数据。默认设置支持 USNO/IERS EOP 双来源、固定 Git Blob SHA-1 校验的 DE430；可选择自建 HTTPS 镜像或本地文件，离线保存有效缓存。旧版所述 DE440s/DE421/Custom BSP 是不同的星历数据/接口，不可直接替换本引擎需要的 `lnxp1990.430`。
 
-**注意：** 星历与跟踪不等于自动完成 EME 链路预算、QSO 预测或极化旋转补偿。
+**注意：** 有星历和跟踪不等于完成 EME 链路预算、QSO 预测或极化旋转补偿。
 
 ## 持久化 Base 频率与滑动调谐（PR #2、#4–6、#33）
 
