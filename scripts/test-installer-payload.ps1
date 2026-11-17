@@ -18,6 +18,20 @@ foreach ($name in $mandatory) {
   }
 }
 
+# The installed SkyTlm DLL must be exactly the pinned, newly built fork.
+# A green real-IQ regression is not enough if the installer silently packages
+# an older vendored binary.
+$forkTlm = 'SkySignals-Plus\VE3NEA.SkyTlm\bin\x64\Release\net10.0-windows\VE3NEA.SkyTlm.dll'
+if (-not (Test-Path -LiteralPath $forkTlm)) {
+  throw 'Release SkyTlm fork build output missing; installer would use old decoder'
+}
+$expectedTlm = (Get-FileHash -LiteralPath $forkTlm -Algorithm SHA256).Hash
+$builtTlm = Join-Path $build 'VE3NEA.SkyTlm.dll'
+if (-not (Test-Path -LiteralPath $builtTlm) -or
+    (Get-FileHash -LiteralPath $builtTlm -Algorithm SHA256).Hash -ne $expectedTlm) {
+  throw 'SkyRoof application output is not using pinned UNNE-capable SkyTlm'
+}
+
 # Verify the actual Chinese satellite resource, not merely the neutral fallback.
 # The DLL must exist in the build output AND survive the Inno Setup payload.
 $zhResourceRelative = 'zh-CN\SkyRoof.resources.dll'
@@ -105,6 +119,12 @@ if (-not (Test-Path -LiteralPath $zhInstalledResource -PathType Leaf)) {
 if ((Get-FileHash -LiteralPath $zhBuildResource -Algorithm SHA256).Hash -ne
     (Get-FileHash -LiteralPath $zhInstalledResource -Algorithm SHA256).Hash) {
   throw 'Installed Chinese resource DLL differs from build output.'
+}
+
+$installedTlm = Join-Path $target 'VE3NEA.SkyTlm.dll'
+if (-not (Test-Path -LiteralPath $installedTlm) -or
+    (Get-FileHash -LiteralPath $installedTlm -Algorithm SHA256).Hash -ne $expectedTlm) {
+  throw 'Installed telemetry engine differs from source-pinned, real-IQ-tested SkyTlm DLL'
 }
 
 # Every top-level application .dll must survive packaging and installation.
