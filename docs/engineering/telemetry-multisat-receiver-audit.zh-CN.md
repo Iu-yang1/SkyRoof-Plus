@@ -55,3 +55,47 @@
 - https://github.com/daniestevez/satellite-recordings
 - https://thedocumentation.org/gr-satellites/quick_start/
 - https://github.com/Iu-yang1/VE3NEA.SkySignals-Plus
+
+## 真实音频回归结果（源录音固定提交 952ddfe）
+
+固定公开录音仓库提交 `952ddfe53f62a150c53559249c83370630254cab`，对应
+[SkyRoof Action #44045074478](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44045074478)
+的 Windows 实际接收链测试结果如下：
+
+| 实录样本 | 输入表示 | 数字中心/重构频偏 | 校验正确帧 | 结果 |
+|---|---|---|---:|---|
+| `ao73.wav` | SSB/USB 真实 AF → Hilbert IQ | 1700 Hz | 1 个 AO40FEC、256 B、RS 有效 | 通过 |
+| `ao27.wav` | FM 鉴频后 AF → 重构 FM IQ | 1800 Hz | 2 个 AX.25 校验正确帧 | 通过 |
+| `aistechsat3.wav` | FM 鉴频后 AF → 重构 FM IQ | 1200 Hz（4800 Bd / 4） | 5 个 AX100 ASM/FEC 有效帧 | 通过 |
+| `suomi_100.wav` | FM 鉴频后 AF → 重构 FM IQ | 2400 Hz（9600 Bd / 4） | 2 个 AX100 ASM/FEC 有效帧 | 通过 |
+
+测试均为原始真实 WAV；没有合成传输帧、软比特或伪造 CRC/RS。公开录音中的
+AISTECHSAT-3/Suomi 100 在发送段外存在强噪声和明显满幅削顶（全文件接近满幅
+采样分别约 34.6% / 39.4%），因此**不能**把“单纯的 Hilbert 解析音频 IQ 转换”
+当作它们的 RF IQ 接收方式。该失败样本经 FM 鉴频音频转换修正后已在同一真实
+数据上恢复出 CRC/RS 有效帧。
+
+### 操作员如何选择输入
+
+在 SkyRoof 的 **Settings → Telemetry** 中：
+
+- **SDR IQ**：使用原始复数 IQ；不进行 AF 音频桥接。
+- **12-kHz IF**：使用原始 12 kHz IF → 解析 IQ；不进行二次 FM 鉴频。
+- **AF capture / loopback → ToneAudio**：适合 USB/SSB 音调，例如 AO-73
+  的 1200 Bd DBPSK 遥测（中心可用 1700 Hz）；保留既有默认行为。
+- **AF capture / loopback → FmDiscriminator**：适合 FM 接收机已鉴频的
+  FSK、GFSK、GMSK 基带；将声音重新转换为复数 FM IQ 后给 SkyTlm 处理。
+  `FskAfDeviationHz = 0` 时，按发射机已知 deviation 或 `baud/4`
+  估算；若有实测偏差，可手动填 Hz。AFSK Bell-202 保留原有 1800 Hz
+  FM 音频桥接行为。
+
+这些选项明确区分输入波形，而**不是**限制用户操作。CRC/RS 才是对真实解码
+结果的最终验证。固定中心或偏差参数的实录回归不是完整过境自动 AFC 测试。
+
+## 遗留能力边界
+
+AO-73/FUNcube 的 256 字节 AO-40 FEC 帧解码已经有真实录音证据；
+但 SkyTlm 的 Telemetry/Definitions 当前尚无 FUNcube-1 专用的工程量
+定义，因而 SkyRoof 即使成功出帧，也可能只显示 RAW HEX/ASCII 与
+CRC/RS 元信息，而不显示温度、电压和姿态等字段。必须在取得经过验证的
+FUNcube 专用字段映射后再新增工程量解析，不能凭猜测解释位域。
