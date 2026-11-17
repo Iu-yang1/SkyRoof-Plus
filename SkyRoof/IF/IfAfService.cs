@@ -353,7 +353,8 @@ namespace SkyRoof.IF
             if (cleanAf != null)
             {
               dsp.Process(frame.Data, af.AsSpan(0, count), cleanAf.AsSpan(0, count));
-              PublishCleanAf(cleanListener!, cleanAf, count, frame.Utc);
+              if (cleanListener != null)
+                PublishCleanAf(cleanListener, cleanAf, count, frame.Utc);
             }
             else dsp.Process(frame.Data, af.AsSpan(0, count));
             double inputPower = 0;
