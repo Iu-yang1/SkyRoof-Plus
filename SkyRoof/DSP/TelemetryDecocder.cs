@@ -68,6 +68,7 @@ namespace SkyRoof
           if (native != null && overrideProperty != null)
           {
             overrideProperty.SetValue(options, Activator.CreateInstance(native));
+            typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(options, true);
             UnneNative = true;
           }
           Pipeline = new StreamingPipeline(signalParams, options);
