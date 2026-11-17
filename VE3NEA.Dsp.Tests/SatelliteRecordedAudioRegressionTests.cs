@@ -211,6 +211,7 @@ public sealed class SatelliteRecordedAudioRegressionTests
                 (float)(analytic[i].Real * sin + analytic[i].Imaginary * cos));
             phase += delta;
             if (phase < -Math.PI) phase += 2 * Math.PI;
+            if (phase > Math.PI) phase -= 2 * Math.PI;
         }
         return output;
     }
