@@ -136,7 +136,7 @@ namespace SkyRoof
 
     [Category("Satellite database")]
     [DisplayName("Transmitter List URL")]
-    [Description("Primary transmitter-list endpoint. The default is SatNOGS. You may replace it with a compatible SatNOGS JSON endpoint. Leave blank to keep the last cached file instead of updating it.")]
+    [Description("SatNOGS transmitter-list JSON. Provide ordered HTTPS/local-file mirrors separated by semicolons or new lines; the first validated response is used. An outage retains the last verified local cache.")]
     [DefaultValue(DefaultTransmittersUrl)]
     public string TransmittersUrl { get; set; } = DefaultTransmittersUrl;
 
