@@ -1,0 +1,31 @@
+name: CelesTrak OMM GP Live Contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'SkyRoof/Satellites/SatnogsDb.cs'
+      - 'SkyRoof/Satellites/OrbitSourceFetcher.cs'
+      - 'SkyRoof/Settings/OrbitSourceSettings.cs'
+      - 'scripts/check-celestrak-omm.ps1'
+      - '.github/workflows/celestrak-omm-live.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: celestrak-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Official amateur CSV vs JSON
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout SkyRoof source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch and compare official CelesTrak GP OMM feeds
+        shell: pwsh
+        run: ./scripts/check-celestrak-omm.ps1
