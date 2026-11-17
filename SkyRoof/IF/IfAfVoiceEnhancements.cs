@@ -10,7 +10,7 @@ namespace SkyRoof.IF
     private readonly bool fmSquelch;
     private readonly double fmPowerThreshold;
     private readonly IfAfFmSquelchSource fmSquelchSource;
-    private readonly double fmNoiseOpenDbfs;
+    private readonly double fmNoiseOpenPower;
     private readonly IfAfFmFadeBlanker? fmBlanker;
     private readonly IfAfFmVoiceHighpass? fmHighpass;
     private readonly IfAfFmNoiseQuieting? fmQuieting;
@@ -40,7 +40,7 @@ namespace SkyRoof.IF
       this.fmSquelch = fmSquelch;
       fmPowerThreshold = Math.Pow(10, fmSquelchDbfs / 10.0);
       this.fmSquelchSource = fmSquelchSource;
-      this.fmNoiseOpenDbfs = fmNoiseOpenDbfs;
+      fmNoiseOpenPower = Math.Pow(10, fmNoiseOpenDbfs / 10.0);
       if (fmBlankerEnabled) fmBlanker = new IfAfFmFadeBlanker();
       if (fmHighpassEnabled) fmHighpass = new IfAfFmVoiceHighpass();
       if (fmSquelch && fmSquelchSource == IfAfFmSquelchSource.NoiseQuieting)
@@ -132,9 +132,9 @@ namespace SkyRoof.IF
         bool carrierPresent = fmGate > 0.01
           ? fmSmoothPower >= closePower
           : fmSmoothPower >= fmPowerThreshold;
-        double noiseDbfs = fmQuieting?.Process(fmWidebandDiscriminator) ?? 0;
+        double noisePower = fmQuieting?.Process(fmWidebandDiscriminator) ?? 0;
         bool quietEnough = fmQuieting == null ||
-          noiseDbfs <= fmNoiseOpenDbfs + (fmGate > 0.01 ? 3 : 0);
+          noisePower <= fmNoiseOpenPower * (fmGate > 0.01 ? 1.995262315 : 1);
         bool opening = carrierPresent && quietEnough;
         double target = opening ? 1 : 0;
         double step = 1.0 / (0.010 * IfAfDemodulator.Rate);
