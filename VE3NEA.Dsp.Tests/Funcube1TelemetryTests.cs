@@ -45,5 +45,11 @@ public sealed class Funcube1TelemetryTests
         Assert.Equal("WO3", fields["Frame type"]);
         Assert.DoesNotContain("Battery voltage (raw)", fields.Keys);
         Assert.DoesNotContain("Sequence number", fields.Keys);
+
+        frame[0] = (byte)((3 << 6) | 13);
+        var extended = Funcube1Telemetry.Describe(frame)
+            .ToDictionary(x => x.Name, x => x.Value);
+        Assert.Equal("Extended (13)", extended["Frame type"]);
+        Assert.DoesNotContain("Battery voltage (raw)", extended.Keys);
     }
 }
