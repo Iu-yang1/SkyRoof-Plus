@@ -67,6 +67,16 @@ The optional **KISS-over-TCP server** (default port **8100**) multiplexes protoc
 
 The bytes of a frame are KISS-escaped; the port number **is not another TCP listening port**. A downstream decoder that reads only KISS virtual port 0 will not see port 1/2. Only eligible **outer** radio frames may be submitted to SatNOGS; inner packets, replay and unconfirmed manual overrides are not submitted. For AO-123, a failed CCSDS TM frame flushes partial KISS packet assembly to avoid concatenating payload across missing data. For UNNE-1B, the dedicated HADES type-C frame/CRC/descrambling path remains in place.
 
+### UNNE-1B / UZ7HO SoundModem and official decoder DLL
+
+The official AMSAT-EA [UNNE-1B transmission overview](https://www.amsat-ea.org/app/download/14192756/AMSAT%2BEA%2B-%2BTransmissions%2Boverview%2Bfor%2BUNNE-1B.pdf) specifies **binary FSK**, initial **200 bit/s**, **1125-Hz tone spacing** (nominal half-deviation 562.5 Hz), **mark = lower tone / bit 1**, and `BF35` sync. The downlink is **436.888 MHz**; higher rates require uplink commands and should not be inferred from the modem's menu options. Use **FSK / 200 baud / HADES/GENESIS** for ordinary 200-baud telemetry, adjusting the deviation only against real signal evidence.
+
+An October 2026 official UZ7HO screen shows **FSK UNNE-1B 800bd selected** and a separate **200bd** option. Its 2500-Hz RX BPF, 2700-Hz TX BPF, 600-Hz post-detector LPF, 256/128 FIR taps, two additional RX pairs at 100-Hz steps and disabled bit recovery are **SoundModem audio-demodulator settings**, not SkyRoof IF→IQ configuration. Two additional decoder pairs correspond to five center-frequency hypotheses (center, ±100, ±200 Hz). TX delay/tail are not relevant to a receive-only telemetry session.
+
+The supplied **`unne1b.dll`** is a 32-bit native **AMSAT-EA v1.14 (Bytes)** protocol/business decoder, **not** a SoundModem FSK demodulator. Its exports include `telemetry_packet_size`, `crc16`, `SelfSyncDeScrambler`, `procesar` and the `visualiza_*` telemetry functions. A 64-bit SkyRoof build cannot directly load this 32-bit DLL. The independent C# port keeps the documented per-type lengths, scrambled-byte CRC-CCITT-FALSE and the self-synchronising LFSR. Source updates after v1.82 correct engineering presentation details: the onboard clock/counters and packed 16-bit sensor words are **little-endian**, panel power is **2 mW per LSB**, and several 12-bit sensors require native packed-field extraction. These changes improve decoded values; they do not by themselves improve FSK symbol timing or link BER.
+
+Reference: [AMSAT-EA native decoder source](https://github.com/AMSAT-EA/HADES-R/tree/main/byte_version) · [UZ7HO modem documentation](https://uz7.ho.ua/packetradio.htm).
+
 ## 6. Verification and troubleshooting
 
 The v1.82 Windows release workflow built the application/installer and passed **1,632 xUnit tests** plus its pinned aislop gate. Tests include IF→IQ tone/stream consistency, AFSK FM-IQ audio reconstruction and KISS port framing. **No real IC-9700 USB/LAN capture, UNNE-1B 200 Bd FSK or AO-123 9600 Bd BPSK BER/PER measurements were performed as part of that release.**
