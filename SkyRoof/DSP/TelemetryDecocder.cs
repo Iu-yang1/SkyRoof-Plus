@@ -13,6 +13,9 @@ namespace SkyRoof
   {
     public StreamingPipeline? Pipeline;
     public StreamingPipeline? Detector;
+    // True when the loaded SkyTlm exposes the protocol-specific deframer;
+    // the current vendored assembly does not, but the pinned fork build does.
+    public bool UnneNative { get; private set; }
     public SstvDecoder? Sstv;
     public SkySpeechDecoder? Fm;
     // the image assembler for this transmitter's frames (SSDV packets or raw-JPEG byte ranges), or null
@@ -47,13 +50,29 @@ namespace SkyRoof
     {
       if (telemetry)
       {
-        // UNNE-1B's 200 Bd FSK packets are not reliably classified by SkyTlm's
-        // default burst-shape detector. The published real-IQ fading capture
-        // recovers symbols with this gate disabled; keep normal shape gating
-        // for all other satellites, including AO-123's CCSDS path.
-        Pipeline = noradId == Unne1bDeframer.NoradId
-          ? new StreamingPipeline(signalParams, new StreamingOptions { GateByShape = false })
-          : new StreamingPipeline(signalParams);
+        // Only UNNE-1B uses its own extended low-baud receive options.
+        // Keep AO-123 and all other telemetry on the existing SkyTlm path.
+        if (noradId == Unne1bDeframer.NoradId)
+        {
+          var options = new StreamingOptions
+          {
+            GateByShape = false, DecodeRejected = true,
+            HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16
+          };
+          // The fork's native CRC deframer must participate in SkyTlm's
+          // baud/CFO/timing retries. Resolve it by name until the fork DLL
+          // has replaced the repository's old bundled library everywhere.
+          var native = typeof(StreamingPipeline).Assembly.GetType(
+            "VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
+          var overrideProperty = typeof(StreamingOptions).GetProperty("DeframerOverride");
+          if (native != null && overrideProperty != null)
+          {
+            overrideProperty.SetValue(options, Activator.CreateInstance(native));
+            UnneNative = true;
+          }
+          Pipeline = new StreamingPipeline(signalParams, options);
+        }
+        else Pipeline = new StreamingPipeline(signalParams);
         // HADES-SA voice/SSDV factories are NOT compatible with UNNE-1B.
         Images = noradId == Unne1bDeframer.NoradId ? null :
           ImageAssemblerFactory.Create(signalParams, noradId);
