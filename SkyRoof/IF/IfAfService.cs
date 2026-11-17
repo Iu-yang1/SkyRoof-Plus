@@ -339,9 +339,7 @@ namespace SkyRoof.IF
           if (queueLagMs >= 0 && queueLagMs < 60000)
             Interlocked.Exchange(ref lastProcessingLagUs,
               (long)Math.Round(queueLagMs * 1000));
-          // Reuse scratch AF blocks: WASAPI's bounded ring copies PCM
-          // synchronously, so the rented array can be returned after Write.
-          // This eliminates a managed allocation per 10-ms IF block.
+          // WASAPI copies rented scratch AF before the buffer is returned.
           long startedTicks = Stopwatch.GetTimestamp();
           float[] af = ArrayPool<float>.Shared.Rent(frame.Data.Length);
           var cleanListener = CleanDemodulatedAfAvailable;
