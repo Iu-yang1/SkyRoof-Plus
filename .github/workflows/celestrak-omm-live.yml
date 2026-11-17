@@ -1,14 +1,9 @@
 name: CelesTrak OMM GP Live Contract
 
+# Manual-only because CelesTrak updates GP data once every two hours.
+# Re-running this external source check on every PR push would waste upstream bandwidth.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'SkyRoof/Satellites/SatnogsDb.cs'
-      - 'SkyRoof/Satellites/OrbitSourceFetcher.cs'
-      - 'SkyRoof/Settings/OrbitSourceSettings.cs'
-      - 'scripts/check-celestrak-omm.ps1'
-      - '.github/workflows/celestrak-omm-live.yml'
 
 permissions:
   contents: read
