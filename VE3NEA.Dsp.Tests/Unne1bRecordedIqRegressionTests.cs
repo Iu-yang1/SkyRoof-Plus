@@ -138,6 +138,7 @@ public sealed class Unne1bRecordedIqRegressionTests
         Assert.NotNull(decoderType);
         Assert.NotNull(overrideProp);
         overrideProp!.SetValue(opts, Activator.CreateInstance(decoderType!));
+        typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(opts, true);
         using (var pipeline = new StreamingPipeline(parameters, opts))
         {
             pipeline.BurstDecoded += report =>
