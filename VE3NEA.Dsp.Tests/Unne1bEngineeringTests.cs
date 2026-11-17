@@ -16,6 +16,9 @@ public sealed class Unne1bEngineeringTests
         var fields = Unne1bTelemetry.Describe(packet)
             .ToDictionary(f => f.Name, f => f.Value);
         Assert.Equal("10", fields["Packet type"]);
+        // Official AMSAT-EA packed x86 packet structures store uint32_t
+        // in little-endian: 00 F5 1D 00 => 1,963,264, not 16,063,744.
+        Assert.Equal("1963264", fields["Satellite clock (seconds since boot)"]);
         Assert.Equal("3", fields["Game week"]);
         Assert.Equal("0", fields["Game status"]);
         Assert.Equal("0300000102000201", fields["Game data (8 bytes)"]);
@@ -28,14 +31,18 @@ public sealed class Unne1bEngineeringTests
         payload[0] = 0x1C;
         payload[5] = 10;
         payload[8] = 20;
-        // The first 12-bit VBUS sample is at bit 88.
+        // AMSAT-EA v1.14 power values are 2 mW/LSB, and SPI is LE.
+        payload[9] = 0x34;
+        payload[10] = 0x12;
+        // Packed LE word 0x3012: VBUS1 = (0x3012 >> 4) * 1400 / 1000.
         payload[11] = 0x12;
         payload[12] = 0x30;
         var fields = Unne1bTelemetry.Describe(payload)
             .ToDictionary(f => f.Name, f => f.Value);
-        Assert.Equal("10 mW", fields["Panel A power"]);
-        Assert.Equal("20 mW", fields["Panel D power"]);
-        Assert.Equal("291 mV", fields["VBUS1"]);
+        Assert.Equal("20 mW", fields["Panel A power"]);
+        Assert.Equal("40 mW", fields["Panel D power"]);
+        Assert.Equal("9320 mW", fields["Instant panel power"]);
+        Assert.Equal("1076 mV", fields["VBUS1"]);
     }
 
     [Fact]
@@ -50,6 +57,40 @@ public sealed class Unne1bEngineeringTests
         Assert.Equal("4", fields["Payload failures"]);
         Assert.Equal("3", fields["Last reset reason"]);
         Assert.Equal("FSK->FSK regenerative", fields["Transponder mode"]);
+    }
+
+    [Fact]
+    public void StatusUsesNativeLittleEndianUptimeAndCpuRunCounters()
+    {
+        byte[] payload = new byte[27];
+        payload[0] = 0x3C;
+        payload[1] = 0x10; // sclock = 0x00000010
+        payload[5] = 0x78; payload[6] = 0x56;
+        payload[7] = 0x34; payload[8] = 0x12;
+        payload[9] = 0xFE; payload[10] = 0x01;
+        var fields = Unne1bTelemetry.Describe(payload).ToDictionary(f => f.Name, f => f.Value);
+        Assert.Equal("16", fields["Satellite clock (seconds since boot)"]);
+        Assert.Equal("305419896 s", fields["Uptime"]);
+        Assert.Equal("510", fields["CPU runs"]);
+    }
+
+    [Fact]
+    public void PowerUsesSignedTwelveBitCurrentsAndHalfDbLevels()
+    {
+        byte[] payload = new byte[29];
+        payload[0] = 0x1C;
+        // IBAT bits 11..0 = 0xFFF (minus 1 mA).
+        payload[19] = 0x0F;
+        payload[22] = 0xFF;
+        // Payload I = 0xFFC (minus 4 mA).
+        payload[23] = 0xFC;
+        payload[24] = 0x0F;
+        payload[25] = 3; payload[26] = 4;
+        var fields = Unne1bTelemetry.Describe(payload).ToDictionary(f => f.Name, f => f.Value);
+        Assert.Equal("-1 mA", fields["IBAT"]);
+        Assert.Equal("-4 mA", fields["Payload current"]);
+        Assert.Equal("1.5 dBm", fields["Peak signal"]);
+        Assert.Equal("2.0 dBm", fields["Mean noise"]);
     }
 
     [Fact]

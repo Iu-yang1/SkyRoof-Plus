@@ -69,6 +69,16 @@ Telemetry **状态栏悬停提示**现在显示输入样本数、PCM 丢块、�
 
 虚拟端口号**不是独立 TCP 监听端口号**。只处理 KISS 虚拟端口 0 的客户端不会看到端口 1、2 的包。SatNOGS 仅接收符合现有上传条件的**外层**射频帧；内层包、离线回放与未经保存确认的人工参数覆盖均不会提交。AO-123 的 CCSDS TM 帧校验失败时会清除部分拼装的 KISS 包，防止不同业务包跨丢失帧错误拼接；UNNE-1B 的 Type-C CRC/解扰使用专用实现。
 
+### UNNE-1B 官方 SoundModem 与解码 DLL 对照
+
+AMSAT-EA 的 [UNNE-1B 官方传输协议](https://www.amsat-ea.org/app/download/14192756/AMSAT%2BEA%2B-%2BTransmissions%2Boverview%2Bfor%2BUNNE-1B.pdf)规定：初始遥测为 **200 bit/s 二进制 FSK**，双音间隔 **1125 Hz**（名义半频偏 **562.5 Hz**）；**低音 mark 代表 1**，同步字 `BF35`，下行 **436.888 MHz**。卫星可经地面指令更改传输速率，但不能因为 SoundModem 有 800 Bd 菜单就默认当前使用 800 Bd。普通初始遥测应选择 **FSK / 200 Bd / HADES/GENESIS**；频偏以实际信号测量为准。
+
+2026 年 10 月的官方 UZ7HO 界面示例中，**A/B 通道选中了 `FSK UNNE-1B 800bd`**，下拉菜单另有 **`FSK UNNE-1B 200bd`**。图中的 RX BPF **2500 Hz**、TX BPF **2700 Hz**、判决后 LPF **600 Hz**、FIR taps **256/128**、额外 RX **2 对**（每对 **100 Hz**）和 Bits Recovery **NONE**，属于 **SoundModem 音频 FSK 调制解调器**的设置，**不是** SkyRoof 原始 IF→IQ 转换器参数。2 对附加接收器表示中心及 **±100、±200 Hz 共 5 个接收假设**。TXDelay/TXTail 属于发射控制，与纯接收遥测无关。
+
+用户提供的 `unne1b.dll` 实测为 **32 位原生 PE DLL**，内含 **AMSAT-EA v1.14 (Bytes)** 标识。导出 `telemetry_packet_size`、`crc16`、`SelfSyncDeScrambler`、`procesar` 和 `visualiza_*` 等**解帧、校验、解扰和业务解析**函数；并非 SoundModem 的音频 FSK 解调器。**64 位 SkyRoof 不能直接载入该 32 位 DLL**。当前 C# 独立实现保留协议长度、加扰态 CRC-CCITT-FALSE 和自同步解扰；在 v1.82 之后的源码修订中，还纠正了原业务显示中的**卫星时钟/计数器小端读取**、**面板功率 2 mW/LSB**、12 位电压/电流打包字段。该修正解决的是“CRC 有效但显示数值不对”，**不等于已完成真实 200 Bd FSK 位同步验证**。
+
+源代码对照：[AMSAT-EA 原版 C 解码器](https://github.com/AMSAT-EA/HADES-R/tree/main/byte_version) · [UZ7HO SoundModem](https://uz7.ho.ua/packetradio.htm)。
+
 ## 6. 验证结果与排障
 
 v1.82 正式构建完成 Windows 编译、安装包生成、**1,632 项 xUnit 测试全部通过**与固定版本 aislop 审查。自动化覆盖 IF→IQ 连续性、AFSK FM-IQ 恢复、KISS 端口封装等。**没有在本次发布中进行 IC-9700 实机 USB/LAN 接收，亦未取得 UNNE-1B 200 Bd FSK 或 AO-123 9600 Bd BPSK 的真实 BER/PER 结论**。
