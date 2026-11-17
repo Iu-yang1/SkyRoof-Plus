@@ -1,3 +1,4 @@
+using System.Numerics;
 using VE3NEA.SkyTlm.Core;
 using VE3NEA.SkyTlm.Deframing;
 
@@ -27,6 +28,13 @@ namespace SkyRoof
         [10] = 17, [12] = 64, [14] = 38
       };
 
+    // A weak 200-baud FSK burst can have isolated unreliable soft decisions
+    // even when the transmitter's original packet is recoverable. Repair only
+    // CRC-protected type-C telemetry, and accept a correction solely when the
+    // complete scrambled wire packet passes CRC-CCITT-FALSE.
+    private const int MaxSoftBitRepairs = 3;
+    private const int WeakestBitCandidates = 16;
+
     internal static IEnumerable<Frame> Decode(SoftSymbols symbols)
     {
       float[] soft = symbols.Soft;
@@ -37,45 +45,134 @@ namespace SkyRoof
         window = (ushort)((window << 1) | SoftBits.Hard(soft[i]));
         if (i < SyncBits - 1) continue;
 
-        // Binary FSK polarity depends on the discriminator/mark convention.
-        bool normal = window == SyncWord;
-        bool inverted = window == unchecked((ushort)~SyncWord);
-        if (!normal && !inverted) continue;
+        // Mark/space polarity is determined by the received sync. Allow one
+        // uncertain sync bit only for CRC-protected frames; CODEC2 has no FCS.
+        int normalErrors = BitOperations.PopCount((uint)(window ^ SyncWord));
+        int invertedErrors = BitOperations.PopCount(
+          (uint)(window ^ unchecked((ushort)~SyncWord)));
+        int syncErrors = Math.Min(normalErrors, invertedErrors);
+        if (syncErrors > 1) continue;
 
         int dataStart = i + 1;
-        int invert = inverted ? 1 : 0;
+        int invert = invertedErrors < normalErrors ? 1 : 0;
         if (dataStart + 8 > n) continue;
         int first = ReadByte(soft, dataStart, invert);
-        int headerStart = dataStart;
-        int length;
-        bool voice = first == 37;
-        if (voice)
+        if (syncErrors == 0 && first == 37)
         {
-          // Type 15 has an explicit SIZE byte before the type-C header.
-          if (dataStart + 16 > n || ReadByte(soft, dataStart + 8, invert) != 0xFC) continue;
-          headerStart += 8;
-          length = 37;
-        }
-        else
-        {
-          if ((first & 0x0F) != 0x0C) continue;
-          if (!PacketLengths.TryGetValue(first >> 4, out length)) continue;
+          // Type 15 is the only UNNE-1B frame with a SIZE prefix and no
+          // CRC. Do not use weak-bit repair or approximate sync for voice.
+          int headerStart = dataStart + 8;
+          const int voiceLength = 37;
+          if (headerStart + voiceLength * 8 > n ||
+              ReadByte(soft, headerStart, invert) != 0xFC) continue;
+          var wire = ReadPacket(soft, headerStart, voiceLength, invert);
+          Frame? frame = TryParsePacket(wire, voice: true);
+          if (frame == null) continue;
+          yield return frame with
+          {
+            SoftBitOffset = i + 1 - SyncBits,
+            SoftBitEnd = headerStart + voiceLength * 8
+          };
+          i = headerStart + voiceLength * 8 - 1;
+          continue;
         }
 
-        if (headerStart + 8 * length > n) continue;
-        byte[] wire = new byte[length];
-        for (int b = 0; b < length; b++)
-          wire[b] = (byte)ReadByte(soft, headerStart + 8 * b, invert);
-
-        Frame? frame = TryParsePacket(wire, voice);
-        if (frame == null) continue;
-        yield return frame with
+        // Only the 11 protocol-defined telemetry types with source address C
+        // are legal. A single uncertain header bit can be reconstructed from
+        // those hypotheses, but CRC must validate the complete corrected
+        // packet before any frame is emitted.
+        foreach (var (type, length) in PacketLengths)
         {
-          SoftBitOffset = i + 1 - SyncBits,
-          SoftBitEnd = headerStart + 8 * length
-        };
-        i = headerStart + 8 * length - 1;
+          int expectedHeader = (type << 4) | 0x0C;
+          int headerErrors = BitOperations.PopCount((uint)(first ^ expectedHeader));
+          if (headerErrors > 1 || dataStart + 8 * length > n) continue;
+
+          byte[] wire = ReadPacket(soft, dataStart, length, invert);
+          wire[0] = (byte)expectedHeader;
+          Frame? frame = TryParsePacket(wire);
+          int payloadRepairs = 0;
+          if (frame == null)
+          {
+            // A nearly matched sync expands the number of candidates in
+            // noise. Bound the search to two other bit flips in that case.
+            int budget = Math.Min(MaxSoftBitRepairs - headerErrors,
+              syncErrors == 0 ? MaxSoftBitRepairs : 2);
+            if (budget > 0)
+              frame = TryRepairPacket(wire, soft, dataStart, budget,
+                out payloadRepairs);
+          }
+          if (frame == null) continue;
+
+          int repaired = headerErrors + payloadRepairs;
+          if (repaired != 0)
+            frame = frame with
+            {
+              Note = frame.Note + $"; CRC-verified soft repair ({repaired} bit(s))"
+            };
+          yield return frame with
+          {
+            SoftBitOffset = i + 1 - SyncBits,
+            SoftBitEnd = dataStart + 8 * length
+          };
+          i = dataStart + 8 * length - 1;
+          break;
+        }
       }
+    }
+
+    private static byte[] ReadPacket(float[] soft, int start, int length,
+      int invert)
+    {
+      var wire = new byte[length];
+      for (int b = 0; b < length; b++)
+        wire[b] = (byte)ReadByte(soft, start + b * 8, invert);
+      return wire;
+    }
+
+    // Retry flips only among the weakest 16 non-header soft decisions,
+    // including received FCS bits. CRC covers the scrambled wire bytes;
+    // descrambling takes place only after the candidate has passed CRC.
+    private static Frame? TryRepairPacket(byte[] wire, float[] soft, int start,
+      int maxFlips, out int repaired)
+    {
+      int[] weakest = Enumerable.Range(8, (wire.Length - 1) * 8)
+        .OrderBy(bit => Math.Abs(soft[start + bit]))
+        .Take(WeakestBitCandidates)
+        .ToArray();
+      for (int flips = 1; flips <= maxFlips; flips++)
+      {
+        if (TryFlipCandidates(wire, weakest, 0, flips, out var frame))
+        {
+          repaired = flips;
+          return frame;
+        }
+      }
+      repaired = 0;
+      return null;
+    }
+
+    private static bool TryFlipCandidates(byte[] wire, int[] candidates,
+      int next, int remaining, out Frame? frame)
+    {
+      if (remaining == 0)
+      {
+        frame = TryParsePacket(wire);
+        return frame != null;
+      }
+
+      for (int i = next; i <= candidates.Length - remaining; i++)
+      {
+        int bit = candidates[i];
+        int byteIndex = bit / 8;
+        byte mask = (byte)(0x80 >> (bit % 8));
+        wire[byteIndex] ^= mask;
+        bool success = TryFlipCandidates(wire, candidates, i + 1,
+          remaining - 1, out frame);
+        wire[byteIndex] ^= mask;
+        if (success) return true;
+      }
+      frame = null;
+      return false;
     }
 
     internal static Frame? TryParsePacket(byte[] wire, bool voice = false)
