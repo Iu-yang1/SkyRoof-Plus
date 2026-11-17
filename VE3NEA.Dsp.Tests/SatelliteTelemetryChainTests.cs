@@ -14,9 +14,13 @@ public sealed class SatelliteTelemetryChainTests
     [InlineData("AO-40 FEC", null, true)]
     [InlineData("AO-40 FEC", "differential", true)]
     [InlineData("AO-40 FEC", "none", false)]
-    [InlineData("CCSDS Reed-Solomon", null, false)]
-    public void Ao40FecDefaultsToDbpsk_WhileExplicitPrecodingWins(
-        string framing, string? precoding, bool expected)
+    [InlineData("CCSDS Reed-Solomon", null, null)]
+    [InlineData("CCSDS Reed-Solomon", "differential", true)]
+    [InlineData("CCSDS Reed-Solomon", "none", false)]
+    [InlineData("AX.25 G3RUH", null, null)]
+    [InlineData("AX.25 G3RUH", "none", false)]
+    public void UnknownPskPrecodingEnablesCrcVerifiedAutoSubmode_AndAo40DefaultsToDbpsk(
+        string framing, string? precoding, bool? expected)
     {
         var sat = new SatnogsDbSatellite
         {
@@ -42,6 +46,8 @@ public sealed class SatelliteTelemetryChainTests
         Assert.Equal(1200, result!.Baud);
         Assert.Equal(Modulation.BPSK, result.Modulation);
         Assert.Equal(expected, result.Differential);
+        // A null here intentionally tells SkyTlm to trial both PSK
+        // detectors and to commit only once a CRC/RS frame confirms one.
         Assert.True(SignalParamsResolver.IsTelemetryDecodable(result));
     }
 
