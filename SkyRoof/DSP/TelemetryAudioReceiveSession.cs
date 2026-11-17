@@ -95,8 +95,13 @@ namespace SkyRoof
   public sealed class TelemetryAfskFmIqConverter
   {
     private const double Rate = 48000.0;
-    private const double MaxDeviationHz = 1800.0;
+    private readonly double maxDeviationHz;
     private double phase;
+
+    public TelemetryAfskFmIqConverter(double maxDeviationHz = 1800.0)
+    {
+      this.maxDeviationHz = maxDeviationHz;
+    }
 
     public Complex32[] Convert(ReadOnlySpan<float> audio)
     {
@@ -105,7 +110,7 @@ namespace SkyRoof
       foreach (float value in audio)
       {
         double sample = float.IsFinite(value) ? Math.Clamp(value, -1f, 1f) : 0;
-        phase += 2 * Math.PI * MaxDeviationHz * sample / Rate;
+        phase += 2 * Math.PI * maxDeviationHz * sample / Rate;
         if (phase > Math.PI) phase -= 2 * Math.PI;
         if (phase < -Math.PI) phase += 2 * Math.PI;
         result[index++] = new Complex32((float)Math.Cos(phase), (float)Math.Sin(phase));
