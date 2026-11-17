@@ -436,166 +436,158 @@ namespace SkyRoof
       string? forcedExtension = null,
       CancellationToken cancellationToken = default)
     {
-      if (string.IsNullOrWhiteSpace(source))
-        return 0;
+      if (string.IsNullOrWhiteSpace(source)) return 0;
 
-      if (label == "AutoTLE")
-      {
-        string resolved = OrbitSourceSettings.ResolveAutoTleUrl(source);
-        if (!string.Equals(resolved, source.Trim(), StringComparison.Ordinal))
-        {
-          Log.Information(
-            "Migrating legacy AutoTLE endpoint to verified HTTPS source: {Url}",
-            resolved);
-          source = resolved;
-        }
-      }
-
+      string options = label == "AutoTLE"
+        ? string.Join(";", OrbitSourceFetcher.Candidates(source)
+            .Select(OrbitSourceSettings.ResolveAutoTleUrl))
+        : source;
       try
       {
-        string content;
-        string extension;
+        var downloaded = await OrbitSourceFetcher.GetTextAsync(
+          DownloadHttpClient, options, OrbitSources.SourceTimeoutSeconds,
+          text => ParseTleContent(text, forcedExtension, label).Count > 0,
+          cancellationToken);
 
-        if (Uri.TryCreate(source.Trim(), UriKind.Absolute, out Uri? uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-        {
-          content =
-            await DownloadHttpClient.GetStringAsync(
-              uri,
-              cancellationToken);
-          extension =
-            forcedExtension ??
-            Path.GetExtension(uri.AbsolutePath);
-        }
-        else
-        {
-          string path =
-            Environment.ExpandEnvironmentVariables(
-              source.Trim());
-          content =
-            await File.ReadAllTextAsync(
-              path,
-              cancellationToken);
-          extension =
-            forcedExtension ??
-            Path.GetExtension(path);
-        }
-
-        SatnogsDbTleList records =
-          ParseTleContent(
-            content,
-            extension,
-            label);
-
-        int applied =
-          ApplyTles(
-            records,
-            createMissingSatellites: true);
-
-        Log.Information(
-          "{OrbitSource} applied {Count} record(s).",
-          label,
-          applied);
+        var records = ParseTleContent(
+          downloaded.Content, downloaded.Extension, label);
+        int applied = ApplyTles(records, createMissingSatellites: true);
+        Log.Information("{OrbitSource} imported {Count} orbital records from {Mirror}",
+          label, applied, downloaded.Source);
         return applied;
       }
-      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-      {
-        throw;
-      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
       catch (Exception ex)
       {
-        // Automatic overlays are fallbacks. A failed high-priority source must
-        // not prevent the already-applied lower-priority source from being used.
-        Log.Warning(
-          ex,
-          "{OrbitSource} failed; keeping lower-priority automatic orbit data.",
-          label);
+        Log.Warning(ex, "{OrbitSource} failed; retaining previously selected orbital elements", label);
         return 0;
       }
     }
 
     private async Task<bool> DownloadConfigured(
-      string name,
-      string? sourceUrl,
-      bool required)
+      string name, string? sourceUrl, bool required)
     {
-      string destination =
-        Path.Combine(
-          DownloadsFolder,
-          $"{name}.json");
-
+      string destination = Path.Combine(DownloadsFolder, name + ".json");
       if (string.IsNullOrWhiteSpace(sourceUrl))
       {
-        if (File.Exists(destination))
-        {
-          Log.Information(
-            $"{name} source disabled; retaining cached copy.");
-          return false;
-        }
-
-        if (required)
-          throw new InvalidOperationException(
-            $"{name} source URL is empty and no cached copy exists.");
-
+        if (required && !File.Exists(destination))
+          throw new InvalidOperationException(name + " source and cache are both absent");
         return false;
       }
 
-      string content =
-        await DownloadHttpClient.GetStringAsync(
-          sourceUrl.Trim(),
-          cts.Token);
-      cts.Token.ThrowIfCancellationRequested();
+      bool Validate(string text) => name switch
+      {
+        "satellites" => OrbitSourceFetcher.LooksLikeSatnogsArray(text, "sat_id"),
+        "transmitters" => OrbitSourceFetcher.LooksLikeSatnogsArray(text, "uuid"),
+        "tle" => ParseTleContent(text, ".json", "SatNOGS orbit").Count > 0,
+        _ => false
+      };
 
-      File.WriteAllText(
-        destination,
-        content);
-
-      return true;
+      try
+      {
+        var fetched = await OrbitSourceFetcher.GetTextAsync(
+          DownloadHttpClient, sourceUrl, OrbitSources.SourceTimeoutSeconds,
+          Validate, cts.Token);
+        OrbitSourceFetcher.WriteTextAtomically(destination, fetched.Content);
+        return true;
+      }
+      catch (OperationCanceledException) when (cts.IsCancellationRequested) { throw; }
+      catch (Exception ex)
+      {
+        if (File.Exists(destination) && Validate(File.ReadAllText(destination)))
+        {
+          Log.Warning(ex, "{Source} mirrors unavailable; keeping last validated cache", name);
+          return true;
+        }
+        if (required) throw;
+        Log.Warning(ex, "{Source} unavailable and has no valid cache", name);
+        return false;
+      }
     }
 
     private async Task DownloadJE9PEL()
     {
-      string url = "https://www.ne.jp/asahi/hamradio/je9pel/satslist.csv";
-      string csv = await DownloadHttpClient.GetStringAsync(url, cts.Token);
-      cts.Token.ThrowIfCancellationRequested();
-
-      File.WriteAllText(Path.Combine(DownloadsFolder, "JE9PEL.csv"), csv);
+      string destination = Path.Combine(DownloadsFolder, "JE9PEL.csv");
+      try
+      {
+        var source = await OrbitSourceFetcher.GetTextAsync(
+          DownloadHttpClient, OrbitSources.Je9pelSources,
+          OrbitSources.SourceTimeoutSeconds,
+          OrbitSourceFetcher.LooksLikeJe9pel, cts.Token);
+        OrbitSourceFetcher.WriteTextAtomically(destination, source.Content);
+      }
+      catch (OperationCanceledException) when (cts.IsCancellationRequested) { throw; }
+      catch (Exception ex)
+      {
+        Log.Warning(ex,
+          "Optional JE9PEL download failed; existing cached metadata will be reused if present");
+      }
     }
 
     // Download the gr-satellites repo zip and extract only python/satyaml/*.yml into Downloads\satyaml.
     private async Task DownloadSatyaml()
     {
-      const string url = "https://codeload.github.com/daniestevez/gr-satellites/zip/refs/heads/main";
-      byte[] zipBytes = await DownloadHttpClient.GetByteArrayAsync(url, cts.Token);
-      cts.Token.ThrowIfCancellationRequested();
-
+      byte[] zipBytes = await OrbitSourceFetcher.GetZipAsync(
+        DownloadHttpClient, OrbitSources.SatyamlZipSources,
+        OrbitSources.SourceTimeoutSeconds, cts.Token);
       string zipPath = Path.Combine(DownloadsFolder, "gr-satellites.zip");
-      File.WriteAllBytes(zipPath, zipBytes);
-      ExtractSatyaml(zipPath);
+      string staged = zipPath + ".incoming";
+      try
+      {
+        File.WriteAllBytes(staged, zipBytes);
+        ExtractSatyaml(staged);
+        File.Move(staged, zipPath, true);
+      }
+      finally
+      {
+        if (File.Exists(staged)) File.Delete(staged);
+      }
     }
 
     private void ExtractSatyaml(string zipPath)
     {
       string destDir = Path.Combine(DownloadsFolder, "satyaml");
-      Directory.CreateDirectory(destDir);
-
-      // start clean so a re-download does not leave stale .yml files behind
-      foreach (string f in Directory.EnumerateFiles(destDir, "*.yml")) File.Delete(f);
-
-      using ZipArchive archive = ZipFile.OpenRead(zipPath);
-      int count = 0;
-      foreach (ZipArchiveEntry entry in archive.Entries)
+      string stagedDir = destDir + ".incoming-" + Guid.NewGuid().ToString("N");
+      string backupDir = destDir + ".previous";
+      Directory.CreateDirectory(stagedDir);
+      try
       {
-        string full = entry.FullName.Replace('\\', '/');
-        if (string.IsNullOrEmpty(entry.Name) ||
-            !full.Contains("/python/satyaml/") ||
-            !full.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-          continue;
+        using (ZipArchive archive = ZipFile.OpenRead(zipPath))
+        {
+          int count = 0;
+          foreach (ZipArchiveEntry entry in archive.Entries)
+          {
+            string full = entry.FullName.Replace('\\', '/');
+            if (string.IsNullOrEmpty(entry.Name) ||
+                !full.Contains("/python/satyaml/", StringComparison.OrdinalIgnoreCase) ||
+                !full.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+              continue;
+            entry.ExtractToFile(Path.Combine(stagedDir, entry.Name));
+            count++;
+          }
+          if (count == 0)
+            throw new InvalidDataException("SatYAML archive contained no YAML definitions");
+          Log.Information("Staged {Count} SatYAML definitions", count);
+        }
 
-        entry.ExtractToFile(Path.Combine(destDir, entry.Name), overwrite: true);
-        count++;
+        if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
+        if (Directory.Exists(destDir)) Directory.Move(destDir, backupDir);
+        try
+        {
+          Directory.Move(stagedDir, destDir);
+          if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
+        }
+        catch
+        {
+          if (Directory.Exists(backupDir) && !Directory.Exists(destDir))
+            Directory.Move(backupDir, destDir);
+          throw;
+        }
       }
-      Log.Information($"satyaml: extracted {count} .yml files");
+      finally
+      {
+        if (Directory.Exists(stagedDir)) Directory.Delete(stagedDir, true);
+      }
     }
 
 
