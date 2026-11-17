@@ -77,6 +77,81 @@ public sealed class SatelliteRecordedAudioRegressionTests
             string.Join("; ", measurements));
     }
 
+    [Theory]
+    [Trait("Category", "RecordedSatelliteAudio")]
+    [InlineData("ao27.wav", 1200, Modulation.AFSK, Framing.AX25G3RUH)]
+    [InlineData("aistechsat3.wav", 4800, Modulation.FSK, Framing.AX100ASM)]
+    [InlineData("suomi_100.wav", 9600, Modulation.GMSK, Framing.AX100ASM)]
+    public void RepresentativeSatelliteAudio_ProducesIntegrityVerifiedFrames(
+        string name, double baud, Modulation modulation, Framing framing)
+    {
+        string? folder = Environment.GetEnvironmentVariable("SKYROOF_SATELLITE_AUDIO_CORPUS");
+        if (string.IsNullOrWhiteSpace(folder)) return;
+        string path = Path.Combine(folder, name);
+        Assert.True(File.Exists(path), "Missing real sample: " + path);
+        float[] pcm = ReadMono48k(path);
+        Assert.NotEmpty(pcm);
+
+        var profiles = new List<SignalParams>
+        {
+            new(baud, modulation, framing, SampleRate,
+                modulation == Modulation.AFSK ? 500 : null)
+            {
+                AfCarrier = modulation == Modulation.AFSK ? 1700 : null
+            }
+        };
+        if (name == "aistechsat3.wav")
+            profiles.Add(new SignalParams(9600, Modulation.FSK, framing, SampleRate));
+        if (name == "suomi_100.wav")
+            profiles.Add(new SignalParams(9600, Modulation.FSK, framing, SampleRate));
+
+        // Check the on-air real-RF path on the public recording. The AFSK
+        // fixture additionally checks the already-discriminated AF bridge.
+        Complex32[] analytic = new TelemetryRealAudioIqConverter(1).Convert(pcm);
+        int[] centres = { 12000, 1700, 10000, 16000, 8000, 14000,
+                          5000, 2000, 6000, 18000, 3000, 22000 };
+        var observations = new List<string>();
+        bool recovered = false;
+        foreach (var p in profiles)
+        {
+            if (modulation == Modulation.AFSK)
+            {
+                var bridge = new TelemetryAfskFmIqConverter().Convert(pcm);
+                var (bursts, crc) = DecodeFrames(bridge, p);
+                observations.Add($"AF-bridge {p.Baud}Bd bursts={bursts} verified={crc}");
+                recovered |= crc > 0;
+            }
+            foreach (int hz in centres)
+            {
+                var iq = Translate(analytic, hz - 1);
+                var (bursts, crc) = DecodeFrames(iq, p);
+                observations.Add($"centre={hz}Hz {p.Modulation}/{p.Baud}Bd bursts={bursts} verified={crc}");
+                if (crc > 0) { recovered = true; break; }
+            }
+            if (recovered) break;
+        }
+        foreach (var line in observations)
+            Console.WriteLine("SAT_AUDIO " + name + " " + line);
+        Assert.True(recovered,
+            $"Unable to recover a CRC/FEC-valid {name} frame with {modulation}/{framing}. " +
+            string.Join("; ", observations));
+    }
+
+    private static (int Bursts, int Verified) DecodeFrames(Complex32[] iq, SignalParams parameters)
+    {
+        int bursts = 0, verified = 0;
+        using var pipeline = new StreamingPipeline(parameters);
+        pipeline.BurstDecoded += report =>
+        {
+            bursts++;
+            verified += report.Frames.Count(frame => frame.CrcValid == true);
+        };
+        for (int at = 0; at < iq.Length; at += 4096)
+            pipeline.Push(iq.AsSpan(at, Math.Min(4096, iq.Length - at)));
+        pipeline.Flush();
+        return (bursts, verified);
+    }
+
     private static float[] ReadMono48k(string path)
     {
         using var audio = new AudioFileReader(path);
