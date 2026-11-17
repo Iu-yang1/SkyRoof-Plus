@@ -25,7 +25,8 @@ public sealed class Unne1bRecordedIqRegressionTests
     private sealed record FrameMetric(int Type, bool? Crc, uint? Clock,
         int? VoiceNumber, int Length);
     private sealed record Attempt(string Name, double DeviationHz,
-        double CenterHz, int Bursts, int SoftBits, FrameMetric[] Frames,
+        double CenterHz, bool DefaultShapeGate, double InputRms,
+        int Bursts, int SoftBits, FrameMetric[] Frames,
         double[] CfoHz, double[] SnrDb);
 
     [Fact]
@@ -48,13 +49,17 @@ public sealed class Unne1bRecordedIqRegressionTests
             {
                 double center = fixture.RecordedCenterHz + residual;
                 Complex32[] tuned = ResampleIq(recording, center);
-                Attempt result = Decode(fixture.Name, tuned, deviation, center);
-                attempts.Add(result);
-                found |= result.Frames.Any(frame =>
-                    frame.Type == fixture.Type &&
-                    (fixture.Type == 15
-                        ? frame.VoiceNumber is >= 0 and <= 5
-                        : frame.Crc == true && frame.Clock == fixture.Clock));
+                foreach (bool defaultGate in new[] { true, false })
+                {
+                    Attempt result = Decode(fixture.Name, tuned, deviation, center,
+                        defaultGate);
+                    attempts.Add(result);
+                    found |= result.Frames.Any(frame =>
+                        frame.Type == fixture.Type &&
+                        (fixture.Type == 15
+                            ? frame.VoiceNumber is >= 0 and <= 5
+                            : frame.Crc == true && frame.Clock == fixture.Clock));
+                }
             }
             if (!found) failures.Add("No expected verified frame in " + fixture.Name);
         }
@@ -74,14 +79,15 @@ public sealed class Unne1bRecordedIqRegressionTests
         }
         foreach (Attempt a in attempts)
             Console.WriteLine($"REAL_IQ {a.Name} dev={a.DeviationHz} " +
-                $"center={a.CenterHz} bursts={a.Bursts} soft={a.SoftBits} " +
+                $"center={a.CenterHz} defaultGate={a.DefaultShapeGate} " +
+                $"rms={a.InputRms:E3} bursts={a.Bursts} soft={a.SoftBits} " +
                 $"frames={string.Join(",", a.Frames.Select(f => $"{f.Type}:crc={f.Crc}:clk={f.Clock}:voice={f.VoiceNumber}"))}");
         Assert.True(failures.Count == 0,
             string.Join("; ", failures) + ". See uploaded real-IQ JSON metrics.");
     }
 
     private static Attempt Decode(string name, Complex32[] iq,
-        double deviation, double center)
+        double deviation, double center, bool defaultGate)
     {
         var frames = new List<FrameMetric>();
         var cfo = new List<double>();
@@ -90,7 +96,14 @@ public sealed class Unne1bRecordedIqRegressionTests
         object sync = new();
         var parameters = new SignalParams(200, Modulation.FSK, Framing.HADES,
             ReceiverRate, deviation);
-        using (var pipeline = new StreamingPipeline(parameters))
+        double rms = Math.Sqrt(iq.Average(x =>
+            (double)x.Real * x.Real + (double)x.Imaginary * x.Imaginary));
+        // Compare production gate defaults with the diagnostic shape gate
+        // bypass. If only bypass works, fix UNNE production configuration.
+        using (var pipeline = defaultGate
+            ? new StreamingPipeline(parameters)
+            : new StreamingPipeline(parameters,
+                new StreamingOptions { GateByShape = false }))
         {
             pipeline.BurstDecoded += report =>
             {
@@ -122,7 +135,8 @@ public sealed class Unne1bRecordedIqRegressionTests
                 pipeline.Push(new Complex32[4096]);
         }
         lock (sync)
-            return new Attempt(name, deviation, center, bursts, softBits,
+            return new Attempt(name, deviation, center, defaultGate, rms,
+                bursts, softBits,
                 frames.ToArray(), cfo.ToArray(), snr.ToArray());
     }
 
