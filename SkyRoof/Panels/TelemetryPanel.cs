@@ -814,26 +814,37 @@ namespace SkyRoof
     {
       Sibling = null;
       if (IsTelemetryDecodable()) return;
-      // The UNNE-1B FM repeater shares 436.888 MHz with the database's
-      // mislabeled 200 Bd telemetry row. Keep the operator's selected FM
-      // transmitter/CAT mode, but let the telemetry panel decode its sibling.
+      // The UNNE FM and erroneous BPSK rows are the SAME downlink. An FM
+      // row must always have a 200-Bd FSK telemetry path, even if SatNOGS
+      // omitted the sibling record or its baud/mode fields.
       bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter,
         SignalParams);
-      if (!unneFmPair && !IsSstvDecodable() &&
-          !SignalParamsResolver.HasSsdv(Transmitter)) return;
+      if (unneFmPair)
+      {
+        var digital = Satellite?.Transmitters.FirstOrDefault(tx =>
+          tx != Transmitter && tx.downlink_low == Transmitter?.downlink_low &&
+          SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+        if (digital != null && SignalParamsResolver.Resolve(digital) is SignalParams p)
+          Sibling = (digital, p);
+        else if (Transmitter != null)
+          Sibling = (Transmitter, SignalParamsResolver.Unne1bFmTelemetryParams());
+        return;
+      }
+      if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter))
+        return;
 
       var tx = CoChannel.RankedTelemetrySibling(Satellite, Transmitter);
-      if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p) Sibling = (tx, p);
+      if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p2)
+        Sibling = (tx, p2);
     }
 
     // The protocol-specific FM+FSK association must not affect other
     // satellites or other frequencies, and never changes CAT's selected TX.
     internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
       SatnogsDbTransmitter? tx, SignalParams? selectedParams) =>
-      selectedParams?.Modulation == Modulation.FM &&
+      SignalParamsResolver.IsUnne1bFmRepeater(tx) &&
       (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
-       tx?.norad_cat_id == Unne1bDeframer.NoradId) &&
-      tx?.downlink_low == 436888000L;
+       tx?.norad_cat_id == Unne1bDeframer.NoradId);
 
     /// <summary>Refresh the params tooltip on both status labels with the same "name: value" fields the Signal
     /// Details dialog shows (the values actually used for decoding, so the pipeline's locked deviation/baud
