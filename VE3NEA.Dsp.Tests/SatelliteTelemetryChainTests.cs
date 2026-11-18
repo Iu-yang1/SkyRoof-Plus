@@ -142,6 +142,7 @@ public sealed class SatelliteTelemetryChainTests
 
     [Theory]
     [InlineData("BPSK", "Mode U - BPSK", null)]
+    [InlineData("BPSK", "Mode U - BPSK (wrong FM metadata)", null)]
     [InlineData("BPSK", "", null)]
     [InlineData("BPSK", "Mode U - telemetry", 200)]
     [InlineData("FSK", "Mode U - data", null)]
@@ -154,6 +155,8 @@ public sealed class SatelliteTelemetryChainTests
             downlink_low = 436888000, description = description,
             mode = mode, DownlinkMode = mode, baud = baud
         };
+        if (description.Contains("wrong FM metadata"))
+          tx.DownlinkMode = "FM";
         Assert.True(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
         var resolved = SignalParamsResolver.Resolve(tx)!;
         Assert.Equal(Modulation.FSK, resolved.Modulation);
