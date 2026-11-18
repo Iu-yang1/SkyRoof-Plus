@@ -106,6 +106,7 @@ namespace SkyRoof
       ["TelemetrySettings.FskAfInput"] = "仅 AF 声卡/回环模式使用：ToneAudio 接收 USB/SSB 的 FSK/GMSK 音调音频；FmDiscriminator 接收已完成 FM 鉴频的基带音频并重构 IQ。不影响原始 SDR IQ、12 kHz IF 或 BPSK 链路。",
       ["TelemetrySettings.FskAfDeviationHz"] = "将已 FM 鉴频的 FSK/GMSK 音频重构为复数 IQ 时的峰值频偏（Hz）。填写 0 优先使用卫星发射机已知频偏，否则按波特率/4 估算；可以填入实测数值手动校准。",
       ["TelemetrySettings.ArchiveToFile"] = "启用后将解码出的遥测帧、所属卫星和时间等信息按天写入 TelemetryDecodes 文件夹；关闭时仍可实时显示和解码。",
+      ["TelemetrySettings.SaveDecodedBinLog"] = "每个解码出的遥测帧在 TelemetryDecodes/Binary 下保存原始解帧载荷 .bin 和对应的 UTF-8 .log，包含 UTC 时间、卫星、CRC/FEC、纠错、CFO 与 SNR。校验失败也会标注并归档以供离线分析；并非原始 I/Q 或空中加扰字节。",
       ["TelemetrySettings.SstvSaveFilter"] = "仅用于 SSTV 图片完成后的自动保存图像降噪；None 不处理、Wiener 维纳滤波、Nlm 非局部均值。不会修改遥测帧 PCM 或其 FSK/GMSK 解码。",
       ["TelemetrySettings.KissServer"] = "将已解码的遥测帧通过本机 KISS-over-TCP 提供给其他应用；展开配置监听端口与开关。",
       ["TelemetrySettings.SatnogsUploader"] = "将符合条件的卫星遥测帧上传 SatNOGS DB；需要 API 密钥，地面信号不上传。",
