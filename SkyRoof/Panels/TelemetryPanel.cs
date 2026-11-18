@@ -709,6 +709,12 @@ namespace SkyRoof
       // flushed its final pending packet at LOS/panel close.
       decoderRetirement.EnqueueAsync(async () =>
       {
+        // Local evidence must be durable before potentially slow network
+        // upload completion or ASR model teardown. All decoder flushes have
+        // finished before this queued retirement action is entered.
+        if (binaryArchive != null)
+          await binaryArchive.CompleteAsync().ConfigureAwait(false);
+        (logger as IDisposable)?.Dispose();
         speech?.Dispose();
         // Loading may finish after the window closes. Await on the cleanup
         // chain, not on WinForms, and release any unused ASR model.
@@ -717,9 +723,6 @@ namespace SkyRoof
         if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
         if (uploader != null)
           await uploader.CompleteAsync().ConfigureAwait(false);
-        if (binaryArchive != null)
-          await binaryArchive.CompleteAsync().ConfigureAwait(false);
-        (logger as IDisposable)?.Dispose();
       });
     }
 
