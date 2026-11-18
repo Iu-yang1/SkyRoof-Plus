@@ -166,7 +166,6 @@ namespace SkyRoof
       ["Use XIT"] = "使用 XIT",
       ["UDP Port"] = "UDP 端口",
       ["Save to File"] = "保存到文件",
-      ["Save Decoded BIN + LOG"] = "保存遥测 BIN + LOG",
       ["Font Size"] = "字体大小",
       ["Background Colors"] = "背景颜色",
       ["Separator"] = "分隔符",
