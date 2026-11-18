@@ -144,9 +144,9 @@ namespace SkyRoof
         "VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
       var overrideProperty = typeof(StreamingOptions).GetProperty("DeframerOverride");
       nativeDeframer = native != null && overrideProperty != null;
-      if (nativeDeframer)
+      if (native != null && overrideProperty != null)
       {
-        overrideProperty!.SetValue(options, Activator.CreateInstance(native!));
+        overrideProperty.SetValue(options, Activator.CreateInstance(native));
         typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(options, true);
       }
       return options;
