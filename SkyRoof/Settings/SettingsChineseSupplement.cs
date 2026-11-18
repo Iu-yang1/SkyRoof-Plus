@@ -16,6 +16,7 @@ namespace SkyRoof
     {
       ["12 kHz IF → AF / WSJT-X"] = "12 kHz 中频解调为音频 / WSJT-X",
       ["Telemetry RX Input"] = "遥测接收输入",
+      ["Save Decoded BIN + LOG"] = "保存遥测 BIN + LOG",
       ["12 kHz IF capture device"] = "12 kHz IF 录音设备",
       ["12 kHz IF capture channel"] = "12 kHz IF 采集声道",
       ["Recorder I/Q Source"] = "录音机 I/Q 来源",
