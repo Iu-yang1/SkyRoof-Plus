@@ -618,7 +618,8 @@ namespace SkyRoof
     internal void ApplyAudioSettings()
     {
       Interlocked.Increment(ref audioConfigurationGeneration);
-      audioReceiver ??= new TelemetryAudioReceiveSession();
+      audioReceiver ??= new TelemetryAudioReceiveSession(
+        () => !replayIqActive && Volatile.Read(ref Decoder) != null);
       // Stop old PCM before disposing its associated modem and deframer.
       // Purging the queue alone is insufficient: PLL/FIR/framer state from
       // the previous device would still contaminate the new capture stream.
