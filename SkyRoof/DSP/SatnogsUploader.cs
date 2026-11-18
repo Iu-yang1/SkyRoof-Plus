@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
-using Newtonsoft.Json;
 using Serilog;
 using VE3NEA;
 using VE3NEA.SkyTlm.Core;
@@ -39,15 +38,23 @@ namespace SkyRoof
       get
       {
         var settings = ctx.Settings.Telemetry.SatnogsUploader;
-        if (!settings.Enabled) return "未启用";
-        if (string.IsNullOrWhiteSpace(settings.ApiToken)) return "缺少 API Token";
-        if (string.IsNullOrWhiteSpace(ctx.Settings.User.Call)) return "缺少呼号";
+        if (!settings.Enabled) return SettingsLanguage.Text("未启用", "Disabled");
+        if (string.IsNullOrWhiteSpace(settings.ApiToken))
+          return SettingsLanguage.Text("缺少 API Token", "Missing API token");
+        if (string.IsNullOrWhiteSpace(ctx.Settings.User.Call))
+          return SettingsLanguage.Text("缺少呼号", "Missing callsign");
         if (string.IsNullOrWhiteSpace(ctx.Settings.User.Square) ||
-            !GridSquare.IsValid(ctx.Settings.User.Square)) return "网格无效";
+            !GridSquare.IsValid(ctx.Settings.User.Square))
+          return SettingsLanguage.Text("网格无效", "Invalid grid locator");
         int pending = Queue.Count + Volatile.Read(ref inFlight);
         long good = Interlocked.Read(ref uploaded);
         long errors = Interlocked.Read(ref failed);
-        return $"成功 {good} / 失败 {errors} / 排队 {pending} · {Volatile.Read(ref lastResult)}";
+        string counters = SettingsLanguage.Text(
+          $"成功 {good} / 失败 {errors} / 排队 {pending}",
+          $"Sent {good} / Failed {errors} / Queued {pending}");
+        string last = Volatile.Read(ref lastResult);
+        if (last == "waiting") last = SettingsLanguage.Text("等待遥测帧", "Waiting for frames");
+        return counters + " · " + last;
       }
     }
 
