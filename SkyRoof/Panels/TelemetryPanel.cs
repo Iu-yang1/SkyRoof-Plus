@@ -83,7 +83,6 @@ namespace SkyRoof
     // but a co-channel pair has TWO live pass nodes at once, so the pass a frame or image belongs to is
     // resolved by identity in EnsureCurrentPassNode instead of by position here.
     private TreeNode? Current;
-    private ILogger? FrameLogger;
     private DecodeSnapshot? CurrentDecode;
     // the status label's default text color, captured before any status update recolors it
     
@@ -161,6 +160,9 @@ namespace SkyRoof
     private bool SpeakerEnabledForClip;
     private System.Windows.Forms.Timer? ClipEndTimer;
     private TelemetryFrameArchive? BinaryArchive;
+    private TelemetryFrameArchive? LastArchive;
+    private string? ArchiveDirectory;
+    private readonly List<Task> archiveFlushingTasks = new();
 
     // Identity of the transmitter a decoder was built for, captured when the pipeline is created and bound to
     // that pipeline's event handlers. Frames surface on the decode worker thread, possibly after the user has
@@ -607,7 +609,6 @@ namespace SkyRoof
       ctx.MainForm.TelemetryMNU.Checked = true;
 
       SatnogsUploader = new SatnogsUploader(ctx);
-      BinaryArchive = new TelemetryFrameArchive();
 
       // FM speech transcript click-to-play (§10.4): hand cursor over a clickable line, play its audio on click
       richTextBox1.MouseMove += richTextBox1_MouseMove;
@@ -702,8 +703,8 @@ namespace SkyRoof
       var speech = FmSpeechEngine;
       var loadingSpeech = fmSpeechLoad;
       var uploader = SatnogsUploader;
-      var logger = FrameLogger;
-      var binaryArchive = BinaryArchive;
+      var binaryArchive = Interlocked.Exchange(ref BinaryArchive, null);
+      var completedArchives = archiveFlushingTasks.ToArray();
       FmSpeechEngine = null;
       // Keep these sinks alive until the decoder retirement task has
       // flushed its final pending packet at LOS/panel close.
@@ -714,7 +715,7 @@ namespace SkyRoof
         // finished before this queued retirement action is entered.
         if (binaryArchive != null)
           await binaryArchive.CompleteAsync().ConfigureAwait(false);
-        (logger as IDisposable)?.Dispose();
+        await Task.WhenAll(completedArchives).ConfigureAwait(false);
         speech?.Dispose();
         // Loading may finish after the window closes. Await on the cleanup
         // chain, not on WinForms, and release any unused ASR model.
@@ -1235,8 +1236,7 @@ namespace SkyRoof
         transportPacket ? 1 : frame.CrcValid == false ? 2 : 0);
       // Persist the decoder's exact post-deframe bytes and integrity evidence.
       // This is a non-blocking queue, never synchronous disk I/O on DSP.
-      if (ctx.Settings.Telemetry.SaveDecodedBinLog)
-        BinaryArchive?.Offer(frame, snapshot.Satellite?.norad_cat_id,
+      Volatile.Read(ref BinaryArchive)?.Offer(frame, snapshot.Satellite?.norad_cat_id,
           snapshot.Satellite?.name, snapshot.Transmitter?.description,
           transportPacket);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
