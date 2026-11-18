@@ -1063,7 +1063,14 @@ namespace SkyRoof
           var fm = Decoder.Fm;
           var info = new FmTranscriptInfo(snapshot, fm, fm.OutputSampleRate);
           fm.LineCompleted += (line, index) => FmLineCompletedHandler(fm, line, info);
-          fm.LineUpdated += line => telemetryUi?.Post(() => UpdateFmPending(line, info));
+          // Pending recognition is replaced many times per line. Display the
+          // newest transcript only; completed lines still arrive losslessly.
+          if (telemetryUi is { } ui)
+          {
+            var pendingLines = new TelemetryLatestUiValue<FmTranscriptLine>(ui,
+              line => UpdateFmPending(line, info));
+            fm.LineUpdated += pendingLines.Offer;
+          }
         }
       }
     }
