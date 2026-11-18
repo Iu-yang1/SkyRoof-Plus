@@ -161,6 +161,10 @@ namespace SkyRoof
     private bool SpeakerEnabledForClip;
     private System.Windows.Forms.Timer? ClipEndTimer;
     private TelemetryFrameArchive? BinaryArchive;
+    // Burst callbacks can arrive much faster than UI frames, especially when
+    // docked. Preserve every count/SNR update but repaint the pass summary
+    // at most once per status tick (1 Hz).
+    private bool burstSummaryDirty;
 
     // Identity of the transmitter a decoder was built for, captured when the pipeline is created and bound to
     // that pipeline's event handlers. Frames surface on the decode worker thread, possibly after the user has
@@ -1205,8 +1209,10 @@ namespace SkyRoof
           UpdateStatusLabel("DECODING...", Color.Green);
           if (double.IsNaN(txPassInfo.MaxSnrDb) || report.Burst.SnrDb > txPassInfo.MaxSnrDb)
             txPassInfo.MaxSnrDb = report.Burst.SnrDb;
-          // refresh the right panel if this pass entry is the one currently selected
-          if (treeView1.SelectedNode == passNode) richTextBox1.Text = txPassInfo.Describe(DescribeSignalParamsOrUnknown(txPassInfo.SignalParams));
+          // Defer the costly RichTextBox reflow until the next UI status tick.
+          // Do not skip statistics or modify the ordering of frame events.
+          if (treeView1.SelectedNode == passNode)
+            burstSummaryDirty = true;
         }
        );
     }
@@ -3312,6 +3318,17 @@ namespace SkyRoof
       // Build the *whole* label once, not twice, and do not trigger layout
       // when neither text nor colour changed on the 1-Hz timer.
       UpdateStatusLabel(status, color);
+      if (burstSummaryDirty)
+      {
+        burstSummaryDirty = false;
+        if (treeView1.SelectedNode?.Tag is TxPassInfo selectedPass)
+        {
+          string details = selectedPass.Describe(
+            DescribeSignalParamsOrUnknown(selectedPass.SignalParams));
+          if (!string.Equals(richTextBox1.Text, details, StringComparison.Ordinal))
+            richTextBox1.Text = details;
+        }
+      }
       if (StatusLabel.ClientRectangle.Contains(StatusLabel.PointToClient(Cursor.Position)))
         RefreshTelemetryDiagnosticsTooltip();
       string upload = "SatNOGS: " + (UploadHeld
