@@ -84,6 +84,17 @@ public sealed class TelemetryUiLivenessTests
     Assert.Equal(0, mailbox.PendingCount);
   }
 
+  [Theory]
+  [InlineData(true, false, true)]  // switching away from active FM
+  [InlineData(true, true, false)]  // old decoder released
+  [InlineData(false, false, false)] // telemetry-only branch does not use model
+  public void SharedFmModelRequiresPreviousDecoderToFinish(
+    bool engineReady, bool previousFmRetired, bool expectedDefer)
+  {
+    Assert.Equal(expectedDefer, TelemetryPanel.ShouldDeferFmDecoder(
+      engineReady, previousFmRetired));
+  }
+
   [Fact]
   public void DecoderRetirementNeverWaitsForAnActiveWorkerOnCallingThread()
   {
