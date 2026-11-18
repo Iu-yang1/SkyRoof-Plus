@@ -818,8 +818,7 @@ namespace SkyRoof
       // The UNNE FM and erroneous BPSK rows are the SAME downlink. An FM
       // row must always have a 200-Bd FSK telemetry path, even if SatNOGS
       // omitted the sibling record or its baud/mode fields.
-      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter,
-        SignalParams);
+      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter);
       if (unneFmPair)
       {
         Sibling = ResolveUnne1bFmTelemetrySource(Satellite, Transmitter);
@@ -836,7 +835,7 @@ namespace SkyRoof
     // The protocol-specific FM+FSK association must not affect other
     // satellites or other frequencies, and never changes CAT's selected TX.
     internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
-      SatnogsDbTransmitter? tx, SignalParams? selectedParams) =>
+      SatnogsDbTransmitter? tx) =>
       SignalParamsResolver.IsUnne1bFmRepeater(tx) &&
       (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
        tx?.norad_cat_id == Unne1bDeframer.NoradId);
@@ -848,7 +847,7 @@ namespace SkyRoof
       ResolveUnne1bFmTelemetrySource(SatnogsDbSatellite? satellite,
         SatnogsDbTransmitter? selected)
     {
-      if (!ShouldUseUnneTelemetrySibling(satellite, selected, null) ||
+      if (!ShouldUseUnneTelemetrySibling(satellite, selected) ||
           selected == null) return null;
       var digital = satellite?.Transmitters.FirstOrDefault(tx =>
         tx != selected && tx.downlink_low == selected.downlink_low &&
