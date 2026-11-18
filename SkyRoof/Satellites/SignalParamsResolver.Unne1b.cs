@@ -33,12 +33,19 @@ namespace SkyRoof.Satellites
     internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx)
     {
       if (tx == null || !IsUnne1bDownlink(tx)) return false;
-      return string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(tx.mode, "FMN", StringComparison.OrdinalIgnoreCase) ||
-        ((tx.description?.Contains("FM", StringComparison.OrdinalIgnoreCase) ?? false) &&
-         (tx.description.Contains("Repeater", StringComparison.OrdinalIgnoreCase) ||
-          tx.description.Contains("Voice", StringComparison.OrdinalIgnoreCase)));
+      // The operator-selected primary mode wins over the secondary
+      // DownlinkMode imported by SatNOGS. A BPSK row must not become a
+      // voice repeater merely because its secondary metadata says FM.
+      Modulation selected = ExtractyModulation(tx.mode);
+      if (selected is Modulation.BPSK or Modulation.FSK) return false;
+      if (selected == Modulation.FM) return true;
+      if (string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase) ||
+          string.Equals(tx.mode, "FMN", StringComparison.OrdinalIgnoreCase))
+        return true;
+      string description = tx.description ?? string.Empty;
+      return description.Contains("FM", StringComparison.OrdinalIgnoreCase) &&
+        (description.Contains("Repeater", StringComparison.OrdinalIgnoreCase) ||
+         description.Contains("Voice", StringComparison.OrdinalIgnoreCase));
     }
 
     // Used only when an UNNE FM row has no usable database telemetry sibling.
