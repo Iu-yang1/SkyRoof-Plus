@@ -54,6 +54,23 @@ public sealed class TelemetryUiLivenessTests
   }
 
   [Fact]
+  public void IntermediateFmTranscriptsAreCoalescedButCompletedEventsStayOrdered()
+  {
+    var scheduled = new Queue<Action>();
+    var received = new List<string>();
+    var mailbox = new TelemetryUiMailbox(scheduled.Enqueue);
+    var latest = new TelemetryLatestUiValue<string>(mailbox,
+      line => received.Add("pending: " + line));
+
+    for (int i = 0; i < 1000; i++) latest.Offer("word-" + i);
+    mailbox.Post(() => received.Add("completed"));
+
+    Assert.Single(scheduled);
+    while (scheduled.Count > 0) scheduled.Dequeue()();
+    Assert.Equal(new[] { "pending: word-999", "completed" }, received);
+  }
+
+  [Fact]
   public void ClosingPanelDropsOnlyUnrenderedUiWork()
   {
     var scheduled = new Queue<Action>();
