@@ -3357,16 +3357,27 @@ namespace SkyRoof
           : SatnogsUploader?.Status ?? SettingsLanguage.Text("未连接", "Disconnected"));
       if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
         SatnogsStatusLabel.Text = upload;
-      // Surface both archive progress and the actual upload outcome without
-      // allocating/invalidating tree items or replacing the receive status.
-      string archive = ctx.Settings.Telemetry.SaveDecodedBinLog
+      // Present save progress separately from SatNOGS: operators need to
+      // see both without hovering over the upload label.
+      var saving = Volatile.Read(ref BinaryArchive);
+      var recorder = saving ?? LastArchive;
+      string archive = saving != null
         ? SettingsLanguage.Text(
-            $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}",
-            $"BIN+LOG saved: {BinaryArchive?.Saved ?? 0} / errors: {BinaryArchive?.Errors ?? 0}")
-        : SettingsLanguage.Text("BIN+LOG 保存: 未启用", "BIN+LOG saving: disabled");
-      if (!string.Equals(toolTip1.GetToolTip(SatnogsStatusLabel), archive,
+            $"BIN+LOG: 保存中  {recorder?.Saved ?? 0} 帧 / 失败 {recorder?.Errors ?? 0}",
+            $"BIN+LOG: REC  {recorder?.Saved ?? 0} frames / errors {recorder?.Errors ?? 0}")
+        : recorder != null
+          ? SettingsLanguage.Text(
+              $"BIN+LOG: 已停止  {recorder.Saved} 帧 / 失败 {recorder.Errors}",
+              $"BIN+LOG: STOPPED  {recorder.Saved} frames / errors {recorder.Errors}")
+          : SettingsLanguage.Text("BIN+LOG: 未保存（点击 SAVE）",
+              "BIN+LOG: OFF (press SAVE)");
+      if (!string.Equals(SaveStatusLabel.Text, archive, StringComparison.Ordinal))
+        SaveStatusLabel.Text = archive;
+      string pathHint = ArchiveDirectory ?? SettingsLanguage.Text(
+        "点击 SAVE 选择保存目录", "Press SAVE to select a destination folder");
+      if (!string.Equals(toolTip1.GetToolTip(SaveStatusLabel), pathHint,
           StringComparison.Ordinal))
-        toolTip1.SetToolTip(SatnogsStatusLabel, archive);
+        toolTip1.SetToolTip(SaveStatusLabel, pathHint);
     }
 
     private void RefreshTelemetryDiagnosticsTooltip()
