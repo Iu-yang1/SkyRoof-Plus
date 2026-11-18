@@ -35,7 +35,7 @@ The IF receiver is a **receive-only** signal path: it does not route PCM to the 
 3. Direct LAN PCM is reordered/resampled to **48 kHz**. Packet gaps, stream restarts and receive-queue drops are discontinuities: SkyRoof resets the Hilbert/NCO and rebuilds the stateful telemetry burst detector, modem and deframer instead of joining unrelated samples as one signal.
 4. Check the Telemetry status tooltip for rising **discontinuities** or **dropped PCM blocks**. Validate the actual receive PCM before interpreting a lack of CRC-valid frames as an incorrect modulation.
 
-**Limits:** The LAN source must deliver actual IF, not ordinary AF. Source reconfiguration, network continuity and application queue load all affect decoding. The decoder's live satellite mode still follows its selected satellite/pass horizon logic.
+**Limits:** The LAN source must deliver actual IF, not ordinary AF. Source reconfiguration, network continuity and application queue load all affect decoding. For explicitly selected IF/AF telemetry capture inputs (including Direct LAN IF), successful audio acquisition keeps the decoder running even when the orbital prediction says the satellite is below the horizon. The horizon banner remains informative, so stale TLEs cannot suppress actual frames. Default `SdrIq` live decoding still follows the AOS/LOS gate.
 
 ## 4. Recorder: `.if.wav` and `.iq.wav`
 
