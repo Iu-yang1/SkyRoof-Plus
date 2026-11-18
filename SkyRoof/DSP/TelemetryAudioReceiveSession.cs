@@ -277,12 +277,12 @@ namespace SkyRoof
           {
             converter.Reset();
             fmBridge.Reset();
-            observedDrops = drops;
             // A previously idle interval has no decoder state to invalidate.
             // On a real input discontinuity or overflow the active decoder
             // must still reset its streaming DSP state.
             bool resetDecoder = drops != observedDrops || frame.Discontinuity ||
               wantedModulation != appliedModulation;
+            observedDrops = drops;
             observedInactive = inactive;
             appliedModulation = wantedModulation;
             if (resetDecoder)
