@@ -91,6 +91,11 @@ namespace SkyRoof
     [DefaultValue(false)]
     public bool ArchiveToFile { get; set; }
 
+    [DisplayName("Save Decoded BIN + LOG")]
+    [Description("Write each decoded telemetry payload as a .bin file and a matching UTF-8 .log file in TelemetryDecodes/Binary. Keeps CRC-failed or unverified payloads with their integrity metadata for analysis. These are decoded bytes, not raw on-air IQ.")]
+    [DefaultValue(false)]
+    public bool SaveDecodedBinLog { get; set; }
+
     [DisplayName("SSTV Auto-Save Filter")]
     [Description("Denoising filter applied to SSTV images when they are saved automatically")]
     [DefaultValue(SstvSaveFilter.Wiener)]
