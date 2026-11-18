@@ -43,6 +43,11 @@ namespace SkyRoof
       });
     }
 
+    // The same shared FM ASR model cannot be used by a new SkySpeechDecoder
+    // until its previous instance has completed Flush/Dispose.
+    internal static bool ShouldDeferFmDecoder(bool engineReady, bool retired) =>
+      engineReady && !retired;
+
     private void QueueDiscontinuityReset()
     {
       if (telemetryClosing || telemetryUi == null) return;
