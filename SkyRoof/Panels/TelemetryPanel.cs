@@ -3310,16 +3310,20 @@ namespace SkyRoof
       UpdateStatusLabel(status, color);
       if (StatusLabel.ClientRectangle.Contains(StatusLabel.PointToClient(Cursor.Position)))
         RefreshTelemetryDiagnosticsTooltip();
-      string upload = "SatNOGS: " + (UploadHeld ? "暂停：等待确认解码参数" :
-        replayIqActive ? "回放模式，不上传" :
-        SatnogsUploader?.Status ?? "未连接");
+      string upload = "SatNOGS: " + (UploadHeld
+        ? SettingsLanguage.Text("暂停：等待确认解码参数", "Paused: confirm decoder params")
+        : replayIqActive
+          ? SettingsLanguage.Text("回放模式，不上传", "Replay: no uploads")
+          : SatnogsUploader?.Status ?? SettingsLanguage.Text("未连接", "Disconnected"));
       if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
         SatnogsStatusLabel.Text = upload;
       // Surface both archive progress and the actual upload outcome without
       // allocating/invalidating tree items or replacing the receive status.
       string archive = ctx.Settings.Telemetry.SaveDecodedBinLog
-        ? $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}"
-        : "BIN+LOG 保存: 未启用";
+        ? SettingsLanguage.Text(
+            $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}",
+            $"BIN+LOG saved: {BinaryArchive?.Saved ?? 0} / errors: {BinaryArchive?.Errors ?? 0}")
+        : SettingsLanguage.Text("BIN+LOG 保存: 未启用", "BIN+LOG saving: disabled");
       if (!string.Equals(toolTip1.GetToolTip(SatnogsStatusLabel), archive,
           StringComparison.Ordinal))
         toolTip1.SetToolTip(SatnogsStatusLabel, archive);
