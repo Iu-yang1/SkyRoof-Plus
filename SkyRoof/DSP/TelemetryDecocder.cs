@@ -50,6 +50,7 @@ namespace SkyRoof
     // True when the loaded SkyTlm exposes the protocol-specific deframer;
     // the current vendored assembly does not, but the pinned fork build does.
     public bool UnneNative { get; private set; }
+    internal bool UnneKnownDeviationGate { get; private set; }
     public SstvDecoder? Sstv;
     public SkySpeechDecoder? Fm;
     // the image assembler for this transmitter's frames (SSDV packets or raw-JPEG byte ranges), or null
@@ -91,9 +92,16 @@ namespace SkyRoof
         // Keep AO-123 and all other telemetry on the existing SkyTlm path.
         if (noradId == Unne1bDeframer.NoradId)
         {
+          // Real UNNE IQ type-1/type-14/CODEC2 fixtures pass the default
+          // two-tone shape gate when deviation=820 Hz. In this known case,
+          // skip rejected/noise segments instead of expensive speculative
+          // retries that steal CPU from the spectrum renderer. Unknown manual
+          // deviation still retains the permissive blind-acquisition path.
+          UnneKnownDeviationGate = signalParams.Deviation is > 0;
           var options = new StreamingOptions
           {
-            GateByShape = false, DecodeRejected = true,
+            GateByShape = UnneKnownDeviationGate,
+            DecodeRejected = !UnneKnownDeviationGate,
             HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16
           };
           // The fork's native CRC deframer must participate in SkyTlm's
