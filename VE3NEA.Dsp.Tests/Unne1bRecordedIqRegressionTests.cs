@@ -168,7 +168,9 @@ public sealed class Unne1bRecordedIqRegressionTests
         // use reflection solely so the regular SkyRoof compile job (which
         // builds against its existing vendor DLL) can still compile this
         // draft integration test. The real-IQ job replaces that DLL first.
-        var opts = defaultGate ? new StreamingOptions() : new StreamingOptions
+        var opts = defaultGate
+            ? TelemetryDecocder.BuildUnne1bStreamingOptions(parameters, out _)
+            : new StreamingOptions
         {
             GateByShape = false,
             DecodeRejected = true,
