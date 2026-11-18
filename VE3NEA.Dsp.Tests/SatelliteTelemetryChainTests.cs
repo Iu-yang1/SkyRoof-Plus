@@ -127,7 +127,7 @@ public sealed class SatelliteTelemetryChainTests
         Assert.Equal(Modulation.FSK, resolved.Modulation);
         Assert.Equal(Framing.HADES, resolved.Framing);
         Assert.Equal(200, resolved.Baud);
-        Assert.Null(resolved.Deviation); // blind; do not trust the wrong DB deviation
+        Assert.Equal(820, resolved.Deviation); // verified genuine IQ/CRC baseline
         Assert.True(SignalParamsResolver.IsTelemetryDecodable(resolved));
 
         tx.manual = new GrSatsInfo
