@@ -30,12 +30,13 @@ namespace SkyRoof.Satellites
 
       ResolveSpecialSatelliteParams(tx, ref mod, ref framing, ref baud);
 
-      // Real UNNE-1B captures have shown different tone spacings from
-      // the original nominal specification. Do not inherit a potentially
-      // erroneous SatNOGS deviation on this one known-bad telemetry row:
-      // retain user-authored deviations, otherwise let blind FSK estimate it.
+      // Independent over-the-air 2026-10-04 UNNE-1B complex IQ fixtures
+      // pass CRC at 820 Hz peak deviation for both type-1/type-14 telemetry,
+      // whereas 562.5 Hz yields no verified type-1/type-14 frames. Use this
+      // specifically validated value instead of the mislabeled DB deviation.
+      // A user-authored deviation always wins.
       double? devOverride = mod == Modulation.GMSK ? null :
-        IsUnne1b200BaudTelemetry(tx) ? tx.manual?.deviation :
+        IsUnne1b200BaudTelemetry(tx) ? tx.manual?.deviation ?? 820.0 :
         Field(layers, l => l.deviation);
       // AFSK (Bell-202 audio subcarrier over FM, e.g. 1k2 telemetry): the demod's "deviation" is the audio tone
       // half-spacing (1200/2200 → 500 Hz), NOT the RF-FM deviation the DB/je9pel layers report. Pin the Bell-202
