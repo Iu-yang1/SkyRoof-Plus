@@ -542,6 +542,39 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.78 release target commit' }
           Write-Host "v.1.78 replacement verified SHA-256: $localHash"
 
+      - name: Finalize one-time v.1.86 telemetry SAVE and UNNE auto-decode installer replacement
+        if: env.REPLACE_V186 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.86'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = 'd894f40350abea40c0a73e79d27eb0f63f94871b'
+          $name = 'SkyRoofSetup-v.1.86.exe'
+          $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release -or
+              $release.id -ne 449585754 -or $release.prerelease -ne $false) {
+            throw 'v.1.86 Release identity changed during rebuild'
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].digest -ne "sha256:$localHash") {
+            throw 'The freshly uploaded v.1.86 installer SHA-256 does not match the local build'
+          }
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or
+              (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw 'v.1.86 tag moved during release upload; refusing retarget'
+          }
+          git tag -f $tag $newCommit
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget v.1.86 after installer verification' }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.86 release target commit' }
+          Write-Host "v.1.86 rebuilt in place: $newCommit sha256:$localHash"
+
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh
         env:
