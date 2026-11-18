@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MathNet.Numerics;
 using Serilog;
 using VE3NEA;
@@ -13,6 +14,23 @@ namespace SkyRoof
   {
     private readonly object ingressGate = new();
     private bool acceptingIq = true;
+    private long elapsedProcessingTicks;
+    private long processedIqSamples;
+
+    // Wall-clock DSP work divided by the duration of processed 48-kHz IQ.
+    // >100% means the worker cannot keep up with the live stream. This is
+    // independent of Spectrum FPS and requires no UI-thread profiling.
+    internal double ProcessingLoadPercent
+    {
+      get
+      {
+        long processed = Interlocked.Read(ref processedIqSamples);
+        if (processed <= 0) return 0;
+        long ticks = Interlocked.Read(ref elapsedProcessingTicks);
+        return 100.0 * ticks / Stopwatch.Frequency /
+          (processed / 48000.0);
+      }
+    }
 
     /// <summary>Synchronize ingress with retirement so no producer can call
     /// StartProcessing after the underlying wakeup handle has been disposed.</summary>
@@ -119,11 +137,20 @@ namespace SkyRoof
       // DataEventArgs from the pooled worker may have a backing array larger
       // than Count. Its unused tail contains samples from the previous rental
       // and must not be appended to the demodulator's continuous IQ timeline.
-      var iq = args.Data.AsSpan(0, args.Count);
-      Pipeline?.Push(iq);
-      Detector?.Push(iq);
-      Sstv?.Process(iq);
-      Fm?.Process(iq);
+      long begin = Stopwatch.GetTimestamp();
+      try
+      {
+        var iq = args.Data.AsSpan(0, args.Count);
+        Pipeline?.Push(iq);
+        Detector?.Push(iq);
+        Sstv?.Process(iq);
+        Fm?.Process(iq);
+      }
+      finally
+      {
+        Interlocked.Add(ref elapsedProcessingTicks, Stopwatch.GetTimestamp() - begin);
+        Interlocked.Add(ref processedIqSamples, args.Count);
+      }
     }
 
     public override void Dispose()
