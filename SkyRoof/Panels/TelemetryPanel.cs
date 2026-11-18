@@ -705,8 +705,8 @@ namespace SkyRoof
       var logger = FrameLogger;
       var binaryArchive = BinaryArchive;
       FmSpeechEngine = null;
-      SatnogsUploader = null;
-      FrameLogger = null;
+      // Keep these sinks alive until the decoder retirement task has
+      // flushed its final pending packet at LOS/panel close.
       decoderRetirement.EnqueueAsync(async () =>
       {
         speech?.Dispose();
@@ -715,7 +715,8 @@ namespace SkyRoof
         var justLoaded = loadingSpeech == null
           ? null : await loadingSpeech.ConfigureAwait(false);
         if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
-        uploader?.Dispose();
+        if (uploader != null)
+          await uploader.CompleteAsync().ConfigureAwait(false);
         if (binaryArchive != null)
           await binaryArchive.CompleteAsync().ConfigureAwait(false);
         (logger as IDisposable)?.Dispose();
