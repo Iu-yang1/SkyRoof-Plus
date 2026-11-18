@@ -133,11 +133,11 @@ namespace SkyRoof.Satellites
 
     internal static bool IsUnne1b200BaudTelemetry(SatnogsDbTransmitter? tx)
     {
-      if (!IsUnne1bDownlink(tx) || IsUnne1bFmRepeater(tx)) return false;
+      if (tx == null || !IsUnne1bDownlink(tx) || IsUnne1bFmRepeater(tx)) return false;
       // Never rewrite actual CW/SSTV transmitters. Accept the 200-baud
       // BPSK row even if its DB baud/description has been left blank, and
       // do not let a wrong gr-satellites modulation veto a known downlink.
-      Modulation rawMode = ExtractyModulation($"{tx!.mode} {tx.DownlinkMode}");
+      Modulation rawMode = ExtractyModulation($"{tx.mode} {tx.DownlinkMode}");
       if (rawMode is Modulation.CW or Modulation.SSTV) return false;
       if (rawMode is Modulation.FSK or Modulation.BPSK) return true;
       Modulation descriptionMode = ExtractyModulation(tx.description);
@@ -150,8 +150,8 @@ namespace SkyRoof.Satellites
 
     internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx)
     {
-      if (!IsUnne1bDownlink(tx)) return false;
-      return string.Equals(tx!.mode, "FM", StringComparison.OrdinalIgnoreCase) ||
+      if (tx == null || !IsUnne1bDownlink(tx)) return false;
+      return string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(tx.mode, "FMN", StringComparison.OrdinalIgnoreCase) ||
         ((tx.description?.Contains("FM", StringComparison.OrdinalIgnoreCase) ?? false) &&
