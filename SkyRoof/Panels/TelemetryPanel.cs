@@ -934,6 +934,7 @@ namespace SkyRoof
           ? CurrentDecode.Transmitter == null && CurrentDecode.TerrestrialHz == TerrestrialHz
           : CurrentDecode.Transmitter?.uuid == identity.uuid)
         && (Decoder.Sstv != null) == sstv
+        && (Decoder.Fm != null) == (fmEngine != null)
         && (Decoder.Detector != null) == (detectParams != null);
 
       if (needPipeline && matches)
@@ -1369,8 +1370,13 @@ namespace SkyRoof
 
     // the search is analyzing while a burst it took is not yet counted as analyzed, and waiting otherwise
     private void ShowDiscoveryProgress(DiscoveryProgress progress)
-      => ParamsDialog?.ShowDiscoveryProgress(progress.BurstsAnalyzed, progress.BurstsSkipped,
-        BurstsTaken > progress.BurstsAnalyzed);
+    {
+      // Discovery may report progress on the decoding/background worker.
+      // Never mutate a WinForms dialog off-thread or block this worker.
+      bool analyzing = BurstsTaken > progress.BurstsAnalyzed;
+      telemetryUi?.Post(() => ParamsDialog?.ShowDiscoveryProgress(
+        progress.BurstsAnalyzed, progress.BurstsSkipped, analyzing));
+    }
 
     // tier 1 of the hypothesis set: every co-channel transmitter of this satellite, resolved through the
     // production resolver and ignoring the DB's alive/status flags — it marks live transmitters inactive
