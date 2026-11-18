@@ -905,7 +905,9 @@ namespace SkyRoof
       // there — or a running search, which is how a terrestrial signal with no parameters at all is reached
       // (§4.8) — while a satellite still needs its pass (§4.9)
       bool decodeWanted = Terrestrial ? SignalParams != null || Discovery != null
-        : SatAboveHorizon || replayIqActive;
+        : ShouldBuildSatelliteDecoder(SatAboveHorizon, replayIqActive,
+            ctx.Settings.Telemetry.InputSource,
+            audioReceiver != null && audioReceiverError == null);
       // §2.2: the telemetry branch follows the resolved telemetry source, which is the selection itself
       // unless an SSTV transmitter is selected; the SSTV branch follows the whole downlink, not the
       // selection. Both may name a transmitter other than the selected one.
