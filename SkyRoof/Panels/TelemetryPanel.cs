@@ -800,7 +800,15 @@ namespace SkyRoof
     {
       Sibling = null;
       if (IsTelemetryDecodable()) return;
-      if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter)) return;
+      // The UNNE-1B FM repeater shares 436.888 MHz with the database's
+      // mislabeled 200 Bd telemetry row. Keep the operator's selected FM
+      // transmitter/CAT mode, but let the telemetry panel decode its sibling.
+      bool unneFmPair = IsFmDecodable() &&
+        (Satellite?.norad_cat_id == Unne1bDeframer.NoradId ||
+         Transmitter?.norad_cat_id == Unne1bDeframer.NoradId) &&
+        Transmitter?.downlink_low == 436888000L;
+      if (!unneFmPair && !IsSstvDecodable() &&
+          !SignalParamsResolver.HasSsdv(Transmitter)) return;
 
       var tx = CoChannel.RankedTelemetrySibling(Satellite, Transmitter);
       if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p) Sibling = (tx, p);
@@ -1091,7 +1099,7 @@ namespace SkyRoof
 
     private bool IsDecodable()
     {
-      return IsTelemetryDecodable() || IsSstvDecodable() || IsSsdvDecodable() || IsFmDecodable();
+      return TelemetrySource != null || IsSstvDecodable() || IsSsdvDecodable() || IsFmDecodable();
     }
 
     // FM voice is decodable to a speech transcript (§10) when the transmitter's mode is FM. Whether the
@@ -3253,7 +3261,7 @@ namespace SkyRoof
         UpdateStatusLabel(UiLocalizationService.Get("Telemetry.NoTerrestrialParams"), Color.Red);
       else if (!IsDecodable())
         UpdateStatusLabel(DescribeUnsupported(), Color.Red);
-      else if (IsFmDecodable() && !IsTelemetryDecodable() &&
+      else if (IsFmDecodable() && TelemetrySource == null &&
                !IsSstvDecodable() && !FmModelPresent)
         UpdateStatusLabel(DescribeUnsupported(), Color.Red);
       else if (!Terrestrial && !SatAboveHorizon)
