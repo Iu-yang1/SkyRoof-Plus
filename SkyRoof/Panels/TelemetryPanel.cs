@@ -808,16 +808,23 @@ namespace SkyRoof
       // The UNNE-1B FM repeater shares 436.888 MHz with the database's
       // mislabeled 200 Bd telemetry row. Keep the operator's selected FM
       // transmitter/CAT mode, but let the telemetry panel decode its sibling.
-      bool unneFmPair = IsFmDecodable() &&
-        (Satellite?.norad_cat_id == Unne1bDeframer.NoradId ||
-         Transmitter?.norad_cat_id == Unne1bDeframer.NoradId) &&
-        Transmitter?.downlink_low == 436888000L;
+      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter,
+        SignalParams);
       if (!unneFmPair && !IsSstvDecodable() &&
           !SignalParamsResolver.HasSsdv(Transmitter)) return;
 
       var tx = CoChannel.RankedTelemetrySibling(Satellite, Transmitter);
       if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p) Sibling = (tx, p);
     }
+
+    // The protocol-specific FM+FSK association must not affect other
+    // satellites or other frequencies, and never changes CAT's selected TX.
+    internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
+      SatnogsDbTransmitter? tx, SignalParams? selectedParams) =>
+      selectedParams?.Modulation == Modulation.FM &&
+      (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
+       tx?.norad_cat_id == Unne1bDeframer.NoradId) &&
+      tx?.downlink_low == 436888000L;
 
     /// <summary>Refresh the params tooltip on both status labels with the same "name: value" fields the Signal
     /// Details dialog shows (the values actually used for decoding, so the pipeline's locked deviation/baud
@@ -3311,6 +3318,9 @@ namespace SkyRoof
         $"\nStream discontinuities: {audioReceiver.Discontinuities:N0}" +
         $"\nIF/AF RMS: {audioReceiver.InputRmsDbfs:F1} dBFS";
       return signal +
+        (Volatile.Read(ref Decoder) is TelemetryDecocder decoder
+          ? $"\nDSP work / ingress realtime: {decoder.ProcessingLoadPercent:F0}%"
+          : "\nDSP decoder: inactive") +
         $"\nFrames: {Interlocked.Read(ref decodedFrames):N0}" +
         $"\nCRC valid: {Interlocked.Read(ref goodFrames):N0}" +
         $"\nCRC failed: {Interlocked.Read(ref badFrames):N0}" +
