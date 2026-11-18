@@ -33,6 +33,8 @@ namespace SkyRoof
     private int epoch;
     private long droppedBlocks;
     private long receivedSamples;
+    private long inactiveBlocks;
+    private readonly Func<bool> needsLiveIq;
     private bool disposed;
     private readonly record struct AudioBlock(float[] Samples, DateTime Utc, bool Discontinuity);
     internal event EventHandler<DataEventArgs<Complex32>>? IqAvailable;
@@ -69,8 +71,11 @@ namespace SkyRoof
         signal is { Baud: > 0 } p ? p.Baud / 4.0 : 1800;
     }
 
-    internal TelemetryAudioReceiveSession()
+    internal TelemetryAudioReceiveSession(Func<bool>? needsLiveIq = null)
     {
+      // An open telemetry pane is not necessarily decoding: without a live
+      // satellite decoder, do not spend CPU on Hilbert/NCO and IQ allocations.
+      this.needsLiveIq = needsLiveIq ?? (() => true);
       loopback.SamplesAvailable += OnSamples;
     }
 
@@ -120,6 +125,7 @@ namespace SkyRoof
       stop = cancel;
       Interlocked.Exchange(ref droppedBlocks, 0);
       Interlocked.Exchange(ref receivedSamples, 0);
+      Interlocked.Exchange(ref inactiveBlocks, 0);
       Interlocked.Exchange(ref discontinuities, 0);
       Volatile.Write(ref inputRmsDbfs, double.NegativeInfinity);
       worker = Task.Run(() => RunAsync(next.Reader, cancel.Token, version, centerHz,
@@ -198,9 +204,9 @@ namespace SkyRoof
     private void OnSamples(object? sender, DataEventArgs<float> e)
     {
       if (e.Count <= 0) return;
-      var samples = new float[e.Count];
-      Array.Copy(e.Data, 0, samples, 0, e.Count);
-      QueueAudio(samples, e.Utc, false);
+      // QueueAudio owns the ONE necessary copy while the capture callback's
+      // buffer is valid. The former extra allocation/copy doubled PCM churn.
+      QueueAudio(e.Data.AsSpan(0, e.Count), e.Utc, false);
     }
 
     private void OnRawIfFrame(RawIfPcmFrame frame) =>
@@ -226,18 +232,25 @@ namespace SkyRoof
       catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
-    private void QueueAudio(float[] input, DateTime utc, bool discontinuity)
+    private void QueueAudio(ReadOnlySpan<float> input, DateTime utc, bool discontinuity)
     {
       var writer = queue?.Writer;
       if (writer == null || input.Length == 0) return;
-      var samples = (float[])input.Clone();
-      Interlocked.Add(ref receivedSamples, samples.Length);
+      Interlocked.Add(ref receivedSamples, input.Length);
       double power = 0;
-      foreach (float sample in samples)
+      foreach (float sample in input)
         if (float.IsFinite(sample)) power += (double)sample * sample;
       Volatile.Write(ref inputRmsDbfs,
-        10 * Math.Log10(Math.Max(power / samples.Length, 1e-15)));
-      if (!writer.TryWrite(new AudioBlock(samples, utc, discontinuity)))
+        10 * Math.Log10(Math.Max(power / input.Length, 1e-15)));
+      if (!needsLiveIq())
+      {
+        // Preserve live level/ingress diagnostics but avoid creating a
+        // 48-kHz IQ stream that has no active destination. A fresh decoder
+        // starts with clean Hilbert and carrier history after this gap.
+        Interlocked.Increment(ref inactiveBlocks);
+        return;
+      }
+      if (!writer.TryWrite(new AudioBlock(input.ToArray(), utc, discontinuity)))
         Interlocked.Increment(ref droppedBlocks);
     }
 
@@ -250,22 +263,33 @@ namespace SkyRoof
       double bridgeDeviationHz = 1800;
       int appliedModulation = Volatile.Read(ref afModulation);
       long observedDrops = 0;
+      long observedInactive = 0;
       try
       {
         await foreach (AudioBlock frame in reader.ReadAllAsync(cancel))
         {
           if (version != Volatile.Read(ref epoch)) return;
           long drops = Interlocked.Read(ref droppedBlocks);
+          long inactive = Interlocked.Read(ref inactiveBlocks);
           int wantedModulation = Volatile.Read(ref afModulation);
-          if (drops != observedDrops || frame.Discontinuity ||
-              wantedModulation != appliedModulation)
+          if (drops != observedDrops || inactive != observedInactive ||
+              frame.Discontinuity || wantedModulation != appliedModulation)
           {
             converter.Reset();
             fmBridge.Reset();
             observedDrops = drops;
+            // A previously idle interval has no decoder state to invalidate.
+            // On a real input discontinuity or overflow the active decoder
+            // must still reset its streaming DSP state.
+            bool resetDecoder = drops != observedDrops || frame.Discontinuity ||
+              wantedModulation != appliedModulation;
+            observedInactive = inactive;
             appliedModulation = wantedModulation;
-            Interlocked.Increment(ref discontinuities);
-            IqDiscontinuity?.Invoke();
+            if (resetDecoder)
+            {
+              Interlocked.Increment(ref discontinuities);
+              IqDiscontinuity?.Invoke();
+            }
           }
           var modulation = (Modulation)appliedModulation;
           bool fmDiscriminated = UseDiscriminatorAf(isAfInput, modulation, fskAfInput);
