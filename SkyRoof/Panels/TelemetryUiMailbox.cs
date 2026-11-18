@@ -70,6 +70,39 @@ namespace SkyRoof
     }
   }
 
+  /// <summary>Only the newest in-progress UI value is useful; completed
+  /// frame/image events still go through the lossless ordered mailbox.</summary>
+  internal sealed class TelemetryLatestUiValue<T> where T : class
+  {
+    private readonly TelemetryUiMailbox mailbox;
+    private readonly Action<T> updateUi;
+    private T? latest;
+    private int pending;
+
+    internal TelemetryLatestUiValue(TelemetryUiMailbox mailbox, Action<T> updateUi)
+    {
+      this.mailbox = mailbox;
+      this.updateUi = updateUi;
+    }
+
+    internal void Offer(T value)
+    {
+      Interlocked.Exchange(ref latest, value);
+      if (Interlocked.CompareExchange(ref pending, 1, 0) == 0)
+        mailbox.Post(Drain);
+    }
+
+    private void Drain()
+    {
+      var value = Interlocked.Exchange(ref latest, null);
+      if (value != null) updateUi(value);
+      Interlocked.Exchange(ref pending, 0);
+      if (Volatile.Read(ref latest) != null &&
+          Interlocked.CompareExchange(ref pending, 1, 0) == 0)
+        mailbox.Post(Drain);
+    }
+  }
+
   /// <summary>
   /// Serializes decoder worker joins and native FFTW/decoder teardown OUTSIDE
   /// WinForms. Keeping cleanup ordered also lets the last retired decoder
