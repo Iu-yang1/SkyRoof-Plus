@@ -214,26 +214,24 @@ public sealed class SatelliteTelemetryChainTests
         sat.Transmitters.AddRange([fm, telemetry]);
         Assert.True(SignalParamsResolver.IsUnne1bFmRepeater(fm));
         Assert.Equal(Modulation.FM, SignalParamsResolver.Resolve(fm)!.Modulation);
-        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm,
-            SignalParamsResolver.Resolve(fm)));
+        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm));
         Assert.Same(telemetry, CoChannel.RankedTelemetrySibling(sat, fm));
         var paired = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
-        Assert.NotNull(paired);
-        Assert.Same(telemetry, paired!.Value.Transmitter);
+        Assert.True(paired.HasValue);
+        Assert.Same(telemetry, paired.Value.Transmitter);
         Assert.Equal(Modulation.FSK, paired.Value.Params.Modulation);
         Assert.Equal(Framing.HADES, paired.Value.Params.Framing);
         Assert.Equal(200, paired.Value.Params.Baud);
         Assert.Equal(820, paired.Value.Params.Deviation);
         sat.Transmitters.Remove(telemetry);
         var missingDbFallback = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
-        Assert.NotNull(missingDbFallback);
-        Assert.Same(fm, missingDbFallback!.Value.Transmitter);
+        Assert.True(missingDbFallback.HasValue);
+        Assert.Same(fm, missingDbFallback.Value.Transmitter);
         Assert.Equal(Modulation.FSK, missingDbFallback.Value.Params.Modulation);
         Assert.Equal(Framing.HADES, missingDbFallback.Value.Params.Framing);
         Assert.Equal(200, missingDbFallback.Value.Params.Baud);
         Assert.Equal(820, missingDbFallback.Value.Params.Deviation);
-        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry,
-            SignalParamsResolver.Resolve(telemetry)));
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry));
         var other = new SatnogsDbSatellite { norad_cat_id = 99999 };
         var otherFm = new SatnogsDbTransmitter
         {
@@ -241,8 +239,7 @@ public sealed class SatelliteTelemetryChainTests
             mode = "FM", DownlinkMode = "FM", description = "FM repeater",
             downlink_low = 436888000
         };
-        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm,
-            SignalParamsResolver.Resolve(otherFm)));
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm));
     }
 
     [Fact]
