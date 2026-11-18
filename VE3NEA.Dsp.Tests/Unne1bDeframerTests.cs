@@ -47,6 +47,42 @@ public sealed class Unne1bDeframerTests
         return complete;
     }
 
+    // The two exact packets independently recovered from a 525.5-second
+    // IC-9700/SkyRoof 48-kS/s stereo IQ recording on 2026-11-18.
+    // Unlike synthetic packets, these check the actual wire FCS and
+    // source-specific type/length table against the user-provided signal.
+    [Theory]
+    [InlineData(
+        "8C4C0DC409BC60644E12907E7FFC100F821C1816184022898915B0C6663549",
+        "8CCC0FFCFF740400008CE0D00F0800010020E044BA9A220101010010F6", 8, 0x3549)]
+    [InlineData(
+        "1CEEF89E1A7FA87465B6D8B3A937CFB3D7EB5AD62EE3D37250E46C8EF89611",
+        "1C6EFE3C0095202633EA003BB76D5BEB93D33E00EA0109002000000000", 1, 0x9611)]
+    public void Captured20261118TypeCFrames_MatchExactCrcAndDescramble(
+        string wireHex, string expectedPayloadHex, int type, int crc)
+    {
+        byte[] wire = Convert.FromHexString(wireHex);
+        byte[] expected = Convert.FromHexString(expectedPayloadHex);
+        Assert.Equal(31, wire.Length);
+        Assert.Equal((ushort)crc, Crc16CcittFalse.Compute(wire.AsSpan(0, wire.Length - 2)));
+        Assert.Equal((ushort)crc, (ushort)(wire[^2] << 8 | wire[^1]));
+
+        Frame? parsed = Unne1bDeframer.TryParsePacket(wire);
+        Assert.NotNull(parsed);
+        Assert.True(parsed!.CrcValid);
+        Assert.Equal(expected, parsed.Bytes);
+        Assert.Equal(type, parsed.Bytes[0] >> 4);
+        Assert.Equal(0x0C, parsed.Bytes[0] & 0x0F);
+        Assert.Equal(29, parsed.Bytes.Length);
+
+        // Recheck the same actual bytes via BF35/soft-symbol deframing.
+        byte[] framed = new byte[] { 0xAA, 0xAA, 0xBF, 0x35 }
+            .Concat(wire).ToArray();
+        Frame recovered = Assert.Single(Unne1bDeframer.Decode(MakeSoft(framed)));
+        Assert.Equal(expected, recovered.Bytes);
+        Assert.True(recovered.CrcValid);
+    }
+
     [Fact]
     public void KnownCrcVectorMatchesOfficialSpec()
     {
