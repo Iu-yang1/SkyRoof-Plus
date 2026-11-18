@@ -1,3 +1,35 @@
+# SkyRoof-Plus v.1.84
+
+## v1.84 — 2026-11-18 遥测接收 UI 无响应修复 + IF→AF FM 语音 P0–P3
+
+本版包含已合并的 [FM P0–P3 PR #243](https://github.com/Iu-yang1/SkyRoof-Plus/pull/243) 和本次遥测 UI 生命周期/卡死修复 [PR #244](https://github.com/Iu-yang1/SkyRoof-Plus/pull/244)，基于 v.1.83 新增 Release。**不替换或重写 v.1.83 的安装包、标签或历史记录。**
+
+### 遥测：修复切换转发器时的整进程无响应风险
+
+- 根因：WinForms UI 切换转发器、重选音频、结束解码和关闭面板会同步调用 `TelemetryDecocder.Dispose`，其上游 `ThreadedProcessor.Dispose` 使用 `Thread.Join()`；如果 SkyTlm 正在进行 FEC/软判决、音频处理、SSDV/语音组装或 Flush，整条 WinForms 消息循环都可能停顿。原音频不连续回调又使用同步 `Control.Invoke`，在切换资源时存在互等风险。
+- 先原子撤下旧解码器入口，后台串行执行 `Purge → Join → Flush → Dispose`，保留部分图像/语音自动归档及 FFTW 内存释放顺序。IQ 输入与退役通过短锁关联，避免对已释放唤醒对象继续写入；遥测 DSP 线程优先级回到 Normal，不再不必要地抢占绘图消息循环。
+- 移除音频中断回调的同步 UI Invoke，重同步请求异步合并并检查音频源配置代数，保持原有 IF/AF 解调状态清空语义。
+- 遥测 burst、已解码帧、图像、Codec2 语音和 FM 文本等界面事件使用有序批处理，每个 UI 批次最多 24 项或约 5 ms，让频谱绘制、窗口拖拽、转发器切换等消息获得执行机会。**不丢弃成功解码的帧**；FM 语音识别的临时文字合并为最新状态，已完成文本仍完整保留。
+- 可选 Sherpa/ONNX FM 语音识别模型首次加载移到后台，避免同步加载约 71 MB 模型阻塞 UI；停止/关闭时保证共享模型在对应解码器退休后释放。
+- 真实故障为“**进程整体不响应**”而非单独频谱冻结。修改的是确定存在的同步阻塞链路；若没有当时的线程 dump、CPU ETW 与实机复现，不能把每一次真实冻结都归因于单一锁循环。
+
+### 48 kHz / 12 kHz IF→AF FM 链 P0–P3
+
+- **P0 — 分离语音和遥测：** 新 `CleanDemodulatedAfAvailable` 事件提供未经过语音去加重、静噪、音频增益的 48 kHz 干净 AF；`TelemetryAudioReceiveSession.IfAfDemodulatedAf` 改用该事件。原有主输出事件仍用于虚拟声卡和模拟语音。宽带 GMSK 必须继续选原始 SDR IQ / 12 kHz IF，而非经过 3 kHz 低通的语音 AF。
+- **P1 — FM 语音后处理：** 可选 250 Hz 二阶 Butterworth 高通、模拟 FM 的 750 μs 去加重；原有 50/75 μs 枚举 ID 与设置迁移兼容。全部选项默认不改变既有接收行为。
+- **P2 — 衰落与静噪：** 可选 20 ms 短衰落插值（超过窗口的长衰落原样保留）、宽带鉴频后 3.5 kHz 以上噪声 quieting 检测与原载波功率条件联合判定；20 ms 延迟同时作用于语音静噪门控，遥测 AF 不经过这些处理。
+- **P3 — 回归和性能：** 合成 12 kHz 实数 IF 的 48 kHz 流式分块一致性、音频与遥测隔离、750 μs 频响、67 Hz CTCSS 抑制、20 ms 延迟/静噪对齐、短/长衰落、噪声 quieting、配置 JSON 往返与软件耗时检查；本版另增加后台退役与 WinForms 分批队列的确定性回归。
+
+### 构建、验证和限制
+
+本版通过 GitHub Actions 进行 Windows x64 Release 编译、全量 xUnit、独立 UNNE-1B 真实 IQ/CRC 回放、Orekit IKVM 星历冒烟、Inno Setup 安装及安装后依赖校验、aislop 门禁。**具体通过项目、运行编号及安装包 SHA-256 以实际 v.1.84 Actions/Release 结果为准**，不能凭此说明已完成实机冻结压力测试。
+
+待在 IC-9700 USB/LAN IF 下实际验证：持续卫星遥测解码时快速切换转发器/结束接收，观察进程 UI 延迟、频谱 FPS、CPU 与队列延迟、未闭合 SSDV 文件、遥测 CRC/PER；FM 音质和静噪门限也需要同一原始 IF 的 A/B 录音对比。缺少 SignPath 凭据时按现有仓库策略发布 **未签名 Prerelease**，同时保留 SHA-256 和下载回读校验。
+
+**English:** v1.84 removes the synchronous WinForms decoder-thread join and blocking audio reset, serializes decoder retirement off the UI thread, dispatches telemetry events through bounded FIFO UI batches, and initializes the optional large FM ASR model in the background. It also includes FM IF→AF P0–P3: a clean telemetry AF tap, optional 750-µs de-emphasis/250-Hz high-pass, 20-ms voice fade blanker and noise-quieting squelch. CI and recordings do not substitute for an actual radio-side freeze reproduction.
+
+---
+
 # SkyRoof-Plus v.1.83
 
 ## v1.83 — 2026-11-17 遥测真实样本修复与星历导入回归

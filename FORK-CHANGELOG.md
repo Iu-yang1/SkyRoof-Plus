@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.84 / Telemetry UI Liveness and FM Voice DSP P0–P3
+
+## v1.84 — 2026-11-18
+
+- 合并已通过代码审核的 FM P0–P3（PR #243）：将数字遥测 clean AF 与模拟语音后处理分离；增加可选 750 μs 去加重、250 Hz 高通、20 ms 语音衰落插值与鉴频后宽带噪声静噪。保留 48 kHz、12 kHz 实 IF 的 NCO/FIR 及数字 IQ 路径、旧设置枚举值和中英文说明。
+- 修复遥测解码期间切换转发器、停止解码导致整个 WinForms 进程不响应的同步等待设计（PR #244）：UI 线程不再 `Join()` 正在处理 SkyTlm 的解码线程；PCM 数据入口与解码器退休同步，后台有序 `Purge/Flush/Dispose`。音频中断从同步 Invoke 改为异步合并，避免工作线程与 UI 互等。
+- 遥测界面所有帧/图像/语音事件按 FIFO 分批让出消息循环（每批最多 24 条或约 5 ms），不丢 CRC-valid 数据；FM ASR 未完成文本按最新状态更新，ONNX 模型首次加载及晚完成清理不阻塞 UI。
+- 新增 UI 活性与解码线程退役、FM 音频信号、流式分块及 UNNE-1B 真实 IQ 的回归验收。是否通过以当前 v.1.84 Actions 最终运行记录为准；无 IC-9700 现场冻结复现、实机 RF 性能与扬声器音质实测。
+- 发布策略：新增独立 v.1.84 安装包和标签，不替换 v.1.83。缺少 SignPath 时明确标记未签名 Prerelease，核验下载哈希与安装后运行库。
+
+**English:** v1.84 makes telemetry decoder retirement, UI dispatch and optional FM ASR model loading nonblocking, while including the previously merged FM voice P0–P3 upgrades. End-to-end radio stress testing remains pending.
+
+---
+
 # SkyRoof Fork v.1.83 / Telemetry Real-WAV and OMM Source Reliability
 
 ## v1.83 — 2026-11-17

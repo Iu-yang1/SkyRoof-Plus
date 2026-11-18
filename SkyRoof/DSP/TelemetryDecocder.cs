@@ -11,6 +11,22 @@ namespace SkyRoof
 {
   public class TelemetryDecocder : ThreadedProcessor<Complex32>
   {
+    private readonly object ingressGate = new();
+    private bool acceptingIq = true;
+
+    /// <summary>Synchronize ingress with retirement so no producer can call
+    /// StartProcessing after the underlying wakeup handle has been disposed.</summary>
+    internal void EnqueueIq(DataEventArgs<Complex32> args)
+    {
+      lock (ingressGate)
+        if (acceptingIq) StartProcessing(args);
+    }
+
+    internal void StopAcceptingIq()
+    {
+      lock (ingressGate) acceptingIq = false;
+    }
+
     public StreamingPipeline? Pipeline;
     public StreamingPipeline? Detector;
     // True when the loaded SkyTlm exposes the protocol-specific deframer;
@@ -48,6 +64,9 @@ namespace SkyRoof
     public TelemetryDecocder(SignalParams signalParams, int? noradId, bool telemetry, bool sstv, IAsrEngine? fmEngine,
       SignalParams? detectParams = null)
     {
+      // Keep expensive telemetry DSP from preempting the WinForms renderer.
+      // RF/audio capture retain their original priorities and queues.
+      processingThread.Priority = ThreadPriority.Normal;
       if (telemetry)
       {
         // Only UNNE-1B uses its own extended low-baud receive options.
@@ -111,6 +130,7 @@ namespace SkyRoof
     {
       // stop and join the worker thread BEFORE freeing the pipeline's native FFTW memory, otherwise an
       // in-flight Push() on that thread runs an FFT against freed buffers and corrupts the native heap.
+      StopAcceptingIq();
       base.Dispose();
       // All IQ pushes have joined. Finalize the current partial burst and
       // any deferred low-baud FSK tail before destroying its FFT buffers.
