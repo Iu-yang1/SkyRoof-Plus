@@ -95,6 +95,23 @@ public sealed class TelemetryUiLivenessTests
       engineReady, previousFmRetired));
   }
 
+  [Theory]
+  [InlineData(false, false, TelemetryReceiveSource.SdrIq, false, false)]
+  [InlineData(false, false, TelemetryReceiveSource.SdrIq, true, false)]
+  [InlineData(false, false, TelemetryReceiveSource.Capture12kIf, false, false)]
+  [InlineData(false, false, TelemetryReceiveSource.Capture12kIf, true, true)]
+  [InlineData(false, false, TelemetryReceiveSource.Shared12kIf, true, true)]
+  [InlineData(false, false, TelemetryReceiveSource.IfAfDemodulatedAf, true, true)]
+  [InlineData(false, true, TelemetryReceiveSource.SdrIq, false, true)]
+  [InlineData(true, false, TelemetryReceiveSource.SdrIq, false, true)]
+  public void ManualIfAfTelemetryMustNotBeBlockedByStaleHorizonStatus(
+    bool aboveHorizon, bool replayActive, TelemetryReceiveSource inputSource,
+    bool audioReady, bool expected)
+  {
+    Assert.Equal(expected, TelemetryPanel.ShouldBuildSatelliteDecoder(
+      aboveHorizon, replayActive, inputSource, audioReady));
+  }
+
   [Fact]
   public void DecoderRetirementNeverWaitsForAnActiveWorkerOnCallingThread()
   {
