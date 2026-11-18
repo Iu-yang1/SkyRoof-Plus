@@ -1,4 +1,4 @@
-﻿namespace SkyRoof
+namespace SkyRoof
 {
   partial class TelemetryPanel
   {
@@ -35,7 +35,6 @@
       SaveButton = new Button();
       StatusLabel = new Label();
       SatnogsStatusLabel = new Label();
-      SaveStatusLabel = new Label();
       treeView1 = new TreeView();
       MenuStrip = new ContextMenuStrip(components);
       richTextBox1 = new RichTextBox();
@@ -102,12 +101,12 @@
       SaveButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
       SaveButton.BackColor = SystemColors.ButtonFace;
       SaveButton.Cursor = Cursors.Hand;
-      SaveButton.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
       SaveButton.Location = new Point(576, 3);
       SaveButton.Name = "SaveButton";
       SaveButton.Size = new Size(57, 26);
       SaveButton.TabIndex = 6;
-      SaveButton.Text = "SAVE";
+      SaveButton.AccessibleName = "Save telemetry";
+      SaveButton.Paint += SaveButton_Paint;
       toolTip1.SetToolTip(SaveButton, "Select folder and start BIN+LOG recording");
       SaveButton.UseVisualStyleBackColor = false;
       SaveButton.Click += SaveButton_Click;
@@ -123,23 +122,11 @@
       StatusLabel.Text = "___";
       StatusLabel.TextAlign = ContentAlignment.MiddleCenter;
       // 
-      // SaveStatusLabel
-      //
-      SaveStatusLabel.Dock = DockStyle.Top;
-      SaveStatusLabel.Font = new Font("Segoe UI", 8F);
-      SaveStatusLabel.Location = new Point(0, 46);
-      SaveStatusLabel.Name = "SaveStatusLabel";
-      SaveStatusLabel.Size = new Size(669, 21);
-      SaveStatusLabel.TabIndex = 4;
-      SaveStatusLabel.Text = "BIN+LOG: OFF";
-      SaveStatusLabel.AutoEllipsis = true;
-      SaveStatusLabel.TextAlign = ContentAlignment.MiddleCenter;
-      //
       // SatnogsStatusLabel
       //
       SatnogsStatusLabel.Dock = DockStyle.Top;
       SatnogsStatusLabel.Font = new Font("Segoe UI", 8F);
-      SatnogsStatusLabel.Location = new Point(0, 67);
+      SatnogsStatusLabel.Location = new Point(0, 46);
       SatnogsStatusLabel.Name = "SatnogsStatusLabel";
       SatnogsStatusLabel.Size = new Size(669, 21);
       SatnogsStatusLabel.TabIndex = 3;
@@ -327,7 +314,6 @@
       Controls.Add(SaveButton);
       Controls.Add(splitContainer1);
       Controls.Add(SatnogsStatusLabel);
-      Controls.Add(SaveStatusLabel);
       Controls.Add(StatusLabel);
       Controls.Add(SatNameLabel);
       Name = "TelemetryPanel";
@@ -356,7 +342,6 @@
     private Button SaveButton;
     public Label StatusLabel;
     public Label SatnogsStatusLabel;
-    public Label SaveStatusLabel;
     private TreeView treeView1;
     private RichTextBox richTextBox1;
     private SplitContainer splitContainer1;

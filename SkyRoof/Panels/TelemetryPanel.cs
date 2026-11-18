@@ -1,4 +1,4 @@
-﻿using FontAwesome;
+using FontAwesome;
 using MathNet.Numerics;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -836,9 +836,7 @@ namespace SkyRoof
     // satellites or other frequencies, and never changes CAT's selected TX.
     internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
       SatnogsDbTransmitter? tx) =>
-      SignalParamsResolver.IsUnne1bFmRepeater(tx) &&
-      (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
-       tx?.norad_cat_id == Unne1bDeframer.NoradId);
+      SignalParamsResolver.IsUnne1bFmRepeater(tx, sat);
 
     // Both the running panel and regression tests use exactly this
     // resolver. FM selection never changes CAT, but receives the FSK
@@ -1038,7 +1036,9 @@ namespace SkyRoof
           TerrestrialHz);
         var sstvSnapshot = SstvSnapshot(snapshot);
         CurrentDecode = snapshot;
-        Decoder = new(snapshot.SignalParams, snapshot.Satellite?.norad_cat_id, telemetry, sstv, fmEngine, detectParams);
+        int? decoderNorad = SignalParamsResolver.TelemetryDecoderNoradId(
+          snapshot.Satellite, snapshot.Transmitter, snapshot.SignalParams);
+        Decoder = new(snapshot.SignalParams, decoderNorad, telemetry, sstv, fmEngine, detectParams);
         // shared by the frame handler and the two assembler subscriptions below, all of which run on the
         // decode thread and none of which outlive this decoder
         var pushed = new PushOutcome();
@@ -1049,7 +1049,7 @@ namespace SkyRoof
           // transmitter's decoder, and this decoder's frames must never reach that one's assembler.
           var images = Decoder.Images;
           var voice = Decoder.Voice;
-          bool unne = snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
+          bool unne = SignalParamsResolver.IsUnne1bDownlink(snapshot.Transmitter, snapshot.Satellite) &&
             snapshot.SignalParams.Framing == Framing.HADES;
           bool unneNative = unne && Decoder.UnneNative;
           var asrtuTransport = snapshot.Satellite?.norad_cat_id == 61781 &&
@@ -1319,9 +1319,7 @@ namespace SkyRoof
       if (active != null)
       {
         archiveFlushingTasks.Add(active.CompleteAsync());
-        SaveButton.Text = "SAVE";
-        toolTip1.SetToolTip(SaveButton,
-          SettingsLanguage.Text("选择目录并开始保存遥测", "Choose folder and save telemetry"));
+        SaveButton.Invalidate();
         RenderTelemetryStatus();
         return;
       }
@@ -1341,11 +1339,28 @@ namespace SkyRoof
       var recorder = new TelemetryFrameArchive(dialog.SelectedPath);
       LastArchive = recorder;
       Volatile.Write(ref BinaryArchive, recorder);
-      SaveButton.Text = "STOP";
-      toolTip1.SetToolTip(SaveButton,
-        SettingsLanguage.Text("停止遥测归档（后台写完剩余数据）",
-          "Stop telemetry archival (flush remaining data in background)"));
+      SaveButton.Invalidate();
       RenderTelemetryStatus();
+    }
+
+    private void SaveButton_Paint(object? sender, PaintEventArgs e)
+    {
+      // Scale with the button under WinForms DPI scaling, without another
+      // icon resource or a per-frame allocated bitmap.
+      int edge = Math.Max(1, SaveButton.ClientSize.Height * 5 / 8);
+      int x = (SaveButton.ClientSize.Width - edge) / 2;
+      int y = (SaveButton.ClientSize.Height - edge) / 2;
+      if (Volatile.Read(ref BinaryArchive) != null)
+      {
+        using var stop = new SolidBrush(Color.Firebrick);
+        e.Graphics.FillRectangle(stop, x, y, edge, edge);
+        return;
+      }
+      using var pen = new Pen(SaveButton.ForeColor, Math.Max(1f, edge / 14f));
+      e.Graphics.DrawRectangle(pen, x, y, edge, edge);
+      e.Graphics.DrawRectangle(pen, x + edge / 4, y, edge / 2, edge / 3);
+      e.Graphics.DrawRectangle(pen, x + edge / 5, y + edge / 2,
+        edge * 3 / 5, edge / 2);
     }
 
     private void SettingsButton_Click(object sender, EventArgs e)
@@ -1984,7 +1999,7 @@ namespace SkyRoof
           : string.Join("", Asrtu1Header.Describe(frame.Bytes)
               .Select(f => $"  {f.Name}: {f.Value}\n"));
       }
-      else if (snapshot.Satellite?.norad_cat_id == Unne1bDeframer.NoradId &&
+      else if (SignalParamsResolver.IsUnne1bDownlink(snapshot.Transmitter, snapshot.Satellite) &&
                snapshot.SignalParams.Framing == Framing.HADES)
         geo = string.Join("", Unne1bTelemetry.Describe(frame.Bytes)
           .Select(f => $"  {f.Name}: {f.Value}\n"));
@@ -3367,8 +3382,8 @@ namespace SkyRoof
           : SatnogsUploader?.Status ?? SettingsLanguage.Text("未连接", "Disconnected"));
       if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
         SatnogsStatusLabel.Text = upload;
-      // Present save progress separately from SatNOGS: operators need to
-      // see both without hovering over the upload label.
+      // Keep archive state and counters available on the save button tooltip,
+      // leaving the telemetry header free of a dedicated BIN+LOG row.
       var saving = Volatile.Read(ref BinaryArchive);
       var recorder = saving ?? LastArchive;
       string archive = saving != null
@@ -3379,15 +3394,16 @@ namespace SkyRoof
           ? SettingsLanguage.Text(
               $"BIN+LOG: 已停止  {recorder.Saved} 帧 / 失败 {recorder.Errors}",
               $"BIN+LOG: STOPPED  {recorder.Saved} frames / errors {recorder.Errors}")
-          : SettingsLanguage.Text("BIN+LOG: 未保存（点击 SAVE）",
-              "BIN+LOG: OFF (press SAVE)");
-      if (!string.Equals(SaveStatusLabel.Text, archive, StringComparison.Ordinal))
-        SaveStatusLabel.Text = archive;
-      string pathHint = ArchiveDirectory ?? SettingsLanguage.Text(
-        "点击 SAVE 选择保存目录", "Press SAVE to select a destination folder");
-      if (!string.Equals(toolTip1.GetToolTip(SaveStatusLabel), pathHint,
-          StringComparison.Ordinal))
-        toolTip1.SetToolTip(SaveStatusLabel, pathHint);
+          : SettingsLanguage.Text("BIN+LOG: 未保存",
+              "BIN+LOG: OFF");
+      string action = saving != null
+        ? SettingsLanguage.Text("停止遥测归档", "Stop telemetry archival")
+        : SettingsLanguage.Text("选择目录并开始保存遥测", "Choose folder and save telemetry");
+      SaveButton.AccessibleName = action;
+      string hint = action + "\n" + archive +
+        (ArchiveDirectory == null ? "" : "\n" + ArchiveDirectory);
+      if (!string.Equals(toolTip1.GetToolTip(SaveButton), hint, StringComparison.Ordinal))
+        toolTip1.SetToolTip(SaveButton, hint);
     }
 
     private void RefreshTelemetryDiagnosticsTooltip()

@@ -5,13 +5,32 @@ namespace SkyRoof.Satellites
 {
   internal partial class SignalParamsResolver
   {
-    // Authoritative local protocol key: satellite NORAD plus this exact
-    // shared downlink. SatNOGS mode/baud/free text are fallible metadata.
-    internal static bool IsUnne1bDownlink(SatnogsDbTransmitter? tx) =>
-      tx != null &&
+    // Decoder identity is independent of the catalog number assigned to
+    // a recently launched satellite. Keep the real DB identity for orbit,
+    // archives and uploads; only select the protocol with this predicate.
+    private static bool IsUnneName(string? name) =>
+      !string.IsNullOrWhiteSpace(name) &&
+      Regex.IsMatch(name.Trim(), @"^UNNE[-_ ]?1B$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static bool IsUnneSatellite(SatnogsDbSatellite? sat) =>
+      sat != null && (sat.norad_cat_id == Unne1bDeframer.NoradId ||
+        IsUnneName(sat.name) || IsUnneName(sat.sat_id) ||
+        Regex.Split(sat.names ?? "", @"[,;|\r\n]+").Any(IsUnneName) ||
+        sat.AllNames.Any(IsUnneName));
+
+    internal static bool IsUnne1bDownlink(SatnogsDbTransmitter? tx,
+      SatnogsDbSatellite? satellite = null) =>
+      tx?.downlink_low == 436888000L &&
       (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-       tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId) &&
-      tx.downlink_low == 436888000L;
+       IsUnneName(tx.sat_id) || IsUnneSatellite(tx.Satellite) ||
+       IsUnneSatellite(satellite));
+
+    // Canonical protocol key for the existing native/fallback DSP dispatch,
+    // not a replacement catalog ID for SatNOGS or orbit tracking.
+    internal static int? TelemetryDecoderNoradId(SatnogsDbSatellite? satellite,
+      SatnogsDbTransmitter? tx, SignalParams signalParams) =>
+      IsUnne1bDownlink(tx, satellite) && signalParams.Framing == Framing.HADES
+        ? Unne1bDeframer.NoradId : satellite?.norad_cat_id;
 
     internal static bool IsUnne1b200BaudTelemetry(SatnogsDbTransmitter? tx)
     {
@@ -30,14 +49,15 @@ namespace SkyRoof.Satellites
                RegexOptions.IgnoreCase);
     }
 
-    internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx)
+    internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx,
+      SatnogsDbSatellite? satellite = null)
     {
-      if (tx == null || !IsUnne1bDownlink(tx)) return false;
+      if (tx == null || !IsUnne1bDownlink(tx, satellite)) return false;
       // The operator-selected primary mode wins over the secondary
       // DownlinkMode imported by SatNOGS. A BPSK row must not become a
       // voice repeater merely because its secondary metadata says FM.
       Modulation selected = ExtractyModulation(tx.mode);
-      if (selected is Modulation.BPSK or Modulation.FSK) return false;
+      if (selected is Modulation.BPSK or Modulation.FSK or Modulation.CW or Modulation.SSTV) return false;
       if (selected == Modulation.FM) return true;
       if (string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase) ||
           string.Equals(tx.mode, "FMN", StringComparison.OrdinalIgnoreCase))

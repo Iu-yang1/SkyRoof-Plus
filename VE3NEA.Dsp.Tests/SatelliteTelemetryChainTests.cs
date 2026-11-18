@@ -245,6 +245,50 @@ public sealed class SatelliteTelemetryChainTests
         Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm));
     }
 
+
+    [Theory]
+    [InlineData(99999, "UNNE-1B", "")]
+    [InlineData(null, "UNNE1B", "")]
+    [InlineData(99998, "Temporary object", "Other; UNNE-1B")]
+    public void UnneCatalogChangesKeepNativeTelemetryAndFmPair(int? id, string name, string aliases)
+    {
+        var sat = new SatnogsDbSatellite { norad_cat_id = id, name = name, names = aliases };
+        var fm = new SatnogsDbTransmitter
+        {
+            Satellite = sat, norad_cat_id = id, mode = "FM", DownlinkMode = "FM",
+            description = "Mode V/U - FM Repeater (Voice + (A)FSK)", downlink_low = 436888000
+        };
+        var data = new SatnogsDbTransmitter
+        {
+            Satellite = sat, norad_cat_id = id, mode = "BPSK", DownlinkMode = "BPSK",
+            description = "Mode U - BPSK", downlink_low = 436888000
+        };
+        sat.Transmitters.AddRange([fm, data]);
+        var resolved = SignalParamsResolver.Resolve(data)!;
+        Assert.Equal(Modulation.FSK, resolved.Modulation);
+        Assert.Equal(Framing.HADES, resolved.Framing);
+        Assert.Equal(200, resolved.Baud);
+        Assert.Equal(820, resolved.Deviation);
+        Assert.Equal(Unne1bDeframer.NoradId,
+            SignalParamsResolver.TelemetryDecoderNoradId(sat, data, resolved));
+        Assert.Equal(id, sat.norad_cat_id);
+        Assert.Equal(Modulation.FM, SignalParamsResolver.Resolve(fm)!.Modulation);
+        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm));
+        var paired = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
+        Assert.True(paired.HasValue);
+        Assert.Same(data, paired.Value.Transmitter);
+        sat.Transmitters.Remove(data);
+        var fallback = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
+        Assert.True(fallback.HasValue);
+        Assert.Equal(Unne1bDeframer.NoradId,
+            SignalParamsResolver.TelemetryDecoderNoradId(sat, fm, fallback.Value.Params));
+        data.downlink_low = 436889000;
+        Assert.False(SignalParamsResolver.IsUnne1bDownlink(data));
+        data.downlink_low = 436888000;
+        data.Satellite = new SatnogsDbSatellite { name = "UNNE-1A", norad_cat_id = id };
+        Assert.False(SignalParamsResolver.IsUnne1bDownlink(data));
+    }
+
     [Fact]
     public async Task DecodedBinAndLogPreserveBytesIntegrityAndCfo()
     {
