@@ -3,7 +3,7 @@ using VE3NEA.SkyTlm.Core;
 
 namespace SkyRoof.Satellites
 {
-  internal class SignalParamsResolver
+  internal partial class SignalParamsResolver
   {
     private const double AudioSampleRate = 48000;
 
@@ -101,15 +101,17 @@ namespace SkyRoof.Satellites
         framing = Framing.AO40FEC;
         if (baud <= 0) baud = 1200;
       }
-      // The 436.888 MHz UNNE-1B 200 Bd telemetry row is currently mislabeled
-      // BPSK in SatNOGS. Only this specific digital transmitter is corrected;
-      // the same-frequency FM repeater and CW beacon must remain unchanged.
-      // Explicit user-authored overrides retain priority over database repair.
+      // This downlink carries the same UNNE-1B FSK telemetry when the
+      // SatNOGS row says BPSK or omits its baud entirely. The radio's FM
+      // transponder is kept as FM, while the panel feeds a separate FSK
+      // decoder with these protocol-defined parameters.
       if (IsUnne1b200BaudTelemetry(tx))
       {
-        if (tx.manual?.modulation == null) modulation = Modulation.FSK;
-        if (tx.manual?.framing == null) framing = Framing.HADES;
-        if (tx.manual?.baudrate == null) baud = 200;
+        if (ExtractyModulation(tx.manual?.modulation) == Modulation.Unknown)
+          modulation = Modulation.FSK;
+        if (ExtractFraming(tx.manual?.framing) == Framing.Unknown)
+          framing = Framing.HADES;
+        if (tx.manual?.baudrate is not > 0) baud = 200;
       }
       else if ((tx.norad_cat_id == Unne1bDeframer.NoradId ||
                 tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId) &&
@@ -120,33 +122,6 @@ namespace SkyRoof.Satellites
       }
 
     }
-
-    internal static bool IsUnne1b200BaudTelemetry(SatnogsDbTransmitter? tx)
-    {
-      if (IsUnne1bFmRepeater(tx)) return false;
-      if (tx == null ||
-          (tx.norad_cat_id != Unne1bDeframer.NoradId &&
-           tx.Satellite?.norad_cat_id != Unne1bDeframer.NoradId) ||
-          tx.downlink_low != 436888000L) return false;
-      // A data-specific baud tag distinguishes this row from co-frequency
-      // voice FM and CW. The real DB spells it "200bps", which the generic
-      // standalone-number parser does not recognise.
-      bool is200 = tx.baud == 200 || tx.gr_sats?.baudrate == 200 ||
-        Regex.IsMatch(tx.description ?? "", @"\b200\s*(?:bps|baud)\b",
-          RegexOptions.IgnoreCase);
-      if (!is200) return false;
-      var selectedMode = ExtractyModulation($"{tx.description} {tx.mode} {tx.DownlinkMode}");
-      return selectedMode is Modulation.FSK or Modulation.BPSK;
-    }
-
-    internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx) =>
-      tx != null &&
-      (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-       tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId) &&
-      tx.downlink_low == 436888000L &&
-      (string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) ||
-       string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase)) &&
-      (tx.description?.Contains("Repeater", StringComparison.OrdinalIgnoreCase) ?? false);
 
     private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
       Framing framing, Modulation modulation) =>

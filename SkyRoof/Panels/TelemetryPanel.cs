@@ -83,7 +83,6 @@ namespace SkyRoof
     // but a co-channel pair has TWO live pass nodes at once, so the pass a frame or image belongs to is
     // resolved by identity in EnsureCurrentPassNode instead of by position here.
     private TreeNode? Current;
-    private ILogger? FrameLogger;
     private DecodeSnapshot? CurrentDecode;
     // the status label's default text color, captured before any status update recolors it
     
@@ -161,6 +160,9 @@ namespace SkyRoof
     private bool SpeakerEnabledForClip;
     private System.Windows.Forms.Timer? ClipEndTimer;
     private TelemetryFrameArchive? BinaryArchive;
+    private TelemetryFrameArchive? LastArchive;
+    private string? ArchiveDirectory;
+    private readonly List<Task> archiveFlushingTasks = new();
 
     // Identity of the transmitter a decoder was built for, captured when the pipeline is created and bound to
     // that pipeline's event handlers. Frames surface on the decode worker thread, possibly after the user has
@@ -607,7 +609,6 @@ namespace SkyRoof
       ctx.MainForm.TelemetryMNU.Checked = true;
 
       SatnogsUploader = new SatnogsUploader(ctx);
-      BinaryArchive = new TelemetryFrameArchive();
 
       // FM speech transcript click-to-play (§10.4): hand cursor over a clickable line, play its audio on click
       richTextBox1.MouseMove += richTextBox1_MouseMove;
@@ -702,8 +703,8 @@ namespace SkyRoof
       var speech = FmSpeechEngine;
       var loadingSpeech = fmSpeechLoad;
       var uploader = SatnogsUploader;
-      var logger = FrameLogger;
-      var binaryArchive = BinaryArchive;
+      var binaryArchive = Interlocked.Exchange(ref BinaryArchive, null);
+      var completedArchives = archiveFlushingTasks.ToArray();
       FmSpeechEngine = null;
       // Keep these sinks alive until the decoder retirement task has
       // flushed its final pending packet at LOS/panel close.
@@ -714,7 +715,7 @@ namespace SkyRoof
         // finished before this queued retirement action is entered.
         if (binaryArchive != null)
           await binaryArchive.CompleteAsync().ConfigureAwait(false);
-        (logger as IDisposable)?.Dispose();
+        await Task.WhenAll(completedArchives).ConfigureAwait(false);
         speech?.Dispose();
         // Loading may finish after the window closes. Await on the cleanup
         // chain, not on WinForms, and release any unused ASR model.
@@ -814,26 +815,47 @@ namespace SkyRoof
     {
       Sibling = null;
       if (IsTelemetryDecodable()) return;
-      // The UNNE-1B FM repeater shares 436.888 MHz with the database's
-      // mislabeled 200 Bd telemetry row. Keep the operator's selected FM
-      // transmitter/CAT mode, but let the telemetry panel decode its sibling.
-      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter,
-        SignalParams);
-      if (!unneFmPair && !IsSstvDecodable() &&
-          !SignalParamsResolver.HasSsdv(Transmitter)) return;
+      // The UNNE FM and erroneous BPSK rows are the SAME downlink. An FM
+      // row must always have a 200-Bd FSK telemetry path, even if SatNOGS
+      // omitted the sibling record or its baud/mode fields.
+      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter);
+      if (unneFmPair)
+      {
+        Sibling = ResolveUnne1bFmTelemetrySource(Satellite, Transmitter);
+        return;
+      }
+      if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter))
+        return;
 
       var tx = CoChannel.RankedTelemetrySibling(Satellite, Transmitter);
-      if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p) Sibling = (tx, p);
+      if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p2)
+        Sibling = (tx, p2);
     }
 
     // The protocol-specific FM+FSK association must not affect other
     // satellites or other frequencies, and never changes CAT's selected TX.
     internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
-      SatnogsDbTransmitter? tx, SignalParams? selectedParams) =>
-      selectedParams?.Modulation == Modulation.FM &&
+      SatnogsDbTransmitter? tx) =>
+      SignalParamsResolver.IsUnne1bFmRepeater(tx) &&
       (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
-       tx?.norad_cat_id == Unne1bDeframer.NoradId) &&
-      tx?.downlink_low == 436888000L;
+       tx?.norad_cat_id == Unne1bDeframer.NoradId);
+
+    // Both the running panel and regression tests use exactly this
+    // resolver. FM selection never changes CAT, but receives the FSK
+    // sibling's payload; a missing SatNOGS BPSK row is NOT fatal.
+    internal static (SatnogsDbTransmitter Transmitter, SignalParams Params)?
+      ResolveUnne1bFmTelemetrySource(SatnogsDbSatellite? satellite,
+        SatnogsDbTransmitter? selected)
+    {
+      if (!ShouldUseUnneTelemetrySibling(satellite, selected) ||
+          selected == null) return null;
+      var digital = satellite?.Transmitters.FirstOrDefault(tx =>
+        tx != selected && tx.downlink_low == selected.downlink_low &&
+        SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+      if (digital != null && SignalParamsResolver.Resolve(digital) is SignalParams resolved)
+        return (digital, resolved);
+      return (selected, SignalParamsResolver.Unne1bFmTelemetryParams());
+    }
 
     /// <summary>Refresh the params tooltip on both status labels with the same "name: value" fields the Signal
     /// Details dialog shows (the values actually used for decoding, so the pipeline's locked deviation/baud
@@ -1224,8 +1246,7 @@ namespace SkyRoof
         transportPacket ? 1 : frame.CrcValid == false ? 2 : 0);
       // Persist the decoder's exact post-deframe bytes and integrity evidence.
       // This is a non-blocking queue, never synchronous disk I/O on DSP.
-      if (ctx.Settings.Telemetry.SaveDecodedBinLog)
-        BinaryArchive?.Offer(frame, snapshot.Satellite?.norad_cat_id,
+      Volatile.Read(ref BinaryArchive)?.Offer(frame, snapshot.Satellite?.norad_cat_id,
           snapshot.Satellite?.name, snapshot.Transmitter?.description,
           transportPacket);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
@@ -1289,6 +1310,44 @@ namespace SkyRoof
     //                                   signal params override
     //----------------------------------------------------------------------------------------------
     // gear button: open the signal-details editor for the current transmitter and apply any manual override
+    // Save starts at the user's click and keeps all historical frames out of
+    // the new folder. A second click finishes outstanding disk writes while
+    // decoding continues without retaining further packets.
+    private void SaveButton_Click(object sender, EventArgs e)
+    {
+      var active = Interlocked.Exchange(ref BinaryArchive, null);
+      if (active != null)
+      {
+        archiveFlushingTasks.Add(active.CompleteAsync());
+        SaveButton.Text = "SAVE";
+        toolTip1.SetToolTip(SaveButton,
+          SettingsLanguage.Text("选择目录并开始保存遥测", "Choose folder and save telemetry"));
+        RenderTelemetryStatus();
+        return;
+      }
+
+      using var dialog = new FolderBrowserDialog
+      {
+        Description = SettingsLanguage.Text(
+          "选择遥测 BIN、LOG 和文本记录的保存目录",
+          "Choose a directory for telemetry BIN, LOG and text records"),
+        UseDescriptionForTitle = true,
+        SelectedPath = ArchiveDirectory ??
+          Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+      };
+      if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+      ArchiveDirectory = dialog.SelectedPath;
+      var recorder = new TelemetryFrameArchive(dialog.SelectedPath);
+      LastArchive = recorder;
+      Volatile.Write(ref BinaryArchive, recorder);
+      SaveButton.Text = "STOP";
+      toolTip1.SetToolTip(SaveButton,
+        SettingsLanguage.Text("停止遥测归档（后台写完剩余数据）",
+          "Stop telemetry archival (flush remaining data in background)"));
+      RenderTelemetryStatus();
+    }
+
     private void SettingsButton_Click(object sender, EventArgs e)
     {
       // a transmitter with no parameters at all has the most to gain from Discover, and a hand-entered set
@@ -3224,29 +3283,16 @@ namespace SkyRoof
     // right pane
     private void SaveFrameToFile(Frame frame, string addr, string frameText, DecodeSnapshot snapshot)
     {
-      if (!ctx.Settings.Telemetry.ArchiveToFile) return;
-
-      FrameLogger ??= CreateFrameLogger();
+      var archive = Volatile.Read(ref BinaryArchive);
+      if (archive == null) return;
 
       string identity = snapshot.Transmitter == null ? DescribeTerrestrial(snapshot.TerrestrialHz)
-        : $"Sat: {snapshot.Transmitter.Satellite.name}  Tx: \"{snapshot.Transmitter.description}\"  Uuid: {snapshot.Transmitter.uuid}";
+        : $"Sat: {snapshot.Transmitter.Satellite?.name}  Tx: \"{snapshot.Transmitter.description}\"  Uuid: {snapshot.Transmitter.uuid}";
       string header = $"{identity}  Frame: {frame.Length} bytes" +
         (addr.Length > 0 ? $"  Addr: {addr}" : "");
-      FrameLogger.Information("{Header}\n{Body}", header, frameText);
-    }
-
-    private static ILogger CreateFrameLogger()
-    {
-      string fileName = Path.Combine(Utils.GetUserDataFolder(), "TelemetryDecodes", "frames_.txt");
-      // both zones, so that a decode can be matched against the UTC-stamped system log and
-      // against the local-time file names of the images saved from the same pass
-      return new LoggerConfiguration()
-        .Enrich.With<UtcTimeEnricher>()
-        .WriteTo.File(fileName,
-          rollingInterval: RollingInterval.Day,
-          outputTemplate: "{Utc:yyyy-MM-dd HH:mm:ss}Z  ({Timestamp:HH:mm:ss} LT)  {Message:lj}{NewLine}",
-          shared: true)
-        .CreateLogger();
+      string utc = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+      archive.OfferText($"{utc}Z  {header}{Environment.NewLine}{frameText}",
+        DateTime.UtcNow);
     }
 
     internal void UpdateTxStatus()
@@ -3321,16 +3367,27 @@ namespace SkyRoof
           : SatnogsUploader?.Status ?? SettingsLanguage.Text("未连接", "Disconnected"));
       if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
         SatnogsStatusLabel.Text = upload;
-      // Surface both archive progress and the actual upload outcome without
-      // allocating/invalidating tree items or replacing the receive status.
-      string archive = ctx.Settings.Telemetry.SaveDecodedBinLog
+      // Present save progress separately from SatNOGS: operators need to
+      // see both without hovering over the upload label.
+      var saving = Volatile.Read(ref BinaryArchive);
+      var recorder = saving ?? LastArchive;
+      string archive = saving != null
         ? SettingsLanguage.Text(
-            $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}",
-            $"BIN+LOG saved: {BinaryArchive?.Saved ?? 0} / errors: {BinaryArchive?.Errors ?? 0}")
-        : SettingsLanguage.Text("BIN+LOG 保存: 未启用", "BIN+LOG saving: disabled");
-      if (!string.Equals(toolTip1.GetToolTip(SatnogsStatusLabel), archive,
+            $"BIN+LOG: 保存中  {recorder?.Saved ?? 0} 帧 / 失败 {recorder?.Errors ?? 0}",
+            $"BIN+LOG: REC  {recorder?.Saved ?? 0} frames / errors {recorder?.Errors ?? 0}")
+        : recorder != null
+          ? SettingsLanguage.Text(
+              $"BIN+LOG: 已停止  {recorder.Saved} 帧 / 失败 {recorder.Errors}",
+              $"BIN+LOG: STOPPED  {recorder.Saved} frames / errors {recorder.Errors}")
+          : SettingsLanguage.Text("BIN+LOG: 未保存（点击 SAVE）",
+              "BIN+LOG: OFF (press SAVE)");
+      if (!string.Equals(SaveStatusLabel.Text, archive, StringComparison.Ordinal))
+        SaveStatusLabel.Text = archive;
+      string pathHint = ArchiveDirectory ?? SettingsLanguage.Text(
+        "点击 SAVE 选择保存目录", "Press SAVE to select a destination folder");
+      if (!string.Equals(toolTip1.GetToolTip(SaveStatusLabel), pathHint,
           StringComparison.Ordinal))
-        toolTip1.SetToolTip(SatnogsStatusLabel, archive);
+        toolTip1.SetToolTip(SaveStatusLabel, pathHint);
     }
 
     private void RefreshTelemetryDiagnosticsTooltip()

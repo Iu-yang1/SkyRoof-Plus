@@ -96,6 +96,9 @@ jobs:
             $replaceV178 = $version -eq '1.78' -and
               "${{ github.event_name }}" -eq 'push' -and
               (Get-Content Directory.Build.props -Raw).Contains('v1.78-zh-toolbar-padding-replacement-20261115')
+            $replaceV186 = $version -eq '1.86' -and
+              "${{ github.event_name }}" -eq 'push' -and
+              (Get-Content Directory.Build.props -Raw).Contains('v1.86-unne-save-fm-bpsk-replacement-20261118')
             if ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
@@ -129,6 +132,23 @@ jobs:
               }
               "REPLACE_V178=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
               Write-Host "Authorized one-time v.1.78 localized toolbar geometry and tooltip replacement"
+            }
+            elseif ($replaceV186) {
+              if ($existingSha -ne 'd894f40350abea40c0a73e79d27eb0f63f94871b') {
+                throw 'v.1.86 original tag has moved; refusing replacement'
+              }
+              $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or $null -eq $oldRelease -or
+                  $oldRelease.id -ne 449585754 -or $oldRelease.prerelease -ne $false) {
+                throw 'v.1.86 Release identity differs from verified stable baseline'
+              }
+              $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.86.exe' })
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 762138244 -or
+                  $oldAsset[0].digest -ne 'sha256:4943f979f46a3690a6c7df98df8fdbb32d676c2a95fe67e8fc15cde7b880a4c6') {
+                throw 'v.1.86 published installer was changed before replacement'
+              }
+              "REPLACE_V186=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+              Write-Host "Authorized in-place v.1.86 SAVE and UNNE FM/BPSK decode replacement"
             }
             elseif (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
@@ -418,7 +438,7 @@ jobs:
           # Only user-authorized v.1.86 and previous explicitly listed versions may be unsigned stable; all other unsigned builds remain prereleases.
           prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' && steps.get_version.outputs.version != '1.76' && steps.get_version.outputs.version != '1.77' && steps.get_version.outputs.version != '1.78' && steps.get_version.outputs.version != '1.82' && steps.get_version.outputs.version != '1.86' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
-          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' || env.REPLACE_V178 == 'true' }}
+          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' || env.REPLACE_V178 == 'true' || env.REPLACE_V186 == 'true' }}
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body_path: RELEASE_NOTES.md
@@ -521,6 +541,39 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.78 release target commit' }
           Write-Host "v.1.78 replacement verified SHA-256: $localHash"
+
+      - name: Finalize one-time v.1.86 telemetry SAVE and UNNE auto-decode installer replacement
+        if: env.REPLACE_V186 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.86'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = 'd894f40350abea40c0a73e79d27eb0f63f94871b'
+          $name = 'SkyRoofSetup-v.1.86.exe'
+          $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release -or
+              $release.id -ne 449585754 -or $release.prerelease -ne $false) {
+            throw 'v.1.86 Release identity changed during rebuild'
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].digest -ne "sha256:$localHash") {
+            throw 'The freshly uploaded v.1.86 installer SHA-256 does not match the local build'
+          }
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or
+              (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw 'v.1.86 tag moved during release upload; refusing retarget'
+          }
+          git tag -f $tag $newCommit
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget v.1.86 after installer verification' }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.86 release target commit' }
+          Write-Host "v.1.86 rebuilt in place: $newCommit sha256:$localHash"
 
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh

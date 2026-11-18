@@ -94,3 +94,10 @@ With no active decoder, telemetry capture continues to monitor ingress count and
 Enable **Telemetry Settings → Save Decoded BIN + LOG** to write each decoded frame as a matching `.bin` (post-deframing/desedambling `Frame.Bytes`, with protocol FCS removed where applicable) and UTF-8 `.log` (UTC, source, length, CRC/FEC, corrections, CFO, SNR, HEX) under `TelemetryDecodes/Binary/<NORAD>/<UTC day>/`. These are *decoded payload bytes*, not IQ nor an exact on-air codeword; CRC-failed frames retain a FAIL marker and are still archived for diagnosis. The existing Save to File text archive is unchanged. A dedicated SatNOGS row shows disabled/misconfigured/pending/success/failed and recent HTTP result; replay and unconfirmed user override suppress upload.
 
 **Limitation:** A passed public genuine-IQ regression does not validate the user's particular IC-9700 recording, packet error rate, Windows docked FPS or hardware end-to-end setup.
+
+
+## Current v1.86 replacement build: SAVE/STOP in telemetry panel
+
+Use **SAVE** next to the satellite telemetry signal-parameter gear to choose an archive destination and start recording. Press **STOP** to finish recording; outstanding BIN/LOG writes drain asynchronously. The **BIN+LOG** status is displayed separately from the **SatNOGS upload** status (no hover required). Decoded `.bin` and corresponding UTF-8 `.log` files are stored under `<selected directory>/<NORAD>/<UTC date>/`, with the readable `frames_YYYYMMDD.txt` alongside the selected directory. The two legacy archive configuration switches are hidden but their serialized fields remain compatible. Recording does not enable SatNOGS uploading.
+
+UNNE-1B's FM repeater and BPSK-labelled telemetry row share the same 436.888-MHz downlink. In both selections the telemetry panel can run the 2-FSK/HADES Type-C/200-Bd/820-Hz decoder. The FM row keeps CAT/radio FM mode; it borrows its digital sibling or falls back to the confirmed protocol parameters if that database row is absent. An omitted SatNOGS baud value no longer blocks the digital FSK auto-resolution. Other satellites and AOS/LOS remain unchanged.

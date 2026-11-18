@@ -16,13 +16,15 @@ namespace SkyRoof
   /// </summary>
   internal sealed class TelemetryFrameArchive
   {
+    private abstract record ArchiveItem;
     private sealed record Entry(
       byte[] Bytes, DateTime Utc, long Sequence, int? NoradId,
       string Satellite, string Transmitter, double CfoHz, double SnrDb,
       bool? CrcValid, int CorrectedBits, int ErasedBytes,
-      string Framing, string Note, bool InnerTransport);
+      string Framing, string Note, bool InnerTransport) : ArchiveItem;
+    private sealed record TextEntry(DateTime Utc, string Text) : ArchiveItem;
 
-    private readonly Channel<Entry> queue = Channel.CreateUnbounded<Entry>(
+    private readonly Channel<ArchiveItem> queue = Channel.CreateUnbounded<ArchiveItem>(
       new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task worker;
     private readonly string rootDirectory;
@@ -53,6 +55,12 @@ namespace SkyRoof
       queue.Writer.TryWrite(entry);
     }
 
+    // The readable legacy frames_YYYYMMDD.txt is written through the
+    // very same background queue as the binary records. No disk I/O on
+    // WinForms or on the decoder callback thread.
+    internal void OfferText(string text, DateTime utc) =>
+      queue.Writer.TryWrite(new TextEntry(utc, text));
+
     internal async Task CompleteAsync()
     {
       queue.Writer.TryComplete();
@@ -61,10 +69,21 @@ namespace SkyRoof
 
     private async Task ProcessAsync()
     {
-      await foreach (var entry in queue.Reader.ReadAllAsync().ConfigureAwait(false))
+      await foreach (var item in queue.Reader.ReadAllAsync().ConfigureAwait(false))
       {
         try
         {
+          if (item is TextEntry text)
+          {
+            Directory.CreateDirectory(rootDirectory);
+            await File.AppendAllTextAsync(
+              Path.Combine(rootDirectory,
+                $"frames_{text.Utc:yyyyMMdd}.txt"),
+              text.Text + Environment.NewLine, new UTF8Encoding(false))
+              .ConfigureAwait(false);
+            continue;
+          }
+          var entry = (Entry)item;
           string root = Path.Combine(rootDirectory,
             (entry.NoradId?.ToString(CultureInfo.InvariantCulture) ?? "Unknown"),
             entry.Utc.ToString("yyyyMMdd", CultureInfo.InvariantCulture));

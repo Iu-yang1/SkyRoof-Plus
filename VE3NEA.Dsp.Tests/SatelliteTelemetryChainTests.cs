@@ -141,6 +141,31 @@ public sealed class SatelliteTelemetryChainTests
     }
 
     [Theory]
+    [InlineData("BPSK", "Mode U - BPSK", null)]
+    [InlineData("BPSK", "Mode U - BPSK (wrong FM metadata)", null)]
+    [InlineData("BPSK", "", null)]
+    [InlineData("BPSK", "Mode U - telemetry", 200)]
+    [InlineData("FSK", "Mode U - data", null)]
+    public void UnneBpskRowWithoutReliableSatnogsBaudStillAutoDecodes(
+        string mode, string description, int? baud)
+    {
+        var tx = new SatnogsDbTransmitter
+        {
+            norad_cat_id = Unne1bDeframer.NoradId,
+            downlink_low = 436888000, description = description,
+            mode = mode, DownlinkMode = mode, baud = baud
+        };
+        if (description.Contains("wrong FM metadata"))
+          tx.DownlinkMode = "FM";
+        Assert.True(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+        var resolved = SignalParamsResolver.Resolve(tx)!;
+        Assert.Equal(Modulation.FSK, resolved.Modulation);
+        Assert.Equal(Framing.HADES, resolved.Framing);
+        Assert.Equal(200, resolved.Baud);
+        Assert.Equal(820, resolved.Deviation);
+    }
+
+    [Theory]
     [InlineData("Mode V/U - FM Repeater (Voice + (A)FSK)", "FM", null)]
     [InlineData("Mode U - CW", "CW", null)]
     [InlineData("Mode U - 200bps BPSK", "BPSK", 200)]
@@ -192,11 +217,24 @@ public sealed class SatelliteTelemetryChainTests
         sat.Transmitters.AddRange([fm, telemetry]);
         Assert.True(SignalParamsResolver.IsUnne1bFmRepeater(fm));
         Assert.Equal(Modulation.FM, SignalParamsResolver.Resolve(fm)!.Modulation);
-        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm,
-            SignalParamsResolver.Resolve(fm)));
+        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm));
         Assert.Same(telemetry, CoChannel.RankedTelemetrySibling(sat, fm));
-        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry,
-            SignalParamsResolver.Resolve(telemetry)));
+        var paired = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
+        Assert.True(paired.HasValue);
+        Assert.Same(telemetry, paired.Value.Transmitter);
+        Assert.Equal(Modulation.FSK, paired.Value.Params.Modulation);
+        Assert.Equal(Framing.HADES, paired.Value.Params.Framing);
+        Assert.Equal(200, paired.Value.Params.Baud);
+        Assert.Equal(820, paired.Value.Params.Deviation);
+        sat.Transmitters.Remove(telemetry);
+        var missingDbFallback = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
+        Assert.True(missingDbFallback.HasValue);
+        Assert.Same(fm, missingDbFallback.Value.Transmitter);
+        Assert.Equal(Modulation.FSK, missingDbFallback.Value.Params.Modulation);
+        Assert.Equal(Framing.HADES, missingDbFallback.Value.Params.Framing);
+        Assert.Equal(200, missingDbFallback.Value.Params.Baud);
+        Assert.Equal(820, missingDbFallback.Value.Params.Deviation);
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry));
         var other = new SatnogsDbSatellite { norad_cat_id = 99999 };
         var otherFm = new SatnogsDbTransmitter
         {
@@ -204,8 +242,7 @@ public sealed class SatelliteTelemetryChainTests
             mode = "FM", DownlinkMode = "FM", description = "FM repeater",
             downlink_low = 436888000
         };
-        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm,
-            SignalParamsResolver.Resolve(otherFm)));
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm));
     }
 
     [Fact]
@@ -223,6 +260,8 @@ public sealed class SatelliteTelemetryChainTests
                 CrcValid = false, CfoHz = -1211.2, SnrDb = 28.6,
                 CorrectedBits = 2, Note = "UNNE-1B candidate"
             }, Unne1bDeframer.NoradId, "UNNE-1B", "FSK 200", false);
+            archive.OfferText("2026-11-18: UNNE-1B decoded candidate",
+                new DateTime(2026, 11, 18, 10, 0, 0, DateTimeKind.Utc));
             await archive.CompleteAsync();
             Assert.Equal(1, archive.Saved);
             Assert.Equal(0, archive.Errors);
@@ -236,6 +275,8 @@ public sealed class SatelliteTelemetryChainTests
             Assert.Contains("CFO: -1211.2 Hz", metadata);
             Assert.Contains("HEX: 3C010203", metadata);
             Assert.Contains("Corrections: 2", metadata);
+            string textFile = Assert.Single(Directory.GetFiles(root, "frames_*.txt"));
+            Assert.Contains("UNNE-1B decoded candidate", File.ReadAllText(textFile));
         }
         finally
         {

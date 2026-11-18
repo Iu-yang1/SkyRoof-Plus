@@ -1,5 +1,20 @@
 # SkyRoof-Plus v.1.86
 
+### v1.86 同版本安装包替换 — 2026-11-18：遥测 SAVE 按钮及 UNNE-1B 同频自动识别
+
+这次是用户明确要求的 **v1.86 同版本安装程序替换**，不增加版本号、不创建 v1.87 Release。当前 v1.86 安装包重建后仍使用 `SkyRoofSetup-v.1.86.exe`，新 SHA-256 及 Authenticode 实际状态以本次 Build and Release 工作流为准。旧 v1.86 下载链接指向替换后的安装包，因此历史安装包哈希不再适用；不修改更早的版本。
+
+- **遥测面板 SAVE / STOP：** 顶部解码参数齿轮旁新增独立 `SAVE` 按钮。点击选择保存目录，立即开始当前会话逐帧归档；再次点击 `STOP` 停止接收新归档并由后台写完已排队帧。直接在面板显示 `BIN+LOG` 保存状态、已存帧数和错误计数，SatNOGS 上传状态保留为另一行。原设置中的 `Save to File` 与 `Save Decoded BIN + LOG` 只保留旧 JSON 的兼容字段，不再显示或控制归档。
+- 指定目录下按 `<NORAD>/<UTC日期>/` 保存每帧解码后的 `.bin` 与同名 UTF-8 `.log`（CRC、CFO、SNR、纠错、HEX、来源和时间），另写 `frames_YYYYMMDD.txt` 文本记录。所有实际写盘在单独后台队列完成，不阻塞遥测解码或 WinForms 重绘。保存目录由操作者在按钮中选择，软件不再擅自写入旧默认路径。
+- **UNNE-1B FM 与 BPSK 两条入口均可进入 FSK：** 对 NORAD 101101 / 436.888 MHz 的错误 SatNOGS BPSK 行，不再硬性要求数据源提供 200-baud 字段；没有用户手动覆盖时自动选择 2-FSK、HADES Type-C、200 baud、820 Hz 峰值频偏。同频 FM 行保留 CAT/FM 模式，但其遥测面板关联正确的 BPSK 数据行；即使该行缺失，也使用相同的专用 FSK 参数作为后备，不再出现“暂不支持此遥测模式”。
+- 用户手动参数覆盖、其他卫星识别、原有 AOS/LOS 门控、SatNOGS 上传凭据及授权行为不变。新增自动识别、缺字段、FM 同频与回退测试，以及自选文件夹 BIN+LOG/文本保存测试。
+- 发布前执行 Windows Compile Check / xUnit、公开 UNNE-1B 原始 I/Q 的严格 200-baud / 820-Hz / ±800-Hz CFO 回归、aislop 与发行包回读哈希验收。整场用户 IC-9700 I/Q 在 SkyRoof GUI 的 PER 与实际停靠 UI FPS 仍不视为已完成实机验证。
+
+**English:** In-place v1.86 installer replacement (no new tag/version): the telemetry panel gains a prominent SAVE/STOP button that asks for the destination directory and records decoded BIN+LOG pairs plus readable frame text asynchronously. BIN+LOG and SatNOGS upload each have their own visible status line. The mislabeled UNNE-1B 436.888-MHz BPSK row resolves to verified FSK/HADES 200 Bd, 820-Hz deviation even without a baud field; FM selection drives the same FSK telemetry receiver, with a protocol fallback when its database sibling is missing, while CAT/FM and AOS/LOS remain unchanged.
+
+---
+
+
 ## v1.86 — 2026-11-18 UNNE-1B 默认接收链真实 I/Q / CRC / CFO 验收正式版
 
 本版基于已合并的 [PR #246](https://github.com/Iu-yang1/SkyRoof-Plus/pull/246)（UNNE-1B FSK 自动识别、停靠遥测 UI 性能、BIN+LOG 与 SatNOGS 状态）和 [PR #248](https://github.com/Iu-yang1/SkyRoof-Plus/pull/248)（严格生产链模拟验收）。**创建新的 v.1.86 程序、标签和安装包，不覆盖 v.1.85 或任何历史 Release 资产。**

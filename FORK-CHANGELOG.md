@@ -1,5 +1,15 @@
 # SkyRoof Fork v.1.86 / UNNE-1B Production IQ/CRC/CFO Validated Stable
 
+### v.1.86 原位安装包替换（不递增版本号）— 2026-11-18
+
+- 卫星遥测窗口齿轮旁新增 `SAVE / STOP` 按钮：点击选择目录；本次会话的解码后 `.bin`、同名元数据 `.log`、可读日记录 `frames_YYYYMMDD.txt` 全部后台归档。取消两个原有保存设置选项，保留配置反序列化兼容。
+- 另加一行可见 BIN+LOG 保存状态，SatNOGS 上传状态仍独立显示，避免只能通过 Tooltip 查看归档计数。
+- UNNE-1B 的同频 FM/BPSK 发射机均能驱动 FSK/HADES/200 Bd/820 Hz 遥测链。BPSK 行缺失波特率不再阻止识别；FM 行没有可用数字 sibling 时使用独立 FSK 后备参数，不修改 CAT/FM 选台和 AOS/LOS。
+- 一次性替换既有 v.1.86 Release 安装包和标签所指向的已验证源码；不会创建新版本。仅旧 v1.86 安装包哈希会因本次明确授权的重建而改变，安装包回读校验及未签名状态仍明确公开。
+
+---
+
+
 ## v1.86 — 2026-11-18
 
 - 合并 PR #248：以源于 2026-11-18 用户 48-kHz 双声道 I/Q 录音的 Type 8 / Type 1 实际加扰帧作为原始字节向量，分别核验 CRC-CCITT-FALSE 0x3549 / 0x9611、0xBF35 同步与 29 字节解扰负载。补测 12-kHz IF 前端在实测 −800 Hz 及此前 −1211 Hz CFO 下的双音保真度。

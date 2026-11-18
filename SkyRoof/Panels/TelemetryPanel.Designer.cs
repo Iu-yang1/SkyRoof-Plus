@@ -32,8 +32,10 @@
       SatNameLabel = new Label();
       toolTip1 = new VE3NEA.ToolTipEx(components);
       SettingsButton = new Button();
+      SaveButton = new Button();
       StatusLabel = new Label();
       SatnogsStatusLabel = new Label();
+      SaveStatusLabel = new Label();
       treeView1 = new TreeView();
       MenuStrip = new ContextMenuStrip(components);
       richTextBox1 = new RichTextBox();
@@ -70,6 +72,10 @@
       // 
       SatNameLabel.Dock = DockStyle.Top;
       SatNameLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+      SatNameLabel.AutoEllipsis = true;
+      // Reserve space for the SAVE and parameter buttons even when docked
+      // in a narrow group. The satellite caption must not paint under them.
+      SatNameLabel.Padding = new Padding(4, 0, 98, 0);
       SatNameLabel.Location = new Point(0, 0);
       SatNameLabel.Name = "SatNameLabel";
       SatNameLabel.Size = new Size(669, 23);
@@ -91,6 +97,21 @@
       SettingsButton.UseVisualStyleBackColor = false;
       SettingsButton.Click += SettingsButton_Click;
       // 
+      // SaveButton
+      //
+      SaveButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+      SaveButton.BackColor = SystemColors.ButtonFace;
+      SaveButton.Cursor = Cursors.Hand;
+      SaveButton.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+      SaveButton.Location = new Point(576, 3);
+      SaveButton.Name = "SaveButton";
+      SaveButton.Size = new Size(57, 26);
+      SaveButton.TabIndex = 6;
+      SaveButton.Text = "SAVE";
+      toolTip1.SetToolTip(SaveButton, "Select folder and start BIN+LOG recording");
+      SaveButton.UseVisualStyleBackColor = false;
+      SaveButton.Click += SaveButton_Click;
+      //
       // StatusLabel
       // 
       StatusLabel.Dock = DockStyle.Top;
@@ -102,11 +123,23 @@
       StatusLabel.Text = "___";
       StatusLabel.TextAlign = ContentAlignment.MiddleCenter;
       // 
+      // SaveStatusLabel
+      //
+      SaveStatusLabel.Dock = DockStyle.Top;
+      SaveStatusLabel.Font = new Font("Segoe UI", 8F);
+      SaveStatusLabel.Location = new Point(0, 46);
+      SaveStatusLabel.Name = "SaveStatusLabel";
+      SaveStatusLabel.Size = new Size(669, 21);
+      SaveStatusLabel.TabIndex = 4;
+      SaveStatusLabel.Text = "BIN+LOG: OFF";
+      SaveStatusLabel.AutoEllipsis = true;
+      SaveStatusLabel.TextAlign = ContentAlignment.MiddleCenter;
+      //
       // SatnogsStatusLabel
       //
       SatnogsStatusLabel.Dock = DockStyle.Top;
       SatnogsStatusLabel.Font = new Font("Segoe UI", 8F);
-      SatnogsStatusLabel.Location = new Point(0, 46);
+      SatnogsStatusLabel.Location = new Point(0, 67);
       SatnogsStatusLabel.Name = "SatnogsStatusLabel";
       SatnogsStatusLabel.Size = new Size(669, 21);
       SatnogsStatusLabel.TabIndex = 3;
@@ -150,7 +183,7 @@
       // 
       splitContainer1.Dock = DockStyle.Fill;
       splitContainer1.FixedPanel = FixedPanel.Panel1;
-      splitContainer1.Location = new Point(0, 67);
+      splitContainer1.Location = new Point(0, 88);
       splitContainer1.Name = "splitContainer1";
       // 
       // splitContainer1.Panel1
@@ -161,7 +194,7 @@
       // 
       splitContainer1.Panel2.Controls.Add(ImageSplitContainer);
       splitContainer1.Panel2.Controls.Add(richTextBox1);
-      splitContainer1.Size = new Size(669, 505);
+      splitContainer1.Size = new Size(669, 484);
       splitContainer1.SplitterDistance = 247;
       splitContainer1.TabIndex = 5;
       // 
@@ -291,8 +324,10 @@
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(669, 572);
       Controls.Add(SettingsButton);
+      Controls.Add(SaveButton);
       Controls.Add(splitContainer1);
       Controls.Add(SatnogsStatusLabel);
+      Controls.Add(SaveStatusLabel);
       Controls.Add(StatusLabel);
       Controls.Add(SatNameLabel);
       Name = "TelemetryPanel";
@@ -318,8 +353,10 @@
     public Label SatNameLabel;
     private VE3NEA.ToolTipEx toolTip1;
     private Button SettingsButton;
+    private Button SaveButton;
     public Label StatusLabel;
     public Label SatnogsStatusLabel;
+    public Label SaveStatusLabel;
     private TreeView treeView1;
     private RichTextBox richTextBox1;
     private SplitContainer splitContainer1;
