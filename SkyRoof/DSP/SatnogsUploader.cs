@@ -67,13 +67,21 @@ namespace SkyRoof
 
     public void Dispose()
     {
+      // Legacy synchronous caller: no UI-thread join, and never dispose
+      // the queue while an HTTP request still owns its enumerator.
       Queue.CompleteAdding();
-      try { Worker.Wait(TimeSpan.FromSeconds(2)); }
-      catch (Exception ex)
-      {
-        Log.Warning("SatNOGS uploader worker shutdown failed ({Type})", ex.GetType().Name);
-      }
-      Queue.Dispose();
+      _ = Worker.ContinueWith(_ => Queue.Dispose(),
+        CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
+    }
+
+    internal async Task CompleteAsync()
+    {
+      // Called after the receiver has flushed its last frame on a separate
+      // retirement task. Finish queued uploads without blocking WinForms.
+      Queue.CompleteAdding();
+      try { await Worker.ConfigureAwait(false); }
+      finally { Queue.Dispose(); }
     }
 
 
