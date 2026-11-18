@@ -13,6 +13,11 @@ namespace VE3NEA.Dsp.Tests
     [InlineData(1700, 2200)]
     [InlineData(12000, 13500)]
     [InlineData(12000, 10500)]
+    // UNNE-1B screenshot CFO -1211 Hz, genuine-IQ verified +/-820 Hz
+    // peak deviation: ensure neither mark nor space is lost in the
+    // real-IF -> analytic IQ stage, including the -2031 Hz lower tone.
+    [InlineData(12000, 9969)]
+    [InlineData(12000, 11609)]
     [InlineData(1700, 1200)]
     public void RealIfAndAf_AreTranslatedToContinuousComplexBaseband(
       int centerHz, int testHz)
