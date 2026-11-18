@@ -72,6 +72,10 @@
       // 
       SatNameLabel.Dock = DockStyle.Top;
       SatNameLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+      SatNameLabel.AutoEllipsis = true;
+      // Reserve space for the SAVE and parameter buttons even when docked
+      // in a narrow group. The satellite caption must not paint under them.
+      SatNameLabel.Padding = new Padding(4, 0, 98, 0);
       SatNameLabel.Location = new Point(0, 0);
       SatNameLabel.Name = "SatNameLabel";
       SatNameLabel.Size = new Size(669, 23);
