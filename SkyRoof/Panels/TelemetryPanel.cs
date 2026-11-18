@@ -822,13 +822,7 @@ namespace SkyRoof
         SignalParams);
       if (unneFmPair)
       {
-        var digital = Satellite?.Transmitters.FirstOrDefault(tx =>
-          tx != Transmitter && tx.downlink_low == Transmitter?.downlink_low &&
-          SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
-        if (digital != null && SignalParamsResolver.Resolve(digital) is SignalParams p)
-          Sibling = (digital, p);
-        else if (Transmitter != null)
-          Sibling = (Transmitter, SignalParamsResolver.Unne1bFmTelemetryParams());
+        Sibling = ResolveUnne1bFmTelemetrySource(Satellite, Transmitter);
         return;
       }
       if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter))
@@ -846,6 +840,23 @@ namespace SkyRoof
       SignalParamsResolver.IsUnne1bFmRepeater(tx) &&
       (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
        tx?.norad_cat_id == Unne1bDeframer.NoradId);
+
+    // Both the running panel and regression tests use exactly this
+    // resolver. FM selection never changes CAT, but receives the FSK
+    // sibling's payload; a missing SatNOGS BPSK row is NOT fatal.
+    internal static (SatnogsDbTransmitter Transmitter, SignalParams Params)?
+      ResolveUnne1bFmTelemetrySource(SatnogsDbSatellite? satellite,
+        SatnogsDbTransmitter? selected)
+    {
+      if (!ShouldUseUnneTelemetrySibling(satellite, selected, null) ||
+          selected == null) return null;
+      var digital = satellite?.Transmitters.FirstOrDefault(tx =>
+        tx != selected && tx.downlink_low == selected.downlink_low &&
+        SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+      if (digital != null && SignalParamsResolver.Resolve(digital) is SignalParams resolved)
+        return (digital, resolved);
+      return (selected, SignalParamsResolver.Unne1bFmTelemetryParams());
+    }
 
     /// <summary>Refresh the params tooltip on both status labels with the same "name: value" fields the Signal
     /// Details dialog shows (the values actually used for decoding, so the pipeline's locked deviation/baud
