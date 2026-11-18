@@ -206,6 +206,41 @@ public sealed class SatelliteTelemetryChainTests
             SignalParamsResolver.Resolve(otherFm)));
     }
 
+    [Fact]
+    public async Task DecodedBinAndLogPreserveBytesIntegrityAndCfo()
+    {
+        string root = Path.Combine(Path.GetTempPath(),
+            "skyroof-telemetry-archive-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var archive = new TelemetryFrameArchive(root);
+            byte[] bytes = [0x3C, 0x01, 0x02, 0x03];
+            archive.Offer(new Frame
+            {
+                Bytes = bytes, Framing = Framing.HADES,
+                CrcValid = false, CfoHz = -1211.2, SnrDb = 28.6,
+                CorrectedBits = 2, Note = "UNNE-1B candidate"
+            }, Unne1bDeframer.NoradId, "UNNE-1B", "FSK 200", false);
+            await archive.CompleteAsync();
+            Assert.Equal(1, archive.Saved);
+            Assert.Equal(0, archive.Errors);
+            string bin = Assert.Single(Directory.GetFiles(root, "*.bin",
+                SearchOption.AllDirectories));
+            string log = Assert.Single(Directory.GetFiles(root, "*.log",
+                SearchOption.AllDirectories));
+            Assert.Equal(bytes, File.ReadAllBytes(bin));
+            string metadata = File.ReadAllText(log);
+            Assert.Contains("CRC/FEC: FAIL", metadata);
+            Assert.Contains("CFO: -1211.2 Hz", metadata);
+            Assert.Contains("HEX: 3C010203", metadata);
+            Assert.Contains("Corrections: 2", metadata);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(Modulation.FSK, TelemetryFskAfInput.ToneAudio, false)]
     [InlineData(Modulation.GFSK, TelemetryFskAfInput.ToneAudio, false)]
