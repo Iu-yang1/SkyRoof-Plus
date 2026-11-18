@@ -25,6 +25,7 @@ namespace SkyRoof
     private readonly Channel<Entry> queue = Channel.CreateUnbounded<Entry>(
       new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task worker;
+    private readonly string rootDirectory;
     private long sequence;
     private long saved;
     private long errors;
@@ -32,7 +33,12 @@ namespace SkyRoof
     internal long Saved => Interlocked.Read(ref saved);
     internal long Errors => Interlocked.Read(ref errors);
 
-    internal TelemetryFrameArchive() => worker = Task.Run(ProcessAsync);
+    internal TelemetryFrameArchive(string? rootDirectory = null)
+    {
+      this.rootDirectory = rootDirectory ?? Path.Combine(Utils.GetUserDataFolder(),
+        "TelemetryDecodes", "Binary");
+      worker = Task.Run(ProcessAsync);
+    }
 
     internal void Offer(Frame frame, int? noradId, string? satellite,
       string? transmitter, bool innerTransport)
@@ -59,8 +65,7 @@ namespace SkyRoof
       {
         try
         {
-          string root = Path.Combine(Utils.GetUserDataFolder(),
-            "TelemetryDecodes", "Binary",
+          string root = Path.Combine(rootDirectory,
             (entry.NoradId?.ToString(CultureInfo.InvariantCulture) ?? "Unknown"),
             entry.Utc.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
           Directory.CreateDirectory(root);
