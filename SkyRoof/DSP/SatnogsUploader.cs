@@ -111,12 +111,12 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     //                                      worker
     //----------------------------------------------------------------------------------------------
-    private void ProcessQueue()
+    private async Task ProcessQueue()
     {
       foreach (var item in Queue.GetConsumingEnumerable())
       {
         Interlocked.Increment(ref inFlight);
-        try { Post(item); }
+        try { await PostAsync(item).ConfigureAwait(false); }
         catch (Exception e)
         {
           Interlocked.Increment(ref failed);
@@ -127,7 +127,7 @@ namespace SkyRoof
       }
     }
 
-    private void Post(Submission item)
+    private async Task PostAsync(Submission item)
     {
       if (!ctx.Settings.Telemetry.SatnogsUploader.Enabled) return;
 
@@ -146,7 +146,7 @@ namespace SkyRoof
       using var content = new FormUrlEncodedContent(fields);
       using var request = new HttpRequestMessage(HttpMethod.Post, Url) { Content = content };
       request.Headers.TryAddWithoutValidation("Authorization", $"Token {item.Token}");
-      using var response = Http.Send(request);
+      using var response = await Http.SendAsync(request).ConfigureAwait(false);
 
       if (response.IsSuccessStatusCode)
       {
@@ -160,7 +160,7 @@ namespace SkyRoof
         Interlocked.Increment(ref failed);
         Volatile.Write(ref lastResult, $"HTTP {(int)response.StatusCode}");
         string reason;
-        try { reason = response.Content.ReadAsStringAsync().Result.Trim(); }
+        try { reason = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Trim(); }
         catch (Exception e) { reason = $"<body unreadable: {e.Message}>"; }
         Log.Warning("SatNOGS upload rejected: HTTP {Code} {Reason} {Body}",
           (int)response.StatusCode, response.ReasonPhrase, reason);
