@@ -86,11 +86,14 @@ namespace SkyRoof
     [DefaultValue(0.0)]
     public double FskAfDeviationHz { get; set; }
 
+    // Kept for backward-compatible JSON; UI controls saving per-session.
+    [Browsable(false)]
     [DisplayName("Save to File")]
     [Description("Save decoded frames to a file")]
     [DefaultValue(false)]
     public bool ArchiveToFile { get; set; }
 
+    [Browsable(false)]
     [DisplayName("Save Decoded BIN + LOG")]
     [Description("Write each decoded telemetry payload as a .bin file and a matching UTF-8 .log file in TelemetryDecodes/Binary. Keeps CRC-failed or unverified payloads with their integrity metadata for analysis. These are decoded bytes, not raw on-air IQ.")]
     [DefaultValue(false)]
