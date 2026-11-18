@@ -26,8 +26,30 @@ namespace SkyRoof
     private readonly Context ctx;
     private readonly BlockingCollection<Submission> Queue = new();
     private readonly Task Worker;
+    private long uploaded, failed;
+    private int inFlight;
+    private string lastResult = "waiting";
 
-    private record Submission(string Token, byte[] Body, DateTime Timestamp);
+    private record Submission(string Token, string Call, string Square,
+      int NoradId, string FrameHex, DateTime Timestamp);
+
+    // Snapshot read by the 1-Hz telemetry UI: HTTP runs only on the worker.
+    public string Status
+    {
+      get
+      {
+        var settings = ctx.Settings.Telemetry.SatnogsUploader;
+        if (!settings.Enabled) return "未启用";
+        if (string.IsNullOrWhiteSpace(settings.ApiToken)) return "缺少 API Token";
+        if (string.IsNullOrWhiteSpace(ctx.Settings.User.Call)) return "缺少呼号";
+        if (string.IsNullOrWhiteSpace(ctx.Settings.User.Square) ||
+            !GridSquare.IsValid(ctx.Settings.User.Square)) return "网格无效";
+        int pending = Queue.Count + Volatile.Read(ref inFlight);
+        long good = Interlocked.Read(ref uploaded);
+        long errors = Interlocked.Read(ref failed);
+        return $"成功 {good} / 失败 {errors} / 排队 {pending} · {Volatile.Read(ref lastResult)}";
+      }
+    }
 
 
     public SatnogsUploader(Context ctx)
@@ -65,27 +87,13 @@ namespace SkyRoof
       if (string.IsNullOrWhiteSpace(user.Call)) return;
       if (string.IsNullOrWhiteSpace(user.Square) || !GridSquare.IsValid(user.Square)) return;
 
-      var location = GridSquare.ToGeoPoint(user.Square);
-      var timestamp = DateTime.UtcNow;
-
-      var fields = new Dictionary<string, string>
-      {
-        ["noradID"] = noradId.ToString(),
-        ["source"] = user.Call.Trim().ToUpperInvariant(),
-        ["locator"] = "longLat",
-        ["longitude"] = $"{Math.Abs(location.Longitude).ToString("F4", CultureInfo.InvariantCulture)}{(location.Longitude >= 0 ? "E" : "W")}",
-        ["latitude"] = $"{Math.Abs(location.Latitude).ToString("F4", CultureInfo.InvariantCulture)}{(location.Latitude >= 0 ? "N" : "S")}",
-        ["timestamp"] = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture) + "Z",
-        ["frame"] = frame.Hex,
-        ["version"] = Version
-      };
-
-      var content = new FormUrlEncodedContent(fields);
-      byte[] body = content.ReadAsByteArrayAsync().Result;
-      Log.Information($"Uploading SatNOGS frame: {JsonConvert.SerializeObject(fields)}");
-
+      // Snapshot metadata now; request encoding and all HTTP operations stay
+      // on the uploader worker, never on the DSP/packet callback thread.
+      var submission = new Submission(sett.ApiToken.Trim(),
+        user.Call.Trim().ToUpperInvariant(), user.Square.Trim(),
+        noradId, frame.Hex, DateTime.UtcNow);
       if (!Queue.IsAddingCompleted)
-        try { Queue.Add(new Submission(sett.ApiToken.Trim(), body, timestamp)); }
+        try { Queue.Add(submission); }
         catch (InvalidOperationException)
         {
           Log.Debug("SatNOGS frame discarded because upload queue was closed during shutdown");
@@ -99,32 +107,56 @@ namespace SkyRoof
     private void ProcessQueue()
     {
       foreach (var item in Queue.GetConsumingEnumerable())
+      {
+        Interlocked.Increment(ref inFlight);
         try { Post(item); }
-        catch (Exception e) { Log.Warning(e, "SatNOGS upload failed"); }
+        catch (Exception e)
+        {
+          Interlocked.Increment(ref failed);
+          Volatile.Write(ref lastResult, e.GetType().Name);
+          Log.Warning(e, "SatNOGS upload failed");
+        }
+        finally { Interlocked.Decrement(ref inFlight); }
+      }
     }
 
     private void Post(Submission item)
     {
       if (!ctx.Settings.Telemetry.SatnogsUploader.Enabled) return;
 
-      using var content = new ByteArrayContent(item.Body);
-      content.Headers.ContentType = new("application/x-www-form-urlencoded");
-
+      var location = GridSquare.ToGeoPoint(item.Square);
+      var fields = new Dictionary<string, string>
+      {
+        ["noradID"] = item.NoradId.ToString(CultureInfo.InvariantCulture),
+        ["source"] = item.Call,
+        ["locator"] = "longLat",
+        ["longitude"] = $"{Math.Abs(location.Longitude).ToString("F4", CultureInfo.InvariantCulture)}{(location.Longitude >= 0 ? "E" : "W")}",
+        ["latitude"] = $"{Math.Abs(location.Latitude).ToString("F4", CultureInfo.InvariantCulture)}{(location.Latitude >= 0 ? "N" : "S")}",
+        ["timestamp"] = item.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture) + "Z",
+        ["frame"] = item.FrameHex,
+        ["version"] = Version
+      };
+      using var content = new FormUrlEncodedContent(fields);
       using var request = new HttpRequestMessage(HttpMethod.Post, Url) { Content = content };
       request.Headers.TryAddWithoutValidation("Authorization", $"Token {item.Token}");
-
       using var response = Http.Send(request);
 
       if (response.IsSuccessStatusCode)
-        Log.Information($"SatNOGS frame uploaded ({(int)response.StatusCode}), frame time {item.Timestamp:HH:mm:ss}Z");
+      {
+        Interlocked.Increment(ref uploaded);
+        Volatile.Write(ref lastResult, $"HTTP {(int)response.StatusCode}");
+        Log.Information("SatNOGS frame uploaded ({Code}), frame time {Timestamp:HH:mm:ss}Z",
+          (int)response.StatusCode, item.Timestamp);
+      }
       else
       {
-        // read the response body so the log shows the server's actual error (e.g. bad timestamp, bad
-        // token); ReadAsStringAsync is needed because HttpContent.ToString() only yields the type name
+        Interlocked.Increment(ref failed);
+        Volatile.Write(ref lastResult, $"HTTP {(int)response.StatusCode}");
         string reason;
         try { reason = response.Content.ReadAsStringAsync().Result.Trim(); }
         catch (Exception e) { reason = $"<body unreadable: {e.Message}>"; }
-        Log.Warning($"SatNOGS upload rejected: HTTP {(int)response.StatusCode} {response.ReasonPhrase} {reason}");
+        Log.Warning("SatNOGS upload rejected: HTTP {Code} {Reason} {Body}",
+          (int)response.StatusCode, response.ReasonPhrase, reason);
       }
     }
   }
