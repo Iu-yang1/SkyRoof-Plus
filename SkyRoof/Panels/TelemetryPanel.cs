@@ -2946,18 +2946,20 @@ namespace SkyRoof
           return null;
         }
       });
-      _ = fmSpeechLoad.ContinueWith(t =>
+      var loading = fmSpeechLoad;
+      _ = Task.Run(async () =>
       {
+        var loaded = await loading.ConfigureAwait(false);
         if (telemetryClosing) return; // closing cleanup owns the task result
         telemetryUi?.Post(() =>
         {
           if (telemetryClosing) return;
-          FmSpeechEngine = t.Result;
+          FmSpeechEngine = loaded;
           // Re-evaluate the current transmitter, not the one that originally
           // initiated loading; this may now be a different satellite.
           UpdateTxStatus();
         });
-      }, TaskScheduler.Default);
+      });
       return null;
     }
 
