@@ -148,6 +148,7 @@ namespace SkyRoof
     // instance is created lazily on first use and SHARED across transmitter changes rather than rebuilt with
     // every decoder; disposed on panel close. Null until an FM transmitter is selected with the model present.
     private SherpaOnnxEngine? FmSpeechEngine;
+    private Task<SherpaOnnxEngine?>? fmSpeechLoad;
     // the FM transcript currently shown in richTextBox1 (null while showing telemetry/SSTV) — routes the
     // click-to-play mouse handling to the right content
     private FmTranscriptInfo? CurrentFmTranscript;
@@ -690,6 +691,7 @@ namespace SkyRoof
       RetireActiveDecoder();
       StopAudioClip();
       var speech = FmSpeechEngine;
+      var loadingSpeech = fmSpeechLoad;
       var uploader = SatnogsUploader;
       var logger = FrameLogger;
       FmSpeechEngine = null;
@@ -698,6 +700,10 @@ namespace SkyRoof
       decoderRetirement.Enqueue(() =>
       {
         speech?.Dispose();
+        // The load may finish after the panel closed, when its UI result
+        // callback will be discarded. Retire it here instead of leaking ONNX.
+        var justLoaded = loadingSpeech?.GetAwaiter().GetResult();
+        if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
         uploader?.Dispose();
         (logger as IDisposable)?.Dispose();
       });
@@ -2905,19 +2911,40 @@ namespace SkyRoof
     private SherpaOnnxEngine? EnsureFmEngine()
     {
       if (FmSpeechEngine != null) return FmSpeechEngine;
-      try
+      if (fmSpeechLoad != null || telemetryClosing || !FmModelPresent)
+        return null;
+
+      // Loading Sherpa/ONNX (~71 MB) synchronously during a transmitter
+      // switch blocks the whole WinForms message pump. One task is shared
+      // across repeated switches; the model is never constructed on the UI.
+      fmSpeechLoad = Task.Run(() =>
       {
-        if (!FmModelPresent) return null;
-        SherpaOnnxEngine.ModelDirectory = FmModelDir;
-        FmSpeechEngine = SherpaOnnxEngine.Hotwords(int8: true, modelDir: FmModelDir);
-        Log.Information("Loaded FM speech model from {Dir}", FmModelDir);
-      }
-      catch (Exception e)
+        try
+        {
+          SherpaOnnxEngine.ModelDirectory = FmModelDir;
+          var engine = SherpaOnnxEngine.Hotwords(int8: true, modelDir: FmModelDir);
+          Log.Information("Loaded FM speech model from {Dir}", FmModelDir);
+          return engine;
+        }
+        catch (Exception ex)
+        {
+          Log.Error(ex, "Failed to load FM speech model");
+          return null;
+        }
+      });
+      _ = fmSpeechLoad.ContinueWith(t =>
       {
-        Log.Error(e, "Failed to load FM speech model");
-        FmSpeechEngine = null;
-      }
-      return FmSpeechEngine;
+        if (telemetryClosing) return; // closing cleanup owns the task result
+        telemetryUi?.Post(() =>
+        {
+          if (telemetryClosing) return;
+          FmSpeechEngine = t.Result;
+          // Re-evaluate the current transmitter, not the one that originally
+          // initiated loading; this may now be a different satellite.
+          UpdateTxStatus();
+        });
+      }, TaskScheduler.Default);
+      return null;
     }
 
     // a transcript line closed (decode worker thread): capture its 16 kHz audio now, while the decoder still
