@@ -588,8 +588,10 @@ namespace SkyRoof
       InitializeComponent();
       telemetryUi = new TelemetryUiMailbox(callback =>
       {
-        if (!IsDisposed && !telemetryClosing && IsHandleCreated)
-          BeginInvoke(callback);
+        if (IsDisposed || telemetryClosing || !IsHandleCreated) return;
+        try { BeginInvoke(callback); }
+        catch (InvalidOperationException) when (telemetryClosing || IsDisposed || !IsHandleCreated) { }
+        catch (ObjectDisposedException) when (telemetryClosing || IsDisposed) { }
       });
 
       // gear button: draw the icon as an Awesome-font glyph so its state is shown via the foreground color
