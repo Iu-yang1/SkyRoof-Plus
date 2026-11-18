@@ -1,3 +1,38 @@
+# SkyRoof-Plus v.1.85
+
+## v1.85 — 2026-11-18 UNNE-1B FSK 遥测、停靠界面性能、BIN+LOG 与 SatNOGS 上传回执
+
+此版本整合已合并的 [PR #246](https://github.com/Iu-yang1/SkyRoof-Plus/pull/246)，从 v.1.84 独立升级。**不修改、覆盖或重新指向任何旧版 Release/Tag/安装包。**原有 AOS/LOS 卫星地平线解码器门控保持不变；误判门控根因的 PR #245 已关闭且未合并。
+
+### UNNE-1B 200 baud FSK/HADES 自动选择与真实录音回归
+
+- 修正 UNNE-1B（NORAD 101101）436.888 MHz 的 200 baud 遥测发射机数据库误标：针对**这一具体卫星、下行频率及 200 baud 数据行**，缺少手动覆盖时自动使用 **FSK、HADES、200 baud、820 Hz 峰值频偏**。保留用户手动修改的调制、成帧、符号率和频偏优先级。不会把同频 FM 转发器或 CW 行错误地识别为 FSK，也不影响其他卫星。
+- 选择同频 V/U FM 转发器时，遥测面板会关联其 FSK 遥测发射机；CAT 仍维持用户选中的转发器及收发模式。
+- 820 Hz 配置来源于独立、已公开的 UNNE-1B 原始 I/Q 样本回归：成功恢复 CRC 有效 Type 1 / Type 14 与连续 CODEC2 子帧 0–5；同一记录按 562.5 Hz 假设未恢复对应 Type 1/14 有效帧。该实测结论不代表已在用户 2026-11-18 的整场过境上完成 PER/BER 测量。
+- 对已知 820 Hz 双音采用验证过的形状门控，减少噪声与不匹配突发的重复解调；没有强制禁止手动修改频偏，未知频偏仍走盲搜索。针对截图 CFO −1211 Hz 的预期两个音调（相对 12 kHz IF 中心 −2031 / −391 Hz）新增 IF→IQ 回归用例，验证前端可保留两音。
+
+### 遥测面板与 IF→IQ 性能
+
+- 对未建立活动解码器的遥测面板，采集仍统计样本/RMS，但不执行没有消费者的 Hilbert/NCO 处理与 I/Q 分配；保留原先 SDR/IQ、IF/AF 输入及地平线逻辑。
+- 去除 PCM 重复复制；129-tap Hilbert FIR 跳过恒为零的抽头；混频使用连续相位复数振荡器代替逐样本计算 sin/cos，并通过原有分块/频率回归确保相位连续。
+- 针对停靠窗口的频繁重排，突发统计仍完整递增，但所选过境摘要最多每秒重绘一次；不改变有效帧、音频/图片消息的顺序及接收途径。状态标签仅在实际内容变化时更新，避免重复设置 Tooltip。
+- 面板诊断 Tooltip 增加 **DSP work / ingress realtime (%)**：高于 100% 表示解码工作量超过输入流实时长度，是定位 CPU 争用/漏包的指标，不是主界面 FPS 的替代值。
+
+### BIN+LOG 保存及 SatNOGS 状态
+
+- 设置新增 **Save Decoded BIN + LOG（保存遥测 BIN + LOG）**，默认关闭；打开后在用户数据目录的 `TelemetryDecodes/Binary/<NORAD>/<UTC日期>/` 每帧写入独立的 `.bin`（`Frame.Bytes`）与同名 UTF-8 `.log`（UTC、卫星/发射机、类型、HEX、字节数、CRC/FEC、纠错、擦除、CFO、SNR）。校验失败的帧可保留并标记 FAIL 供排障。**BIN 是解帧后的有效载荷，不是原始 IQ 或空中编码流。**原有 Save to File 功能仍独立可用。
+- 保存操作进入后台串行队列，不在解码回调中同步写硬盘；面板悬停信息可查看已保存/失败统计。
+- 遥测面板增加独立 **SatNOGS 上传状态行**：未启用、配置缺失、等待/排队、成功、失败、最近 HTTP 状态。将请求构造和 HTTP 传输放到后台工作线程；回放模式、未确认的参数覆盖仍不上传，内层重组包不会被当作原始射频帧提交。中英文 PropertyGrid 帮助与文档同步更新。
+
+### 构建验证与限制
+
+- PR #246 的 Windows 编译、xUnit 单测、UNNE-1B 独立真实 I/Q 回放和 aislop 0.18.1 均已通过；合并后的 `master` Compile Check 与 aislop 再次通过。发布工作流仍必须独立完成 x64 Release、安装程序、运行依赖、签名/哈希及 GitHub Release 校验，**实际结果以对应 v1.85 Actions/Release 为准**。
+- 未进行用户 IC-9700 的现场过境录制重放、停靠布局 FPS/ETW 实机压力测试；此前 10 分钟文件是转码为单声道的 MP3，不能代替原始 48 kHz I/Q 来测定误包率。因而本版不承诺“所有过境均能解出每个 UNNE-1B 帧”或已全面解决所有 UI 卡顿。若 CI 无 SignPath 能力，按现有策略发布未签名 Prerelease。
+
+**English summary:** v1.85 repairs the mislabeled 436.888 MHz UNNE-1B 200-baud BPSK metadata by resolving the telemetry entry as FSK/HADES with the 820-Hz deviation independently validated on genuine IQ fixtures. FM repeater selection can use a co-channel telemetry sibling without changing CAT. Real-IF DSP, PCM allocations and docked RichTextBox updates are optimized. Optional per-decoded-packet BIN+UTF-8 LOG archiving and a live SatNOGS upload status row are included. Historical release assets remain immutable; on-air IC-9700 PER and real docked-FPS testing are not claimed.
+
+---
+
 # SkyRoof-Plus v.1.84
 
 ## v1.84 — 2026-11-18 遥测接收 UI 无响应修复 + IF→AF FM 语音 P0–P3

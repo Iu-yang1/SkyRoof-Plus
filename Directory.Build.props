@@ -3,12 +3,12 @@
   <!-- The single source of truth for the release version. Bump it here and nowhere else:
        MSBuild applies it to every project in the solution automatically, and the CI workflow
        patches the Inno Setup version during the Build and Release workflow. -->
-  <!-- SkyRoof Plus v1.84: telemetry UI responsiveness and FM voice P0-P3. -->
+  <!-- SkyRoof Plus v1.85: UNNE-1B FSK capture, docked telemetry UI, decoded BIN+LOG and SatNOGS status. -->
   <PropertyGroup>
     <Product>SkyRoof</Product>
     <!-- v1.78-satellite-terminology-20261115: independent release; preserve v.1.77. -->
     <!-- v1.78-zh-toolbar-padding-replacement-20261115: user-authorized one-time rebuild of existing v.1.78. -->
-    <Version>1.84</Version>
+    <Version>1.85</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

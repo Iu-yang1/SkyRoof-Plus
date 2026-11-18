@@ -1,3 +1,17 @@
+# SkyRoof Fork v.1.85 / UNNE-1B 200 Bd FSK, Telemetry UI, BIN+LOG and SatNOGS
+
+## v1.85 — 2026-11-18
+
+- 经过真实 UNNE-1B I/Q 回归，针对 NORAD 101101、436.888 MHz、200 baud 的误标 BPSK 遥测源自动解析为 FSK/HADES，并采用真实 Type 1、Type 14、CODEC2 CRC/序列验证过的 820 Hz 峰值频偏。用户手动覆盖优先；同频 FM 转发器可自动关联遥测源，不改动 CAT 选台和 CW/FM 分类。
+- 降低停靠遥测窗口对主界面的影响：无活动解码器时跳过无用 IF→IQ 处理，合并 PCM 复制；Hilbert 滤波跳过零抽头、变频使用连续复数 NCO；突发统计全部保留但 RichTextBox 摘要按 1 Hz 合并更新。
+- 增加可选 BIN+LOG 配对归档，保存解帧后的字节与 UTC/NORAD/CRC/FEC/CFO/SNR/纠错元数据；后台异步写盘，校验失败仍保留且标注。新增独立 SatNOGS 上传排队/成功/失败/HTTP 状态行，上传由异步工作线程处理，不占用 DSP 回调。
+- 已合并 PR #246，master Windows 编译、单元测试及 aislop 0.18.1 通过；独立公开真实 I/Q 回放通过。无用户 IC-9700 当天完整原始 IQ PER/BER、停靠窗口实机 FPS/ETW 测试，不宣称现场问题全面解决。
+- 创建全新 v.1.85 版本与安装包，保留 v.1.84 及更早 Release 资产。若 SignPath 不可用，则依原有签名策略明确标记未签名 Prerelease，验证安装包 SHA-256。
+
+**English:** v1.85 corrects UNNE-1B's mislabeled 200-baud FSK/HADES telemetry, uses genuine-IQ-validated 820-Hz peak deviation, and improves the docked telemetry panel's DSP and repaint load. It also adds per-frame BIN/LOG archiving and asynchronous SatNOGS upload status. The real IC-9700 pass and docked-FPS behavior require field validation.
+
+---
+
 # SkyRoof Fork v.1.84 / Telemetry UI Liveness and FM Voice DSP P0–P3
 
 ## v1.84 — 2026-11-18
