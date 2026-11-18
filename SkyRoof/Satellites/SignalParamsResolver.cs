@@ -28,9 +28,15 @@ namespace SkyRoof.Satellites
       Modulation mod = ResolveModulation(tx, je9pel);
       Framing framing = ResolveFraming(tx, je9pel);
 
-      ResolveSpecialSatelliteParams(tx, mod, ref framing, ref baud);
+      ResolveSpecialSatelliteParams(tx, ref mod, ref framing, ref baud);
 
-      double? devOverride = mod == Modulation.GMSK ? null : Field(layers, l => l.deviation);
+      // Real UNNE-1B captures have shown different tone spacings from
+      // the original nominal specification. Do not inherit a potentially
+      // erroneous SatNOGS deviation on this one known-bad telemetry row:
+      // retain user-authored deviations, otherwise let blind FSK estimate it.
+      double? devOverride = mod == Modulation.GMSK ? null :
+        IsUnne1b200BaudTelemetry(tx) ? tx.manual?.deviation :
+        Field(layers, l => l.deviation);
       // AFSK (Bell-202 audio subcarrier over FM, e.g. 1k2 telemetry): the demod's "deviation" is the audio tone
       // half-spacing (1200/2200 → 500 Hz), NOT the RF-FM deviation the DB/je9pel layers report. Pin the Bell-202
       // value (the universal 1200 Bd amateur standard, and gr-satellites' curated value); the audio subcarrier
@@ -80,7 +86,7 @@ namespace SkyRoof.Satellites
 
 
     private static void ResolveSpecialSatelliteParams(
-      SatnogsDbTransmitter tx, Modulation modulation,
+      SatnogsDbTransmitter tx, ref Modulation modulation,
       ref Framing framing, ref double baud)
     {
       // AO-73's 145.935 MHz beacon uses the published 1200 Bd DBPSK
@@ -94,17 +100,41 @@ namespace SkyRoof.Satellites
         framing = Framing.AO40FEC;
         if (baud <= 0) baud = 1200;
       }
-      // UNNE-1B uses the GENESIS family, but its type-C packet table differs
-      // from HADES-SA. The app handles that table after the FSK soft modem.
-      if (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-          tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId)
+      // The 436.888 MHz UNNE-1B 200 Bd telemetry row is currently mislabeled
+      // BPSK in SatNOGS. Only this specific digital transmitter is corrected;
+      // the same-frequency FM repeater and CW beacon must remain unchanged.
+      // Explicit user-authored overrides retain priority over database repair.
+      if (IsUnne1b200BaudTelemetry(tx))
       {
-        if (modulation == Modulation.FSK && framing == Framing.Unknown)
-          framing = Framing.HADES;
-        if (modulation == Modulation.FSK && baud <= 0)
-          baud = 200;
+        if (tx.manual?.modulation == null) modulation = Modulation.FSK;
+        if (tx.manual?.framing == null) framing = Framing.HADES;
+        if (tx.manual?.baudrate == null) baud = 200;
+      }
+      else if ((tx.norad_cat_id == Unne1bDeframer.NoradId ||
+                tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId) &&
+               modulation == Modulation.FSK)
+      {
+        if (framing == Framing.Unknown) framing = Framing.HADES;
+        if (baud <= 0) baud = 200;
       }
 
+    }
+
+    internal static bool IsUnne1b200BaudTelemetry(SatnogsDbTransmitter? tx)
+    {
+      if (tx == null ||
+          (tx.norad_cat_id != Unne1bDeframer.NoradId &&
+           tx.Satellite?.norad_cat_id != Unne1bDeframer.NoradId) ||
+          tx.downlink_low != 436888000L) return false;
+      // A data-specific baud tag distinguishes this row from co-frequency
+      // voice FM and CW. The real DB spells it "200bps", which the generic
+      // standalone-number parser does not recognise.
+      bool is200 = tx.baud == 200 || tx.gr_sats?.baudrate == 200 ||
+        Regex.IsMatch(tx.description ?? "", @"\b200\s*(?:bps|baud)\b",
+          RegexOptions.IgnoreCase);
+      if (!is200) return false;
+      var selectedMode = ExtractyModulation($"{tx.description} {tx.mode} {tx.DownlinkMode}");
+      return selectedMode is Modulation.FSK or Modulation.BPSK;
     }
 
     private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
