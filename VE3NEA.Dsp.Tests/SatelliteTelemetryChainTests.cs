@@ -104,6 +104,69 @@ public sealed class SatelliteTelemetryChainTests
             SignalParamsResolver.Resolve(otherDownlink)!.Framing);
     }
 
+    [Fact]
+    public void Unne1bDatabaseBpsk200RowAutomaticallyResolvesToFskHades()
+    {
+        var sat = new SatnogsDbSatellite
+        {
+            sat_id = "UNNE-1B", norad_cat_id = Unne1bDeframer.NoradId,
+            name = "UNNE-1B"
+        };
+        var tx = new SatnogsDbTransmitter
+        {
+            uuid = "unne-bpsk-wrong", Satellite = sat,
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = "Mode U - 200bps BPSK telemetry",
+            mode = "BPSK", DownlinkMode = "BPSK",
+            downlink_low = 436888000,
+            baud = 200,
+            gr_sats = new GrSatsInfo { baudrate = 200, modulation = "BPSK", deviation = 500 }
+        };
+        Assert.True(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+        var resolved = SignalParamsResolver.Resolve(tx)!;
+        Assert.Equal(Modulation.FSK, resolved.Modulation);
+        Assert.Equal(Framing.HADES, resolved.Framing);
+        Assert.Equal(200, resolved.Baud);
+        Assert.Null(resolved.Deviation); // blind; do not trust the wrong DB deviation
+        Assert.True(SignalParamsResolver.IsTelemetryDecodable(resolved));
+
+        tx.manual = new GrSatsInfo
+        {
+            modulation = "FSK", framing = "HADES", baudrate = 800,
+            deviation = 820
+        };
+        resolved = SignalParamsResolver.Resolve(tx)!;
+        Assert.Equal(800, resolved.Baud); // operator's explicit override wins
+        Assert.Equal(820, resolved.Deviation);
+    }
+
+    [Theory]
+    [InlineData("Mode V/U - FM Repeater", "FM", null)]
+    [InlineData("Mode U - CW", "CW", null)]
+    [InlineData("Mode U - 200bps BPSK", "BPSK", 200)]
+    public void Unne1bTelemetryCorrectionNeverConvertsFmOrCw(
+        string description, string mode, int? baud)
+    {
+        var tx = new SatnogsDbTransmitter
+        {
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = description, mode = mode, DownlinkMode = mode,
+            downlink_low = 436888000, baud = baud
+        };
+        var resolved = SignalParamsResolver.Resolve(tx)!;
+        if (baud == 200)
+        {
+            Assert.Equal(Modulation.FSK, resolved.Modulation);
+            Assert.Equal(Framing.HADES, resolved.Framing);
+        }
+        else
+        {
+            Assert.False(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+            Assert.Equal(mode == "FM" ? Modulation.FM : Modulation.CW,
+                resolved.Modulation);
+        }
+    }
+
     [Theory]
     [InlineData(Modulation.FSK, TelemetryFskAfInput.ToneAudio, false)]
     [InlineData(Modulation.GFSK, TelemetryFskAfInput.ToneAudio, false)]
