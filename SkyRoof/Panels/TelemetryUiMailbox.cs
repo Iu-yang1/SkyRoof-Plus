@@ -16,6 +16,7 @@ namespace SkyRoof
   internal sealed class TelemetryUiMailbox
   {
     private readonly ConcurrentQueue<Action> messages = new();
+    private readonly object postingGate = new();
     private readonly Action<Action> schedule;
     private int scheduled;
     private int closed;
@@ -26,10 +27,14 @@ namespace SkyRoof
 
     internal void Post(Action callback)
     {
-      if (Volatile.Read(ref closed) != 0) return;
-      messages.Enqueue(callback);
-      if (Interlocked.CompareExchange(ref scheduled, 1, 0) == 0)
-        schedule(Drain);
+      bool shouldSchedule;
+      lock (postingGate)
+      {
+        if (closed != 0) return;
+        messages.Enqueue(callback);
+        shouldSchedule = Interlocked.CompareExchange(ref scheduled, 1, 0) == 0;
+      }
+      if (shouldSchedule) schedule(Drain);
     }
 
     internal void Drain()
@@ -65,8 +70,11 @@ namespace SkyRoof
 
     internal void Close()
     {
-      Interlocked.Exchange(ref closed, 1);
-      while (messages.TryDequeue(out _)) { }
+      lock (postingGate)
+      {
+        Volatile.Write(ref closed, 1);
+        while (messages.TryDequeue(out _)) { }
+      }
     }
   }
 
