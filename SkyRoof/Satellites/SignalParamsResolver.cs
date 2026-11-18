@@ -123,6 +123,7 @@ namespace SkyRoof.Satellites
 
     internal static bool IsUnne1b200BaudTelemetry(SatnogsDbTransmitter? tx)
     {
+      if (IsUnne1bFmRepeater(tx)) return false;
       if (tx == null ||
           (tx.norad_cat_id != Unne1bDeframer.NoradId &&
            tx.Satellite?.norad_cat_id != Unne1bDeframer.NoradId) ||
@@ -137,6 +138,15 @@ namespace SkyRoof.Satellites
       var selectedMode = ExtractyModulation($"{tx.description} {tx.mode} {tx.DownlinkMode}");
       return selectedMode is Modulation.FSK or Modulation.BPSK;
     }
+
+    internal static bool IsUnne1bFmRepeater(SatnogsDbTransmitter? tx) =>
+      tx != null &&
+      (tx.norad_cat_id == Unne1bDeframer.NoradId ||
+       tx.Satellite?.norad_cat_id == Unne1bDeframer.NoradId) &&
+      tx.downlink_low == 436888000L &&
+      (string.Equals(tx.mode, "FM", StringComparison.OrdinalIgnoreCase) ||
+       string.Equals(tx.DownlinkMode, "FM", StringComparison.OrdinalIgnoreCase)) &&
+      (tx.description?.Contains("Repeater", StringComparison.OrdinalIgnoreCase) ?? false);
 
     private static bool IsAo73BeaconWithoutFraming(SatnogsDbTransmitter tx,
       Framing framing, Modulation modulation) =>
@@ -186,6 +196,10 @@ namespace SkyRoof.Satellites
     {
       Modulation manual = ExtractyModulation(tx.manual?.modulation);
       if (manual != Modulation.Unknown) return manual;
+      // The actual "Mode V/U - FM Repeater (Voice + (A)FSK)" label
+      // contains an FSK substring. Do not reinterpret an explicit FM
+      // repeater mode as a dedicated FSK telemetry transmitter.
+      if (IsUnne1bFmRepeater(tx)) return Modulation.FM;
       string modeString = $"{tx.gr_sats?.modulation} {je9pel?.modulation} {tx.description} {tx.mode} {tx.DownlinkMode}";
       return ExtractyModulation(modeString);
     }
