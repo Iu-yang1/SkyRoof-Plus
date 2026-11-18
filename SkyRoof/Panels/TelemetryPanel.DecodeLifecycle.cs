@@ -43,6 +43,15 @@ namespace SkyRoof
       });
     }
 
+    // A user-selected IF/AF telemetry input is an explicit receive request.
+    // Orbit-derived horizon status is informative, not a hard decoder gate:
+    // stale TLEs or station-location errors must not discard real PCM frames.
+    // The legacy SDR IQ path keeps its horizon behavior.
+    internal static bool ShouldBuildSatelliteDecoder(bool aboveHorizon,
+      bool replayActive, TelemetryReceiveSource inputSource, bool audioReady) =>
+      aboveHorizon || replayActive ||
+      (audioReady && inputSource != TelemetryReceiveSource.SdrIq);
+
     internal static bool ShouldDeferFmDecoder(bool engineReady, bool retired) =>
       engineReady && !retired;
 
