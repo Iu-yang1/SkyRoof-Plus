@@ -160,6 +160,7 @@ namespace SkyRoof
     // clip, mirroring RecordingManager.StartPlayback/StopPlayback; fires ClipEndTimer to disable it again
     private bool SpeakerEnabledForClip;
     private System.Windows.Forms.Timer? ClipEndTimer;
+    private TelemetryFrameArchive? BinaryArchive;
 
     // Identity of the transmitter a decoder was built for, captured when the pipeline is created and bound to
     // that pipeline's event handlers. Frames surface on the decode worker thread, possibly after the user has
@@ -606,10 +607,15 @@ namespace SkyRoof
       ctx.MainForm.TelemetryMNU.Checked = true;
 
       SatnogsUploader = new SatnogsUploader(ctx);
+      BinaryArchive = new TelemetryFrameArchive();
 
       // FM speech transcript click-to-play (§10.4): hand cursor over a clickable line, play its audio on click
       richTextBox1.MouseMove += richTextBox1_MouseMove;
       richTextBox1.MouseClick += richTextBox1_MouseClick;
+      // Refresh rapidly changing capture diagnostics only while the status
+      // is actually hovered. Re-registering a ToolTip each one-second tick
+      // needlessly invalidates docked WinForms controls.
+      StatusLabel.MouseEnter += (_, _) => RefreshTelemetryDiagnosticsTooltip();
 
       SetTransmitter();
       ApplyAudioSettings();
@@ -618,7 +624,8 @@ namespace SkyRoof
     internal void ApplyAudioSettings()
     {
       Interlocked.Increment(ref audioConfigurationGeneration);
-      audioReceiver ??= new TelemetryAudioReceiveSession();
+      audioReceiver ??= new TelemetryAudioReceiveSession(
+        () => !replayIqActive && Volatile.Read(ref Decoder) != null);
       // Stop old PCM before disposing its associated modem and deframer.
       // Purging the queue alone is insufficient: PLL/FIR/framer state from
       // the previous device would still contaminate the new capture stream.
@@ -696,19 +703,26 @@ namespace SkyRoof
       var loadingSpeech = fmSpeechLoad;
       var uploader = SatnogsUploader;
       var logger = FrameLogger;
+      var binaryArchive = BinaryArchive;
       FmSpeechEngine = null;
-      SatnogsUploader = null;
-      FrameLogger = null;
+      // Keep these sinks alive until the decoder retirement task has
+      // flushed its final pending packet at LOS/panel close.
       decoderRetirement.EnqueueAsync(async () =>
       {
+        // Local evidence must be durable before potentially slow network
+        // upload completion or ASR model teardown. All decoder flushes have
+        // finished before this queued retirement action is entered.
+        if (binaryArchive != null)
+          await binaryArchive.CompleteAsync().ConfigureAwait(false);
+        (logger as IDisposable)?.Dispose();
         speech?.Dispose();
         // Loading may finish after the window closes. Await on the cleanup
         // chain, not on WinForms, and release any unused ASR model.
         var justLoaded = loadingSpeech == null
           ? null : await loadingSpeech.ConfigureAwait(false);
         if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
-        uploader?.Dispose();
-        (logger as IDisposable)?.Dispose();
+        if (uploader != null)
+          await uploader.CompleteAsync().ConfigureAwait(false);
       });
     }
 
@@ -800,11 +814,26 @@ namespace SkyRoof
     {
       Sibling = null;
       if (IsTelemetryDecodable()) return;
-      if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter)) return;
+      // The UNNE-1B FM repeater shares 436.888 MHz with the database's
+      // mislabeled 200 Bd telemetry row. Keep the operator's selected FM
+      // transmitter/CAT mode, but let the telemetry panel decode its sibling.
+      bool unneFmPair = ShouldUseUnneTelemetrySibling(Satellite, Transmitter,
+        SignalParams);
+      if (!unneFmPair && !IsSstvDecodable() &&
+          !SignalParamsResolver.HasSsdv(Transmitter)) return;
 
       var tx = CoChannel.RankedTelemetrySibling(Satellite, Transmitter);
       if (tx != null && SignalParamsResolver.Resolve(tx) is SignalParams p) Sibling = (tx, p);
     }
+
+    // The protocol-specific FM+FSK association must not affect other
+    // satellites or other frequencies, and never changes CAT's selected TX.
+    internal static bool ShouldUseUnneTelemetrySibling(SatnogsDbSatellite? sat,
+      SatnogsDbTransmitter? tx, SignalParams? selectedParams) =>
+      selectedParams?.Modulation == Modulation.FM &&
+      (sat?.norad_cat_id == Unne1bDeframer.NoradId ||
+       tx?.norad_cat_id == Unne1bDeframer.NoradId) &&
+      tx?.downlink_low == 436888000L;
 
     /// <summary>Refresh the params tooltip on both status labels with the same "name: value" fields the Signal
     /// Details dialog shows (the values actually used for decoding, so the pipeline's locked deviation/baud
@@ -1091,7 +1120,7 @@ namespace SkyRoof
 
     private bool IsDecodable()
     {
-      return IsTelemetryDecodable() || IsSstvDecodable() || IsSsdvDecodable() || IsFmDecodable();
+      return TelemetrySource != null || IsSstvDecodable() || IsSsdvDecodable() || IsFmDecodable();
     }
 
     // FM voice is decodable to a speech transcript (§10) when the transmitter's mode is FM. Whether the
@@ -1193,6 +1222,12 @@ namespace SkyRoof
       Volatile.Write(ref lastFrameCfoHz, frame.CfoHz);
       ctx.KissServer.SendToAll(frame,
         transportPacket ? 1 : frame.CrcValid == false ? 2 : 0);
+      // Persist the decoder's exact post-deframe bytes and integrity evidence.
+      // This is a non-blocking queue, never synchronous disk I/O on DSP.
+      if (ctx.Settings.Telemetry.SaveDecodedBinLog)
+        BinaryArchive?.Offer(frame, snapshot.Satellite?.norad_cat_id,
+          snapshot.Satellite?.name, snapshot.Transmitter?.description,
+          transportPacket);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
       // (§4.6). Parameters that were never edited are never held — the plain database path is untouched.
       // Nested TM/KISS packets are useful locally but are not the actual
@@ -3249,28 +3284,61 @@ namespace SkyRoof
     /// current RF input merely because the operator changed interface language.</summary>
     private void RenderTelemetryStatus()
     {
+      string status;
+      Color color = SystemColors.ControlText;
       if (Terrestrial && SignalParams == null)
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.NoTerrestrialParams"), Color.Red);
-      else if (!IsDecodable())
-        UpdateStatusLabel(DescribeUnsupported(), Color.Red);
-      else if (IsFmDecodable() && !IsTelemetryDecodable() &&
-               !IsSstvDecodable() && !FmModelPresent)
-        UpdateStatusLabel(DescribeUnsupported(), Color.Red);
+      {
+        status = UiLocalizationService.Get("Telemetry.NoTerrestrialParams");
+        color = Color.Red;
+      }
+      else if (!IsDecodable() || (IsFmDecodable() && TelemetrySource == null &&
+               !IsSstvDecodable() && !FmModelPresent))
+      {
+        status = DescribeUnsupported();
+        color = Color.Red;
+      }
       else if (!Terrestrial && !SatAboveHorizon)
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.BelowHorizon"), SystemColors.ControlText);
+        status = UiLocalizationService.Get("Telemetry.BelowHorizon");
       else
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.Ready") + DescribeBranches(),
-          SystemColors.ControlText);
+        status = UiLocalizationService.Get("Telemetry.Ready") + DescribeBranches();
       if (ctx.Settings.Telemetry.InputSource != TelemetryReceiveSource.SdrIq &&
           audioReceiver != null)
       {
-        StatusLabel.Text += audioReceiverError == null
+        status += audioReceiverError == null
           ? UiLocalizationService.Format("Telemetry.AudioRxStatus", audioReceiver.Status)
           : UiLocalizationService.Format("Telemetry.AudioRxError", audioReceiverError);
-        if (audioReceiverError != null)
-          StatusLabel.ForeColor = Color.DarkOrange;
+        if (audioReceiverError != null) color = Color.DarkOrange;
       }
-      toolTip1.SetToolTip(StatusLabel, TelemetryDiagnostics());
+      // Build the *whole* label once, not twice, and do not trigger layout
+      // when neither text nor colour changed on the 1-Hz timer.
+      UpdateStatusLabel(status, color);
+      if (StatusLabel.ClientRectangle.Contains(StatusLabel.PointToClient(Cursor.Position)))
+        RefreshTelemetryDiagnosticsTooltip();
+      string upload = "SatNOGS: " + (UploadHeld
+        ? SettingsLanguage.Text("暂停：等待确认解码参数", "Paused: confirm decoder params")
+        : replayIqActive
+          ? SettingsLanguage.Text("回放模式，不上传", "Replay: no uploads")
+          : SatnogsUploader?.Status ?? SettingsLanguage.Text("未连接", "Disconnected"));
+      if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
+        SatnogsStatusLabel.Text = upload;
+      // Surface both archive progress and the actual upload outcome without
+      // allocating/invalidating tree items or replacing the receive status.
+      string archive = ctx.Settings.Telemetry.SaveDecodedBinLog
+        ? SettingsLanguage.Text(
+            $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}",
+            $"BIN+LOG saved: {BinaryArchive?.Saved ?? 0} / errors: {BinaryArchive?.Errors ?? 0}")
+        : SettingsLanguage.Text("BIN+LOG 保存: 未启用", "BIN+LOG saving: disabled");
+      if (!string.Equals(toolTip1.GetToolTip(SatnogsStatusLabel), archive,
+          StringComparison.Ordinal))
+        toolTip1.SetToolTip(SatnogsStatusLabel, archive);
+    }
+
+    private void RefreshTelemetryDiagnosticsTooltip()
+    {
+      string diagnostics = TelemetryDiagnostics();
+      if (!string.Equals(toolTip1.GetToolTip(StatusLabel), diagnostics,
+          StringComparison.Ordinal))
+        toolTip1.SetToolTip(StatusLabel, diagnostics);
     }
 
     private string TelemetryDiagnostics()
@@ -3282,6 +3350,9 @@ namespace SkyRoof
         $"\nStream discontinuities: {audioReceiver.Discontinuities:N0}" +
         $"\nIF/AF RMS: {audioReceiver.InputRmsDbfs:F1} dBFS";
       return signal +
+        (Volatile.Read(ref Decoder) is TelemetryDecocder decoder
+          ? $"\nDSP work / ingress realtime: {decoder.ProcessingLoadPercent:F0}%"
+          : "\nDSP decoder: inactive") +
         $"\nFrames: {Interlocked.Read(ref decodedFrames):N0}" +
         $"\nCRC valid: {Interlocked.Read(ref goodFrames):N0}" +
         $"\nCRC failed: {Interlocked.Read(ref badFrames):N0}" +
@@ -3362,8 +3433,10 @@ namespace SkyRoof
 
     private void UpdateStatusLabel(string text, Color color)
     {
-      StatusLabel.Text = text;
-      StatusLabel.ForeColor = color;
+      if (!string.Equals(StatusLabel.Text, text, StringComparison.Ordinal))
+        StatusLabel.Text = text;
+      if (StatusLabel.ForeColor != color)
+        StatusLabel.ForeColor = color;
     }
 
     internal void ProcessSamples(DataEventArgs<Complex32> e)

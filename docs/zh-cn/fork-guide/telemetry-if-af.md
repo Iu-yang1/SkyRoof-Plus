@@ -86,3 +86,13 @@ v1.82 正式构建完成 Windows 编译、安装包生成、**1,632 项 xUnit �
 无法解码时，按顺序检查：电台 USB/LAN **IF 与 AF 模式**是否选对 → 48 kHz 与左/右声道 → 状态栏 RMS 和断流计数 → 卫星/发射机/调制/波特率/帧格式 → CRC 结果。音频接收状态为绿色不能证明业务帧已经正确解码。
 
 延伸阅读：[Telemetry 接收设置（英文）](../../users_guide/setting_up_telemetry_decoding.md) · [Telemetry 面板](../../users_guide/telemetry_panel.md) · [Recorder](../../users_guide/recorder_panel.md) · [IF→AF / WSJT-X](if-af-test.md) · [v1.82 正式 Release](https://github.com/Iu-yang1/SkyRoof-Plus/releases/tag/v.1.82)。
+
+## 7. UNNE-1B 自动识别、实时性能与 BIN+LOG（2026-11-18 开发分支）
+
+UNNE-1B（NORAD 101101）436.888 MHz 200 baud 遥测在 SatNOGS 的发射机条目被误标为 BPSK。此分支仅针对此卫星、频率及 200 baud 数据源，在无手动覆盖时改选 **FSK / HADES / 200 baud / 峰值频偏 820 Hz**；这里的 820 Hz 来自独立公开的 UNNE-1B 真实 I/Q 回归：Type-1、Type-14 CRC 有效且 CODEC2 0–5 子帧完整恢复。标称 562.5 Hz 峰值频偏在相同样本中不能恢复 Type-1/14。允许操作员在信号参数窗口覆盖所有字段。FM 转发器行仍维持原 CAT 模式，但遥测面板可自动关联同频 200 Bd 遥测条目；CW 行、其他卫星和 AOS/LOS 门控不变。
+
+启用遥测面板不代表必须持续执行 IF→IQ 运算：无活动解码器时仍监视输入电平与采集计数，但不做 Hilbert/NCO 转换及 IQ 分配。12 kHz IF 的 Hilbert FIR 仅遍历非零奇数抽头，混频使用连续复数振荡器替代逐样本三角函数。已知 820 Hz FSK 采用通过真实 I/Q 验证的双音形状筛选，避免在无效突发上无谓执行整段解调。UI 避免每秒重复设置未改变的状态文本或工具提示；悬停状态提示会显示 **DSP work / ingress realtime (%)**，大于 100% 表示平均处理耗时超过流媒体时长，需要检查输入丢块。
+
+在 **Telemetry 设置 → Save Decoded BIN + LOG** 打开后，每个解出的帧在用户数据目录 `TelemetryDecodes/Binary/<NORAD>/<UTC 日期>/` 产生同名 `.bin`（解帧/解扰后的 `Frame.Bytes`，协议移除 CRC 的不包含 FCS）和 UTF-8 `.log`（来源、时间、帧长度、CRC/FEC、纠错、擦除、CFO、SNR 与 HEX）。这是**解码后的有效载荷**，不是原始射频 I/Q 或空中编码字节；校验失败的帧也会保留并标注 FAIL，以便离线诊断。原有 **Save to File** 日志设置不受影响，写盘任务位于后台。遥测面板新增独立的 SatNOGS 上传状态行，显示未启用/配置缺失/待上传/成功/失败/HTTP 状态；解码参数待确认和离线回放不上传。
+
+**验收边界：** CI 公开真实 I/Q 回归并不能代替用户当前 IC-9700 过境实录的包丢失率（PER）或停靠布局下的实际 FPS 测试。原始 48 kHz IF PCM 录音及现场性能采样仍可用于进一步核对。

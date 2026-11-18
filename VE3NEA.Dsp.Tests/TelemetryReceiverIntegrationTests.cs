@@ -24,6 +24,7 @@ public sealed class TelemetryReceiverIntegrationTests
         using (var receiver = new TelemetryDecocder(unne, 101101, true, false, null))
         {
             Assert.True(receiver.UnneNative);
+            Assert.True(receiver.UnneKnownDeviationGate);
             Assert.NotNull(receiver.Pipeline);
         }
 

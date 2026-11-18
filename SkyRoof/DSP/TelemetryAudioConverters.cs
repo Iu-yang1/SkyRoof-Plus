@@ -18,9 +18,10 @@ namespace SkyRoof
     private const int Delay = (Taps - 1) / 2;
     private readonly float[] history = new float[Taps];
     private readonly double[] hilbert = new double[Taps];
-    private readonly double omega;
+    private readonly double stepCos, stepSin;
     private int next;
-    private double phase;
+    private double oscillatorCos = 1, oscillatorSin;
+    private int oscillatorSamples;
 
     public int CenterFrequencyHz { get; }
 
@@ -29,7 +30,9 @@ namespace SkyRoof
       if (centerFrequencyHz <= 0 || centerFrequencyHz >= Rate / 2)
         throw new ArgumentOutOfRangeException(nameof(centerFrequencyHz));
       CenterFrequencyHz = centerFrequencyHz;
-      omega = 2.0 * Math.PI * centerFrequencyHz / Rate;
+      double omega = 2.0 * Math.PI * centerFrequencyHz / Rate;
+      stepCos = Math.Cos(omega);
+      stepSin = Math.Sin(omega);
       foreach (int i in Enumerable.Range(0, Taps))
       {
         int lag = i - Delay;
@@ -51,21 +54,32 @@ namespace SkyRoof
         if (delayed < 0) delayed += Taps;
         double real = history[delayed];
         double imaginary = 0;
-        int read = next;
-        for (int k = 0; k < Taps; k++)
+        // The centred 129-tap Hilbert FIR has non-zero coefficients ONLY
+        // at odd indices: skip 65 zero terms per output sample.
+        int read = next - 1;
+        if (read < 0) read += Taps;
+        for (int k = 1; k < Taps; k += 2)
         {
           imaginary += hilbert[k] * history[read];
-          if (--read < 0) read = Taps - 1;
+          read -= 2;
+          if (read < 0) read += Taps;
         }
         if (++next == Taps) next = 0;
-        double c = Math.Cos(phase), sin = Math.Sin(phase);
+        double c = oscillatorCos, sin = oscillatorSin;
         result[i++] = new Complex32(
           (float)(real * c + imaginary * sin),
           (float)(imaginary * c - real * sin));
-        // The mixer below multiplies IQ by exp(-j*phase), so the
-        // NCO phase must INCREASE to translate positive carrier to DC.
-        phase += omega;
-        if (phase > Math.PI) phase -= 2 * Math.PI;
+        // One complex multiply per sample replaces 96k sin/cos calls/s.
+        // A periodic unit-norm correction bounds long-recording drift.
+        oscillatorCos = c * stepCos - sin * stepSin;
+        oscillatorSin = sin * stepCos + c * stepSin;
+        if ((++oscillatorSamples & 4095) == 0)
+        {
+          double norm = Math.Sqrt(oscillatorCos * oscillatorCos +
+            oscillatorSin * oscillatorSin);
+          oscillatorCos /= norm;
+          oscillatorSin /= norm;
+        }
       }
       return result;
     }
@@ -74,7 +88,9 @@ namespace SkyRoof
     {
       Array.Clear(history);
       next = 0;
-      phase = 0;
+      oscillatorCos = 1;
+      oscillatorSin = 0;
+      oscillatorSamples = 0;
     }
   }
 

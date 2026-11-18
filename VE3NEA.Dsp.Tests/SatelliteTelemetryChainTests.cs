@@ -104,6 +104,145 @@ public sealed class SatelliteTelemetryChainTests
             SignalParamsResolver.Resolve(otherDownlink)!.Framing);
     }
 
+    [Fact]
+    public void Unne1bDatabaseBpsk200RowAutomaticallyResolvesToFskHades()
+    {
+        var sat = new SatnogsDbSatellite
+        {
+            sat_id = "UNNE-1B", norad_cat_id = Unne1bDeframer.NoradId,
+            name = "UNNE-1B"
+        };
+        var tx = new SatnogsDbTransmitter
+        {
+            uuid = "unne-bpsk-wrong", Satellite = sat,
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = "Mode U - 200bps BPSK telemetry",
+            mode = "BPSK", DownlinkMode = "BPSK",
+            downlink_low = 436888000,
+            baud = 200,
+            gr_sats = new GrSatsInfo { baudrate = 200, modulation = "BPSK", deviation = 500 }
+        };
+        Assert.True(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+        var resolved = SignalParamsResolver.Resolve(tx)!;
+        Assert.Equal(Modulation.FSK, resolved.Modulation);
+        Assert.Equal(Framing.HADES, resolved.Framing);
+        Assert.Equal(200, resolved.Baud);
+        Assert.Equal(820, resolved.Deviation); // verified genuine IQ/CRC baseline
+        Assert.True(SignalParamsResolver.IsTelemetryDecodable(resolved));
+
+        tx.manual = new GrSatsInfo
+        {
+            modulation = "FSK", framing = "HADES", baudrate = 800,
+            deviation = 820
+        };
+        resolved = SignalParamsResolver.Resolve(tx)!;
+        Assert.Equal(800, resolved.Baud); // operator's explicit override wins
+        Assert.Equal(820, resolved.Deviation);
+    }
+
+    [Theory]
+    [InlineData("Mode V/U - FM Repeater (Voice + (A)FSK)", "FM", null)]
+    [InlineData("Mode U - CW", "CW", null)]
+    [InlineData("Mode U - 200bps BPSK", "BPSK", 200)]
+    public void Unne1bTelemetryCorrectionNeverConvertsFmOrCw(
+        string description, string mode, int? baud)
+    {
+        var tx = new SatnogsDbTransmitter
+        {
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = description, mode = mode, DownlinkMode = mode,
+            downlink_low = 436888000, baud = baud
+        };
+        var resolved = SignalParamsResolver.Resolve(tx)!;
+        if (baud == 200)
+        {
+            Assert.Equal(Modulation.FSK, resolved.Modulation);
+            Assert.Equal(Framing.HADES, resolved.Framing);
+        }
+        else
+        {
+            Assert.False(SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
+            Assert.Equal(mode == "FM" ? Modulation.FM : Modulation.CW,
+                resolved.Modulation);
+        }
+    }
+
+    [Fact]
+    public void UnneFmRepeaterViewUsesSameFrequencyFskSiblingWithoutRetuning()
+    {
+        var sat = new SatnogsDbSatellite
+        {
+            sat_id = "UNNE-1B", norad_cat_id = Unne1bDeframer.NoradId,
+            name = "UNNE-1B"
+        };
+        var fm = new SatnogsDbTransmitter
+        {
+            uuid = "unne-fm", Satellite = sat,
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = "Mode V/U - FM Repeater (Voice + (A)FSK)", mode = "FM", DownlinkMode = "FM",
+            downlink_low = 436888000
+        };
+        var telemetry = new SatnogsDbTransmitter
+        {
+            uuid = "unne-tlm", Satellite = sat,
+            norad_cat_id = Unne1bDeframer.NoradId,
+            description = "Mode U - 200bps BPSK", mode = "BPSK",
+            DownlinkMode = "BPSK", downlink_low = 436888000, baud = 200
+        };
+        sat.Transmitters.AddRange([fm, telemetry]);
+        Assert.True(SignalParamsResolver.IsUnne1bFmRepeater(fm));
+        Assert.Equal(Modulation.FM, SignalParamsResolver.Resolve(fm)!.Modulation);
+        Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm,
+            SignalParamsResolver.Resolve(fm)));
+        Assert.Same(telemetry, CoChannel.RankedTelemetrySibling(sat, fm));
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry,
+            SignalParamsResolver.Resolve(telemetry)));
+        var other = new SatnogsDbSatellite { norad_cat_id = 99999 };
+        var otherFm = new SatnogsDbTransmitter
+        {
+            norad_cat_id = 99999, Satellite = other,
+            mode = "FM", DownlinkMode = "FM", description = "FM repeater",
+            downlink_low = 436888000
+        };
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm,
+            SignalParamsResolver.Resolve(otherFm)));
+    }
+
+    [Fact]
+    public async Task DecodedBinAndLogPreserveBytesIntegrityAndCfo()
+    {
+        string root = Path.Combine(Path.GetTempPath(),
+            "skyroof-telemetry-archive-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var archive = new TelemetryFrameArchive(root);
+            byte[] bytes = [0x3C, 0x01, 0x02, 0x03];
+            archive.Offer(new Frame
+            {
+                Bytes = bytes, Framing = Framing.HADES,
+                CrcValid = false, CfoHz = -1211.2, SnrDb = 28.6,
+                CorrectedBits = 2, Note = "UNNE-1B candidate"
+            }, Unne1bDeframer.NoradId, "UNNE-1B", "FSK 200", false);
+            await archive.CompleteAsync();
+            Assert.Equal(1, archive.Saved);
+            Assert.Equal(0, archive.Errors);
+            string bin = Assert.Single(Directory.GetFiles(root, "*.bin",
+                SearchOption.AllDirectories));
+            string log = Assert.Single(Directory.GetFiles(root, "*.log",
+                SearchOption.AllDirectories));
+            Assert.Equal(bytes, File.ReadAllBytes(bin));
+            string metadata = File.ReadAllText(log);
+            Assert.Contains("CRC/FEC: FAIL", metadata);
+            Assert.Contains("CFO: -1211.2 Hz", metadata);
+            Assert.Contains("HEX: 3C010203", metadata);
+            Assert.Contains("Corrections: 2", metadata);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(Modulation.FSK, TelemetryFskAfInput.ToneAudio, false)]
     [InlineData(Modulation.GFSK, TelemetryFskAfInput.ToneAudio, false)]
