@@ -46,6 +46,23 @@ namespace SkyRoof
     // The pipeline's run-time findings (ResolvedBaud / ResolvedDeviation) are written back into this params
     // object, so it must be resolved once per transmitter change and then left alone.
     private (SatnogsDbTransmitter Transmitter, SignalParams Params)? Sibling;
+
+    // Edit the actual UNNE FSK receiver using the original parameter dialog,
+    // while keeping the FM radio/voice selection independent of its settings.
+    private bool EditingUnneSibling => Sibling != null &&
+      ShouldUseUnneTelemetrySibling(Satellite, Transmitter);
+    private SignalParams? EditableParams => EditingUnneSibling ? Sibling?.Params : SignalParams;
+    private SignalParams? EditableDbParams => EditingUnneSibling ? siblingDbParams : ResolvedSnapshot;
+    private SignalParams? siblingDbParams;
+    private SatnogsDbTransmitter? EditableTransmitter =>
+      ParameterOverrideTarget(Transmitter, Sibling?.Transmitter, EditingUnneSibling);
+
+    internal static SatnogsDbTransmitter? ParameterOverrideTarget(
+      SatnogsDbTransmitter? selected, SatnogsDbTransmitter? sibling, bool editingUnneSibling) =>
+      editingUnneSibling ? sibling : selected;
+
+    internal static bool ShowParameterSettings(bool hasSibling, bool editingUnneSibling) =>
+      !hasSibling || editingUnneSibling;
     // §3: the (transmitter, params) pair that drives the telemetry pipeline — the selection itself whenever
     // the selection is telemetry-decodable (identical to today in every unpaired case), the sibling when an
     // SSTV transmitter is selected, and null for a CW / FM / unsupported selection, which never pulls in a
@@ -58,6 +75,9 @@ namespace SkyRoof
     {
       get
       {
+        if (EditingUnneSibling && Sibling is { } unne)
+          return SignalParamsResolver.IsTelemetryDecodable(unne.Params)
+            ? (unne.Transmitter, unne.Params) : null;
         if (IsTelemetryDecodable()) return (Transmitter, SignalParams!);
         return Sibling;
       }
@@ -797,6 +817,7 @@ namespace SkyRoof
         // resolved over, because a re-tune inside terrestrial mode does not reach here at all (§4.9)
         SignalParams = null;
         Sibling = null;
+        siblingDbParams = null;
         return;
       }
 
@@ -804,6 +825,7 @@ namespace SkyRoof
       // snapshot the pristine DB-resolved params before the pipeline writes any finding back into SignalParams
       ResolvedSnapshot = SignalParams is null ? null : SignalParams with { };
       ResolveSibling();
+      siblingDbParams = Sibling?.Params is SignalParams siblingParams ? siblingParams with { } : null;
       UpdateParamsTooltip();
     }
 
@@ -814,7 +836,6 @@ namespace SkyRoof
     private void ResolveSibling()
     {
       Sibling = null;
-      if (IsTelemetryDecodable()) return;
       // The UNNE FM and erroneous BPSK rows are the SAME downlink. An FM
       // row must always have a 200-Bd FSK telemetry path, even if SatNOGS
       // omitted the sibling record or its baud/mode fields.
@@ -824,6 +845,7 @@ namespace SkyRoof
         Sibling = ResolveUnne1bFmTelemetrySource(Satellite, Transmitter);
         return;
       }
+      if (IsTelemetryDecodable()) return;
       if (!IsSstvDecodable() && !SignalParamsResolver.HasSsdv(Transmitter))
         return;
 
@@ -852,6 +874,12 @@ namespace SkyRoof
         SignalParamsResolver.IsUnne1b200BaudTelemetry(tx));
       if (digital != null && SignalParamsResolver.Resolve(digital) is SignalParams resolved)
         return (digital, resolved);
+      // A local override saved against the FM UUID when no data row
+      // exists is a telemetry override, not a change to the radio mode.
+      if (selected.manual?.modulation != null &&
+          SignalParamsResolver.Resolve(selected) is { } saved &&
+          saved.Modulation != Modulation.FM)
+        return (selected, saved);
       return (selected, SignalParamsResolver.Unne1bFmTelemetryParams());
     }
 
@@ -868,7 +896,7 @@ namespace SkyRoof
       // parameters are visible — append its block, under its own transmitter description so the two blocks
       // cannot be confused, below the selected transmitter's.
       if (Sibling is { } sibling)
-        tooltip += $"\n\n{sibling.Transmitter.description}\n{DescribeSignalParams(sibling.Params)}";
+        tooltip += $"\n\n{sibling.Transmitter.description}\n{DescribeSignalParams(sibling.Params, siblingDbParams)}";
       toolTip1.SetToolTip(SatNameLabel, tooltip);
       toolTip1.SetToolTip(StatusLabel, tooltip);
     }
@@ -1001,7 +1029,12 @@ namespace SkyRoof
         // findings. Adopt the running object so the tooltip, the dots and the gear keep showing the values
         // the pipeline is actually using (§3). ResolvedSnapshot is left alone: it is the pristine DB
         // baseline, and that is exactly what the asterisks are measured against.
-        if (CurrentDecode != null && ReferenceEquals(CurrentDecode.Transmitter, Transmitter)
+        if (CurrentDecode != null && EditingUnneSibling &&
+            Sibling is { } editable && ReferenceEquals(CurrentDecode.Transmitter, editable.Transmitter))
+        {
+          Sibling = (editable.Transmitter, CurrentDecode.SignalParams);
+        }
+        else if (CurrentDecode != null && ReferenceEquals(CurrentDecode.Transmitter, Transmitter)
           && !ReferenceEquals(CurrentDecode.SignalParams, SignalParams))
         {
           SignalParams = CurrentDecode.SignalParams;
@@ -1149,7 +1182,8 @@ namespace SkyRoof
     // decoder actually runs also needs the downloaded model (see FmModelPresent / EnsureFmEngine).
     private bool IsFmDecodable()
     {
-      return SignalParams?.Modulation == Modulation.FM;
+      return SignalParams?.Modulation == Modulation.FM ||
+        ShouldUseUnneTelemetrySibling(Satellite, Transmitter);
     }
 
     private bool IsTelemetryDecodable()
@@ -1347,7 +1381,7 @@ namespace SkyRoof
     {
       // Scale with the button under WinForms DPI scaling, without another
       // icon resource or a per-frame allocated bitmap.
-      int edge = Math.Max(1, SaveButton.ClientSize.Height * 5 / 8);
+      int edge = Math.Max(1, Math.Min(SaveButton.ClientSize.Height, SaveButton.ClientSize.Width) * 5 / 8);
       int x = (SaveButton.ClientSize.Width - edge) / 2;
       int y = (SaveButton.ClientSize.Height - edge) / 2;
       if (Volatile.Read(ref BinaryArchive) != null)
@@ -1465,7 +1499,7 @@ namespace SkyRoof
     {
       // with nothing resolved for this transmitter the baseline is blank, which reduces to exactly the same
       // detector as a DB row that carries no rate: blind FSK at the default template width (§4.8)
-      var current = SignalParams ?? BlankParams;
+      var current = EditableParams ?? BlankParams;
       return current with
       {
         Modulation = Modulation.FSK,
@@ -1535,7 +1569,7 @@ namespace SkyRoof
         // this row would file the frames under a transmitter that did not send them, and would offer to save
         // a duplicate of the sibling's values against the wrong uuid. Nothing is marked and nothing is
         // saved: the database was already right about the twin (§4.5).
-        if (CoChannelTwin(found.Params) is SatnogsDbTransmitter twin)
+        if (!EditingUnneSibling && CoChannelTwin(found.Params) is SatnogsDbTransmitter twin)
         {
           string description = twin.description;
           ctx.SatelliteSelector.SetSelectedTransmitter(twin);
@@ -1545,7 +1579,7 @@ namespace SkyRoof
         }
         // the discovered set replaces the demod fields only; the telemetry-format override and the
         // dialog-only fields the search does not touch (AfCarrier, Manchester) are carried through (§6.5).
-        var applied = (SignalParams ?? BlankParams) with
+        var applied = (EditableParams ?? BlankParams) with
         {
           Modulation = found.Params.Modulation,
           Framing = found.Params.Framing,
@@ -1617,10 +1651,10 @@ namespace SkyRoof
     // action in the flow, and the only step that persists anything beyond the pass (§6.1).
     private void SaveOverrideRequested(object? sender, EventArgs e)
     {
-      if (ParamsDialog == null || Transmitter == null) return;
+      if (ParamsDialog == null || EditableTransmitter is not { } target) return;
       try
       {
-        ctx.SatnogsDb.SaveTransmitterOverride(Transmitter, ParamsDialog.CurrentParams());
+        ctx.SatnogsDb.SaveTransmitterOverride(target, ParamsDialog.CurrentParams());
         // the operator has endorsed these parameters, so the frames decoded with them may be published (§4.6)
         OverrideSaved = true;
         UpdateUploadHold();
@@ -1657,7 +1691,7 @@ namespace SkyRoof
       return new SignalParamsView
       {
         Params = current,
-        DbParams = ResolvedSnapshot ?? current,
+        DbParams = EditableDbParams ?? current,
         FormatIds = formatIds,
         FormatId = FormatOverrideId ?? dbFormatId,
         DbFormatId = dbFormatId,
@@ -1677,10 +1711,10 @@ namespace SkyRoof
         // than a database correction, so Save is not offered there at all and the countdown in front of it
         // is replaced by the reason (§4.9). Kept apart from CanSave, which stays the verdict on the
         // evidence alone: the two answer different questions, and only one of them frames can change.
-        Savable = Transmitter != null,
+        Savable = EditableTransmitter != null,
         Saved = OverrideSaved,
         Status = DemodValidated && UserChangedFields.Count > 0
-          ? SignalParamsDialog.ConfirmingFramesText(ConfirmingFrames, ConfirmFrames, Transmitter != null,
+          ? SignalParamsDialog.ConfirmingFramesText(ConfirmingFrames, ConfirmFrames, EditableTransmitter != null,
             OverrideSaved) : null
       };
     }
@@ -1699,9 +1733,9 @@ namespace SkyRoof
     // by comparison against the pristine DB-resolved snapshot.
     private bool PipelineFound(string field) => field switch
     {
-      "Baud" => SignalParams?.ResolvedBaud != null,
-      "Deviation" => SignalParams?.ResolvedDeviation != null,
-      "Differential" => SignalParams?.Differential != ResolvedSnapshot?.Differential,
+      "Baud" => EditableParams?.ResolvedBaud != null,
+      "Deviation" => EditableParams?.ResolvedDeviation != null,
+      "Differential" => EditableParams?.Differential != EditableDbParams?.Differential,
       _ => false
     };
 
@@ -1755,7 +1789,10 @@ namespace SkyRoof
     // to force a fresh one built from the overridden params.
     private void ApplySignalParamsOverride(SignalParams newParams)
     {
-      SignalParams = newParams;
+      if (EditingUnneSibling && Sibling is { } sibling)
+        Sibling = (sibling.Transmitter, newParams);
+      else
+        SignalParams = newParams;
       // a new set of parameters is a new claim, and none of the frames counted so far were decoded with it:
       // the evidence for saving restarts from zero (§4.1), and the uploads hold again until it is saved
       ConfirmingFrames = 0;
@@ -3333,10 +3370,10 @@ namespace SkyRoof
       }
       CreatDestroyPipeline();
 
-      // §4: no parameter editing, no Discover and no Save-to-override for a transmitter the user did not
-      // select, so the gear disappears while a sibling drives telemetry. To correct a wrong rank pick the
-      // operator selects that telemetry transmitter, which re-adds the SSTV branch anyway (§2.2 row 1).
-      SettingsButton.Visible = Sibling == null;
+      // Generic co-channel SSTV pairing keeps its existing editing rule.
+      // UNNE FM is an explicit FSK pairing: edit that receiver without
+      // changing the radio's selected transmitter.
+      SettingsButton.Visible = ShowParameterSettings(Sibling != null, EditingUnneSibling);
 
       RenderTelemetryStatus();
     }

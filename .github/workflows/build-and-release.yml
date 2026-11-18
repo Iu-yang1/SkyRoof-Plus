@@ -98,7 +98,7 @@ jobs:
               (Get-Content Directory.Build.props -Raw).Contains('v1.78-zh-toolbar-padding-replacement-20261115')
             $replaceV186 = $version -eq '1.86' -and
               "${{ github.event_name }}" -eq 'push' -and
-              (Get-Content Directory.Build.props -Raw).Contains('v1.86-unne-catalog-save-icon-replacement-20261118')
+              (Get-Content Directory.Build.props -Raw).Contains('v1.86-unne-gear-square-buttons-replacement-20261118')
             if ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
@@ -134,7 +134,7 @@ jobs:
               Write-Host "Authorized one-time v.1.78 localized toolbar geometry and tooltip replacement"
             }
             elseif ($replaceV186) {
-              if ($existingSha -ne '909ff433137c0567e561cd5429f0b3ad06a92fdb') {
+              if ($existingSha -ne '2013cc1ba03555369499ad178e0504799fe93fde') {
                 throw 'v.1.86 original tag has moved; refusing replacement'
               }
               $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
@@ -143,8 +143,8 @@ jobs:
                 throw 'v.1.86 Release identity differs from verified stable baseline'
               }
               $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.86.exe' })
-              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 762328370 -or
-                  $oldAsset[0].digest -ne 'sha256:e61856494d78b252516b0542311f4109275ce4083c98d8e65b0e3f26957789fe') {
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 762379600 -or
+                  $oldAsset[0].digest -ne 'sha256:4da1dcfc572c14a1c22504c9007590f464e73ce909627c537c0a8627fc7ce9f2') {
                 throw 'v.1.86 published installer was changed before replacement'
               }
               "REPLACE_V186=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
@@ -551,7 +551,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = 'v.1.86'
           $newCommit = "${{ github.sha }}"
-          $oldCommit = '909ff433137c0567e561cd5429f0b3ad06a92fdb'
+          $oldCommit = '2013cc1ba03555369499ad178e0504799fe93fde'
           $name = 'SkyRoofSetup-v.1.86.exe'
           $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json

@@ -290,6 +290,34 @@ public sealed class SatelliteTelemetryChainTests
     }
 
     [Fact]
+    public void UnneFmPairKeepsExistingManualParameterEditor()
+    {
+        var sat = new SatnogsDbSatellite { name = "UNNE-1B", norad_cat_id = 99999 };
+        var fm = new SatnogsDbTransmitter
+        {
+            uuid = "fm", Satellite = sat, mode = "FM", DownlinkMode = "FM",
+            description = "FM repeater", downlink_low = 436888000
+        };
+        var data = new SatnogsDbTransmitter { uuid = "data", mode = "BPSK" };
+        Assert.True(TelemetryPanel.ShowParameterSettings(false, false));
+        Assert.True(TelemetryPanel.ShowParameterSettings(true, true));
+        Assert.False(TelemetryPanel.ShowParameterSettings(true, false));
+        Assert.Same(data, TelemetryPanel.ParameterOverrideTarget(fm, data, true));
+        Assert.Same(fm, TelemetryPanel.ParameterOverrideTarget(fm, fm, true));
+        Assert.Same(fm, TelemetryPanel.ParameterOverrideTarget(fm, null, false));
+        fm.manual = new GrSatsInfo
+        {
+            modulation = "FSK", framing = "HADES", baudrate = 400, deviation = 900
+        };
+        var fallback = TelemetryPanel.ResolveUnne1bFmTelemetrySource(sat, fm);
+        Assert.True(fallback.HasValue);
+        Assert.Equal(400, fallback.Value.Params.Baud);
+        Assert.Equal(900, fallback.Value.Params.Deviation);
+        Assert.Equal(Modulation.FSK, fallback.Value.Params.Modulation);
+        Assert.Equal("FM", fm.mode);
+    }
+
+    [Fact]
     public async Task DecodedBinAndLogPreserveBytesIntegrityAndCfo()
     {
         string root = Path.Combine(Path.GetTempPath(),

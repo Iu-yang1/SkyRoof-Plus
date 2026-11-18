@@ -74,10 +74,10 @@ namespace SkyRoof
       SatNameLabel.AutoEllipsis = true;
       // Reserve space for the SAVE and parameter buttons even when docked
       // in a narrow group. The satellite caption must not paint under them.
-      SatNameLabel.Padding = new Padding(4, 0, 98, 0);
+      SatNameLabel.Padding = new Padding(4, 0, 76, 0);
       SatNameLabel.Location = new Point(0, 0);
       SatNameLabel.Name = "SatNameLabel";
-      SatNameLabel.Size = new Size(669, 23);
+      SatNameLabel.Size = new Size(669, 36);
       SatNameLabel.TabIndex = 1;
       SatNameLabel.Text = "___";
       SatNameLabel.TextAlign = ContentAlignment.MiddleCenter;
@@ -88,7 +88,7 @@ namespace SkyRoof
       SettingsButton.BackColor = SystemColors.ButtonFace;
       SettingsButton.Cursor = Cursors.Hand;
       SettingsButton.Image = Properties.Resources.gear_1_;
-      SettingsButton.Location = new Point(637, 0);
+      SettingsButton.Location = new Point(635, 2);
       SettingsButton.Name = "SettingsButton";
       SettingsButton.Size = new Size(32, 32);
       SettingsButton.TabIndex = 0;
@@ -101,9 +101,9 @@ namespace SkyRoof
       SaveButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
       SaveButton.BackColor = SystemColors.ButtonFace;
       SaveButton.Cursor = Cursors.Hand;
-      SaveButton.Location = new Point(576, 3);
+      SaveButton.Location = new Point(599, 2);
       SaveButton.Name = "SaveButton";
-      SaveButton.Size = new Size(57, 26);
+      SaveButton.Size = new Size(32, 32);
       SaveButton.TabIndex = 6;
       SaveButton.AccessibleName = "Save telemetry";
       SaveButton.Paint += SaveButton_Paint;
@@ -115,7 +115,7 @@ namespace SkyRoof
       // 
       StatusLabel.Dock = DockStyle.Top;
       StatusLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-      StatusLabel.Location = new Point(0, 23);
+      StatusLabel.Location = new Point(0, 36);
       StatusLabel.Name = "StatusLabel";
       StatusLabel.Size = new Size(669, 23);
       StatusLabel.TabIndex = 2;
@@ -126,7 +126,7 @@ namespace SkyRoof
       //
       SatnogsStatusLabel.Dock = DockStyle.Top;
       SatnogsStatusLabel.Font = new Font("Segoe UI", 8F);
-      SatnogsStatusLabel.Location = new Point(0, 46);
+      SatnogsStatusLabel.Location = new Point(0, 59);
       SatnogsStatusLabel.Name = "SatnogsStatusLabel";
       SatnogsStatusLabel.Size = new Size(669, 21);
       SatnogsStatusLabel.TabIndex = 3;
