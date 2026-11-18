@@ -141,7 +141,7 @@ public sealed class SatelliteTelemetryChainTests
     }
 
     [Theory]
-    [InlineData("Mode V/U - FM Repeater", "FM", null)]
+    [InlineData("Mode V/U - FM Repeater (Voice + (A)FSK)", "FM", null)]
     [InlineData("Mode U - CW", "CW", null)]
     [InlineData("Mode U - 200bps BPSK", "BPSK", 200)]
     public void Unne1bTelemetryCorrectionNeverConvertsFmOrCw(
@@ -179,7 +179,7 @@ public sealed class SatelliteTelemetryChainTests
         {
             uuid = "unne-fm", Satellite = sat,
             norad_cat_id = Unne1bDeframer.NoradId,
-            description = "Mode V/U - FM Repeater", mode = "FM", DownlinkMode = "FM",
+            description = "Mode V/U - FM Repeater (Voice + (A)FSK)", mode = "FM", DownlinkMode = "FM",
             downlink_low = 436888000
         };
         var telemetry = new SatnogsDbTransmitter
@@ -190,6 +190,8 @@ public sealed class SatelliteTelemetryChainTests
             DownlinkMode = "BPSK", downlink_low = 436888000, baud = 200
         };
         sat.Transmitters.AddRange([fm, telemetry]);
+        Assert.True(SignalParamsResolver.IsUnne1bFmRepeater(fm));
+        Assert.Equal(Modulation.FM, SignalParamsResolver.Resolve(fm)!.Modulation);
         Assert.True(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, fm,
             SignalParamsResolver.Resolve(fm)));
         Assert.Same(telemetry, CoChannel.RankedTelemetrySibling(sat, fm));
