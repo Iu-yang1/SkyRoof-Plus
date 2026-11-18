@@ -913,7 +913,10 @@ namespace SkyRoof
       bool sstv = IsSstvBranchWanted();
       // the FM branch runs only with the model downloaded; the engine loads lazily here (once per session,
       // then shared) so an FM transmitter with no model simply builds no FM branch (status reflects it)
-      var fmEngine = decodeWanted && IsFmDecodable() ? EnsureFmEngine() : null;
+      // Do not let a new FM decoder use the shared Sherpa engine while the
+      // retired decoder is still flushing on a background thread.
+      var fmEngine = decodeWanted && IsFmDecodable() && fmDecoderRestartReady.IsCompleted
+        ? EnsureFmEngine() : null;
       // a discovery session needs a burst source. The telemetry pipeline is one, but it does not exist when
       // the transmitter is CW/SSTV/FM or its format is unsupported — exactly the cases the operator reaches
       // for Discover in — so the search brings its own detection-only pipeline (§4.1).
