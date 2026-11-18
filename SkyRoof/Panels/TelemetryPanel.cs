@@ -610,6 +610,10 @@ namespace SkyRoof
       // FM speech transcript click-to-play (§10.4): hand cursor over a clickable line, play its audio on click
       richTextBox1.MouseMove += richTextBox1_MouseMove;
       richTextBox1.MouseClick += richTextBox1_MouseClick;
+      // Refresh rapidly changing capture diagnostics only while the status
+      // is actually hovered. Re-registering a ToolTip each one-second tick
+      // needlessly invalidates docked WinForms controls.
+      StatusLabel.MouseEnter += (_, _) => RefreshTelemetryDiagnosticsTooltip();
 
       SetTransmitter();
       ApplyAudioSettings();
@@ -3258,28 +3262,44 @@ namespace SkyRoof
     /// current RF input merely because the operator changed interface language.</summary>
     private void RenderTelemetryStatus()
     {
+      string status;
+      Color color = SystemColors.ControlText;
       if (Terrestrial && SignalParams == null)
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.NoTerrestrialParams"), Color.Red);
-      else if (!IsDecodable())
-        UpdateStatusLabel(DescribeUnsupported(), Color.Red);
-      else if (IsFmDecodable() && TelemetrySource == null &&
-               !IsSstvDecodable() && !FmModelPresent)
-        UpdateStatusLabel(DescribeUnsupported(), Color.Red);
+      {
+        status = UiLocalizationService.Get("Telemetry.NoTerrestrialParams");
+        color = Color.Red;
+      }
+      else if (!IsDecodable() || (IsFmDecodable() && TelemetrySource == null &&
+               !IsSstvDecodable() && !FmModelPresent))
+      {
+        status = DescribeUnsupported();
+        color = Color.Red;
+      }
       else if (!Terrestrial && !SatAboveHorizon)
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.BelowHorizon"), SystemColors.ControlText);
+        status = UiLocalizationService.Get("Telemetry.BelowHorizon");
       else
-        UpdateStatusLabel(UiLocalizationService.Get("Telemetry.Ready") + DescribeBranches(),
-          SystemColors.ControlText);
+        status = UiLocalizationService.Get("Telemetry.Ready") + DescribeBranches();
       if (ctx.Settings.Telemetry.InputSource != TelemetryReceiveSource.SdrIq &&
           audioReceiver != null)
       {
-        StatusLabel.Text += audioReceiverError == null
+        status += audioReceiverError == null
           ? UiLocalizationService.Format("Telemetry.AudioRxStatus", audioReceiver.Status)
           : UiLocalizationService.Format("Telemetry.AudioRxError", audioReceiverError);
-        if (audioReceiverError != null)
-          StatusLabel.ForeColor = Color.DarkOrange;
+        if (audioReceiverError != null) color = Color.DarkOrange;
       }
-      toolTip1.SetToolTip(StatusLabel, TelemetryDiagnostics());
+      // Build the *whole* label once, not twice, and do not trigger layout
+      // when neither text nor colour changed on the 1-Hz timer.
+      UpdateStatusLabel(status, color);
+      if (StatusLabel.ClientRectangle.Contains(StatusLabel.PointToClient(Cursor.Position)))
+        RefreshTelemetryDiagnosticsTooltip();
+    }
+
+    private void RefreshTelemetryDiagnosticsTooltip()
+    {
+      string diagnostics = TelemetryDiagnostics();
+      if (!string.Equals(toolTip1.GetToolTip(StatusLabel), diagnostics,
+          StringComparison.Ordinal))
+        toolTip1.SetToolTip(StatusLabel, diagnostics);
     }
 
     private string TelemetryDiagnostics()
@@ -3371,8 +3391,10 @@ namespace SkyRoof
 
     private void UpdateStatusLabel(string text, Color color)
     {
-      StatusLabel.Text = text;
-      StatusLabel.ForeColor = color;
+      if (!string.Equals(StatusLabel.Text, text, StringComparison.Ordinal))
+        StatusLabel.Text = text;
+      if (StatusLabel.ForeColor != color)
+        StatusLabel.ForeColor = color;
     }
 
     internal void ProcessSamples(DataEventArgs<Complex32> e)
