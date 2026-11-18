@@ -697,12 +697,13 @@ namespace SkyRoof
       FmSpeechEngine = null;
       SatnogsUploader = null;
       FrameLogger = null;
-      decoderRetirement.Enqueue(() =>
+      decoderRetirement.EnqueueAsync(async () =>
       {
         speech?.Dispose();
-        // The load may finish after the panel closed, when its UI result
-        // callback will be discarded. Retire it here instead of leaking ONNX.
-        var justLoaded = loadingSpeech?.GetAwaiter().GetResult();
+        // Loading may finish after the window closes. Await on the cleanup
+        // chain, not on WinForms, and release any unused ASR model.
+        var justLoaded = loadingSpeech == null
+          ? null : await loadingSpeech.ConfigureAwait(false);
         if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
         uploader?.Dispose();
         (logger as IDisposable)?.Dispose();
