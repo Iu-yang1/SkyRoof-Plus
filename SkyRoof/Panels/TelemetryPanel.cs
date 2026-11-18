@@ -963,9 +963,17 @@ namespace SkyRoof
       }
       if (!needPipeline && Decoder == null) return;
 
-      // destroy the existing decoder: purge its queued IQ (recorded for the old transmitter / tuning) so the
-      // backlog is discarded rather than decoded and mis-attributed, then dispose it
+      // Retire the prior receiver before constructing another decoder.
+      // In an FM→FM switch, its SkySpeechDecoder may still be flushing and
+      // using the shared Sherpa engine on the retirement thread. The earlier
+      // fmEngine probe occurred BEFORE retirement, so re-check the barrier
+      // here and let the retirement completion callback re-enter UpdateTxStatus.
       RetireActiveDecoder();
+      if (ShouldDeferFmDecoder(fmEngine != null, fmDecoderRestartReady.IsCompleted))
+      {
+        fmEngine = null;
+        needPipeline = decodeWanted && (telemetry || sstv || detectParams != null);
+      }
 
       // create the new decoder, binding the current selection to its handlers so every frame it emits is
       // attributed to this transmitter even if the selection changes while the frame is in flight
