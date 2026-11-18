@@ -10,6 +10,9 @@ namespace SkyRoof
     private int audioConfigurationGeneration;
     private int discontinuityResetPending;
     private bool telemetryClosing;
+    // Sherpa/ONNX is shared by successive FM decoders, so its previous
+    // streaming instance must finish Flush/Dispose before another uses it.
+    private Task fmDecoderRestartReady = Task.CompletedTask;
 
     /// <summary>
     /// Remove the current decoder from ingress on the UI thread, then retire
@@ -21,7 +24,23 @@ namespace SkyRoof
       var old = Decoder;
       Decoder = null;
       CurrentDecode = null;
-      if (old != null) decoderRetirement.Retire(old);
+      if (old == null) return;
+      bool wasFm = old.Fm != null;
+      decoderRetirement.Retire(old);
+      if (!wasFm) return;
+
+      var retired = decoderRetirement.Completion;
+      fmDecoderRestartReady = retired;
+      _ = Task.Run(async () =>
+      {
+        await retired.ConfigureAwait(false);
+        if (telemetryClosing) return;
+        telemetryUi?.Post(() =>
+        {
+          if (!telemetryClosing && ReferenceEquals(fmDecoderRestartReady, retired))
+            UpdateTxStatus();
+        });
+      });
     }
 
     private void QueueDiscontinuityReset()
