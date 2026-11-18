@@ -160,6 +160,7 @@ namespace SkyRoof
     // clip, mirroring RecordingManager.StartPlayback/StopPlayback; fires ClipEndTimer to disable it again
     private bool SpeakerEnabledForClip;
     private System.Windows.Forms.Timer? ClipEndTimer;
+    private TelemetryFrameArchive? BinaryArchive;
 
     // Identity of the transmitter a decoder was built for, captured when the pipeline is created and bound to
     // that pipeline's event handlers. Frames surface on the decode worker thread, possibly after the user has
@@ -606,6 +607,7 @@ namespace SkyRoof
       ctx.MainForm.TelemetryMNU.Checked = true;
 
       SatnogsUploader = new SatnogsUploader(ctx);
+      BinaryArchive = new TelemetryFrameArchive();
 
       // FM speech transcript click-to-play (§10.4): hand cursor over a clickable line, play its audio on click
       richTextBox1.MouseMove += richTextBox1_MouseMove;
@@ -701,6 +703,7 @@ namespace SkyRoof
       var loadingSpeech = fmSpeechLoad;
       var uploader = SatnogsUploader;
       var logger = FrameLogger;
+      var binaryArchive = BinaryArchive;
       FmSpeechEngine = null;
       SatnogsUploader = null;
       FrameLogger = null;
@@ -713,6 +716,8 @@ namespace SkyRoof
           ? null : await loadingSpeech.ConfigureAwait(false);
         if (!ReferenceEquals(justLoaded, speech)) justLoaded?.Dispose();
         uploader?.Dispose();
+        if (binaryArchive != null)
+          await binaryArchive.CompleteAsync().ConfigureAwait(false);
         (logger as IDisposable)?.Dispose();
       });
     }
@@ -1213,6 +1218,12 @@ namespace SkyRoof
       Volatile.Write(ref lastFrameCfoHz, frame.CfoHz);
       ctx.KissServer.SendToAll(frame,
         transportPacket ? 1 : frame.CrcValid == false ? 2 : 0);
+      // Persist the decoder's exact post-deframe bytes and integrity evidence.
+      // This is a non-blocking queue, never synchronous disk I/O on DSP.
+      if (ctx.Settings.Telemetry.SaveDecodedBinLog)
+        BinaryArchive?.Offer(frame, snapshot.Satellite?.norad_cat_id,
+          snapshot.Satellite?.name, snapshot.Transmitter?.description,
+          transportPacket);
       // held frames are dropped, not queued: uploading starts at the Save click and runs forward from there
       // (§4.6). Parameters that were never edited are never held — the plain database path is untouched.
       // Nested TM/KISS packets are useful locally but are not the actual
@@ -3299,6 +3310,19 @@ namespace SkyRoof
       UpdateStatusLabel(status, color);
       if (StatusLabel.ClientRectangle.Contains(StatusLabel.PointToClient(Cursor.Position)))
         RefreshTelemetryDiagnosticsTooltip();
+      string upload = "SatNOGS: " + (UploadHeld ? "暂停：等待确认解码参数" :
+        replayIqActive ? "回放模式，不上传" :
+        SatnogsUploader?.Status ?? "未连接");
+      if (!string.Equals(SatnogsStatusLabel.Text, upload, StringComparison.Ordinal))
+        SatnogsStatusLabel.Text = upload;
+      // Surface both archive progress and the actual upload outcome without
+      // allocating/invalidating tree items or replacing the receive status.
+      string archive = ctx.Settings.Telemetry.SaveDecodedBinLog
+        ? $"BIN+LOG 保存: {BinaryArchive?.Saved ?? 0} / 失败: {BinaryArchive?.Errors ?? 0}"
+        : "BIN+LOG 保存: 未启用";
+      if (!string.Equals(toolTip1.GetToolTip(SatnogsStatusLabel), archive,
+          StringComparison.Ordinal))
+        toolTip1.SetToolTip(SatnogsStatusLabel, archive);
     }
 
     private void RefreshTelemetryDiagnosticsTooltip()
