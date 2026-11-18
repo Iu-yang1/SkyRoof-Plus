@@ -13,6 +13,14 @@ namespace VE3NEA.Dsp.Tests
     [InlineData(1700, 2200)]
     [InlineData(12000, 13500)]
     [InlineData(12000, 10500)]
+    // Measured 2026-11-18 IQ: CFO around -817 Hz, +/-820 Hz FSK
+    // peak deviation. The higher tone lies almost on the IQ zero frequency.
+    [InlineData(12000, 10363)]
+    [InlineData(12000, 12003)]
+    // Earlier observed -1211 Hz carrier displacement plus +/-820 Hz:
+    // both tones remain available after the 12-kHz real IF analytic bridge.
+    [InlineData(12000, 9969)]
+    [InlineData(12000, 11609)]
     [InlineData(1700, 1200)]
     public void RealIfAndAf_AreTranslatedToContinuousComplexBaseband(
       int centerHz, int testHz)

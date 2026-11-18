@@ -98,24 +98,8 @@ namespace SkyRoof
           // retries that steal CPU from the spectrum renderer. Unknown manual
           // deviation still retains the permissive blind-acquisition path.
           UnneKnownDeviationGate = signalParams.Deviation is > 0;
-          var options = new StreamingOptions
-          {
-            GateByShape = UnneKnownDeviationGate,
-            DecodeRejected = !UnneKnownDeviationGate,
-            HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16
-          };
-          // The fork's native CRC deframer must participate in SkyTlm's
-          // baud/CFO/timing retries. Resolve it by name until the fork DLL
-          // has replaced the repository's old bundled library everywhere.
-          var native = typeof(StreamingPipeline).Assembly.GetType(
-            "VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
-          var overrideProperty = typeof(StreamingOptions).GetProperty("DeframerOverride");
-          if (native != null && overrideProperty != null)
-          {
-            overrideProperty.SetValue(options, Activator.CreateInstance(native));
-            typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(options, true);
-            UnneNative = true;
-          }
+          var options = BuildUnne1bStreamingOptions(signalParams, out bool native);
+          UnneNative = native;
           Pipeline = new StreamingPipeline(signalParams, options);
         }
         else Pipeline = new StreamingPipeline(signalParams);
@@ -138,6 +122,34 @@ namespace SkyRoof
       if (detectParams != null) Detector = new StreamingPipeline(detectParams, DetectOnlyOptions);
       if (sstv) Sstv = new SstvDecoder();
       if (fmEngine != null) Fm = new SkySpeechDecoder(fmEngine);
+    }
+
+    /// <summary>One authoritative option builder for the live decoder and
+    /// genuine-IQ regression. A tests-only StreamingOptions() has shorter
+    /// 80ms hangover/20ms guard/8s burst limits and cannot validate SkyRoof's
+    /// actual 250ms/160ms/16s receive path.</summary>
+    internal static StreamingOptions BuildUnne1bStreamingOptions(
+      SignalParams signalParams, out bool nativeDeframer)
+    {
+      bool knownDeviation = signalParams.Deviation is > 0;
+      var options = new StreamingOptions
+      {
+        GateByShape = knownDeviation,
+        DecodeRejected = !knownDeviation,
+        HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16
+      };
+      // Keep compatibility with the older vendored SkyTlm in ordinary
+      // Windows builds; production Release stages the pinned native fork.
+      var native = typeof(StreamingPipeline).Assembly.GetType(
+        "VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
+      var overrideProperty = typeof(StreamingOptions).GetProperty("DeframerOverride");
+      nativeDeframer = native != null && overrideProperty != null;
+      if (native != null && overrideProperty != null)
+      {
+        overrideProperty.SetValue(options, Activator.CreateInstance(native));
+        typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(options, true);
+      }
+      return options;
     }
 
     protected override void Process(DataEventArgs<Complex32> args)

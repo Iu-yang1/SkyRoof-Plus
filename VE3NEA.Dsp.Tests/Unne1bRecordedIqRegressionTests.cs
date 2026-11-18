@@ -31,6 +31,46 @@ public sealed class Unne1bRecordedIqRegressionTests
         double[] CfoHz, double[] SnrDb,
         double PeakDetectorZ, double ThresholdAtPeak, int DetectorBurstFrames);
 
+    // Strict *default* configuration regression. The older parameter sweep
+    // passed if any manual tuning/gain/shape-gate bypass succeeded; that did
+    // not prove the shipping 200-Bd/820-Hz gated receiver could decode.
+    // ±800-Hz residual offsets exercise the CFO actually measured in the
+    // user's 2026-11-18 capture (-817 and -788 Hz at valid frame positions).
+    [Theory]
+    [InlineData(-800.0)]
+    [InlineData(800.0)]
+    [Trait("Category", "RecordedRealIq")]
+    public void DefaultUnne1bReceiver_RealIqRecoversCrcWithObservedCfo(double residualHz)
+    {
+        string? root = Environment.GetEnvironmentVariable("SKYROOF_UNNE_REAL_IQ_DIR");
+        if (string.IsNullOrWhiteSpace(root)) return;
+        Assert.True(Directory.Exists(root), "Missing real IQ corpus: " + root);
+
+        foreach (Fixture fixture in Fixtures)
+        {
+            Complex32[] source = LoadIq(Path.Combine(root, fixture.Name));
+            Complex32[] iq = ResampleIq(source, fixture.RecordedCenterHz + residualHz);
+            Attempt result = Decode(fixture.Name, iq, 820.0,
+                fixture.RecordedCenterHz + residualHz, defaultGate: true, gain: 1.0);
+            bool recovered = fixture.Type == 15
+                ? Enumerable.Range(0, 6).All(n =>
+                    result.Frames.Any(frame => frame.Type == 15 &&
+                        frame.VoiceNumber == n))
+                : result.Frames.Any(frame => frame.Type == fixture.Type &&
+                    frame.Crc == true && frame.Clock == fixture.Clock);
+            Assert.True(recovered,
+                $"Shipping UNNE default (200 Bd, 820 Hz, shape gate ON) " +
+                $"missed {fixture.Name} at CFO {-residualHz:+0;-0;0} Hz; " +
+                $"bursts={result.Bursts}, softbits={result.SoftBits}, " +
+                $"frames={string.Join(",", result.Frames.Select(f =>
+                    $"{f.Type}:{f.Crc}:{f.Clock}:{f.VoiceNumber}"))}");
+            Console.WriteLine($"STRICT_DEFAULT_IQ {fixture.Name} " +
+                $"residualCfo={-residualHz:F0} deviation=820 " +
+                $"baud=200 gate=True bursts={result.Bursts} " +
+                $"frames={string.Join(",", result.Frames.Select(f => f.Type))}");
+        }
+    }
+
     [Fact]
     [Trait("Category", "RecordedRealIq")]
     public void RealUnne1bIq_ProductionFskPipeline_ToCrcAndFrame()
@@ -128,7 +168,9 @@ public sealed class Unne1bRecordedIqRegressionTests
         // use reflection solely so the regular SkyRoof compile job (which
         // builds against its existing vendor DLL) can still compile this
         // draft integration test. The real-IQ job replaces that DLL first.
-        var opts = defaultGate ? new StreamingOptions() : new StreamingOptions
+        var opts = defaultGate
+            ? TelemetryDecocder.BuildUnne1bStreamingOptions(parameters, out _)
+            : new StreamingOptions
         {
             GateByShape = false,
             DecodeRejected = true,
