@@ -69,14 +69,7 @@ namespace SkyRoof
       if (replayIqActive == active) return;
       // A live SDR PLL/framer must not continue from its old state into
       // historical WAV samples; likewise clear replay state on resume.
-      if (Decoder != null)
-      {
-        Decoder.Purge();
-        var prior = Decoder;
-        Decoder = null;
-        CurrentDecode = null;
-        prior.Dispose();
-      }
+      RetireActiveDecoder();
       replayIqActive = active;
       UpdateTxStatus();
     }
@@ -592,6 +585,11 @@ namespace SkyRoof
       this.ctx = ctx;
 
       InitializeComponent();
+      telemetryUi = new TelemetryUiMailbox(callback =>
+      {
+        if (!IsDisposed && !telemetryClosing && IsHandleCreated)
+          BeginInvoke(callback);
+      });
 
       // gear button: draw the icon as an Awesome-font glyph so its state is shown via the foreground color
       SettingsButton.Image = null;
@@ -616,6 +614,7 @@ namespace SkyRoof
 
     internal void ApplyAudioSettings()
     {
+      Interlocked.Increment(ref audioConfigurationGeneration);
       audioReceiver ??= new TelemetryAudioReceiveSession();
       // Stop old PCM before disposing its associated modem and deframer.
       // Purging the queue alone is insufficient: PLL/FIR/framer state from
@@ -623,13 +622,7 @@ namespace SkyRoof
       audioReceiver.IqAvailable -= AudioReceiver_IqAvailable;
       audioReceiver.IqDiscontinuity -= AudioReceiver_IqDiscontinuity;
       audioReceiver.Stop();
-      if (Decoder is TelemetryDecocder previous)
-      {
-        Decoder = null;
-        CurrentDecode = null;
-        previous.Purge();
-        previous.Dispose();
-      }
+      RetireActiveDecoder();
       audioReceiver.IqAvailable += AudioReceiver_IqAvailable;
       audioReceiver.IqDiscontinuity += AudioReceiver_IqDiscontinuity;
       audioReceiver.SetAfSignalParams(TelemetrySource?.Params);
@@ -648,37 +641,20 @@ namespace SkyRoof
       }
     }
 
-    private void AudioReceiver_IqDiscontinuity()
-    {
-      if (IsDisposed || !IsHandleCreated) return;
-      void ResetPipeline()
-      {
-        if (IsDisposed) return;
-        if (Decoder != null)
-        {
-          var prior = Decoder;
-          Decoder = null;
-          CurrentDecode = null;
-          prior.Purge();
-          prior.Dispose();
-        }
-        CreatDestroyPipeline();
-      }
-      if (InvokeRequired) Invoke((Action)ResetPipeline);
-      else ResetPipeline();
-    }
+    private void AudioReceiver_IqDiscontinuity() => QueueDiscontinuityReset();
 
     private void AudioReceiver_IqAvailable(object? sender,
       DataEventArgs<Complex32> args)
     {
       // This PCM has been translated to complex baseband exactly once.
       // The SDR IQ route is deliberately separate to avoid duplicate frames.
-      if (!replayIqActive) Decoder?.StartProcessing(args);
+      if (!replayIqActive) Volatile.Read(ref Decoder)?.EnqueueIq(args);
     }
 
     private void TelemetryPanel_Shown(object? sender, EventArgs e)
     {
       splitContainer1.SplitterDistance = ctx.Settings.Telemetry.SplitterDistance;
+      if (telemetryUi?.PendingCount > 0) telemetryUi.Drain();
       // ImageSplitContainer is still hidden here, so it has not been laid out to its real size yet and its
       // splitter cannot be positioned. It is restored when it first becomes visible, see DisplayImageInfo
     }
@@ -694,6 +670,9 @@ namespace SkyRoof
     private void TelemetryPanel_FormClosing(object sender, FormClosingEventArgs e)
     {
       Log.Information("Closing TelemetryPanel");
+      telemetryClosing = true;
+      telemetryUi?.Close();
+      Interlocked.Increment(ref audioConfigurationGeneration);
       ctx.TelemetryPanel = null;
       ctx.MainForm.TelemetryMNU.Checked = false;
       ctx.Settings.Telemetry.SplitterDistance = splitContainer1.SplitterDistance;
@@ -706,21 +685,22 @@ namespace SkyRoof
         audioReceiver.Dispose();
         audioReceiver = null;
       }
-      // stop and free the decode pipeline (joins its worker thread and releases native FFTW memory)
-      Decoder?.Dispose();
-      Decoder = null;
-      CurrentDecode = null;
-
-      // stop any click-to-play clip, then free the shared FM speech engine (the decoder above no longer uses it)
+      // Decoder joins/FFTW cleanup run on a worker; shared resources are
+      // released only after every queued decoder has finished flushing.
+      RetireActiveDecoder();
       StopAudioClip();
-      FmSpeechEngine?.Dispose();
+      var speech = FmSpeechEngine;
+      var uploader = SatnogsUploader;
+      var logger = FrameLogger;
       FmSpeechEngine = null;
-
-      SatnogsUploader?.Dispose();
       SatnogsUploader = null;
-
-      (FrameLogger as IDisposable)?.Dispose();
       FrameLogger = null;
+      decoderRetirement.Enqueue(() =>
+      {
+        speech?.Dispose();
+        uploader?.Dispose();
+        (logger as IDisposable)?.Dispose();
+      });
     }
 
 
@@ -765,6 +745,7 @@ namespace SkyRoof
       Transmitter = newTerrestrial ? null : newTransmitter;
       Terrestrial = newTerrestrial;
 
+      Interlocked.Increment(ref audioConfigurationGeneration);
       // a new transmitter discards any manual override / provenance state and resets the gear button color
       UserChangedFields.Clear();
       DemodValidated = false;
@@ -971,14 +952,7 @@ namespace SkyRoof
 
       // destroy the existing decoder: purge its queued IQ (recorded for the old transmitter / tuning) so the
       // backlog is discarded rather than decoded and mis-attributed, then dispose it
-      if (Decoder != null)
-      {
-        Decoder.Purge();
-        var old = Decoder;
-        Decoder = null;
-        CurrentDecode = null;
-        old.Dispose();
-      }
+      RetireActiveDecoder();
 
       // create the new decoder, binding the current selection to its handlers so every frame it emits is
       // attributed to this transmitter even if the selection changes while the frame is in flight
@@ -1082,7 +1056,7 @@ namespace SkyRoof
           var fm = Decoder.Fm;
           var info = new FmTranscriptInfo(snapshot, fm, fm.OutputSampleRate);
           fm.LineCompleted += (line, index) => FmLineCompletedHandler(fm, line, info);
-          fm.LineUpdated += line => BeginInvoke(() => UpdateFmPending(line, info));
+          fm.LineUpdated += line => telemetryUi?.Post(() => UpdateFmPending(line, info));
         }
       }
     }
@@ -1166,7 +1140,7 @@ namespace SkyRoof
       // if the previous one is still under analysis, so this stays free on the decode thread.
       OfferToDiscovery(report);
 
-      BeginInvoke(() =>
+      telemetryUi?.Post(() =>
         {
           // create the pass entry on the first burst (grayed until a valid frame arrives), not on the first frame
           var (passNode, txPassInfo) = EnsureCurrentPassNode(snapshot);
@@ -1220,7 +1194,7 @@ namespace SkyRoof
       // above, so the node it is filed under is already on the tree by the time AddFrame runs. Moving either
       // Push below this marshal would silently leave every first fragment parentless.
       var routing = new FrameRouting(toImage, toVoice, pushed.Accepted);
-      BeginInvoke(() =>
+      telemetryUi?.Post(() =>
       {
         // read before AddFrame, which may set DemodValidated on this very frame: that frame is the one that
         // made the parameters found, and what the save gate asks for is 2 MORE of them (§4.2).
@@ -1317,7 +1291,7 @@ namespace SkyRoof
       session.Progress += ShowDiscoveryProgress;
       session.Found += _ => found = true;
       session.Found += DiscoveryFound;
-      session.Ended += () => BeginInvoke(() => ParamsDialog?.ShowDiscoveryEnded(found));
+      session.Ended += () => telemetryUi?.Post(() => ParamsDialog?.ShowDiscoveryEnded(found));
       Discovery = session;
       // build the search its own burst source if this transmitter's decode does not provide one
       CreatDestroyPipeline();
@@ -1410,7 +1384,7 @@ namespace SkyRoof
     // simply decodes nothing further, leaving the operator exactly where they already were (§4.5).
     private void DiscoveryFound(DiscoveryCandidate found)
     {
-      BeginInvoke(() =>
+      telemetryUi?.Post(() =>
       {
         StopDiscovery();
         // The tier-1 hypotheses are the co-channel siblings' own parameters, so an answer equal to one of
@@ -1646,14 +1620,7 @@ namespace SkyRoof
       OverrideSaved = false;
       UpdateUploadHold();
 
-      if (Decoder != null)
-      {
-        Decoder.Purge();
-        var old = Decoder;
-        Decoder = null;
-        CurrentDecode = null;
-        old.Dispose();
-      }
+      RetireActiveDecoder();
       CreatDestroyPipeline();
     }
 
@@ -1989,7 +1956,7 @@ namespace SkyRoof
       if (evt.Final) (rendering, filter) = ApplySaveFilter(evt, ctx.Settings.Telemetry.SstvSaveFilter);
 
       string? savedPath = evt.Final && evt.ValidRows > 0 ? SaveImageToFile(evt, rendering, snapshot) : null;
-      BeginInvoke(() => ShowImage(evt, rendering, filter, snapshot, imageNodes, savedPath));
+      telemetryUi?.Post(() => ShowImage(evt, rendering, filter, snapshot, imageNodes, savedPath));
     }
 
     // The finalized picture with the auto-save filter applied, and its description for the info pane.
@@ -2293,7 +2260,7 @@ namespace SkyRoof
     private void SsdvImageHandler(ImageProduct product, DecodeSnapshot snapshot, Dictionary<int, TreeNode> imageNodes, bool final)
     {
       var saved = final && ShouldSaveImage(product) ? SaveImageToFile(product, snapshot) : default;
-      BeginInvoke(() => ShowSsdvImage(product, snapshot, imageNodes, saved, final));
+      telemetryUi?.Post(() => ShowSsdvImage(product, snapshot, imageNodes, saved, final));
     }
 
     /// <summary>What actually reached the disk for one finalized image. The <c>.jpg</c> and the
@@ -2537,7 +2504,7 @@ namespace SkyRoof
       Dictionary<int, TreeNode> voiceNodes, bool final)
     {
       string? savedPath = final && ShouldSaveVoice(product) ? SaveVoiceToFile(product, snapshot) : null;
-      BeginInvoke(() => ShowVoiceMessage(product, snapshot, voiceNodes, savedPath, final));
+      telemetryUi?.Post(() => ShowVoiceMessage(product, snapshot, voiceNodes, savedPath, final));
     }
 
     /// <summary>Whether a finalized message is worth writing to disk. The SSDV rule cannot be reused: there
@@ -2959,7 +2926,7 @@ namespace SkyRoof
     {
       float[] audio = fm.GetAudio(line.StartSeconds, line.EndSeconds);
       var entry = new FmLineEntry(line.Text, line.StartSeconds, audio);
-      BeginInvoke(() => AddFmLine(entry, info));
+      telemetryUi?.Post(() => AddFmLine(entry, info));
     }
 
     private void AddFmLine(FmLineEntry entry, FmTranscriptInfo info)
@@ -3346,13 +3313,13 @@ namespace SkyRoof
     internal void ProcessSamples(DataEventArgs<Complex32> e)
     {
       if (!replayIqActive && ctx.Settings.Telemetry.InputSource == TelemetryReceiveSource.SdrIq)
-        Decoder?.StartProcessing(e);
+        Volatile.Read(ref Decoder)?.EnqueueIq(e);
     }
 
     internal void ProcessReplaySamples(DataEventArgs<Complex32> e)
     {
       if (replayIqActive)
-        Decoder?.StartProcessing(e);
+        Volatile.Read(ref Decoder)?.EnqueueIq(e);
     }
 
     // a right-click does not select in a TreeView, but every context menu here — the tree's own, and the
