@@ -125,14 +125,21 @@ namespace SkyRoof
       });
     }
 
-    internal void Enqueue(Action cleanup)
+    internal void Enqueue(Action cleanup) =>
+      EnqueueAsync(() =>
+      {
+        cleanup();
+        return Task.CompletedTask;
+      });
+
+    internal void EnqueueAsync(Func<Task> cleanup)
     {
       lock (gate)
-        pending = pending.ContinueWith(_ =>
+        pending = pending.ContinueWith(async _ =>
         {
-          try { cleanup(); }
+          try { await cleanup().ConfigureAwait(false); }
           catch (Exception ex) { Log.Error(ex, "Telemetry decoder retirement failed"); }
-        }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+        }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
     }
   }
 }
