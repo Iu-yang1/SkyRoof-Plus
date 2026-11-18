@@ -196,8 +196,14 @@ public sealed class SatelliteTelemetryChainTests
         Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(sat, telemetry,
             SignalParamsResolver.Resolve(telemetry)));
         var other = new SatnogsDbSatellite { norad_cat_id = 99999 };
-        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, fm with { },
-            SignalParamsResolver.Resolve(fm)));
+        var otherFm = new SatnogsDbTransmitter
+        {
+            norad_cat_id = 99999, Satellite = other,
+            mode = "FM", DownlinkMode = "FM", description = "FM repeater",
+            downlink_low = 436888000
+        };
+        Assert.False(TelemetryPanel.ShouldUseUnneTelemetrySibling(other, otherFm,
+            SignalParamsResolver.Resolve(otherFm)));
     }
 
     [Theory]
