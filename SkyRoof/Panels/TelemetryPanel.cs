@@ -1300,6 +1300,44 @@ namespace SkyRoof
     //                                   signal params override
     //----------------------------------------------------------------------------------------------
     // gear button: open the signal-details editor for the current transmitter and apply any manual override
+    // Save starts at the user's click and keeps all historical frames out of
+    // the new folder. A second click finishes outstanding disk writes while
+    // decoding continues without retaining further packets.
+    private void SaveButton_Click(object sender, EventArgs e)
+    {
+      var active = Interlocked.Exchange(ref BinaryArchive, null);
+      if (active != null)
+      {
+        archiveFlushingTasks.Add(active.CompleteAsync());
+        SaveButton.Text = "SAVE";
+        toolTip1.SetToolTip(SaveButton,
+          SettingsLanguage.Text("选择目录并开始保存遥测", "Choose folder and save telemetry"));
+        RenderTelemetryStatus();
+        return;
+      }
+
+      using var dialog = new FolderBrowserDialog
+      {
+        Description = SettingsLanguage.Text(
+          "选择遥测 BIN、LOG 和文本记录的保存目录",
+          "Choose a directory for telemetry BIN, LOG and text records"),
+        UseDescriptionForTitle = true,
+        SelectedPath = ArchiveDirectory ??
+          Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+      };
+      if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+      ArchiveDirectory = dialog.SelectedPath;
+      var recorder = new TelemetryFrameArchive(dialog.SelectedPath);
+      LastArchive = recorder;
+      Volatile.Write(ref BinaryArchive, recorder);
+      SaveButton.Text = "STOP";
+      toolTip1.SetToolTip(SaveButton,
+        SettingsLanguage.Text("停止遥测归档（后台写完剩余数据）",
+          "Stop telemetry archival (flush remaining data in background)"));
+      RenderTelemetryStatus();
+    }
+
     private void SettingsButton_Click(object sender, EventArgs e)
     {
       // a transmitter with no parameters at all has the most to gain from Discover, and a hand-entered set
@@ -3235,29 +3273,16 @@ namespace SkyRoof
     // right pane
     private void SaveFrameToFile(Frame frame, string addr, string frameText, DecodeSnapshot snapshot)
     {
-      if (!ctx.Settings.Telemetry.ArchiveToFile) return;
-
-      FrameLogger ??= CreateFrameLogger();
+      var archive = Volatile.Read(ref BinaryArchive);
+      if (archive == null) return;
 
       string identity = snapshot.Transmitter == null ? DescribeTerrestrial(snapshot.TerrestrialHz)
-        : $"Sat: {snapshot.Transmitter.Satellite.name}  Tx: \"{snapshot.Transmitter.description}\"  Uuid: {snapshot.Transmitter.uuid}";
+        : $"Sat: {snapshot.Transmitter.Satellite?.name}  Tx: \"{snapshot.Transmitter.description}\"  Uuid: {snapshot.Transmitter.uuid}";
       string header = $"{identity}  Frame: {frame.Length} bytes" +
         (addr.Length > 0 ? $"  Addr: {addr}" : "");
-      FrameLogger.Information("{Header}\n{Body}", header, frameText);
-    }
-
-    private static ILogger CreateFrameLogger()
-    {
-      string fileName = Path.Combine(Utils.GetUserDataFolder(), "TelemetryDecodes", "frames_.txt");
-      // both zones, so that a decode can be matched against the UTC-stamped system log and
-      // against the local-time file names of the images saved from the same pass
-      return new LoggerConfiguration()
-        .Enrich.With<UtcTimeEnricher>()
-        .WriteTo.File(fileName,
-          rollingInterval: RollingInterval.Day,
-          outputTemplate: "{Utc:yyyy-MM-dd HH:mm:ss}Z  ({Timestamp:HH:mm:ss} LT)  {Message:lj}{NewLine}",
-          shared: true)
-        .CreateLogger();
+      string utc = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+      archive.OfferText($"{utc}Z  {header}{Environment.NewLine}{frameText}",
+        DateTime.UtcNow);
     }
 
     internal void UpdateTxStatus()
