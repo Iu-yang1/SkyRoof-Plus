@@ -1,3 +1,39 @@
+# SkyRoof-Plus v.1.86
+
+## v1.86 — 2026-11-18 UNNE-1B 默认接收链真实 I/Q / CRC / CFO 验收正式版
+
+本版基于已合并的 [PR #246](https://github.com/Iu-yang1/SkyRoof-Plus/pull/246)（UNNE-1B FSK 自动识别、停靠遥测 UI 性能、BIN+LOG 与 SatNOGS 状态）和 [PR #248](https://github.com/Iu-yang1/SkyRoof-Plus/pull/248)（严格生产链模拟验收）。**创建新的 v.1.86 程序、标签和安装包，不覆盖 v.1.85 或任何历史 Release 资产。**
+
+### 协议及自动解码默认参数——已复核
+
+- 仅对 **UNNE-1B NORAD 101101、436.888 MHz、200 baud 数据发射机条目**修正 SatNOGS 的错误 BPSK 元数据，默认选 **2-FSK、HADES/GENESIS Type-C、200 baud、FSK 峰值频偏 820 Hz**。手动覆盖值仍优先。
+- 同频 FM 转发器行保持 FM/CAT 选台，遥测面板使用其同频 200 Bd 遥测 sibling；不将 FM/CW 误改为 FSK。原有卫星 AOS/LOS 门控不变。
+- UNNE 帧按 **0xBF35 同步 → Type-C 地址/类型/长度 → 对加扰字节执行 CRC-16/CCITT-FALSE → 解扰**；不能将 HADES-SA 39-byte Type-3 帧当作 UNNE-1B 的标准 Type-3。生产版使用固定版本 SkyTlm 原生 UNNE 专用解帧器；缺少新 DLL 时保留独立后备解析路径。
+- 用户提供的 `2026-11-18_11_48_48_UNNE-1B.iq.wav` 是 **48 kHz、双声道 float32 I/Q、525.5 s**。独立接收器从中恢复两帧无纠错 CRC 有效遥测：约 8.337 s Type 8，FCS `0x3549`；约 98.343 s Type 1，FCS `0x9611`。两帧 31 字节原始加扰线帧与 29 字节解扰负载均作为精确 xUnit 测试向量，要求帧结构、CRC 和实际字节完全一致。
+- 用户两帧有效 FSK 的中心约 −817/−788 Hz，相对于 I/Q 零频；双音间隔约 1623/1611 Hz、对应峰值频偏约 812/806 Hz。**820 Hz 是 FSK 峰值频偏，不是载波 CFO；**已验证 CFO 搜索 ±2000 Hz 足以覆盖观测偏移。48-kHz、12-kHz 中心实数 IF 的 Hilbert/NCO 验收覆盖这两个 FSK 音调及此前 −1211 Hz 偏移假设。
+
+### SkyRoof 生产级模拟回归——已通过
+
+- 过去的 real-IQ 测试有参数组合容错：任何手动增益、关闭频谱门控或候选偏移成功即可验收。本版新增**严格默认测试**：使用 SkyRoof `TelemetryDecocder.BuildUnne1bStreamingOptions` 与实机运行时**同一构造器**，不再另写一个近似的 SkyTlm 默认配置。
+- 保持 **200 baud、820 Hz、GateByShape=true、DecodeRejected=false、Hangover=250 ms、Guard=160 ms、MaxBurst=16 s**；以真实公开 UNNE-1B I/Q 样本在 **CFO = −800 Hz 及 +800 Hz** 各运行独立端到端解调/软判决/CRC：**Type 1 CRC OK、Type 14 CRC OK、Type 15 CODEC2 连续 0–5 六子帧全部恢复**。
+- [真实 I/Q 工作流 #44245064126](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44245064126) 通过。固定 SkyTlm 测试结果 **823 pass、3 skip、0 fail**；[Windows Compile Check #44245064161](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44245064161) 与 aislop v0.18.1 同步通过。此次只把已确认的生产默认选项提取为统一构造器、补回归；**未擅自更换正确的调制/频偏默认值或取消功能**。
+
+### 与 v1.85 继续包含的接收功能
+
+- 保留在无活动解码器时跳过无用 IF→IQ DSP、Hilbert 非零抽头/NCO 优化、遥测 UI 突发摘要合并刷新。
+- 保留可选解码后每帧 `.bin` + UTF-8 `.log` 后台存盘（CRC/FEC、UTC、CFO/SNR、来源和 HEX），以及 SatNOGS 上传队列/成功/失败/HTTP 状态栏。保存功能默认关闭，SatNOGS 不会因新增状态栏自动启用。
+- 保留 v1.84 的 FM 语音链 P0–P3、遥测工作线程后台退休、其余卫星协议和 CAT/PTT/旋转器功能。
+
+### 发布验收与边界
+
+- v1.86 采用独立的 `Build and Release`，必须重新通过发布专用 aislop、Windows Release / xUnit、Orekit IKVM、Inno Setup 安装程序、回读 SHA-256 与 Authenticode 状态校验；发行包的实际状态以该次 Actions 和 GitHub Release 为准。
+- **该版本是用户明确要求的正式 Release。** 若仓库的 SignPath 凭据不可用，允许此次单独版本标记为 Stable，但会在 GitHub Release 中**明确注明安装程序未签名**并提供 SHA-256；不对旧版本扩大例外。
+- 原始 525.5 s 用户录音已经独立验证两帧；**GitHub Windows SkyRoof 的真实 I/Q 测试使用固定公开 UNNE-1B 过境样本，不是用户整段录音本身**。本版未宣称完成全程用户 IQ 的软件 PER、IC-9700 射频实机或 WinForms 停靠窗口 FPS 压力验收。此前用户报告的整场一包现象仍需要现场完整回放进行最终量化。
+
+**English summary:** Stable v1.86 ships the v1.85 receiver fixes with stricter production SkyRoof streaming-option regression. The 200 Bd/820 Hz FSK/HADES Type-C configuration and native UNNE deframer were audited against exact 2026-11-18 user packet CRC vectors. Genuine pinned off-air UNNE IQ achieves CRC-valid Type1 and Type14 plus CODEC2 6/6 with +800 and −800 Hz residual CFO using the real production gate/hangover/guard/burst values. IC-9700 end-to-end PER and GUI FPS remain unverified; unsigned status is explicitly disclosed if SignPath is unavailable.
+
+---
+
 # SkyRoof-Plus v.1.85
 
 ## v1.85 — 2026-11-18 UNNE-1B FSK 遥测、停靠界面性能、BIN+LOG 与 SatNOGS 上传回执

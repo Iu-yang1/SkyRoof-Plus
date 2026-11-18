@@ -1,3 +1,18 @@
+# SkyRoof Fork v.1.86 / UNNE-1B Production IQ/CRC/CFO Validated Stable
+
+## v1.86 — 2026-11-18
+
+- 合并 PR #248：以源于 2026-11-18 用户 48-kHz 双声道 I/Q 录音的 Type 8 / Type 1 实际加扰帧作为原始字节向量，分别核验 CRC-CCITT-FALSE 0x3549 / 0x9611、0xBF35 同步与 29 字节解扰负载。补测 12-kHz IF 前端在实测 −800 Hz 及此前 −1211 Hz CFO 下的双音保真度。
+- 消除真实 I/Q 旧测试“任意手动候选参数成功即算通过”的漏洞：把生产 `StreamingOptions` 抽为共用构造器；真实过境 I/Q 在 **FSK/HADES、200 baud、820 Hz、GateByShape 开启、250 ms Hangover、160 ms Guard、16 s MaxBurst** 下，CFO ±800 Hz 均恢复 Type1/Type14 CRC-valid 帧及 CODEC2 6/6 子帧。
+- [真实 IQ Actions #44245064126](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/44245064126) 通过，独立 SkyTlm 823 通过、3 跳过、0 失败；Windows Compile Check 和 aislop v0.18.1 通过。
+- 默认值复核正确，**不修改已证明合理的 UNNE 820-Hz 峰值频偏或 200-baud**；保持 SatNOGS 错误 BPSK 纠正、FM 同频 sibling 与用户手动覆盖、AOS/LOS、BIN+LOG 和上传状态不变。
+- 独立 v.1.86 正式版本不覆盖旧标签/安装包。缺少 SignPath 时明确公开未签名状态和 SHA-256，按用户本次正式 Release 授权将 v1.86 标记 Stable，仅适用于本版本。
+- 公开真实 IQ / 软件模拟不等于用户本次 525.5 秒完整 WAV 在 Windows SkyRoof 的直接回放，也不等于 IC-9700 PER/GUI FPS 实测。实际过境一包故障的整场恢复率仍需独立测量。
+
+**English:** Stable v1.86 verifies real production FSK/HADES options on genuine UNNE IQ at ±800 Hz CFO and asserts exact 2026-11-18 CRC-valid captured Type1/Type8 vectors. The 820-Hz peak deviation remains unchanged; over-the-air end-to-end packet recovery on the operator's full pass is not claimed.
+
+---
+
 # SkyRoof Fork v.1.85 / UNNE-1B 200 Bd FSK, Telemetry UI, BIN+LOG and SatNOGS
 
 ## v1.85 — 2026-11-18
