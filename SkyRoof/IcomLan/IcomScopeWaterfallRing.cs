@@ -99,10 +99,12 @@ namespace SkyRoof
       if (visible && recolor)
       {
         int y = 0;
+        int[]? blank = null;
         foreach (ref var row in raw.AsSpan())
         {
           row = row with { Floor = floor };
-          if (cpuRaster) colors[y] = Colorize(row);
+          if (cpuRaster)
+            colors[y] = row.First == row.End ? blank ??= Colorize(row) : Colorize(row);
           y++;
         }
         recolor = false;
@@ -126,8 +128,18 @@ namespace SkyRoof
     {
       var result = new int[Points];
       int floor = Math.Clamp(row.Floor, 0, Levels - 1) * Levels;
-      for (int x = 0; x < Points; x++)
-        result[x] = table[floor + Math.Min(Levels - 1, row.At(x))];
+      var lookup = table.AsSpan(floor, Levels);
+      if (row.First == row.End)
+      {
+        Array.Fill(result, lookup[0]);
+        return result;
+      }
+      int first = row.First + row.Offset;
+      int end = row.End + row.Offset;
+      result.AsSpan(0, first).Fill(lookup[0]);
+      result.AsSpan(end).Fill(lookup[0]);
+      for (int x = first; x < end; x++)
+        result[x] = lookup[Math.Min(Levels - 1, (int)row.Samples[x - row.Offset])];
       return result;
     }
 

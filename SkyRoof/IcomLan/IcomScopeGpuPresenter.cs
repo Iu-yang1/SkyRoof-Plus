@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using SharpGL;
 using SharpGL.Version;
 
@@ -97,6 +98,8 @@ namespace SkyRoof
         if (!gl.Create(OpenGLVersion.OpenGL3_3, RenderContextType.NativeWindow, 1, 1, 32, window))
           throw new InvalidOperationException("OpenGL native context creation failed");
         gl.MakeCurrent();
+        if (WglGetCurrentContext() == IntPtr.Zero || WglGetCurrentDC() == IntPtr.Zero)
+          throw new InvalidOperationException("OpenGL native context is not current");
         Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
         drawing = new IcomScopeGpuRenderer(gl);
         while (true)
@@ -116,12 +119,12 @@ namespace SkyRoof
             gl.Viewport(0, 0, size.Width, size.Height);
             gl.ClearColor(0.02f, 0.03f, 0.055f, 1f);
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
-            gl.Blit(IntPtr.Zero);
+            SwapCurrentBuffers();
             continue;
           }
           long startTick = Stopwatch.GetTimestamp();
           drawing.Draw(frame, size);
-          gl.Blit(IntPtr.Zero);
+          SwapCurrentBuffers();
           Interlocked.Increment(ref presentCount);
           RecordPresent(frame, startTick);
           if (ready) continue;
@@ -139,6 +142,7 @@ namespace SkyRoof
         try
         {
           drawing?.Dispose();
+          gl.MakeNothingCurrent();
           gl.RenderContextProvider?.Destroy();
         }
         catch (Exception ex)
@@ -151,6 +155,22 @@ namespace SkyRoof
           wake.Dispose();
         }
       }
+    }
+
+    [DllImport("opengl32.dll", EntryPoint = "wglGetCurrentContext")]
+    private static extern IntPtr WglGetCurrentContext();
+
+    [DllImport("opengl32.dll", EntryPoint = "wglGetCurrentDC")]
+    private static extern IntPtr WglGetCurrentDC();
+
+    [DllImport("gdi32.dll", EntryPoint = "SwapBuffers", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SwapBuffers(IntPtr dc);
+
+    private static void SwapCurrentBuffers()
+    {
+      if (!SwapBuffers(WglGetCurrentDC()))
+        throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "OpenGL SwapBuffers failed");
     }
 
     private void RecordPresent(IcomScopeRenderSnapshot frame, long startTick)

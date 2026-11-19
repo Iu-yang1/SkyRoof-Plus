@@ -131,8 +131,9 @@ namespace SkyRoof
         using var font = new Font("Segoe UI", 9f);
         markerSize = RenderLabel(1, markerText, font, true);
       }
+      if (state.CursorX < 0) return;
       string key = state.CursorText + "|" + options.FontName + "|" + options.FontSize + "|" + options.FontStyle;
-      if (state.CursorX < 0 || cursorKey == key) return;
+      if (cursorKey == key) return;
       if (cursorFont == null || cursorFont.Name != options.FontName ||
           cursorFont.Size != options.FontSize || cursorFont.Style != options.FontStyle)
       {
@@ -211,17 +212,21 @@ namespace SkyRoof
       float yValue(float v) { return uSize.y-2.0-v/160.0*max(1.0,uSize.y-4.0); }
       float segmentDist(vec2 p,vec2 a,vec2 b) {
         vec2 d=b-a;
-        return length(p-a-d*clamp(dot(p-a,d)/max(dot(d,d),0.00001),0.0,1.0));
+        vec2 q=p-a-d*clamp(dot(p-a,d)/max(dot(d,d),0.00001),0.0,1.0);
+        return dot(q,q);
       }
       float xValue(int i) { return (float(i)/474.0-uZoom.x)/max(0.000001,uZoom.y-uZoom.x)*(uSize.x-1.0); }
       float traceDist(vec2 p,int bin,int ch) {
         float result=10000.0;
-        for(int i=max(0,bin-1); i<=min(473,bin+1);i++) {
-          vec2 a=vec2(xValue(i),yValue(sampleBin(i)[ch]));
+        int first=max(0,bin-1);
+        vec2 a=vec2(xValue(first),yValue(sampleBin(first)[ch]));
+        for(int i=first; i<=min(473,bin+1);i++) {
           vec2 b=vec2(xValue(i+1),yValue(sampleBin(i+1)[ch]));
-          result=min(result,segmentDist(p,a,b));
+          if(p.y>=min(a.y,b.y)-2.0 && p.y<=max(a.y,b.y)+2.0)
+            result=min(result,segmentDist(p,a,b));
+          a=b;
         }
-        return result;
+        return sqrt(result);
       }
       vec3 label(vec3 base, sampler2D tex, vec4 box, vec2 p) {
         vec2 q=p-box.xy;

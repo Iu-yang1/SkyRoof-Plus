@@ -51,8 +51,8 @@ namespace SkyRoof
     private int AverageSweepCount = 1;
     private int SmoothingBins = 1;
     private int historyRows = 240;
-    private Bitmap? WaterfallBitmap;
-    private int[][]? uploadedRows;
+    private IcomScopeGdiHistoryBitmap? gdiHistory;
+    private Bitmap? WaterfallBitmap => gdiHistory?.Image;
     private int WaterfallHead = -1;
     private bool WaterfallVisible = true;
     private int WaterfallBrightness;
@@ -492,8 +492,8 @@ namespace SkyRoof
         TuneCommitTimer.Dispose();
         RemoveGpuSurface();
         renderWorker.Dispose();
-        WaterfallBitmap?.Dispose();
-        WaterfallBitmap = null;
+        gdiHistory?.Dispose();
+        gdiHistory = null;
       }
 
       base.Dispose(disposing);
@@ -544,7 +544,7 @@ namespace SkyRoof
       {
         // The native region leaves the original frequency axis and splitter exposed.
         DrawFrequencyGrid(e.Graphics, spectrumRect, GetSpectrumPlotRectangle(spectrumRect),
-          frame?.Geometry ?? default, GetDisplayFrequencyOffset(frame), textColor);
+          frame?.Geometry ?? default, GetDisplayFrequencyOffset(frame), textColor, drawLines: false);
       }
       else
       {
@@ -1612,7 +1612,7 @@ namespace SkyRoof
       Rectangle plot,
       IcomScopeGeometry geometry,
       long displayOffsetHz,
-      Color textColor)
+      Color textColor, bool drawLines = true)
     {
       int intervals =
         plot.Width >= 900
@@ -1654,12 +1654,7 @@ namespace SkyRoof
               0,
               plot.Width - 1));
 
-        graphics.DrawLine(
-          gridPen,
-          x,
-          plot.Top,
-          x,
-          plot.Bottom);
+        if (drawLines) graphics.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
 
         if (!geometry.IsValid ||
             spectrumBounds.Height <=
@@ -2235,9 +2230,8 @@ namespace SkyRoof
           {
             gpuStatus = "OpenGL / " + sender.Renderer;
             renderWorker.Configure(model => model.SetCpuRaster(false));
-            WaterfallBitmap?.Dispose();
-            WaterfallBitmap = null;
-            uploadedRows = null;
+            gdiHistory?.Dispose();
+            gdiHistory = null;
           }
           Invalidate();
         }));
@@ -2272,43 +2266,25 @@ namespace SkyRoof
       if (rows == null || rows.Length != historyRows)
       {
         WaterfallHead = -1;
-        uploadedRows = null;
-        WaterfallBitmap?.Dispose();
-        WaterfallBitmap = null;
+        gdiHistory?.Dispose();
+        gdiHistory = null;
         return;
       }
-
-      if (WaterfallBitmap == null || WaterfallBitmap.Height != rows.Length)
+      if (gdiHistory == null || gdiHistory.Image.Height != rows.Length)
       {
-        WaterfallBitmap?.Dispose();
-        WaterfallBitmap = new Bitmap(ScopePoints, rows.Length, PixelFormat.Format32bppArgb);
-        uploadedRows = null;
+        gdiHistory?.Dispose();
+        gdiHistory = new IcomScopeGdiHistoryBitmap(rows.Length);
       }
       WaterfallHead = snapshot?.Head ?? -1;
-      if (ReferenceEquals(rows, uploadedRows)) return;
-
-      var rect = new Rectangle(0, 0, ScopePoints, rows.Length);
-      BitmapData data = WaterfallBitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-      try
-      {
-        // Only changed immutable row references need a copy. A new history
-        // generation or a full Doppler translation supplies new references.
-        for (int y = 0; y < rows.Length; y++)
-          if (uploadedRows == null || !ReferenceEquals(rows[y], uploadedRows[y]))
-            Marshal.Copy(rows[y], 0, data.Scan0 + y * data.Stride, ScopePoints);
-      }
-      finally
-      {
-        WaterfallBitmap.UnlockBits(data);
-      }
-      uploadedRows = rows;
+      gdiHistory.Update(rows);
     }
 
     private void DrawWaterfallRing(
       Graphics graphics,
       Rectangle destination)
     {
-      if (WaterfallBitmap == null ||
+      var bitmap = WaterfallBitmap;
+      if (bitmap == null ||
           historyRows == 0)
         return;
 
@@ -2322,17 +2298,17 @@ namespace SkyRoof
         Math.Clamp(
           (int)Math.Floor(
             visibleStart *
-            (WaterfallBitmap.Width - 1)),
+            (bitmap.Width - 1)),
           0,
-          WaterfallBitmap.Width - 1);
+          bitmap.Width - 1);
 
       int sourceRight =
         Math.Clamp(
           (int)Math.Ceiling(
             visibleEnd *
-            (WaterfallBitmap.Width - 1)) + 1,
+            (bitmap.Width - 1)) + 1,
           sourceLeft + 1,
-          WaterfallBitmap.Width);
+          bitmap.Width);
 
       int sourceWidth =
         sourceRight -
@@ -2341,13 +2317,13 @@ namespace SkyRoof
       if (WaterfallHead < 0)
       {
         graphics.DrawImage(
-          WaterfallBitmap,
+          bitmap,
           destination,
           new Rectangle(
             sourceLeft,
             0,
             sourceWidth,
-            WaterfallBitmap.Height),
+            bitmap.Height),
           GraphicsUnit.Pixel);
         return;
       }
@@ -2374,7 +2350,7 @@ namespace SkyRoof
           firstHeight > 0)
       {
         graphics.DrawImage(
-          WaterfallBitmap,
+          bitmap,
           new Rectangle(
             destination.Left,
             destination.Top,
@@ -2398,7 +2374,7 @@ namespace SkyRoof
           secondHeight > 0)
       {
         graphics.DrawImage(
-          WaterfallBitmap,
+          bitmap,
           new Rectangle(
             destination.Left,
             destination.Top +

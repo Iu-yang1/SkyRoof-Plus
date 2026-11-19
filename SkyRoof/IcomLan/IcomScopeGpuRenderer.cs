@@ -14,7 +14,8 @@ namespace SkyRoof
     private readonly VertexBufferArray vao = new();
     private readonly VertexBuffer quad = new();
     private readonly uint[] textures = new uint[3];
-    private readonly int[] rowUpload = new int[Points];
+    private readonly int[] rowUpload = new int[IcomScopeTextureTransfer.RowWords];
+    private readonly int[] metadataRow = new int[4];
     private IcomScopeWaterfallRow[]? uploaded;
     private int[]? uploadedTable;
     private int[] metadata = [];
@@ -116,16 +117,12 @@ namespace SkyRoof
 
     private void AllocateRaw(IcomScopeWaterfallRow[] rows)
     {
-      var initial = new int[Points * rows.Length];
-      int index = 0;
-      foreach (var row in rows)
-        foreach (byte value in row.Samples)
-          initial[index++] = BitConverter.SingleToInt32Bits(value);
       BindTexture(0);
-      gl.TexImage2D(OpenGL.GL_TEXTURE_2D, 0, OpenGL.GL_R32F, Points, rows.Length, 0,
-        OpenGL.GL_RED, OpenGL.GL_FLOAT, initial);
+      // GL_R8, padded to 476 bytes per row; bin 475 is never sampled.
+      gl.TexImage2D(OpenGL.GL_TEXTURE_2D, 0, 0x8229,
+        IcomScopeTextureTransfer.RowBytes, rows.Length, 0,
+        OpenGL.GL_RED, OpenGL.GL_UNSIGNED_BYTE, IcomScopeTextureTransfer.Pack(rows));
       BindTexture(1);
-      // GL_RGBA32F, exact integer-valued frequency metadata in float texels.
       gl.TexImage2D(OpenGL.GL_TEXTURE_2D, 0, 0x8814, 1, rows.Length, 0,
         OpenGL.GL_RGBA, OpenGL.GL_FLOAT, IntPtr.Zero);
       metadata = new int[4 * rows.Length];
@@ -136,27 +133,37 @@ namespace SkyRoof
       BindTexture(0);
       for (int y = 0; y < rows.Length; y++)
       {
-        if (uploaded != null && ReferenceEquals(uploaded[y].Samples, rows[y].Samples)) continue;
-        for (int x = 0; x < Points; x++)
-          rowUpload[x] = BitConverter.SingleToInt32Bits(rows[y].Samples[x]);
-        gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, y, Points, 1,
-          OpenGL.GL_RED, OpenGL.GL_FLOAT, rowUpload);
+        if (uploaded != null && !IcomScopeTextureTransfer.RawChanged(uploaded[y], rows[y])) continue;
+        IcomScopeTextureTransfer.PackRow(rows[y], rowUpload);
+        gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, y, IcomScopeTextureTransfer.RowBytes, 1,
+          OpenGL.GL_RED, OpenGL.GL_UNSIGNED_BYTE, rowUpload);
       }
     }
 
     private void UploadMetadata(IcomScopeWaterfallRow[] rows)
     {
+      int count = 0;
+      for (int y = 0; y < rows.Length; y++)
+        if (uploaded == null || uploaded.Length != rows.Length ||
+            IcomScopeTextureTransfer.MetadataChanged(uploaded[y], rows[y])) count++;
+      if (count == 0) return;
+      BindTexture(1);
+      if (count > 8)
+      {
+        for (int y = 0; y < rows.Length; y++)
+          IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadata.AsSpan(y * 4, 4));
+        gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, 0, 1, rows.Length,
+          OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadata);
+        return;
+      }
       for (int y = 0; y < rows.Length; y++)
       {
-        var row = rows[y];
-        metadata[y * 4] = BitConverter.SingleToInt32Bits(row.Offset);
-        metadata[y * 4 + 1] = BitConverter.SingleToInt32Bits(row.First);
-        metadata[y * 4 + 2] = BitConverter.SingleToInt32Bits(row.End);
-        metadata[y * 4 + 3] = BitConverter.SingleToInt32Bits(row.Floor);
+        if (uploaded != null && uploaded.Length == rows.Length &&
+            !IcomScopeTextureTransfer.MetadataChanged(uploaded[y], rows[y])) continue;
+        IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadataRow);
+        gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, y, 1, 1,
+          OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadataRow);
       }
-      BindTexture(1);
-      gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, 0, 1, rows.Length,
-        OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadata);
     }
 
     private void CheckError()
@@ -195,7 +202,7 @@ namespace SkyRoof
       int levelAt(int x, int row, ivec4 meta) {
         int src = x - meta.x;
         if (src < meta.y || src >= meta.z) return 0;
-        return clamp(int(texelFetch(uRaw, ivec2(src,row),0).r), 0, 160);
+        return clamp(int(round(texelFetch(uRaw, ivec2(src,row),0).r * 255.0)), 0, 160);
       }
       vec4 mapped(int level, int floor) {
         return texelFetch(uColors, ivec2(level,clamp(floor,0,160)),0);
