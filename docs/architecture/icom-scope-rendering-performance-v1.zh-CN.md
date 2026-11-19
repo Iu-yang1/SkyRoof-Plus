@@ -28,3 +28,12 @@
 5. 接入 PresentMon/ETW 或等效工具验证真实呈现、CPU 与 GPU 时间。目标在原始完整 sweep 足够时 p95 帧间隔不高于约 40 ms（30 Hz），p99 不高于约 67 ms，且没有长时间冻结。与 RS-BA1 的比较需同一电台、相同 span/speed、分辨率及记录源；没有 RS-BA1 实测不宣称超过。
 
 不自动发布版本；现有射频/CAT、音频接收、遥测归档行为保持不变。
+
+## Phase 2：实际接入（开发分支）
+
+- 采集端在 session router 内选择 MAIN/SUB/AUTO、检查 HOLD 与代次，直接投递后台 scope worker。独立 UI mailbox 只处理 CAT/工具栏确认；UI 阻塞不会再直接丢弃完整的原始扫描行。过载时后台有界队列优先丢 partial，完整 sweep 丢失单独计数。
+- 后台线程独占 AVG、PEAK、噪声底、原始 ring、频移计算和 GDI+ 回退颜色准备；发布不可变快照，UI 无需持有数据处理锁。
+- 频移由逐行 offset/valid range 表示；反向调谐不会恢复已裁掉的样本。475 点原始数据不重采样。GDI+ 只复制变更的颜色行。
+- Settings > Icom LAN Spectrum > GPU waterfall (experimental) 提供独立 native OpenGL 3.3 专用呈现线程；默认 false，保留 GDI+ 兼容路径。GPU 直接读取原始 475 点环形纹理、每行元数据及 161×161 LUT；正常 sweep 单行增量上传，Doppler 只更新元数据，颜色参数变化更新 LUT。GPU 显示压缩时保峰值，放大时线性插值；并不增大 RF 分辨率。
+- GPU 上下文创建或绘制失败触发日志及 GDI+ 自动回退。Native HWND 由 WinForms 管理；上下文、纹理、交换缓冲由呈现线程管理；在 HWND teardown 前释放上下文。当前曲线、交互和文字仍为 GDI+，尚未完成全图 GPU 化。GPU buffer swap 计数不是 DWM/光学显示证明。
+- 已新增模拟完整扫描/partial、Doppler 换向边缘裁剪、平均与峰值、CPU/GPU LUT 等价和 UI 不消费时仍处理全部 sweep 的回归。Windows GPU 实际呈现、RS-BA1 A/B 及并发 CW/遥测端到端性能仍需实际运行验证。

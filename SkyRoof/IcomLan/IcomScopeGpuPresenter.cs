@@ -42,7 +42,7 @@ namespace SkyRoof
     {
       lock (gate)
       {
-        if (stopped) return;
+        if (stopped || (latest != null && value.Sequence <= latest.Sequence)) return;
         latest = value;
         wake.Set();
       }
@@ -74,7 +74,7 @@ namespace SkyRoof
         if (!gl.Create(OpenGLVersion.OpenGL3_3, RenderContextType.NativeWindow, 1, 1, 32, window))
           throw new InvalidOperationException("OpenGL native context creation failed");
         gl.MakeCurrent();
-        Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER));
+        Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
         drawing = new IcomScopeGpuRenderer(gl);
         while (true)
         {

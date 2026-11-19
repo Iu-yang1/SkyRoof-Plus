@@ -45,7 +45,7 @@ namespace SkyRoof
     private string gpuStatus = "GDI+";
     internal string WaterfallRenderer => gpuStatus;
     internal long GpuPresentCount => gpuSurface?.PresentCount ?? 0;
-    private IcomScopeFrame? latestSubmittedFrame;
+    private long lastZoomRevision;
     private IcomScopeFrame? LatestFrame;
     private int AverageSweepCount = 1;
     private int SmoothingBins = 1;
@@ -60,6 +60,7 @@ namespace SkyRoof
     private bool PeakEnabled;
     private bool HoldEnabled;
 
+    internal long ProcessedSweeps => renderWorker.ProcessedSweeps;
     internal long ProcessingDroppedSweeps => renderWorker.DroppedSweeps;
     internal long ProcessingDroppedPartials => renderWorker.DroppedPartials;
 
@@ -285,20 +286,17 @@ namespace SkyRoof
       Invalidate();
     }
 
+    // Called from capture producers under the session router, no WinForms
+    // access on this path. The model supplies a zoom-reset revision to UI.
     internal void PushFrame(IcomScopeFrame frame)
     {
-      if (frame.Samples.Length < ScopePoints || HoldEnabled) return;
-      bool zoomReset = RequiresHistoryReset(latestSubmittedFrame, frame);
-      latestSubmittedFrame = frame;
-      if (zoomReset) ResetZoom();
-      renderWorker.Offer(frame);
-      // The worker requests repaint only after publishing coherent data.
-      // Overlay-only changes continue to invalidate independently.
+      if (frame.Samples.Length >= ScopePoints) renderWorker.Offer(frame);
     }
 
     private void RequestWorkerRepaint()
     {
-      if (renderWorker?.Latest is { } snapshot) gpuSurface?.Offer(snapshot);
+      if (renderWorker?.Latest is { } snapshot && snapshot.Generation == Volatile.Read(ref renderGeneration))
+        gpuSurface?.Offer(snapshot);
       if (!IsHandleCreated || IsDisposed || Disposing ||
           Interlocked.Exchange(ref repaintQueued, 1) != 0) return;
       try
@@ -317,9 +315,8 @@ namespace SkyRoof
 
     internal void Clear()
     {
-      latestSubmittedFrame = LatestFrame = null;
-      renderGeneration++;
-      int generation = renderGeneration;
+      LatestFrame = null;
+      int generation = Interlocked.Increment(ref renderGeneration);
       renderWorker.Configure(model => model.Clear(generation));
       Invalidate();
     }
@@ -527,6 +524,11 @@ namespace SkyRoof
       var snapshot = renderWorker.Latest;
       if (snapshot?.Generation != renderGeneration) snapshot = null;
       IcomScopeFrame? frame = snapshot?.Frame;
+      if (snapshot != null && lastZoomRevision != snapshot.ZoomRevision)
+      {
+        lastZoomRevision = snapshot.ZoomRevision;
+        ResetZoom();
+      }
       LatestFrame = frame;
       byte[] samples = snapshot?.Samples ?? EmptySamples;
       byte[] peakSamples = snapshot?.Peak ?? EmptySamples;
@@ -2213,7 +2215,7 @@ namespace SkyRoof
           return false;
         }
       }
-      var gpu = gpuSurface!;
+      if (gpuSurface is not { } gpu) return false;
       if (gpu.Bounds != inner) gpu.Bounds = inner;
       if (!gpu.Visible) gpu.Visible = true;
       GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
@@ -2282,7 +2284,7 @@ namespace SkyRoof
         WaterfallBitmap = new Bitmap(ScopePoints, rows.Length, PixelFormat.Format32bppArgb);
         uploadedRows = null;
       }
-      WaterfallHead = snapshot!.Head;
+      WaterfallHead = snapshot?.Head ?? -1;
       if (ReferenceEquals(rows, uploadedRows)) return;
 
       var rect = new Rectangle(0, 0, ScopePoints, rows.Length);

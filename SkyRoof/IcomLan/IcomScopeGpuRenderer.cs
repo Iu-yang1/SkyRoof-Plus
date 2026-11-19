@@ -120,7 +120,7 @@ namespace SkyRoof
       BindTexture(0);
       for (int y = 0; y < rows.Length; y++)
       {
-        if (ReferenceEquals(uploaded![y].Samples, rows[y].Samples)) continue;
+        if (uploaded != null && ReferenceEquals(uploaded[y].Samples, rows[y].Samples)) continue;
         for (int x = 0; x < Points; x++)
           rowUpload[x] = BitConverter.SingleToInt32Bits(rows[y].Samples[x]);
         gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, y, Points, 1,

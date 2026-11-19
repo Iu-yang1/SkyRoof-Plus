@@ -1,6 +1,6 @@
 namespace SkyRoof
 {
-  internal sealed record IcomScopeRenderSnapshot(int Generation, IcomScopeFrame? Frame,
+  internal sealed record IcomScopeRenderSnapshot(int Generation, long Sequence, long ZoomRevision, IcomScopeFrame? Frame,
     byte[] Samples, byte[] Peak, bool PeakValid, int NoiseFloor, int Head, int[][] Colors, IcomScopeWaterfallSnapshot Waterfall);
 
   // Owned exclusively by the render worker. Published arrays are immutable.
@@ -13,6 +13,7 @@ namespace SkyRoof
     private readonly int[] sums = new int[Points];
     private readonly IcomScopeWaterfallRing history = new();
     private int generation;
+    private long sequence, zoomRevision;
     private int noiseFloor;
     private int averageCount = 1;
     private bool peakEnabled, peakValid;
@@ -79,7 +80,11 @@ namespace SkyRoof
     internal void Push(IcomScopeFrame next)
     {
       if (next.Samples.Length < Points) return;
-      if (IcomLanSpectrumView.RequiresHistoryReset(frame, next)) ResetHistory();
+      if (IcomLanSpectrumView.RequiresHistoryReset(frame, next))
+      {
+        zoomRevision++;
+        ResetHistory();
+      }
       if (next.SweepComplete) AdvanceGeometry(next);
       frame = next;
       if (next.SweepComplete)
@@ -163,7 +168,7 @@ namespace SkyRoof
     internal IcomScopeRenderSnapshot Snapshot()
     {
       var waterfall = history.Snapshot(noiseFloor);
-      return new(generation, frame, (byte[])samples.Clone(), (byte[])peak.Clone(),
+      return new(generation, ++sequence, zoomRevision, frame, (byte[])samples.Clone(), (byte[])peak.Clone(),
         peakValid, noiseFloor, waterfall.Head, waterfall.Colors, waterfall);
     }
   }

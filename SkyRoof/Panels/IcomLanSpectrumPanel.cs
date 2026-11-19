@@ -54,10 +54,12 @@ namespace SkyRoof
     private int ScopeToolbarRowHeight;
     private readonly IcomLanSpectrumView SpectrumView = new();
     private readonly System.Windows.Forms.Timer UiTimer = new() { Interval = 500 };
-    private readonly IcomScopeState ScopeState = new();
+    private readonly IcomScopeFrameRouter FrameRouter = new();
+    private IcomScopeState ScopeState => FrameRouter.State;
     private readonly IcomScopeController ScopeController;
     private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new(12);
     private int ScopeCaptureEpoch;
+    private Action<IcomScopeFrame>? primaryFrameHandler, nativeFrameHandler;
     private byte LastGeometryUiScope = byte.MaxValue;
     private byte LastGeometryUiMode = byte.MaxValue;
     private long LastGeometryUiA = -1;
@@ -96,9 +98,7 @@ namespace SkyRoof
     private double FreshPaintFps;
     private long LastFreshPaintCount;
     private double WaterfallDeliveryFps;
-    private long RenderedCompleteSweeps;
-    private long LastRenderedCompleteSweeps;
-    private long LastRenderedScopeFrameTicks;
+    private long LastProcessedSweeps;
     private bool LastStatsUsedNativeLan;
     private bool LocalHold;
     private bool PeakHold;
@@ -528,8 +528,7 @@ namespace SkyRoof
         if (!ScopeGroups["d-clear"].Visible)
           menu.Items.Add("Clear spectrum", null, (_, _) =>
           {
-            ScopeState.Clear();
-            SpectrumView.Clear();
+            FrameRouter.Clear(ClearScopeDisplay);
             RefreshScopeGeometryUi();
           });
         if (!ScopeGroups["d-peak"].Visible)
@@ -686,17 +685,8 @@ namespace SkyRoof
               ScopeBandBox.SelectedIndex,
               0,
               2);
-          IcomLanScopeBand previous =
-            ScopeState.SelectedBand;
-
-          if (selected !=
-                IcomLanScopeBand.Auto &&
-              selected != previous)
-            ScopeState.Clear();
-
-          ScopeState.SelectedBand =
-            selected;
-          RefreshSelectedScopeSnapshot();
+          FrameRouter.Select(selected, ClearScopeDisplay, SpectrumView.PushFrame);
+          RefreshScopeGeometryUi();
 
           if (!UpdatingScopeControlUi)
           {
@@ -1009,8 +999,7 @@ namespace SkyRoof
       ClearBtn.Margin = new Padding(0, 2, 6, 2);
       ClearBtn.Click += (_, _) =>
       {
-        ScopeState.Clear();
-        SpectrumView.Clear();
+        FrameRouter.Clear(ClearScopeDisplay);
         RefreshScopeGeometryUi();
       };
       DisplayToolbar.Controls.Add(ClearBtn);
@@ -1021,6 +1010,7 @@ namespace SkyRoof
       HoldBtn.Click += (_, _) =>
       {
         LocalHold = !LocalHold;
+        FrameRouter.SetHold(LocalHold);
         SpectrumView.SetHold(LocalHold);
         UpdateDisplayButtons();
         UpdateScopeControlAvailability();
@@ -1400,9 +1390,8 @@ namespace SkyRoof
             0,
             2);
 
-        ScopeState.SelectedBand =
-          (IcomLanScopeBand)
-          ScopeBandBox.SelectedIndex;
+        FrameRouter.Select((IcomLanScopeBand)ScopeBandBox.SelectedIndex,
+          ClearScopeDisplay, SpectrumView.PushFrame);
 
         SpectrumView.SetHistoryRows(
           settings.WaterfallRows);
@@ -1559,6 +1548,7 @@ namespace SkyRoof
       if (LocalHold)
       {
         LocalHold = false;
+        FrameRouter.SetHold(false);
         SpectrumView.SetHold(false);
         UpdateDisplayButtons();
       }
@@ -1593,7 +1583,10 @@ namespace SkyRoof
             autoDiscoverCivPort: false,
             radioModel: settings.RadioModel);
 
-      capture.ScopeFrameReceived += Capture_ScopeFrameReceived;
+      int epoch = Interlocked.Increment(ref ScopeCaptureEpoch);
+      FrameRouter.Start(epoch, ClearScopeDisplay);
+      primaryFrameHandler = frame => Capture_ScopeFrameReceived(frame, epoch);
+      capture.ScopeFrameReceived += primaryFrameHandler;
       capture.StatusChanged += Capture_StatusChanged;
       if (!capture.IsDirectLan)
         capture.AudioFrameReceived += Capture_AudioFrameReceived;
@@ -1615,7 +1608,8 @@ namespace SkyRoof
           autoDiscoverCivPort: true,
           radioModel: settings.RadioModel);
 
-        nativeLan.ScopeFrameReceived += NativeLanAssist_ScopeFrameReceived;
+        nativeFrameHandler = frame => QueueScopeRender(frame, epoch);
+        nativeLan.ScopeFrameReceived += nativeFrameHandler;
         NativeLanAssistCapture = nativeLan;
       }
       LastScopeFrames = 0;
@@ -1627,11 +1621,7 @@ namespace SkyRoof
       LastFreshPaintCount = SpectrumView.PaintMetrics.FreshPaintCount;
       SpectrumView.PaintMetrics.ResetWindow();
       WaterfallDeliveryFps = 0;
-      RenderedCompleteSweeps = 0;
-      LastRenderedCompleteSweeps = 0;
-      LastRenderedScopeFrameTicks = 0;
-      Interlocked.Increment(ref ScopeCaptureEpoch);
-      ScopeFrameMailbox.Clear();
+      LastProcessedSweeps = SpectrumView.ProcessedSweeps;
       LastGeometryUiScope = byte.MaxValue;
       LastGeometryUiMode = byte.MaxValue;
       LastGeometryUiA = -1;
@@ -1687,14 +1677,17 @@ namespace SkyRoof
       IcomLanSpectrumCapture? nativeLan = NativeLanAssistCapture;
       Capture = null;
       NativeLanAssistCapture = null;
+      FrameRouter.Stop(Interlocked.Increment(ref ScopeCaptureEpoch), ClearScopeDisplay);
 
       if (nativeLan != null)
       {
-        nativeLan.ScopeFrameReceived -= NativeLanAssist_ScopeFrameReceived;
+        if (nativeFrameHandler != null) nativeLan.ScopeFrameReceived -= nativeFrameHandler;
+        nativeFrameHandler = null;
         nativeLan.Dispose();
       }
 
-      capture.ScopeFrameReceived -= Capture_ScopeFrameReceived;
+      if (primaryFrameHandler != null) capture.ScopeFrameReceived -= primaryFrameHandler;
+      primaryFrameHandler = null;
       capture.StatusChanged -= Capture_StatusChanged;
       capture.AudioFrameReceived -= Capture_AudioFrameReceived;
       capture.MeterReceived -= Capture_MeterReceived;
@@ -1737,22 +1730,19 @@ namespace SkyRoof
       LastScopeControlBackend = null;
       LastDiagnosticsText =
         "Spectrum diagnostics are not available while capture is stopped.";
-      ScopeState.Clear();
-      Interlocked.Increment(ref ScopeCaptureEpoch);
-      ScopeFrameMailbox.Clear();
+      // The ingress session and processing generation were retired above.
       LastGeometryUiScope = byte.MaxValue;
       LastGeometryUiMode = byte.MaxValue;
       LastGeometryUiA = -1;
       LastGeometryUiB = -1;
-      LastRenderedScopeFrameTicks = 0;
 
       if (LocalHold)
       {
         LocalHold = false;
+        FrameRouter.SetHold(false);
         SpectrumView.SetHold(false);
       }
 
-      SpectrumView.Clear();
       UpdateDisplayButtons();
       RefreshScopeGeometryUi();
 
@@ -1778,21 +1768,10 @@ namespace SkyRoof
       return keepAudio;
     }
 
-    private void RefreshSelectedScopeSnapshot()
+    private void ClearScopeDisplay()
     {
-      if (LocalHold)
-        return;
-
-      IcomScopeFrame? selectedFrame =
-        ScopeState.LatestSelectedFrame;
-
+      ScopeFrameMailbox.Clear();
       SpectrumView.Clear();
-
-      if (selectedFrame != null)
-        SpectrumView.PushFrame(
-          selectedFrame);
-
-      RefreshScopeGeometryUi();
     }
 
     private void Capture_AudioFrameReceived(
@@ -1843,56 +1822,31 @@ namespace SkyRoof
       }
     }
 
-    private void Capture_ScopeFrameReceived(IcomScopeFrame frame)
+    private void Capture_ScopeFrameReceived(IcomScopeFrame frame, int epoch)
     {
-      if (IsDisposed || !IsHandleCreated) return;
-
-      // Prefer high-rate combined LAN frames whenever the native passive
-      // stream is current. Keep older SkyCAT serial frames out of the
-      // shared UI mailbox.
+      // Prefer current native combined LAN sweeps to serial-style fallback.
       DateTime? nativeLast = NativeLanAssistCapture?.LastScopeFrameUtc;
       if (nativeLast != null &&
-          (DateTime.UtcNow - nativeLast.Value).TotalSeconds < 0.75)
-        return;
-
-      QueueScopeRender(frame);
+          (DateTime.UtcNow - nativeLast.Value).TotalSeconds < 0.75) return;
+      QueueScopeRender(frame, epoch);
     }
 
-    private void NativeLanAssist_ScopeFrameReceived(IcomScopeFrame frame)
+    private void QueueScopeRender(IcomScopeFrame frame, int epoch)
     {
-      if (IsDisposed || !IsHandleCreated) return;
-      QueueScopeRender(frame);
-    }
-
-    private void QueueScopeRender(IcomScopeFrame frame)
-    {
-      if (!ScopeFrameMailbox.Offer(frame))
-        return;
-
-      int epoch = Volatile.Read(ref ScopeCaptureEpoch);
+      if (!IsHandleCreated || IsDisposed || Disposing) return;
+      if (!FrameRouter.Offer(epoch, frame, SpectrumView.PushFrame, ScopeFrameMailbox.Offer)) return;
       try
       {
         BeginInvoke((Action)(() =>
         {
-          // Stale callbacks from a previous capture session must not paint
-          // or consume the new source's pending scope frame.
-          if (IsDisposed || epoch != ScopeCaptureEpoch)
-            return;
-
-          // Both receivers retain their latest independent snapshot.
-          // Oldest first preserves the global frame timestamp gate, while
-          // AUTO selection can still observe fresh MAIN and SUB state.
+          if (IsDisposed || epoch != ScopeCaptureEpoch) return;
           IcomScopeFrame[] frames = ScopeFrameMailbox.TakeAll();
-          if (Capture != null)
+          if (Capture == null || LocalHold) return;
+          foreach (IcomScopeFrame item in frames) PendingScopeControls.ObserveFrame(item);
+          if (ScopeState.LatestSelectedFrame is { } selected)
           {
-            bool changed = false;
-            foreach (IcomScopeFrame newest in frames)
-              changed |= RenderScopeFrame(newest);
-            if (changed)
-            {
-              RefreshScopeGeometryAfterBatch();
-              // Worker publication schedules the waveform repaint.
-            }
+            SynchronizePendingEdgeIfNeeded(selected);
+            RefreshScopeGeometryAfterBatch();
           }
         }));
       }
@@ -1900,38 +1854,6 @@ namespace SkyRoof
       {
         ScopeFrameMailbox.Clear();
       }
-    }
-
-    private bool RenderScopeFrame(IcomScopeFrame frame)
-    {
-      long ticks = frame.TimestampUtc.Ticks;
-      if (ticks <= LastRenderedScopeFrameTicks)
-        return false;
-
-      // HOLD is a local display freeze. Keep consuming capture events so the
-      // transport stays healthy, but freeze the displayed scope state/geometry
-      // together with the trace and waterfall until HOLD is released.
-      if (LocalHold)
-      {
-        LastRenderedScopeFrameTicks = ticks;
-        return false;
-      }
-
-      ScopeState.Update(frame);
-      // A queued CI-V write is not an applied radio setting. Incoming
-      // frames may confirm MODE/SPAN for either receiver independently.
-      PendingScopeControls.ObserveFrame(frame);
-      if (!ScopeState.ShouldDisplay(frame))
-        return false;
-
-      SynchronizePendingEdgeIfNeeded(
-        frame);
-      SpectrumView.PushFrame(frame);
-      if (frame.SweepComplete)
-        RenderedCompleteSweeps++;
-      LastRenderedScopeFrameTicks = ticks;
-
-      return true;
     }
 
     private void RefreshScopeGeometryAfterBatch()
@@ -3099,15 +3021,10 @@ namespace SkyRoof
       long scopeFrames = effectiveCapture.ScopeFrameCount;
       long scopeUpdates = effectiveCapture.ScopeUpdateCount;
 
-      // The status fallback must pass through the SAME ordered mailbox as
-      // the event stream. Rendering a newer PARTIAL frame directly here
-      // would advance LastRenderedScopeFrameTicks before the UI callback
-      // could deliver an older COMPLETE sweep, silently dropping an
-      // entire waterfall row even when no CI-V packet was lost.
-      IcomScopeFrame? latestFrame = effectiveCapture.LatestScopeFrame;
-      if (latestFrame != null &&
-          latestFrame.TimestampUtc.Ticks > LastRenderedScopeFrameTicks)
-        QueueScopeRender(latestFrame);
+      // Status polling is only a fallback; the session router deduplicates
+      // the exact frame and never replays it after a clear or source switch.
+      if (effectiveCapture.LatestScopeFrame is { } latestFrame)
+        QueueScopeRender(latestFrame, Volatile.Read(ref ScopeCaptureEpoch));
 
       if (nativeLanActive != LastStatsUsedNativeLan)
       {
@@ -3121,7 +3038,7 @@ namespace SkyRoof
         LastFreshPaintCount = SpectrumView.PaintMetrics.FreshPaintCount;
         SpectrumView.PaintMetrics.ResetWindow();
         WaterfallDeliveryFps = 0;
-        LastRenderedCompleteSweeps = RenderedCompleteSweeps;
+        LastProcessedSweeps = SpectrumView.ProcessedSweeps;
       }
 
       double elapsed = (now - LastRateTime).TotalSeconds;
@@ -3133,11 +3050,11 @@ namespace SkyRoof
         long freshPaints = SpectrumView.PaintMetrics.FreshPaintCount;
         FreshPaintFps = (freshPaints - LastFreshPaintCount) / elapsed;
         LastFreshPaintCount = freshPaints;
-        WaterfallDeliveryFps =
-          (RenderedCompleteSweeps - LastRenderedCompleteSweeps) / elapsed;
+        long processedSweeps = SpectrumView.ProcessedSweeps;
+        WaterfallDeliveryFps = (processedSweeps - LastProcessedSweeps) / elapsed;
         LastScopeFrames = scopeFrames;
         LastScopeUpdates = scopeUpdates;
-        LastRenderedCompleteSweeps = RenderedCompleteSweeps;
+        LastProcessedSweeps = processedSweeps;
         LastRateTime = now;
       }
 
@@ -3274,8 +3191,8 @@ namespace SkyRoof
           $"Queue pending: {queueStats?.Pending.ToString("N0") ?? "n/a"}",
           $"Queue dropped: {queueStats?.Dropped.ToString("N0") ?? "n/a"}",
           $"Queue rejected: {queueStats?.Rejected.ToString("N0") ?? "n/a"}",
-          $"Scope UI coalesced waveform frames: {ScopeFrameMailbox.ReplacedFrames:N0}",
-          $"Completed sweeps replaced in mailbox: {ScopeFrameMailbox.ReplacedCompleteSweeps:N0}",
+          $"UI metadata coalesced (not waveform loss): {ScopeFrameMailbox.ReplacedFrames:N0}",
+          $"UI complete-sweep metadata coalesced: {ScopeFrameMailbox.ReplacedCompleteSweeps:N0}",
           $"Processing queue dropped sweeps: {SpectrumView.ProcessingDroppedSweeps:N0}",
           $"Processing queue dropped partials: {SpectrumView.ProcessingDroppedPartials:N0}",
           $"Waterfall renderer: {SpectrumView.WaterfallRenderer}",
@@ -3286,7 +3203,7 @@ namespace SkyRoof
           $"CI-V frames: {effectiveCapture.CivFrameCount:N0}",
           $"Complete sweeps: {scopeFrames:N0}",
           $"Complete sweeps captured: {ScopeFps:0.0}/s",
-          $"Complete sweeps delivered to waterfall: {WaterfallDeliveryFps:0.0}/s",
+          $"Selected complete sweeps processed: {WaterfallDeliveryFps:0.0}/s",
           $"Waveform updates received: {WaveformUpdateFps:0.0}/s",
           $"Fresh waveform OnPaint completions: {FreshPaintFps:0.0}/s (not DWM presentations)",
           $"Paint CPU wall time p95/p99: {painting.PaintP95Ms:F1}/{painting.PaintP99Ms:F1} ms",
@@ -3588,6 +3505,7 @@ namespace SkyRoof
       if (LocalHold)
       {
         LocalHold = false;
+        FrameRouter.SetHold(false);
         SpectrumView.SetHold(false);
         UpdateDisplayButtons();
       }

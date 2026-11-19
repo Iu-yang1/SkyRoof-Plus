@@ -13,7 +13,7 @@ namespace SkyRoof
     private IcomScopeRenderSnapshot? latest;
     private bool stopped;
     private int frameCount;
-    private long droppedSweeps, droppedPartials;
+    private long droppedSweeps, droppedPartials, processedSweeps;
 
     internal IcomScopeRenderWorker(Action published)
     {
@@ -23,6 +23,7 @@ namespace SkyRoof
     }
 
     internal IcomScopeRenderSnapshot? Latest => Volatile.Read(ref latest);
+    internal long ProcessedSweeps => Interlocked.Read(ref processedSweeps);
     internal long DroppedSweeps => Interlocked.Read(ref droppedSweeps);
     internal long DroppedPartials => Interlocked.Read(ref droppedPartials);
 
@@ -93,7 +94,11 @@ namespace SkyRoof
           if (batch.Length == 0) continue;
           foreach (var item in batch)
           {
-            if (item.Frame != null) model.Push(item.Frame);
+            if (item.Frame is { } frame)
+            {
+              model.Push(frame);
+              if (frame.SweepComplete) Interlocked.Increment(ref processedSweeps);
+            }
             else item.Command?.Invoke(model);
           }
           Publish(model);

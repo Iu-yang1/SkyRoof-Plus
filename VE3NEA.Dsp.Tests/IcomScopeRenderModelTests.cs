@@ -98,6 +98,29 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void CaptureRoutingProcessesEverySweepWithoutUiDrain()
+    {
+      var router = new IcomScopeFrameRouter();
+      using var worker = new IcomScopeRenderWorker(() => { });
+      var metadata = new IcomScopeUiFrameMailbox();
+      router.Start(1, () => worker.Configure(m => m.Clear(1)));
+      for (int i = 1; i <= 180; i++)
+        router.Offer(1, Frame(i), worker.Offer, metadata.Offer);
+      SpinWait.SpinUntil(() => worker.ProcessedSweeps == 180 && worker.Latest?.Frame?.TimestampUtc == Frame(180).TimestampUtc,
+        TimeSpan.FromSeconds(15)).Should().BeTrue();
+      metadata.ReplacedCompleteSweeps.Should().Be(179);
+      worker.DroppedSweeps.Should().Be(0);
+      router.SetHold(true);
+      router.Offer(1, Frame(181), worker.Offer, metadata.Offer).Should().BeFalse();
+      router.SetHold(false);
+      router.Stop(2, () => worker.Configure(m => m.Clear(2)));
+      router.Offer(1, Frame(182), worker.Offer, metadata.Offer).Should().BeFalse();
+      SpinWait.SpinUntil(() => worker.Latest?.Generation == 2, TimeSpan.FromSeconds(5)).Should().BeTrue();
+      worker.Latest?.Frame.Should().BeNull();
+      worker.ProcessedSweeps.Should().Be(180);
+    }
+
+    [Fact]
     public void WorkerProcessesCompleteSweepsWhileConsumerDoesNotPaint()
     {
       using var worker = new IcomScopeRenderWorker(() => { });
@@ -107,8 +130,9 @@ namespace VE3NEA.Dsp.Tests
       SpinWait.SpinUntil(() => worker.Latest?.Frame?.TimestampUtc == Frame(180).TimestampUtc,
         TimeSpan.FromSeconds(15)).Should().BeTrue();
       worker.DroppedSweeps.Should().Be(0);
-      worker.Latest!.Colors.Should().HaveCount(800);
-      worker.Latest.Head.Should().Be(621);
+      var result = worker.Latest ?? throw new InvalidOperationException("No published snapshot");
+      result.Colors.Should().HaveCount(800);
+      result.Head.Should().Be(621);
     }
   }
 }

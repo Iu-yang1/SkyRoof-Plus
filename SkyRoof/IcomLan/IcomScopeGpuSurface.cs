@@ -33,7 +33,13 @@ namespace SkyRoof
 
     internal void Offer(IcomScopeRenderSnapshot snapshot)
     {
-      Volatile.Write(ref latest, snapshot);
+      IcomScopeRenderSnapshot? current;
+      do
+      {
+        current = Volatile.Read(ref latest);
+        if (current != null && snapshot.Sequence <= current.Sequence) return;
+      }
+      while (!ReferenceEquals(Interlocked.CompareExchange(ref latest, snapshot, current), current));
       presenter?.Offer(snapshot);
     }
 
