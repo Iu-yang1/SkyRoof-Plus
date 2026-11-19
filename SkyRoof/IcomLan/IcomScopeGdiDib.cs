@@ -64,8 +64,13 @@ namespace SkyRoof
     {
       var (dest, source) = part;
       if (source.Height <= 0 || dest.Height <= 0) return true;
+      // Each physical ring segment is itself a complete top-down DIB.
+      // This avoids driver-dependent source-Y conventions for cropped DIBs.
+      var segment = info;
+      segment.Height = -source.Height;
+      IntPtr start = IntPtr.Add(pixels, source.Y * info.Width * sizeof(int));
       int lines = StretchDIBits(dc, dest.X, dest.Y, dest.Width, dest.Height,
-        source.X, source.Y, source.Width, source.Height, pixels, ref info, 0, SourceCopy);
+        source.X, 0, source.Width, source.Height, start, ref segment, 0, SourceCopy);
       return lines != 0 && lines != -1;
     }
   }
