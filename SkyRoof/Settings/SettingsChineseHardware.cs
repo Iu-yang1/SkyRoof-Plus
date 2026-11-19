@@ -112,6 +112,7 @@ namespace SkyRoof
       ["IcomLanSpectrumSettings.WaterfallRows"] = "缓存并显示的 IC-9700 频谱原始瀑布图历史行数。",
       ["IcomLanSpectrumSettings.SpectrumHeightPercent"] = "频谱曲线占频谱/瀑布图总高度的百分比，也可拖动分隔条调整。",
       ["IcomLanSpectrumSettings.ShowWaterfall"] = "是否在频谱曲线下方显示瀑布图。",
+      ["IcomLanSpectrumSettings.UseGpuWaterfall"] = "实验性 GPU 频谱后端：独立 OpenGL 线程绘制曲线及瀑布图；初始化失败时回退 GDI+。",
       ["IcomLanSpectrumSettings.WaterfallBrightness"] = "瀑布图色彩级别的亮度偏移，通常适用范围约 −80 至 +80。",
       ["IcomLanSpectrumSettings.WaterfallContrast"] = "瀑布图对比度百分比，100% 保留原始 IC-9700 频谱强度映射。",
       ["IcomLanSpectrumSettings.WaterfallPalette"] = "选择 SkyRoof 本地渲染的瀑布图色彩方案。",

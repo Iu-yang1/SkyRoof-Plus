@@ -1,9 +1,15 @@
+using System.Diagnostics;
 using SharpGL;
 using SharpGL.Version;
 
 namespace SkyRoof
 {
   internal sealed record IcomScopeGpuViewport(int Width, int Height, IcomScopeGpuScene? Scene);
+
+  internal sealed record IcomScopeGpuPerf(long FreshCount, double FreshFps, IcomScopePaintMetrics.Summary Timing)
+  {
+    internal static readonly IcomScopeGpuPerf Empty = new(0, 0, default);
+  }
 
   internal sealed class IcomScopeGpuPresenter : IDisposable
   {
@@ -17,6 +23,10 @@ namespace SkyRoof
     private bool stopped, started;
     private int minimumGeneration;
     private long presentCount;
+    private readonly IcomScopePaintMetrics metrics = new();
+    private IcomScopeGpuPerf perf = IcomScopeGpuPerf.Empty;
+    private long lastPerfTick, lastFreshCount;
+    internal IcomScopeGpuPerf Perf => Volatile.Read(ref perf);
     private string renderer = "starting";
 
     internal IcomScopeGpuPresenter(IntPtr window, Action<string?> status)
@@ -109,9 +119,11 @@ namespace SkyRoof
             gl.Blit(IntPtr.Zero);
             continue;
           }
+          long startTick = Stopwatch.GetTimestamp();
           drawing.Draw(frame, size);
           gl.Blit(IntPtr.Zero);
           Interlocked.Increment(ref presentCount);
+          RecordPresent(frame, startTick);
           if (ready) continue;
           ready = true;
           status(null);
@@ -139,6 +151,24 @@ namespace SkyRoof
           wake.Dispose();
         }
       }
+    }
+
+    private void RecordPresent(IcomScopeRenderSnapshot frame, long startTick)
+    {
+      long now = Stopwatch.GetTimestamp();
+      metrics.Record(now, now - startTick, frame.Frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
+      if (lastPerfTick == 0)
+      {
+        lastPerfTick = now;
+        lastFreshCount = metrics.FreshPaintCount;
+        return;
+      }
+      double elapsed = (now - lastPerfTick) / (double)Stopwatch.Frequency;
+      if (elapsed < 0.5) return;
+      long fresh = metrics.FreshPaintCount;
+      Volatile.Write(ref perf, new IcomScopeGpuPerf(fresh, (fresh - lastFreshCount) / elapsed, metrics.Snapshot()));
+      lastFreshCount = fresh;
+      lastPerfTick = now;
     }
 
     public void Dispose()

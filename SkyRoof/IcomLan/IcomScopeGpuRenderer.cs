@@ -203,7 +203,8 @@ namespace SkyRoof
       void main() {
         int row = (uHead + clamp(int(uv.y * float(uRows)),0,uRows-1)) % uRows;
         ivec4 meta = ivec4(texelFetch(uMeta,ivec2(0,row),0));
-        float x = clamp(mix(uStart,uEnd,uv.x) * 474.0,0.0,474.0);
+        float xFraction = clamp((uv.x*float(uWidth)-0.5)/max(1.0,float(uWidth)-1.0),0.0,1.0);
+        float x = clamp(mix(uStart,uEnd,xFraction) * 474.0,0.0,474.0);
         float binsPerPixel = (uEnd-uStart) * 474.0 / max(1.0,float(uWidth)-1.0);
         if (binsPerPixel > 1.0) {
           int first = clamp(int(ceil(x-binsPerPixel*0.5)),0,474);

@@ -31,6 +31,7 @@ namespace SkyRoof
     }
 
     internal long PresentCount => presenter?.PresentCount ?? 0;
+    internal IcomScopeGpuPerf Perf => presenter?.Perf ?? IcomScopeGpuPerf.Empty;
     internal string Renderer => presenter?.Renderer ?? "starting";
 
     internal void Offer(IcomScopeRenderSnapshot snapshot)

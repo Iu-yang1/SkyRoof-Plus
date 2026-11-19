@@ -45,6 +45,7 @@ namespace SkyRoof
     private string gpuStatus = "GDI+";
     internal string WaterfallRenderer => gpuStatus;
     internal long GpuPresentCount => gpuSurface?.PresentCount ?? 0;
+    internal IcomScopeGpuPerf GpuPerf => gpuSurface?.Perf ?? IcomScopeGpuPerf.Empty;
     private long lastZoomRevision;
     private IcomScopeFrame? LatestFrame;
     private int AverageSweepCount = 1;
@@ -286,8 +287,6 @@ namespace SkyRoof
       Invalidate();
     }
 
-    // Called from capture producers under the session router, no WinForms
-    // access on this path. The model supplies a zoom-reset revision to UI.
     internal void PushFrame(IcomScopeFrame frame)
     {
       if (frame.Samples.Length >= ScopePoints) renderWorker.Offer(frame);

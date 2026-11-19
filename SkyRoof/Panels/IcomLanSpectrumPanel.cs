@@ -3112,6 +3112,8 @@ namespace SkyRoof
       }
 
       var painting = SpectrumView.PaintMetrics.Snapshot();
+      var gpuPerf = SpectrumView.GpuPerf;
+      var gpuTiming = gpuPerf.Timing;
 
       string transportSummary =
         capture.IsDirectLan
@@ -3197,6 +3199,10 @@ namespace SkyRoof
           $"Processing queue dropped partials: {SpectrumView.ProcessingDroppedPartials:N0}",
           $"Scope renderer: {SpectrumView.WaterfallRenderer}",
           $"GPU scope buffer swaps: {SpectrumView.GpuPresentCount:N0}",
+          $"GPU fresh waveform swaps: {gpuPerf.FreshFps:0.0}/s (not DWM presentations), total {gpuPerf.FreshCount:N0}",
+          $"GPU draw+swap wall time p95/p99: {gpuTiming.PaintP95Ms:F1}/{gpuTiming.PaintP99Ms:F1} ms",
+          $"GPU fresh swap interval p95/p99/max: {gpuTiming.IntervalP95Ms:F1}/{gpuTiming.IntervalP99Ms:F1}/{gpuTiming.IntervalMaxMs:F1} ms",
+          $"GPU last swapped waveform age after assembly: {gpuTiming.LastAgeMs:F1} ms",
           $"Control changes awaiting radio confirmation: {PendingScopeControls.Count}",
           $"Unconfirmed controls after timeout: {UnconfirmedScopeControlCount}",
           $"Packets: {effectiveCapture.PacketCount:N0}",
@@ -3205,7 +3211,7 @@ namespace SkyRoof
           $"Complete sweeps captured: {ScopeFps:0.0}/s",
           $"Selected complete sweeps processed: {WaterfallDeliveryFps:0.0}/s",
           $"Waveform updates received: {WaveformUpdateFps:0.0}/s",
-          $"Fresh waveform OnPaint completions: {FreshPaintFps:0.0}/s (not DWM presentations)",
+          $"UI fresh waveform OnPaint completions: {FreshPaintFps:0.0}/s (not DWM presentations)",
           $"Paint CPU wall time p95/p99: {painting.PaintP95Ms:F1}/{painting.PaintP99Ms:F1} ms",
           $"Fresh waveform paint interval p95/p99/max: {painting.IntervalP95Ms:F1}/{painting.IntervalP99Ms:F1}/{painting.IntervalMaxMs:F1} ms",
           $"Last painted waveform age after assembly: {painting.LastAgeMs:F1} ms",
