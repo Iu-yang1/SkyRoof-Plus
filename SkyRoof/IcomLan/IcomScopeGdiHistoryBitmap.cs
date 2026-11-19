@@ -51,27 +51,36 @@ namespace SkyRoof
       int width = right - first;
       int rows = Image.Height;
       head = Math.Max(0, head);
-      int firstRows = rows - head;
-      int split = (int)Math.Round(destination.Height * firstRows / (double)rows);
+      int split = (int)Math.Round(destination.Height * (rows - head) / (double)rows);
+      var top = new Rectangle(destination.X, destination.Y, destination.Width, split);
+      var bottom = new Rectangle(destination.X, destination.Y + split, destination.Width, destination.Height - split);
+      var topSource = new Rectangle(first, head, width, rows - head);
+      var bottomSource = new Rectangle(first, 0, width, head);
+      if (IcomScopeGdiDib.TryDraw(graphics, pin.AddrOfPinnedObject(), Image.Size,
+          (top, topSource), (bottom, bottomSource))) return;
+      DrawCompatibility(graphics, (top, topSource), (bottom, bottomSource));
+    }
+
+    private void DrawCompatibility(Graphics graphics, (Rectangle Dest, Rectangle Source) top,
+      (Rectangle Dest, Rectangle Source) bottom)
+    {
       GraphicsState state = graphics.Save();
       try
       {
         graphics.CompositingMode = CompositingMode.SourceCopy;
         graphics.CompositingQuality = CompositingQuality.HighSpeed;
-        graphics.InterpolationMode = InterpolationMode.Bilinear;
+        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
         graphics.PixelOffsetMode = PixelOffsetMode.Half;
-        DrawPart(graphics, new Rectangle(destination.X, destination.Y, destination.Width, split),
-          new Rectangle(first, head, width, firstRows));
-        DrawPart(graphics, new Rectangle(destination.X, destination.Y + split, destination.Width, destination.Height - split),
-          new Rectangle(first, 0, width, head));
+        DrawPart(graphics, top);
+        DrawPart(graphics, bottom);
       }
       finally { graphics.Restore(state); }
     }
 
-    private void DrawPart(Graphics graphics, Rectangle dest, Rectangle source)
+    private void DrawPart(Graphics graphics, (Rectangle Dest, Rectangle Source) part)
     {
-      if (source.Height <= 0 || dest.Height <= 0) return;
-      graphics.DrawImage(Image, dest, source, GraphicsUnit.Pixel);
+      if (part.Source.Height <= 0 || part.Dest.Height <= 0) return;
+      graphics.DrawImage(Image, part.Dest, part.Source, GraphicsUnit.Pixel);
     }
 
     public void Dispose()

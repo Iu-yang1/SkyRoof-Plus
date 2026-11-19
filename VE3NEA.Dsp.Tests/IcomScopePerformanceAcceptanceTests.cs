@@ -53,6 +53,22 @@ public sealed class IcomScopePerformanceAcceptanceTests
     Assert.Equal(shifted.Colors[0][0], bitmap.Image.GetPixel(0, 0).ToArgb());
   }
 
+  [Fact]
+  public void NativeRingDrawingPreservesNewestRowAndFrequencyDirection()
+  {
+    using var bitmap = new IcomScopeGdiHistoryBitmap(40);
+    var rows = Enumerable.Range(0, 40).Select(y =>
+        Enumerable.Range(0, 475).Select(x => Color.FromArgb(255, y * 5, x % 200, 17).ToArgb()).ToArray())
+      .ToArray();
+    bitmap.Update(rows);
+    using var target = new Bitmap(475, 40, PixelFormat.Format32bppArgb);
+    using (var graphics = Graphics.FromImage(target))
+      bitmap.Draw(graphics, new Rectangle(0, 0, 475, 40), 39, 0, 1);
+    Assert.Equal(rows[39][17] & 0xFFFFFF, target.GetPixel(17, 0).ToArgb() & 0xFFFFFF);
+    Assert.Equal(rows[0][33] & 0xFFFFFF, target.GetPixel(33, 1).ToArgb() & 0xFFFFFF);
+    Assert.Equal(rows[38][44] & 0xFFFFFF, target.GetPixel(44, 39).ToArgb() & 0xFFFFFF);
+  }
+
   // This test runs the actual acquisition router and processing worker,
   // actual software bitmap drawing, and a headless GPU upload surrogate.
   // No OpenGL driver, DWM or RF input is claimed by this test.

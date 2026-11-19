@@ -45,3 +45,5 @@
 ## v1.87 默认后端及模拟验收
 
 GPU 默认开启（旧配置未含该字段时也为 true；显式 false 保留）。R8 纹理保留 475 点原值，DWORD 对齐每行 476 字节；普通扫频上传变化行和必要元数据，频移不搬移旧原始采样。GDI+ 使用固定像素缓冲区及 SourceCopy 环形绘制。`IcomScopePerformanceAcceptanceTests` 测试实际 router/worker、实际 4K 离屏 GDI+ 瀑布绘制及无显卡依赖的 GPU 上传准备模拟；以 30/60 Hz 定时输入、800 行历史、两个合成计算负载线程、连续多普勒及换向检验扫描完整率、P95/P99 间隔。GPU shader 执行和 Windows 实际呈现未包含在模拟指标内。
+
+第一轮 4K 离屏 GDI+ 双线性缩放仅 3.58 FPS（150 扫描全部处理但只呈现 19 帧），不满足验收。以原生 StretchDIBits COLORONCOLOR 直接绘制固定 top-down DIB 两段环形历史，保留源像素，避免 GDI+ 高成本软件插值；DrawImage 最近邻作为兼容路径。增加环形顶部、源频率方向与像素回读测试；重新执行同一 30 Hz 4K 性能阈值。
