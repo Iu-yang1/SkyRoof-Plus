@@ -108,6 +108,9 @@ namespace SkyRoof
       }
     }
 
+    private readonly IcomScopeWaterfallClock waterfallClock = new();
+    private readonly System.Windows.Forms.Timer waterfallTimer = new() { Interval = 16 };
+
     internal IcomLanSpectrumView()
     {
       DoubleBuffered = true;
@@ -117,6 +120,16 @@ namespace SkyRoof
       ResizeRedraw = true;
       TuneCommitTimer.Tick +=
         (_, _) => FlushPendingTune();
+      waterfallTimer.Tick += (_, _) =>
+      {
+        if (!Visible || HoldEnabled || !WaterfallVisible || gpuSurface is { Visible: true })
+        {
+          waterfallTimer.Stop();
+          return;
+        }
+        GetLayout(out _, out _, out _, out Rectangle waterfall);
+        Invalidate(waterfall);
+      };
       renderWorker = new IcomScopeRenderWorker(RequestWorkerRepaint);
     }
 
@@ -513,6 +526,8 @@ namespace SkyRoof
       {
         TuneCommitTimer.Stop();
         TuneCommitTimer.Dispose();
+        waterfallTimer.Stop();
+        waterfallTimer.Dispose();
         RemoveGpuSurface();
         renderWorker.Dispose();
         gdiHistory?.Dispose();
@@ -561,6 +576,7 @@ namespace SkyRoof
       GetLayout(out Rectangle headerRect, out Rectangle spectrumRect,
         out Rectangle splitterRect, out Rectangle waterfallRect);
       bool usesGpu = UpdateGpuSurface(spectrumRect, waterfallRect, snapshot);
+      if (usesGpu || !WaterfallVisible || HoldEnabled || snapshot?.Waterfall.Head < 0) waterfallTimer.Stop();
       // Graphics.Clear can bypass the logical drawing region. Fill only
       // parent-owned pixels, and keep the HWND clip for the final blit.
       if (usesGpu && gpuSurface is { Visible: true } gpu)
@@ -593,7 +609,7 @@ namespace SkyRoof
         if (WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
         if (waterfallRect.Height > 0 && WaterfallBitmap != null)
         {
-          DrawWaterfallRing(e.Graphics, waterfallRect);
+          DrawWaterfallRing(e.Graphics, waterfallRect, snapshot?.Waterfall);
         }
       }
       DrawSplitter(e.Graphics, splitterRect);
@@ -2247,7 +2263,7 @@ namespace SkyRoof
         PeakEnabled, lastZoomRevision, Font.Name, Font.Size, Font.Style);
       plot.Offset(-surface.X, -surface.Y);
       if (waterfall.Height > 0) waterfall.Offset(-surface.X, -surface.Y);
-      return new(plot, waterfall, tuning, mouse, options);
+      return new(plot, waterfall, tuning, mouse, options) { Held = HoldEnabled };
     }
 
     private void GpuStatusChanged(IcomScopeGpuSurface sender, string? error)
@@ -2312,12 +2328,14 @@ namespace SkyRoof
       gdiHistory.Update(rows);
     }
 
-    private void DrawWaterfallRing(Graphics graphics, Rectangle destination)
+    private void DrawWaterfallRing(Graphics graphics, Rectangle destination, IcomScopeWaterfallSnapshot? history)
     {
-      if (gdiHistory == null) return;
+      if (gdiHistory == null || history == null) { waterfallTimer.Stop(); return; }
       GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
         out double visibleStart, out double visibleEnd);
-      gdiHistory.Draw(graphics, destination, WaterfallHead, visibleStart, visibleEnd);
+      double lag = waterfallClock.Lag(history, Stopwatch.GetTimestamp(), HoldEnabled);
+      gdiHistory.DrawContinuous(graphics, destination, WaterfallHead, visibleStart, visibleEnd, lag);
+      waterfallTimer.Enabled = !HoldEnabled && lag > 0;
     }
 
     // Raw CI-V levels are not calibrated dBm. Only the display is remapped.

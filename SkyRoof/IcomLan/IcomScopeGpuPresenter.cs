@@ -106,9 +106,15 @@ namespace SkyRoof
         gl.DrawBuffer(OpenGL.GL_BACK);
         Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
         drawing = new IcomScopeGpuRenderer(gl);
+        var clock = new IcomScopeWaterfallClock();
+        bool animate = false;
+        long nextDraw = 0;
         while (true)
         {
-          wake.WaitOne();
+          int delay = DelayUntil(nextDraw);
+          wake.WaitOne(animate ? delay : Timeout.Infinite);
+          delay = DelayUntil(nextDraw);
+          if (delay > 0) Thread.Sleep(delay);
           IcomScopeRenderSnapshot? frame;
           IcomScopeGpuViewport size;
           lock (gate)
@@ -117,7 +123,9 @@ namespace SkyRoof
             frame = latest;
             size = viewport;
           }
+          animate = false;
           if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
+          nextDraw = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 60;
           gl.MakeCurrent();
           VerifyCurrentContext(context, dc);
           if (frame == null)
@@ -129,7 +137,9 @@ namespace SkyRoof
             continue;
           }
           long startTick = Stopwatch.GetTimestamp();
-          drawing.Draw(frame, size);
+          double lag = clock.Lag(frame.Waterfall, startTick, size.Scene.Held);
+          animate = !size.Scene.Held && size.Scene.Waterfall.Height > 1 && lag > 0;
+          drawing.Draw(frame, size, lag);
           SwapCurrentBuffers(context, dc);
           Interlocked.Increment(ref presentCount);
           RecordPresent(frame, startTick);
@@ -162,6 +172,9 @@ namespace SkyRoof
         }
       }
     }
+
+    private static int DelayUntil(long due) => (int)Math.Max(0,
+      Math.Ceiling((due - Stopwatch.GetTimestamp()) * 1000.0 / Stopwatch.Frequency));
 
     [DllImport("opengl32.dll", EntryPoint = "wglGetCurrentContext")]
     private static extern IntPtr WglGetCurrentContext();

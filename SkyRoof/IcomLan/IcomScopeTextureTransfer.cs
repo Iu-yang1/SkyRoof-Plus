@@ -22,12 +22,12 @@ namespace SkyRoof
       !ReferenceEquals(before.Samples, after.Samples);
 
     internal static bool MetadataChanged(IcomScopeWaterfallRow before, IcomScopeWaterfallRow after) =>
-      before.Offset != after.Offset || before.First != after.First ||
+      before.EffectiveOffset != after.EffectiveOffset || before.First != after.First ||
       before.End != after.End || before.Floor != after.Floor;
 
     internal static void EncodeMetadata(IcomScopeWaterfallRow row, Span<int> values)
     {
-      values[0] = BitConverter.SingleToInt32Bits(row.Offset);
+      values[0] = BitConverter.SingleToInt32Bits((float)row.EffectiveOffset);
       values[1] = BitConverter.SingleToInt32Bits(row.First);
       values[2] = BitConverter.SingleToInt32Bits(row.End);
       values[3] = BitConverter.SingleToInt32Bits(row.Floor);

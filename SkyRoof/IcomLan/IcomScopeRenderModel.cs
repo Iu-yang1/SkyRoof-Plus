@@ -91,7 +91,7 @@ namespace SkyRoof
         noiseFloor = floor == 0 || noiseFloor == 0 ? floor : (3 * noiseFloor + floor + 2) / 4;
       }
       UpdateTrace(next);
-      if (next.SweepComplete) history.Append(next.Samples, noiseFloor);
+      if (next.SweepComplete) history.Append(next.Samples, noiseFloor, next.TimestampUtc);
     }
 
     private void AdvanceGeometry(IcomScopeFrame next)
@@ -107,8 +107,10 @@ namespace SkyRoof
           if (Math.Abs(shift) > Points / 10) ResetHistory();
           else
           {
+            double exact = (before.LowerFrequencyHz - after.LowerFrequencyHz) * (Points - 1d) / before.SpanHz;
+            history.ShiftFractional(exact);
             shiftResidual = residual;
-            if (shift != 0) ShiftHistory(shift);
+            if (shift != 0) ShiftTraceHistory(shift);
           }
           // Sub-bin Doppler motion leaves the existing average intact.
         }
@@ -116,9 +118,8 @@ namespace SkyRoof
       anchor = next;
     }
 
-    private void ShiftHistory(int shift)
+    private void ShiftTraceHistory(int shift)
     {
-      history.Shift(shift);
       if (averageCount > 1) average.Shift(shift);
       if (peakValid) Shift(peak, shift);
     }
