@@ -51,6 +51,8 @@ namespace SkyRoof
     private static void Filter(int[][] rows, int start, ReadOnlySpan<int> weights, Span<int> output)
     {
       int x = 0;
+      var maskRB = new Vector<int>(MaskRB);
+      var maskG = new Vector<int>(MaskG);
       if (Vector.IsHardwareAccelerated)
       {
         for (; x <= Points - Vector<int>.Count; x += Vector<int>.Count)
@@ -60,12 +62,12 @@ namespace SkyRoof
           for (int i = 0; i < weights.Length; i++)
           {
             var value = new Vector<int>(rows[(start + i) % rows.Length], x);
-            rb += (value & new Vector<int>(MaskRB)) * weights[i];
-            g += (value & new Vector<int>(MaskG)) * weights[i];
+            rb += (value & maskRB) * weights[i];
+            g += (value & maskG) * weights[i];
           }
           var result = new Vector<int>(unchecked((int)0xff000000)) |
-            (((rb + new Vector<int>(0x00800080)) >>> 8) & new Vector<int>(MaskRB)) |
-            (((g + new Vector<int>(0x00008000)) >>> 8) & new Vector<int>(MaskG));
+            (((rb + new Vector<int>(0x00800080)) >>> 8) & maskRB) |
+            (((g + new Vector<int>(0x00008000)) >>> 8) & maskG);
           result.CopyTo(output.Slice(x));
         }
       }

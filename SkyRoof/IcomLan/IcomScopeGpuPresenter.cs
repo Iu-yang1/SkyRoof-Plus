@@ -125,7 +125,9 @@ namespace SkyRoof
           }
           animate = false;
           if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
-          nextDraw = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 60;
+          long now = Stopwatch.GetTimestamp();
+          long period = Stopwatch.Frequency / 60;
+          nextDraw = nextDraw == 0 || now - nextDraw >= period ? now + period : nextDraw + period;
           gl.MakeCurrent();
           VerifyCurrentContext(context, dc);
           if (frame == null)

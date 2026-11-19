@@ -15,6 +15,9 @@ namespace SkyRoof
     private IcomScopeWaterfallTimeRaster? timeRaster;
     private IcomScopeGdiHistoryBitmap? compact;
     private IcomScopeGdiHistoryBitmap? continuous;
+    private int[][]? continuousSource;
+    private int continuousHead;
+    private double continuousLag;
     internal Bitmap Image { get; }
 
     internal IcomScopeGdiHistoryBitmap(int rows)
@@ -77,8 +80,15 @@ namespace SkyRoof
       {
         continuous?.Dispose();
         continuous = new IcomScopeGdiHistoryBitmap(destination.Height);
+        continuousSource = null;
       }
-      IcomScopeContinuousRaster.Render(uploaded, head, lag, continuous.pixels, destination.Height);
+      if (!ReferenceEquals(continuousSource, uploaded) || continuousHead != head || continuousLag != lag)
+      {
+        IcomScopeContinuousRaster.Render(uploaded, head, lag, continuous.pixels, destination.Height);
+        continuousSource = uploaded;
+        continuousHead = head;
+        continuousLag = lag;
+      }
       continuous.Draw(graphics, destination, 0, start, end);
     }
 

@@ -20,8 +20,12 @@ namespace SkyRoof
     {
       if (First == End || delta == 0) return this;
       double offset = EffectiveOffset + delta;
-      int first = Math.Max(First, (int)Math.Ceiling(-offset));
-      int end = Math.Min(End, (int)Math.Floor(PointsLast - offset) + 1);
+      // Keep partially visible interpolation support at the edge, but never
+      // resurrect samples whose entire support has left the window.
+      double nearest = Math.Round(offset);
+      if (Math.Abs(offset - nearest) < 1e-9) offset = nearest;
+      int first = Math.Max(First, (int)Math.Floor(-offset));
+      int end = Math.Min(End, (int)Math.Ceiling(PointsLast + 1 - offset));
       if (end <= first) return this with { Offset = 0, SubBinOffset = 0, First = 0, End = 0 };
       int whole = (int)Math.Round(offset, MidpointRounding.AwayFromZero);
       return this with { Offset = whole, SubBinOffset = offset - whole, First = first, End = end };
@@ -199,7 +203,7 @@ namespace SkyRoof
       }
       if (row.SubBinOffset != 0)
       {
-        for (int x = 0; x < Points; x++) result[x] = FractionalColor(row, lookup, x);
+        ColorizeFractional(row, lookup, result);
         return result;
       }
       int first = row.First + row.Offset;
@@ -211,15 +215,23 @@ namespace SkyRoof
       return result;
     }
 
-    private static int FractionalColor(IcomScopeWaterfallRow row, ReadOnlySpan<int> lookup, int x)
+    private static void ColorizeFractional(IcomScopeWaterfallRow row, ReadOnlySpan<int> lookup, Span<int> result)
     {
-      double source = x - row.EffectiveOffset;
-      int left = (int)Math.Floor(source);
-      int right = left + 1;
-      int a = left >= row.First && left < row.End ? row.Samples[left] : 0;
-      int b = right >= row.First && right < row.End ? row.Samples[right] : 0;
-      int weight = (int)Math.Round((source - left) * 256);
-      return IcomScopeContinuousRaster.Blend(lookup[Math.Min(160, a)], lookup[Math.Min(160, b)], weight);
+      double offset = -row.EffectiveOffset;
+      int leftOffset = (int)Math.Floor(offset);
+      int weight = (int)Math.Round((offset - leftOffset) * 256);
+      int start = Math.Clamp(row.First - leftOffset - 1, 0, Points);
+      int end = Math.Clamp(row.End - leftOffset, start, Points);
+      result[..start].Fill(lookup[0]);
+      result[end..].Fill(lookup[0]);
+      for (int x = start; x < end; x++)
+      {
+        int left = x + leftOffset;
+        int right = left + 1;
+        int a = left >= row.First && left < row.End ? row.Samples[left] : 0;
+        int b = right >= row.First && right < row.End ? row.Samples[right] : 0;
+        result[x] = IcomScopeContinuousRaster.Blend(lookup[Math.Min(160, a)], lookup[Math.Min(160, b)], weight);
+      }
     }
 
     private static int[] MakeColorTable(int brightness, int contrast, IcomScopeWaterfallPalette kind)
