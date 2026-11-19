@@ -1,0 +1,212 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using SharpGL;
+using SharpGL.Version;
+
+namespace SkyRoof
+{
+  internal sealed record IcomScopeGpuViewport(int Width, int Height, IcomScopeGpuScene? Scene);
+
+  internal sealed record IcomScopeGpuPerf(long FreshCount, double FreshFps, IcomScopePaintMetrics.Summary Timing)
+  {
+    internal static readonly IcomScopeGpuPerf Empty = new(0, 0, default);
+  }
+
+  internal sealed class IcomScopeGpuPresenter : IDisposable
+  {
+    private readonly IntPtr window;
+    private readonly Action<string?> status;
+    private readonly object gate = new();
+    private readonly AutoResetEvent wake = new(false);
+    private readonly Thread thread;
+    private IcomScopeRenderSnapshot? latest;
+    private IcomScopeGpuViewport viewport = new(0, 0, null);
+    private bool stopped, started;
+    private int minimumGeneration;
+    private long presentCount;
+    private readonly IcomScopePaintMetrics metrics = new();
+    private IcomScopeGpuPerf perf = IcomScopeGpuPerf.Empty;
+    private long lastPerfTick, lastFreshCount;
+    internal IcomScopeGpuPerf Perf => Volatile.Read(ref perf);
+    private string renderer = "starting";
+
+    internal IcomScopeGpuPresenter(IntPtr window, Action<string?> status)
+    {
+      this.window = window;
+      this.status = status;
+      thread = new Thread(Run) { Name = "Icom Scope GPU Present", IsBackground = true };
+    }
+
+    internal long PresentCount => Interlocked.Read(ref presentCount);
+    internal string Renderer => Volatile.Read(ref renderer);
+
+    internal void Start()
+    {
+      lock (gate)
+      {
+        if (stopped || started) return;
+        started = true;
+        thread.Start();
+      }
+    }
+
+    internal void Offer(IcomScopeRenderSnapshot value)
+    {
+      lock (gate)
+      {
+        if (stopped || value.Generation < minimumGeneration ||
+            (latest != null && value.Sequence <= latest.Sequence)) return;
+        latest = value;
+        wake.Set();
+      }
+    }
+
+    internal void Clear(int generation)
+    {
+      lock (gate)
+      {
+        if (stopped) return;
+        minimumGeneration = generation;
+        if (latest != null && latest.Generation < generation) latest = null;
+        wake.Set();
+      }
+    }
+
+    internal void SetViewport(IcomScopeGpuViewport value)
+    {
+      lock (gate)
+      {
+        if (stopped || viewport == value) return;
+        viewport = value;
+        wake.Set();
+      }
+    }
+
+    internal void Refresh()
+    {
+      lock (gate)
+        if (!stopped) wake.Set();
+    }
+
+    private void Run()
+    {
+      var gl = new OpenGL();
+      IcomScopeGpuRenderer? drawing = null;
+      bool ready = false;
+      try
+      {
+        if (!gl.Create(OpenGLVersion.OpenGL3_3, RenderContextType.NativeWindow, 1, 1, 32, window))
+          throw new InvalidOperationException("OpenGL native context creation failed");
+        gl.MakeCurrent();
+        if (WglGetCurrentContext() == IntPtr.Zero || WglGetCurrentDC() == IntPtr.Zero)
+          throw new InvalidOperationException("OpenGL native context is not current");
+        Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
+        drawing = new IcomScopeGpuRenderer(gl);
+        while (true)
+        {
+          wake.WaitOne();
+          IcomScopeRenderSnapshot? frame;
+          IcomScopeGpuViewport size;
+          lock (gate)
+          {
+            if (stopped) return;
+            frame = latest;
+            size = viewport;
+          }
+          if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
+          if (frame == null)
+          {
+            gl.Viewport(0, 0, size.Width, size.Height);
+            gl.ClearColor(0.02f, 0.03f, 0.055f, 1f);
+            gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+            SwapCurrentBuffers();
+            continue;
+          }
+          long startTick = Stopwatch.GetTimestamp();
+          drawing.Draw(frame, size);
+          SwapCurrentBuffers();
+          Interlocked.Increment(ref presentCount);
+          RecordPresent(frame, startTick);
+          if (ready) continue;
+          ready = true;
+          status(null);
+        }
+      }
+      catch (Exception ex)
+      {
+        Serilog.Log.Warning(ex, "Icom Scope GPU fallback");
+        status(ex.Message);
+      }
+      finally
+      {
+        try
+        {
+          drawing?.Dispose();
+          gl.MakeNothingCurrent();
+          gl.RenderContextProvider?.Destroy();
+        }
+        catch (Exception ex)
+        {
+          Serilog.Log.Warning(ex, "Icom Scope GPU context teardown");
+        }
+        lock (gate)
+        {
+          stopped = true;
+          wake.Dispose();
+        }
+      }
+    }
+
+    [DllImport("opengl32.dll", EntryPoint = "wglGetCurrentContext")]
+    private static extern IntPtr WglGetCurrentContext();
+
+    [DllImport("opengl32.dll", EntryPoint = "wglGetCurrentDC")]
+    private static extern IntPtr WglGetCurrentDC();
+
+    [DllImport("gdi32.dll", EntryPoint = "SwapBuffers", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SwapBuffers(IntPtr dc);
+
+    private static void SwapCurrentBuffers()
+    {
+      if (!SwapBuffers(WglGetCurrentDC()))
+        throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "OpenGL SwapBuffers failed");
+    }
+
+    private void RecordPresent(IcomScopeRenderSnapshot frame, long startTick)
+    {
+      long now = Stopwatch.GetTimestamp();
+      metrics.Record(now, now - startTick, frame.Frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
+      if (lastPerfTick == 0)
+      {
+        lastPerfTick = now;
+        lastFreshCount = metrics.FreshPaintCount;
+        return;
+      }
+      double elapsed = (now - lastPerfTick) / (double)Stopwatch.Frequency;
+      if (elapsed < 0.5) return;
+      long fresh = metrics.FreshPaintCount;
+      Volatile.Write(ref perf, new IcomScopeGpuPerf(fresh, (fresh - lastFreshCount) / elapsed, metrics.Snapshot()));
+      lastFreshCount = fresh;
+      lastPerfTick = now;
+    }
+
+    public void Dispose()
+    {
+      bool join;
+      lock (gate)
+      {
+        join = started;
+        if (!stopped)
+        {
+          stopped = true;
+          if (started) wake.Set();
+          else wake.Dispose();
+        }
+      }
+      // HWND destruction must happen after the presenting thread releases
+      // its WGL context. No join is used during live drawing.
+      if (join && Thread.CurrentThread != thread) thread.Join();
+    }
+  }
+}

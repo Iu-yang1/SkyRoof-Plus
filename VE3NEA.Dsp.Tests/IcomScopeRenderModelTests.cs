@@ -1,0 +1,138 @@
+using FluentAssertions;
+using SkyRoof;
+using Xunit;
+
+namespace VE3NEA.Dsp.Tests
+{
+  public sealed class IcomScopeRenderModelTests
+  {
+    private static IcomScopeFrame Frame(int ms, long center = 435000000, int peak = 237,
+      bool complete = true, byte level = 100)
+    {
+      var data = new byte[475];
+      data[peak] = level;
+      return new IcomScopeFrame
+      {
+        TimestampUtc = DateTime.UnixEpoch.AddMilliseconds(ms),
+        Mode = (byte)IcomScopeMode.Center,
+        FrequencyAHz = center, FrequencyBHz = 47400,
+        Samples = data, SweepComplete = complete
+      };
+    }
+
+    [Fact]
+    public void CompleteSweepsOnlyAdvanceHistoryAndSnapshotsRemainImmutable()
+    {
+      var model = new IcomScopeRenderModel();
+      model.SetHistoryRows(40);
+      model.Push(Frame(1));
+      var first = model.Snapshot();
+      model.Push(Frame(2, complete: false, level: 80));
+      var partial = model.Snapshot();
+      partial.Head.Should().Be(first.Head);
+      partial.Colors.Should().BeSameAs(first.Colors);
+      partial.Samples[237].Should().Be(80);
+      model.Push(Frame(3));
+      var second = model.Snapshot();
+      second.Head.Should().Be(39);
+      second.Colors[0].Should().BeSameAs(first.Colors[0]);
+      first.Samples[237].Should().Be(100);
+    }
+
+    [Fact]
+    public void DopplerShiftMovesOldSignalToCorrectBin()
+    {
+      var model = new IcomScopeRenderModel();
+      model.SetHistoryRows(40);
+      model.Push(Frame(1));
+      var first = model.Snapshot();
+      model.Push(Frame(2, 435000100, 236));
+      var second = model.Snapshot();
+      second.Colors[0][236].Should().Be(first.Colors[0][237]);
+      second.Colors[0][237].Should().Be(first.Colors[0][236]);
+      first.Colors[0][237].Should().NotBe(first.Colors[0][236]);
+    }
+
+    [Fact]
+    public void GpuHistoryShiftOnlyChangesMetadataAndNeverResurrectsClippedBins()
+    {
+      var ring = new IcomScopeWaterfallRing();
+      ring.Resize(40);
+      ring.SetCpuRaster(false);
+      var raw = Enumerable.Range(0, 475).Select(i => (byte)(i % 160 + 1)).ToArray();
+      ring.Append(raw, 20);
+      var first = ring.Snapshot(20);
+      ring.Shift(-8);
+      var shifted = ring.Snapshot(20);
+      shifted.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
+      shifted.Rows[0].At(0).Should().Be(raw[8]);
+      ring.Shift(8);
+      var reverse = ring.Snapshot(20);
+      reverse.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
+      reverse.Rows[0].At(0).Should().Be(0);
+      reverse.Rows[0].At(8).Should().Be(raw[8]);
+      reverse.Colors.Should().BeEmpty();
+      ring.SetCpuRaster(true);
+      var software = ring.Snapshot(20);
+      software.Colors.Should().HaveCount(40);
+      software.Colors[0][8].Should().Be(software.ColorTable[20 * 161 + raw[8]]);
+    }
+
+    [Fact]
+    public void AveragingPeakAndResetPreserveRawDataAndGeneration()
+    {
+      var model = new IcomScopeRenderModel();
+      model.SetAverage(2);
+      model.SetPeak(true);
+      model.Push(Frame(1, level: 100));
+      model.Push(Frame(2, level: 60));
+      var averaged = model.Snapshot();
+      averaged.Samples[237].Should().Be(80);
+      averaged.Peak[237].Should().Be(100);
+      model.Clear(7);
+      var cleared = model.Snapshot();
+      cleared.Generation.Should().Be(7);
+      cleared.Head.Should().Be(-1);
+      cleared.Frame.Should().BeNull();
+      cleared.PeakValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CaptureRoutingProcessesEverySweepWithoutUiDrain()
+    {
+      var router = new IcomScopeFrameRouter();
+      using var worker = new IcomScopeRenderWorker(() => { });
+      var metadata = new IcomScopeUiFrameMailbox();
+      router.Start(1, () => worker.Configure(m => m.Clear(1)));
+      for (int i = 1; i <= 180; i++)
+        router.Offer(1, Frame(i), worker.Offer, metadata.Offer);
+      SpinWait.SpinUntil(() => worker.ProcessedSweeps == 180 && worker.Latest?.Frame?.TimestampUtc == Frame(180).TimestampUtc,
+        TimeSpan.FromSeconds(15)).Should().BeTrue();
+      metadata.ReplacedCompleteSweeps.Should().Be(179);
+      worker.DroppedSweeps.Should().Be(0);
+      router.SetHold(true);
+      router.Offer(1, Frame(181), worker.Offer, metadata.Offer).Should().BeFalse();
+      router.SetHold(false);
+      router.Stop(2, () => worker.Configure(m => m.Clear(2)));
+      router.Offer(1, Frame(182), worker.Offer, metadata.Offer).Should().BeFalse();
+      SpinWait.SpinUntil(() => worker.Latest?.Generation == 2, TimeSpan.FromSeconds(5)).Should().BeTrue();
+      worker.Latest?.Frame.Should().BeNull();
+      worker.ProcessedSweeps.Should().Be(180);
+    }
+
+    [Fact]
+    public void WorkerProcessesCompleteSweepsWhileConsumerDoesNotPaint()
+    {
+      using var worker = new IcomScopeRenderWorker(() => { });
+      worker.Configure(m => m.SetHistoryRows(800));
+      for (int i = 1; i <= 180; i++) worker.Offer(Frame(i, 435000000 + i * 100, 237));
+      worker.Configure(m => m.SetPeak(true));
+      SpinWait.SpinUntil(() => worker.Latest?.Frame?.TimestampUtc == Frame(180).TimestampUtc,
+        TimeSpan.FromSeconds(15)).Should().BeTrue();
+      worker.DroppedSweeps.Should().Be(0);
+      var result = worker.Latest ?? throw new InvalidOperationException("No published snapshot");
+      result.Colors.Should().HaveCount(800);
+      result.Head.Should().Be(621);
+    }
+  }
+}

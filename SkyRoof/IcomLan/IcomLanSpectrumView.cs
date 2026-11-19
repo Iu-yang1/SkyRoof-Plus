@@ -1,12 +1,12 @@
+using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 namespace SkyRoof
 {
   internal sealed class IcomLanSpectrumView : Control
   {
     private const int ScopePoints = 475;
+    private static readonly byte[] EmptySamples = new byte[ScopePoints];
     // The instrument scope has its own dark, high-contrast color scheme,
     // independent of the application's Light/Dark/GitHub dock theme.
     private static readonly Color ScopeBackground = Color.FromArgb(5, 8, 14);
@@ -29,39 +29,39 @@ namespace SkyRoof
     private const int MouseWheelDelta = 120;
     private const long MouseWheelTuneStepHz = 100;
 
-    private readonly object DataSync = new();
-    private int[] Palette =
-      BuildPalette(
-        IcomScopeWaterfallPalette.Classic);
-
-    private byte[] LatestSamples = new byte[ScopePoints];
-    private readonly Queue<byte[]> AverageFrames = new();
-    private readonly int[] AverageSums = new int[ScopePoints];
+    private readonly byte[] smoothSamples = new byte[ScopePoints];
+    private readonly byte[] smoothPeakSamples = new byte[ScopePoints];
+    private PointF[] tracePoints = Array.Empty<PointF>();
+    private readonly IcomScopePaintMetrics paintMetrics = new();
+    internal IcomScopePaintMetrics PaintMetrics => paintMetrics;
+    private readonly IcomScopeRenderWorker renderWorker;
+    private int renderGeneration;
+    private int repaintQueued;
+    private volatile IcomScopeGpuSurface? gpuSurface;
+    private bool gpuRequested;
+    private bool gpuFailed;
+    private string gpuStatus = "GDI+";
+    internal string WaterfallRenderer => gpuStatus;
+    internal long GpuPresentCount => gpuSurface?.PresentCount ?? 0;
+    internal IcomScopeGpuPerf GpuPerf => gpuSurface?.Perf ?? IcomScopeGpuPerf.Empty;
+    private long lastZoomRevision;
+    private IcomScopeFrame? LatestFrame;
     private int AverageSweepCount = 1;
     private int SmoothingBins = 1;
-    private IcomScopeFrame? LatestFrame;
-    private IcomScopeFrame? WaterfallAnchorFrame;
-
-    private byte[][] WaterfallRows = Array.Empty<byte[]>();
+    private int historyRows = 240;
+    private IcomScopeGdiHistoryBitmap? gdiHistory;
+    private Bitmap? WaterfallBitmap => gdiHistory?.Image;
     private int WaterfallHead = -1;
-    private bool WaterfallDirty = true;
-    private double HistoryShiftResidualBins;
-    private Bitmap? WaterfallBitmap;
-    private int[] WaterfallArgb = Array.Empty<int>();
-    private int[] WaterfallArgbRow = new int[ScopePoints];
     private bool WaterfallVisible = true;
     private int WaterfallBrightness;
     private int WaterfallContrast = 100;
-    // Display-only noise floor, never changes the raw IC-9700 waveform.
-    private int DisplayNoiseFloor;
-    private IcomScopeWaterfallPalette WaterfallPalette =
-      IcomScopeWaterfallPalette.Classic;
-
-    private readonly byte[] PeakSamples =
-      new byte[ScopePoints];
+    private IcomScopeWaterfallPalette WaterfallPalette = IcomScopeWaterfallPalette.Classic;
     private bool PeakEnabled;
-    private bool PeakValid;
     private bool HoldEnabled;
+
+    internal long ProcessedSweeps => renderWorker.ProcessedSweeps;
+    internal long ProcessingDroppedSweeps => renderWorker.DroppedSweeps;
+    internal long ProcessingDroppedPartials => renderWorker.DroppedPartials;
 
     private double SpectrumFraction = 0.36;
     private double HorizontalZoomFactor = 1.0;
@@ -105,18 +105,15 @@ namespace SkyRoof
       ResizeRedraw = true;
       TuneCommitTimer.Tick +=
         (_, _) => FlushPendingTune();
-      ConfigureHistory(240);
+      renderWorker = new IcomScopeRenderWorker(RequestWorkerRepaint);
     }
 
     internal void SetHistoryRows(int rows)
     {
-      int clamped =
-        Math.Clamp(rows, 40, 800);
-
-      if (WaterfallRows.Length == clamped)
-        return;
-
-      ConfigureHistory(clamped);
+      int clamped = Math.Clamp(rows, 40, 800);
+      if (historyRows == clamped) return;
+      historyRows = clamped;
+      renderWorker.Configure(model => model.SetHistoryRows(clamped));
     }
 
     internal void SetHold(bool enabled)
@@ -131,22 +128,14 @@ namespace SkyRoof
         return;
 
       PeakEnabled = enabled;
-
-      if (enabled)
-        ClearPeakHold();
+      renderWorker.Configure(model => model.SetPeak(enabled));
 
       Invalidate();
     }
 
     internal void ClearPeakHold()
     {
-      lock (DataSync)
-      {
-        Array.Clear(PeakSamples);
-        PeakValid = false;
-      }
-
-      Invalidate();
+      renderWorker.Configure(model => model.ClearPeak());
     }
 
     internal void SetWaterfallVisible(bool visible)
@@ -155,6 +144,7 @@ namespace SkyRoof
         return;
 
       WaterfallVisible = visible;
+      renderWorker.Configure(model => model.SetWaterfallVisible(visible));
       Invalidate();
     }
 
@@ -173,20 +163,10 @@ namespace SkyRoof
           WaterfallPalette == palette)
         return;
 
-      lock (DataSync)
-      {
-        WaterfallBrightness =
-          newBrightness;
-        WaterfallContrast =
-          newContrast;
-        WaterfallPalette =
-          palette;
-        Palette =
-          BuildPalette(palette);
-        WaterfallDirty = true;
-      }
-
-      Invalidate();
+      WaterfallBrightness = newBrightness;
+      WaterfallContrast = newContrast;
+      WaterfallPalette = palette;
+      renderWorker.Configure(model => model.SetDisplay(newBrightness, newContrast, palette));
     }
 
     internal void SetAverageSweeps(int sweeps)
@@ -200,15 +180,9 @@ namespace SkyRoof
           _ => 8
         };
 
-      lock (DataSync)
-      {
-        if (AverageSweepCount == normalized)
-          return;
-
-        AverageSweepCount = normalized;
-        ResetAveragingLocked();
-      }
-
+      if (AverageSweepCount == normalized) return;
+      AverageSweepCount = normalized;
+      renderWorker.Configure(model => model.SetAverage(normalized));
       Invalidate();
     }
 
@@ -313,252 +287,36 @@ namespace SkyRoof
 
     internal void PushFrame(IcomScopeFrame frame)
     {
-      if (frame.Samples.Length < ScopePoints)
-        return;
+      if (frame.Samples.Length >= ScopePoints) renderWorker.Offer(frame);
+    }
 
-      bool zoomReset = false;
-
-      lock (DataSync)
+    private void RequestWorkerRepaint()
+    {
+      if (renderWorker?.Latest is { } snapshot && snapshot.Generation == Volatile.Read(ref renderGeneration))
+        gpuSurface?.Offer(snapshot);
+      if (!IsHandleCreated || IsDisposed || Disposing ||
+          Interlocked.Exchange(ref repaintQueued, 1) != 0) return;
+      try
       {
-        if (HoldEnabled)
-          return;
-
-        IcomScopeFrame? previousFrame =
-          LatestFrame;
-
-        if (RequiresHistoryReset(
-              previousFrame,
-              frame))
+        BeginInvoke((Action)(() =>
         {
-          ClearMappedHistoryLocked();
-
-          if (HorizontalZoomFactor != 1.0 ||
-              Math.Abs(
-                HorizontalZoomCenter -
-                0.5) >
-                1e-12)
-          {
-            HorizontalZoomFactor = 1.0;
-            HorizontalZoomCenter = 0.5;
-            zoomReset = true;
-          }
-        }
-        // Partial CI-V divisions can carry a new tuning frequency before
-        // the 475-bin sweep is complete. Never repeatedly translate all
-        // history rows for incomplete data. The waterfall has its own
-        // complete-sweep coordinate anchor.
-        if (frame.SweepComplete)
-        {
-          IcomScopeFrame? anchor = WaterfallAnchorFrame;
-          if (anchor != null && !RequiresHistoryReset(anchor, frame))
-          {
-            IcomScopeGeometry before = anchor.Geometry;
-            IcomScopeGeometry after = frame.Geometry;
-            if (before.IsValid && after.IsValid &&
-                frame.Mode is (byte)IcomScopeMode.Center or
-                  (byte)IcomScopeMode.ScrollCenter &&
-                before.SpanHz == after.SpanHz)
-            {
-              int delta = CalculateHistoryShiftBins(before, after,
-                HistoryShiftResidualBins, out double residual);
-
-              // A large Doppler/tuning jump invalidates the visual continuity:
-              // translating a large area fills the waterfall with rectangular
-              // streaks. Clear instead of manufacturing phantom signals.
-              if (Math.Abs(delta) > ScopePoints / 10)
-                ClearMappedHistoryLocked();
-              else
-              {
-                HistoryShiftResidualBins = residual;
-                if (delta != 0)
-                  ShiftMappedHistoryLocked(delta);
-              }
-
-              // AVG sweeps have different RF coordinates after frequency
-              // movement. Discard the stale sum even for sub-bin changes.
-              if (before.LowerFrequencyHz != after.LowerFrequencyHz)
-                ResetAveragingLocked();
-            }
-          }
-          WaterfallAnchorFrame = frame;
-        }
-
-        LatestFrame = frame;
-
-        if (frame.SweepComplete)
-        {
-          int observedFloor = EstimateNoiseFloor(frame.Samples);
-          DisplayNoiseFloor = observedFloor == 0 || DisplayNoiseFloor == 0
-            ? observedFloor
-            : (3 * DisplayNoiseFloor + observedFloor + 2) / 4;
-        }
-
-        if (AverageSweepCount <= 1)
-        {
-          Buffer.BlockCopy(
-            frame.Samples,
-            0,
-            LatestSamples,
-            0,
-            ScopePoints);
-        }
-        else if (frame.SweepComplete)
-        {
-          AddAverageFrameLocked(
-            frame.Samples);
-        }
-        else if (AverageFrames.Count == 0)
-        {
-          // After a frequency-map translation the prior average is no longer
-          // aligned. Show the newest live/raw sweep until a complete sweep can
-          // seed a fresh average window.
-          Buffer.BlockCopy(
-            frame.Samples,
-            0,
-            LatestSamples,
-            0,
-            ScopePoints);
-        }
-
-        if (PeakEnabled &&
-            (AverageSweepCount <= 1 ||
-             frame.SweepComplete))
-        {
-          for (int i = 0;
-               i < ScopePoints;
-               i++)
-          {
-            byte sample =
-              AverageSweepCount <= 1
-                ? frame.Samples[i]
-                : LatestSamples[i];
-
-            if (!PeakValid ||
-                sample >
-                  PeakSamples[i])
-              PeakSamples[i] =
-                sample;
-          }
-
-          PeakValid = true;
-        }
-
-        // Serial/Remote Utility scope data may arrive as 10-11 divisions.
-        // Update the trace for every partial division, but advance waterfall
-        // history only after the complete 475-bin sweep has arrived.
-        if (frame.SweepComplete &&
-            WaterfallRows.Length > 0)
-        {
-          WaterfallHead =
-            WaterfallHead < 0
-              ? 0
-              : (WaterfallHead -
-                 1 +
-                 WaterfallRows.Length) %
-                WaterfallRows.Length;
-
-          Buffer.BlockCopy(
-            frame.Samples,
-            0,
-            WaterfallRows[WaterfallHead],
-            0,
-            ScopePoints);
-
-          UpdateWaterfallBitmapRow(
-            WaterfallHead);
-        }
+          Interlocked.Exchange(ref repaintQueued, 0);
+          if (!IsDisposed && !Disposing) Invalidate();
+        }));
       }
-
-      if (zoomReset)
-        ZoomChanged?.Invoke(1);
-
-      Invalidate();
+      catch (InvalidOperationException)
+      {
+        Interlocked.Exchange(ref repaintQueued, 0);
+      }
     }
 
     internal void Clear()
     {
-      lock (DataSync)
-      {
-        LatestFrame = null;
-        Array.Clear(LatestSamples);
-        ClearMappedHistoryLocked();
-      }
-
+      LatestFrame = null;
+      int generation = Interlocked.Increment(ref renderGeneration);
+      gpuSurface?.Clear(generation);
+      renderWorker.Reset(generation);
       Invalidate();
-    }
-
-    private void ClearMappedHistoryLocked()
-    {
-      foreach (byte[] row in WaterfallRows)
-        Array.Clear(row);
-
-      WaterfallHead = -1;
-      WaterfallAnchorFrame = null;
-      Array.Clear(PeakSamples);
-      PeakValid = false;
-      HistoryShiftResidualBins = 0;
-      DisplayNoiseFloor = 0;
-      ResetAveragingLocked();
-      WaterfallDirty = true;
-    }
-
-    private void ResetAveragingLocked()
-    {
-      AverageFrames.Clear();
-      Array.Clear(
-        AverageSums);
-    }
-
-    private void AddAverageFrameLocked(
-      byte[] samples)
-    {
-      var copy =
-        new byte[ScopePoints];
-
-      Buffer.BlockCopy(
-        samples,
-        0,
-        copy,
-        0,
-        ScopePoints);
-
-      AverageFrames.Enqueue(
-        copy);
-
-      for (int i = 0;
-           i < ScopePoints;
-           i++)
-        AverageSums[i] +=
-          copy[i];
-
-      while (AverageFrames.Count >
-             AverageSweepCount)
-      {
-        byte[] old =
-          AverageFrames.Dequeue();
-
-        for (int i = 0;
-             i < ScopePoints;
-             i++)
-          AverageSums[i] -=
-            old[i];
-      }
-
-      int divisor =
-        Math.Max(
-          1,
-          AverageFrames.Count);
-
-      for (int i = 0;
-           i < ScopePoints;
-           i++)
-        LatestSamples[i] =
-          (byte)Math.Clamp(
-            (int)Math.Round(
-              AverageSums[i] /
-              (double)divisor),
-            0,
-            160);
     }
 
     internal static int CalculateHistoryShiftBins(
@@ -599,136 +357,6 @@ namespace SkyRoof
       return shiftBins;
     }
 
-    private void ShiftMappedHistoryLocked(
-      int shiftBins)
-    {
-      if (Math.Abs(shiftBins) >=
-          ScopePoints)
-      {
-        ClearMappedHistoryLocked();
-        return;
-      }
-
-      foreach (byte[] row in
-               WaterfallRows)
-        ShiftSamples(
-          row,
-          shiftBins);
-
-      if (AverageSweepCount > 1)
-        ResetAveragingLocked();
-
-      if (PeakValid)
-        ShiftSamples(
-          PeakSamples,
-          shiftBins);
-
-      WaterfallDirty = true;
-    }
-
-    private static void ShiftSamples(
-      byte[] samples,
-      int shiftBins)
-    {
-      if (shiftBins == 0 ||
-          samples.Length == 0)
-        return;
-
-      if (shiftBins > 0)
-      {
-        int count =
-          samples.Length -
-          shiftBins;
-
-        Array.Copy(
-          samples,
-          0,
-          samples,
-          shiftBins,
-          count);
-
-        Array.Clear(
-          samples,
-          0,
-          shiftBins);
-        return;
-      }
-
-      int left =
-        -shiftBins;
-      int leftCount =
-        samples.Length -
-        left;
-
-      Array.Copy(
-        samples,
-        left,
-        samples,
-        0,
-        leftCount);
-
-      Array.Clear(
-        samples,
-        leftCount,
-        left);
-    }
-
-    private static void ShiftSamples(
-      int[] samples,
-      int shiftBins)
-    {
-      if (shiftBins == 0 ||
-          samples.Length == 0)
-        return;
-
-      if (Math.Abs(shiftBins) >=
-          samples.Length)
-      {
-        Array.Clear(
-          samples);
-        return;
-      }
-
-      if (shiftBins > 0)
-      {
-        int count =
-          samples.Length -
-          shiftBins;
-
-        Array.Copy(
-          samples,
-          0,
-          samples,
-          shiftBins,
-          count);
-
-        Array.Clear(
-          samples,
-          0,
-          shiftBins);
-        return;
-      }
-
-      int left =
-        -shiftBins;
-      int countLeft =
-        samples.Length -
-        left;
-
-      Array.Copy(
-        samples,
-        left,
-        samples,
-        0,
-        countLeft);
-
-      Array.Clear(
-        samples,
-        countLeft,
-        left);
-    }
-
-
     internal static byte[] SmoothSamplesForDisplay(
       byte[] samples,
       int bins)
@@ -751,10 +379,15 @@ namespace SkyRoof
         return
           (byte[])samples.Clone();
 
-      int radius =
-        normalized / 2;
-      var output =
-        new byte[samples.Length];
+      var output = new byte[samples.Length];
+      SmoothSamplesInto(samples, output, normalized);
+      return output;
+    }
+
+    internal static void SmoothSamplesInto(ReadOnlySpan<byte> samples,
+      Span<byte> output, int bins)
+    {
+      int radius = bins / 2;
 
       int windowSum = 0;
       int windowStart = 0;
@@ -804,7 +437,6 @@ namespace SkyRoof
             160);
       }
 
-      return output;
     }
 
 
@@ -856,15 +488,22 @@ namespace SkyRoof
       {
         TuneCommitTimer.Stop();
         TuneCommitTimer.Dispose();
-        WaterfallBitmap?.Dispose();
-        WaterfallBitmap = null;
+        RemoveGpuSurface();
+        renderWorker.Dispose();
+        gdiHistory?.Dispose();
+        gdiHistory = null;
       }
 
       base.Dispose(disposing);
     }
 
+    // OnPaint clears every destination pixel; avoid the separate GDI
+    // background fill before WinForms presents its double buffer.
+    protected override void OnPaintBackground(PaintEventArgs e) { }
+
     protected override void OnPaint(PaintEventArgs e)
     {
+      long paintStart = Stopwatch.GetTimestamp();
       base.OnPaint(e);
 
       Color scopeBack =
@@ -880,90 +519,52 @@ namespace SkyRoof
           ClientSize.Height < 20)
         return;
 
-      IcomScopeFrame? frame;
-      byte[] samples =
-        new byte[ScopePoints];
-      byte[] peakSamples =
-        new byte[ScopePoints];
-      bool peakVisible;
-      int displayNoiseFloor;
-
-      lock (DataSync)
+      var snapshot = renderWorker.Latest;
+      if (snapshot?.Generation != renderGeneration) snapshot = null;
+      IcomScopeFrame? frame = snapshot?.Frame;
+      if (snapshot != null && lastZoomRevision != snapshot.ZoomRevision)
       {
-        frame = LatestFrame;
-        Buffer.BlockCopy(
-          LatestSamples,
-          0,
-          samples,
-          0,
-          ScopePoints);
-        Buffer.BlockCopy(
-          PeakSamples,
-          0,
-          peakSamples,
-          0,
-          ScopePoints);
-        peakVisible =
-          PeakEnabled &&
-          PeakValid;
-        displayNoiseFloor = DisplayNoiseFloor;
-        RebuildWaterfallBitmapIfNeeded();
+        lastZoomRevision = snapshot.ZoomRevision;
+        ResetZoom();
       }
+      LatestFrame = frame;
+      byte[] samples = snapshot?.Samples ?? EmptySamples;
+      byte[] peakSamples = snapshot?.Peak ?? EmptySamples;
+      bool peakVisible = PeakEnabled && snapshot?.PeakValid == true;
+      int displayNoiseFloor = snapshot?.NoiseFloor ?? 0;
+      // Software raster is still available until the GPU reports a successful swap.
 
-      if (SmoothingBins > 1)
+      GetLayout(out Rectangle headerRect, out Rectangle spectrumRect,
+        out Rectangle splitterRect, out Rectangle waterfallRect);
+      DrawHeader(e.Graphics, headerRect, frame, scopeBack, textColor);
+      bool usesGpu = UpdateGpuSurface(spectrumRect, waterfallRect, snapshot);
+      if (usesGpu)
       {
-        samples =
-          SmoothSamplesForDisplay(
-            samples,
-            SmoothingBins);
-
-        if (peakVisible)
-          peakSamples =
-            SmoothSamplesForDisplay(
-              peakSamples,
-              SmoothingBins);
+        // The native region leaves the original frequency axis and splitter exposed.
+        DrawFrequencyGrid(e.Graphics, (spectrumRect, GetSpectrumPlotRectangle(spectrumRect)),
+          frame?.Geometry ?? default, GetDisplayFrequencyOffset(frame), textColor, drawLines: false);
       }
-
-      GetLayout(
-        out Rectangle headerRect,
-        out Rectangle spectrumRect,
-        out Rectangle splitterRect,
-        out Rectangle waterfallRect);
-
-      DrawHeader(
-        e.Graphics,
-        headerRect,
-        frame,
-        scopeBack,
-        textColor);
-
-      DrawSpectrum(
-        e.Graphics,
-        spectrumRect,
-        samples,
-        peakSamples,
-        peakVisible,
-        displayNoiseFloor,
-        frame,
-        scopeBack,
-        textColor);
-
-      DrawSplitter(
-        e.Graphics,
-        splitterRect);
-
-      if (waterfallRect.Height > 0 &&
-          WaterfallBitmap != null)
+      else
       {
-        e.Graphics.InterpolationMode =
-          InterpolationMode.Bilinear;
-        e.Graphics.PixelOffsetMode =
-          PixelOffsetMode.Half;
-
-        DrawWaterfallRing(
-          e.Graphics,
-          waterfallRect);
+        if (SmoothingBins > 1)
+        {
+          SmoothSamplesInto(samples, smoothSamples, SmoothingBins);
+          samples = smoothSamples;
+          if (peakVisible)
+          {
+            SmoothSamplesInto(peakSamples, smoothPeakSamples, SmoothingBins);
+            peakSamples = smoothPeakSamples;
+          }
+        }
+        DrawSpectrum(e.Graphics, spectrumRect, samples, peakSamples, peakVisible,
+          displayNoiseFloor, frame, scopeBack, textColor);
+        if (WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
+        if (waterfallRect.Height > 0 && WaterfallBitmap != null)
+        {
+          DrawWaterfallRing(e.Graphics, waterfallRect);
+        }
       }
+      DrawSplitter(e.Graphics, splitterRect);
 
       Color borderColor = ScopeGrid;
 
@@ -987,6 +588,10 @@ namespace SkyRoof
           waterfallRect.Top,
           waterfallRect.Width - 1,
           waterfallRect.Height - 1);
+
+      long paintEnd = Stopwatch.GetTimestamp();
+      paintMetrics.Record(paintEnd, paintEnd - paintStart,
+        frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
     }
 
     protected override void OnMouseWheel(
@@ -1447,17 +1052,13 @@ namespace SkyRoof
 
     private bool IsCurrentScopeTunable()
     {
-      lock (DataSync)
-        return LatestFrame?.Scope == 0;
+      return LatestFrame?.Scope == 0;
     }
 
     private bool TryGetCurrentGeometry(
       out IcomScopeGeometry geometry)
     {
-      lock (DataSync)
-        geometry =
-          LatestFrame?.Geometry ??
-          default;
+      geometry = LatestFrame?.Geometry ?? default;
 
       return geometry.IsValid;
     }
@@ -1806,12 +1407,6 @@ namespace SkyRoof
       Color background,
       Color textColor)
     {
-      using var back =
-        new SolidBrush(background);
-      graphics.FillRectangle(
-        back,
-        bounds);
-
       string left;
       string right;
 
@@ -1927,12 +1522,6 @@ namespace SkyRoof
       Color background,
       Color textColor)
     {
-      using var backgroundBrush =
-        new SolidBrush(background);
-      graphics.FillRectangle(
-        backgroundBrush,
-        bounds);
-
       Rectangle plot =
         GetSpectrumPlotRectangle(
           bounds);
@@ -1967,8 +1556,7 @@ namespace SkyRoof
 
       DrawFrequencyGrid(
         graphics,
-        bounds,
-        plot,
+        (bounds, plot),
         geometry,
         displayOffsetHz,
         textColor);
@@ -2015,12 +1603,12 @@ namespace SkyRoof
 
     private void DrawFrequencyGrid(
       Graphics graphics,
-      Rectangle spectrumBounds,
-      Rectangle plot,
+      (Rectangle Bounds, Rectangle Plot) layout,
       IcomScopeGeometry geometry,
       long displayOffsetHz,
-      Color textColor)
+      Color textColor, bool drawLines = true)
     {
+      var (spectrumBounds, plot) = layout;
       int intervals =
         plot.Width >= 900
           ? 5
@@ -2061,12 +1649,7 @@ namespace SkyRoof
               0,
               plot.Width - 1));
 
-        graphics.DrawLine(
-          gridPen,
-          x,
-          plot.Top,
-          x,
-          plot.Bottom);
+        if (drawLines) graphics.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
 
         if (!geometry.IsValid ||
             spectrumBounds.Height <=
@@ -2151,158 +1734,44 @@ namespace SkyRoof
       }
     }
 
-    private static void DrawTrace(
-      Graphics graphics,
-      Rectangle plot,
-      byte[] samples,
-      double zoomFactor,
-      double zoomCenter,
-      int noiseFloor)
+    private readonly record struct TraceStyle(Color Color, float Width, DashStyle Dash);
+
+    private void DrawTrace(Graphics graphics, Rectangle plot, byte[] samples,
+      double zoomFactor, double zoomCenter, int noiseFloor) =>
+      DrawSampleTrace(graphics, plot, samples, noiseFloor,
+        new TraceStyle(ScopeTrace, 1.25f, DashStyle.Solid), (zoomFactor, zoomCenter));
+
+    private void DrawPeakTrace(Graphics graphics, Rectangle plot, byte[] samples,
+      double zoomFactor, double zoomCenter, int noiseFloor) =>
+      DrawSampleTrace(graphics, plot, samples, noiseFloor,
+        new TraceStyle(ScopePeak, 1f, DashStyle.Dot), (zoomFactor, zoomCenter));
+
+    private void DrawSampleTrace(Graphics graphics, Rectangle plot, byte[] samples,
+      int noiseFloor, TraceStyle style, (double Factor, double Center) zoom)
     {
-      DrawSampleTrace(
-        graphics,
-        plot,
-        samples,
-        zoomFactor,
-        zoomCenter,
-        noiseFloor,
-        ScopeTrace,
-        1.25f,
-        DashStyle.Solid);
-    }
-
-    private static void DrawPeakTrace(
-      Graphics graphics,
-      Rectangle plot,
-      byte[] samples,
-      double zoomFactor,
-      double zoomCenter,
-      int noiseFloor)
-    {
-      DrawSampleTrace(
-        graphics,
-        plot,
-        samples,
-        zoomFactor,
-        zoomCenter,
-        noiseFloor,
-        ScopePeak,
-        1.0f,
-        DashStyle.Dot);
-    }
-
-    private static void DrawSampleTrace(
-      Graphics graphics,
-      Rectangle plot,
-      byte[] samples,
-      double zoomFactor,
-      double zoomCenter,
-      int noiseFloor,
-      Color color,
-      float width,
-      DashStyle dashStyle)
-    {
-      if (samples.Length < 2)
-        return;
-
-      GetVisibleFractionRange(
-        zoomFactor,
-        zoomCenter,
-        out double visibleStart,
-        out double visibleEnd);
-
-      int last =
-        samples.Length - 1;
-      int startIndex =
-        Math.Max(
-          0,
-          (int)Math.Floor(
-            visibleStart *
-            last) - 1);
-      int endIndex =
-        Math.Min(
-          last,
-          (int)Math.Ceiling(
-            visibleEnd *
-            last) + 1);
-
-      if (endIndex <= startIndex)
-        return;
-
-      var points =
-        new List<PointF>(
-          endIndex -
-          startIndex +
-          1);
-
-      float usableHeight =
-        Math.Max(
-          1,
-          plot.Height - 4);
-
-      for (int i = startIndex;
-           i <= endIndex;
-           i++)
+      GetVisibleFractionRange(zoom.Factor, zoom.Center, out double start, out double end);
+      int last = samples.Length - 1;
+      int first = Math.Max(0, (int)Math.Floor(start * last) - 1);
+      int final = Math.Min(last, (int)Math.Ceiling(end * last) + 1);
+      if (final <= first) return;
+      int count = final - first + 1;
+      if (tracePoints.Length != count) tracePoints = new PointF[count];
+      double visibleWidth = Math.Max(1e-12, end - start);
+      float usableHeight = Math.Max(1, plot.Height - 4);
+      for (int i = first; i <= final; i++)
       {
-        double fullFraction =
-          i /
-          (double)last;
-        double visibleFraction =
-          ToVisiblePlotFraction(
-            fullFraction,
-            zoomFactor,
-            zoomCenter);
-
-        float x =
-          plot.Left +
-          (float)(
-            visibleFraction *
-            (plot.Width - 1));
-
-        float normalized =
-          MapSpectrumLevel(samples[i], noiseFloor) / 160f;
-
-        float y =
-          plot.Bottom -
-          2 -
-          normalized *
-          usableHeight;
-
-        points.Add(
-          new PointF(
-            x,
-            y));
+        float x = plot.Left + (float)((i / (double)last - start) / visibleWidth * (plot.Width - 1));
+        float y = plot.Bottom - 2 - MapSpectrumLevel(samples[i], noiseFloor) / 160f * usableHeight;
+        tracePoints[i - first] = new PointF(x, y);
       }
-
-      if (points.Count < 2)
-        return;
-
-      GraphicsState state =
-        graphics.Save();
-
+      GraphicsState state = graphics.Save();
       try
       {
-        graphics.SetClip(
-          plot);
-
-        using var pen =
-          new Pen(
-            color,
-            width)
-          {
-            DashStyle =
-              dashStyle
-          };
-
-        graphics.DrawLines(
-          pen,
-          points.ToArray());
+        graphics.SetClip(plot);
+        using var pen = new Pen(style.Color, style.Width) { DashStyle = style.Dash };
+        graphics.DrawLines(pen, tracePoints);
       }
-      finally
-      {
-        graphics.Restore(
-          state);
-      }
+      finally { graphics.Restore(state); }
     }
 
     /// <summary>
@@ -2610,7 +2079,7 @@ namespace SkyRoof
         TextFormatFlags.NoPadding);
     }
 
-    private static string FormatCursorText(
+    internal static string FormatCursorText(
       long frequencyHz,
       long referenceFrequencyHz)
     {
@@ -2678,281 +2147,155 @@ namespace SkyRoof
         y);
     }
 
-    private void ConfigureHistory(int rows)
+    internal void SetGpuWaterfall(bool enabled)
     {
-      lock (DataSync)
+      if (gpuRequested == enabled) return;
+      gpuRequested = enabled;
+      gpuFailed = false;
+      if (!enabled)
       {
-        WaterfallRows =
-          new byte[rows][];
-
-        for (int i = 0;
-             i < rows;
-             i++)
-          WaterfallRows[i] =
-            new byte[ScopePoints];
-
-        WaterfallHead = -1;
-        WaterfallAnchorFrame = null;
-        HistoryShiftResidualBins = 0;
-        WaterfallDirty = true;
-
-        WaterfallBitmap?.Dispose();
-        WaterfallBitmap =
-          new Bitmap(
-            ScopePoints,
-            rows,
-            PixelFormat.Format32bppArgb);
-
-        WaterfallArgb =
-          new int[
-            ScopePoints *
-            rows];
-        WaterfallArgbRow =
-          new int[ScopePoints];
+        RemoveGpuSurface();
+        gpuStatus = "GDI+";
+        renderWorker.Configure(model => model.SetCpuRaster(true));
       }
-
       Invalidate();
     }
 
-    private void UpdateWaterfallBitmapRow(
-      int rowIndex)
+    private bool UpdateGpuSurface(Rectangle spectrum, Rectangle waterfall, IcomScopeRenderSnapshot? snapshot)
     {
-      if (WaterfallBitmap == null ||
-          rowIndex < 0 ||
-          rowIndex >= WaterfallRows.Length)
-        return;
-
-      byte[] row =
-        WaterfallRows[rowIndex];
-
-      for (int x = 0;
-           x < ScopePoints;
-           x++)
-        WaterfallArgbRow[x] =
-          Palette[
-            MapWaterfallLevel(
-                MapAdaptiveWaterfallLevel(row[x], DisplayNoiseFloor),
-                WaterfallBrightness,
-                WaterfallContrast)];
-
-      Rectangle rect =
-        new(
-          0,
-          rowIndex,
-          ScopePoints,
-          1);
-
-      BitmapData data =
-        WaterfallBitmap.LockBits(
-          rect,
-          ImageLockMode.WriteOnly,
-          PixelFormat.Format32bppArgb);
-
-      try
+      Rectangle plot = GetSpectrumPlotRectangle(spectrum);
+      if (!gpuRequested || gpuFailed || plot.Width < 3 || plot.Height < 3)
       {
-        Marshal.Copy(
-          WaterfallArgbRow,
-          0,
-          data.Scan0,
-          ScopePoints);
+        if (gpuSurface != null) gpuSurface.Visible = false;
+        return false;
       }
-      finally
+      var bounds = Rectangle.FromLTRB(plot.Left, plot.Top, plot.Right,
+        waterfall.Height > 0 ? waterfall.Bottom : plot.Bottom);
+      if (gpuSurface == null)
       {
-        WaterfallBitmap.UnlockBits(
-          data);
+        try
+        {
+          var surface = new IcomScopeGpuSurface(GpuStatusChanged) { Bounds = bounds };
+          gpuSurface = surface;
+          Controls.Add(surface);
+          surface.BringToFront();
+          gpuStatus = "OpenGL initializing";
+        }
+        catch (Exception ex)
+        {
+          SwitchToCpu(ex.Message);
+          return false;
+        }
       }
+      if (gpuSurface is not { } gpu) return false;
+      if (gpu.Bounds != bounds) gpu.Bounds = bounds;
+      if (!gpu.Visible) gpu.Visible = true;
+      gpu.SetScene(CreateGpuScene(plot, waterfall, bounds));
+      if (snapshot != null) gpu.Offer(snapshot);
+      return true;
     }
 
-    private void RebuildWaterfallBitmapIfNeeded()
+    private IcomScopeGpuScene CreateGpuScene(Rectangle plot, Rectangle waterfall, Rectangle surface)
     {
-      if (!WaterfallDirty ||
-          WaterfallBitmap == null ||
-          WaterfallRows.Length == 0)
-        return;
+      var tuning = new IcomScopeGpuTuning(ReceiveFrequencyHz, TransmitFrequencyHz,
+        MainDisplayFrequencyOffsetHz, SubDisplayFrequencyOffsetHz, ReceiveMode, TransmitMode,
+        RxPassbandPreferences);
+      Point? pointer = PointerInside && plot.Contains(PointerLocation)
+        ? new Point(PointerLocation.X - plot.Left, PointerLocation.Y - plot.Top) : null;
+      GetVisibleFractionRange(TuneGestureZoomFactor, TuneGestureZoomCenter, out double start, out double end);
+      var mouse = new IcomScopeGpuPointer(pointer, FrequencyTuning ? TuneGestureGeometry : default,
+        TuneGestureDisplayFrequencyOffsetHz, start, end);
+      var options = new IcomScopeGpuOptions(HorizontalZoomFactor, HorizontalZoomCenter, SmoothingBins,
+        PeakEnabled, lastZoomRevision, Font.Name, Font.Size, Font.Style);
+      plot.Offset(-surface.X, -surface.Y);
+      if (waterfall.Height > 0) waterfall.Offset(-surface.X, -surface.Y);
+      return new(plot, waterfall, tuning, mouse, options);
+    }
 
-      int index = 0;
-
-      for (int y = 0;
-           y < WaterfallRows.Length;
-           y++)
-      {
-        byte[] row =
-          WaterfallRows[y];
-
-        for (int x = 0;
-             x < ScopePoints;
-             x++)
-          WaterfallArgb[index++] =
-            Palette[
-              MapWaterfallLevel(
-                MapAdaptiveWaterfallLevel(row[x], DisplayNoiseFloor),
-                WaterfallBrightness,
-                WaterfallContrast)];
-      }
-
-      Rectangle rect =
-        new(
-          0,
-          0,
-          WaterfallBitmap.Width,
-          WaterfallBitmap.Height);
-
-      BitmapData data =
-        WaterfallBitmap.LockBits(
-          rect,
-          ImageLockMode.WriteOnly,
-          PixelFormat.Format32bppArgb);
-
+    private void GpuStatusChanged(IcomScopeGpuSurface sender, string? error)
+    {
+      if (!IsHandleCreated || IsDisposed || Disposing) return;
       try
       {
-        if (data.Stride ==
-            ScopePoints * 4)
+        BeginInvoke((Action)(() =>
         {
-          Marshal.Copy(
-            WaterfallArgb,
-            0,
-            data.Scan0,
-            WaterfallArgb.Length);
-        }
-        else
-        {
-          for (int y = 0;
-               y < WaterfallRows.Length;
-               y++)
+          if (IsDisposed || Disposing || !ReferenceEquals(sender, gpuSurface)) return;
+          if (error != null) SwitchToCpu(error);
+          else
           {
-            Marshal.Copy(
-              WaterfallArgb,
-              y * ScopePoints,
-              data.Scan0 +
-              y * data.Stride,
-              ScopePoints);
+            gpuStatus = "OpenGL / " + sender.Renderer;
+            renderWorker.Configure(model => model.SetCpuRaster(false));
+            gdiHistory?.Dispose();
+            gdiHistory = null;
           }
-        }
+          Invalidate();
+        }));
       }
-      finally
+      catch (InvalidOperationException ex)
       {
-        WaterfallBitmap.UnlockBits(
-          data);
+        Serilog.Log.Debug(ex, "Scope surface was closed before GPU status could be delivered");
       }
-
-      WaterfallDirty = false;
     }
 
-    private void DrawWaterfallRing(
-      Graphics graphics,
-      Rectangle destination)
+    private void SwitchToCpu(string reason)
     {
-      if (WaterfallBitmap == null ||
-          WaterfallRows.Length == 0)
-        return;
+      gpuFailed = true;
+      gpuStatus = "GDI+ fallback: " + reason;
+      RemoveGpuSurface();
+      renderWorker.Configure(model => model.SetCpuRaster(true));
+      Invalidate();
+    }
 
-      GetVisibleFractionRange(
-        HorizontalZoomFactor,
-        HorizontalZoomCenter,
-        out double visibleStart,
-        out double visibleEnd);
+    private void RemoveGpuSurface()
+    {
+      var previous = gpuSurface;
+      gpuSurface = null;
+      if (previous == null) return;
+      Controls.Remove(previous);
+      previous.Dispose();
+    }
 
-      int sourceLeft =
-        Math.Clamp(
-          (int)Math.Floor(
-            visibleStart *
-            (WaterfallBitmap.Width - 1)),
-          0,
-          WaterfallBitmap.Width - 1);
-
-      int sourceRight =
-        Math.Clamp(
-          (int)Math.Ceiling(
-            visibleEnd *
-            (WaterfallBitmap.Width - 1)) + 1,
-          sourceLeft + 1,
-          WaterfallBitmap.Width);
-
-      int sourceWidth =
-        sourceRight -
-        sourceLeft;
-
-      if (WaterfallHead < 0)
+    private void ApplyWaterfallSnapshot(IcomScopeRenderSnapshot? snapshot)
+    {
+      int[][]? rows = snapshot?.Colors;
+      if (rows == null || rows.Length != historyRows)
       {
-        graphics.DrawImage(
-          WaterfallBitmap,
-          destination,
-          new Rectangle(
-            sourceLeft,
-            0,
-            sourceWidth,
-            WaterfallBitmap.Height),
-          GraphicsUnit.Pixel);
+        WaterfallHead = -1;
+        gdiHistory?.Dispose();
+        gdiHistory = null;
         return;
       }
-
-      int rows =
-        WaterfallRows.Length;
-      int firstRows =
-        rows -
-        WaterfallHead;
-
-      int firstHeight =
-        (int)Math.Round(
-          destination.Height *
-          firstRows /
-          (double)rows);
-
-      firstHeight =
-        Math.Clamp(
-          firstHeight,
-          0,
-          destination.Height);
-
-      if (firstRows > 0 &&
-          firstHeight > 0)
+      if (gdiHistory == null || gdiHistory.Image.Height != rows.Length)
       {
-        graphics.DrawImage(
-          WaterfallBitmap,
-          new Rectangle(
-            destination.Left,
-            destination.Top,
-            destination.Width,
-            firstHeight),
-          new Rectangle(
-            sourceLeft,
-            WaterfallHead,
-            sourceWidth,
-            firstRows),
-          GraphicsUnit.Pixel);
+        gdiHistory?.Dispose();
+        gdiHistory = new IcomScopeGdiHistoryBitmap(rows.Length);
       }
+      WaterfallHead = snapshot?.Head ?? -1;
+      gdiHistory.Update(rows);
+    }
 
-      int secondRows =
-        WaterfallHead;
-      int secondHeight =
-        destination.Height -
-        firstHeight;
-
-      if (secondRows > 0 &&
-          secondHeight > 0)
-      {
-        graphics.DrawImage(
-          WaterfallBitmap,
-          new Rectangle(
-            destination.Left,
-            destination.Top +
-            firstHeight,
-            destination.Width,
-            secondHeight),
-          new Rectangle(
-            sourceLeft,
-            0,
-            sourceWidth,
-            secondRows),
-          GraphicsUnit.Pixel);
-      }
+    private void DrawWaterfallRing(Graphics graphics, Rectangle destination)
+    {
+      if (gdiHistory == null) return;
+      GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
+        out double visibleStart, out double visibleEnd);
+      gdiHistory.Draw(graphics, destination, WaterfallHead, visibleStart, visibleEnd);
     }
 
     // Raw CI-V levels are not calibrated dBm. Only the display is remapped.
     // A 40th-percentile baseline resists narrowband signal peaks.
+    internal static void FillWaterfallColorMap(Span<int> output, ReadOnlySpan<int> palette,
+      int noiseFloor, int brightness, int contrast)
+    {
+      for (int level = 0; level <= 160; level++)
+        output[level] = palette[MapWaterfallLevel(
+          MapAdaptiveWaterfallLevel(level, noiseFloor), brightness, contrast)];
+    }
+
     internal static int EstimateNoiseFloor(ReadOnlySpan<byte> samples)
     {
       Span<int> histogram = stackalloc int[161];
+      histogram.Clear();
       int validCount = 0;
       foreach (byte sample in samples)
       {

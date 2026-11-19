@@ -108,11 +108,28 @@ jobs:
 
       - name: Run tests
         env:
+          SKYROOF_SCOPE_PERF_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/scope-perf
           SKYROOF_SCOPE_LAYOUT_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/scope-dpi-layout
           SKYROOF_SSTV_UI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/sstv-ui
           SKYROOF_UI_DPI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/ui-dpi-layout
           SKYROOF_BILINGUAL_UI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/bilingual-ui-dpi
         run: dotnet test VE3NEA.Dsp.Tests/VE3NEA.Dsp.Tests.csproj -c Release -p:Platform=x64 --no-restore
+
+      - name: Print scope simulated performance metrics
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path artifacts/scope-perf) {
+            Get-ChildItem artifacts/scope-perf/*.json | ForEach-Object { Get-Content $_.FullName }
+          }
+
+      - name: Upload scope simulated performance metrics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scope-simulated-performance
+          path: artifacts/scope-perf/*.json
+          if-no-files-found: warn
 
       - name: Upload scope DPI layout fixtures
         if: always()
