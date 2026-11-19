@@ -1358,6 +1358,7 @@ namespace SkyRoof
       UpdateStatusRow();
 
       StatsLabel.Dock = DockStyle.Fill;
+      StatsLabel.Margin = new Padding(3, 0, 3, 0);
       StatsLabel.TextAlign = ContentAlignment.MiddleLeft;
       StatsLabel.AutoEllipsis = true;
       StatsLabel.ForeColor = colors.Muted;
@@ -1373,6 +1374,9 @@ namespace SkyRoof
       statusBar.Controls.Add(StatsLabel, 0, 0);
       statusBar.Controls.Add(DiagnosticsBtn, 1, 0);
       root.Controls.Add(statusBar, 0, 3);
+      IcomScopeStatusBarLayout.Apply(root.RowStyles[3], statusBar, DeviceDpi);
+      DpiChanged += (_, _) =>
+        IcomScopeStatusBarLayout.Apply(root.RowStyles[3], statusBar, DeviceDpi);
 
       Controls.Add(root);
     }

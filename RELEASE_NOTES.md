@@ -1,5 +1,7 @@
 # SkyRoof-Plus v.1.87
 
+- 频谱底部状态栏增加 4 px（96 DPI）统一顶部留白，状态文字与诊断按钮对齐，按 DPI 比例缩放，保持按钮有效高度。Windows 模拟布局及像素渲染回归覆盖多个窗口宽度与 DPI。 / Add DPI-scaled spacing above the scope footer without shrinking the controls.
+
 - 频谱主界面隐藏正常接收链路说明，保留简洁状态条与故障提示；诊断默认概览，详细计数及布局信息可展开，复制始终包含完整报告。Compact spectrum diagnostics with expandable full report; normal reception text moved off the main panel.
 
 ## 2026-11-19 原地修复构建 / In-place test rebuild
