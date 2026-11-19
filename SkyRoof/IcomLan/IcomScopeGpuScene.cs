@@ -8,7 +8,10 @@ namespace SkyRoof
   internal sealed record IcomScopeGpuOptions(double Zoom, double Center, int Smoothing,
     bool Peak, long ZoomRevision, string FontName, float FontSize, FontStyle FontStyle);
   internal sealed record IcomScopeGpuScene(Rectangle Plot, Rectangle Waterfall,
-    IcomScopeGpuTuning Tuning, IcomScopeGpuPointer Pointer, IcomScopeGpuOptions Options);
+    IcomScopeGpuTuning Tuning, IcomScopeGpuPointer Pointer, IcomScopeGpuOptions Options)
+  {
+    internal bool Held { get; init; }
+  }
 
   internal readonly record struct IcomScopeGpuPlotState(float Start, float End,
     float Marker, (float Left, float Right) Band, (int X, string Text) CursorLabel, string MarkerText)

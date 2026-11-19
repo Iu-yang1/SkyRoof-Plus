@@ -14,6 +14,10 @@ namespace SkyRoof
     private int[][]? uploaded;
     private IcomScopeWaterfallTimeRaster? timeRaster;
     private IcomScopeGdiHistoryBitmap? compact;
+    private IcomScopeGdiHistoryBitmap? continuous;
+    private int[][]? continuousSource, continuousRows;
+    private int continuousHead;
+    private double continuousLag;
     internal Bitmap Image { get; }
 
     internal IcomScopeGdiHistoryBitmap(int rows)
@@ -68,6 +72,30 @@ namespace SkyRoof
       DrawCompatibility(graphics, (top, topSource), (bottom, bottomSource));
     }
 
+    // The live continuous renderer does not need to first duplicate the entire raw-color ring.
+    internal void SetContinuousSource(int[][] rows) => continuousRows = rows;
+
+    internal void DrawContinuous(Graphics graphics, Rectangle destination, int head,
+      double start, double end, double lag)
+    {
+      var source = continuousRows ?? uploaded;
+      if (source == null || destination.Height <= 0 || destination.Width <= 0) return;
+      if (continuous == null || continuous.Image.Height != destination.Height)
+      {
+        continuous?.Dispose();
+        continuous = new IcomScopeGdiHistoryBitmap(destination.Height);
+        continuousSource = null;
+      }
+      if (!ReferenceEquals(continuousSource, source) || continuousHead != head || continuousLag != lag)
+      {
+        IcomScopeContinuousRaster.Render(source, head, lag, continuous.pixels, destination.Height);
+        continuousSource = source;
+        continuousHead = head;
+        continuousLag = lag;
+      }
+      continuous.Draw(graphics, destination, 0, start, end);
+    }
+
     private void DrawCompact(Graphics graphics, Rectangle destination, int head, double start, double end)
     {
       if (uploaded == null) return;
@@ -108,6 +136,7 @@ namespace SkyRoof
     {
       if (!pin.IsAllocated) return;
       compact?.Dispose();
+      continuous?.Dispose();
       Image.Dispose();
       pin.Free();
     }

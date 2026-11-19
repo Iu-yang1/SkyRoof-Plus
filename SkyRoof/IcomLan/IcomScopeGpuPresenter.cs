@@ -10,6 +10,8 @@ namespace SkyRoof
   internal sealed record IcomScopeGpuPerf(long FreshCount, double FreshFps, IcomScopePaintMetrics.Summary Timing)
   {
     internal static readonly IcomScopeGpuPerf Empty = new(0, 0, default);
+    internal double PresentFps { get; init; }
+    internal long InterpolatedCount { get; init; }
   }
 
   internal sealed class IcomScopeGpuPresenter : IDisposable
@@ -26,7 +28,9 @@ namespace SkyRoof
     private long presentCount;
     private readonly IcomScopePaintMetrics metrics = new();
     private IcomScopeGpuPerf perf = IcomScopeGpuPerf.Empty;
-    private long lastPerfTick, lastFreshCount;
+    private long lastPerfTick, lastFreshCount, lastPresentCount, interpolatedCount;
+    private long lastEpoch = -1, lastSweep;
+    private double lastLag;
     internal IcomScopeGpuPerf Perf => Volatile.Read(ref perf);
     private string renderer = "starting";
 
@@ -106,9 +110,17 @@ namespace SkyRoof
         gl.DrawBuffer(OpenGL.GL_BACK);
         Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
         drawing = new IcomScopeGpuRenderer(gl);
+        var clock = new IcomScopeWaterfallClock();
+        using var cadence = new IcomScopePresentTimer();
+        bool animate = false;
+        long nextDraw = 0;
         while (true)
         {
-          wake.WaitOne();
+          if (!animate) wake.WaitOne();
+          cadence.WaitUntil(nextDraw);
+          // Coalesce only the presentation wake; the worker has already
+          // processed each complete scan. Read the latest snapshot after waiting.
+          wake.WaitOne(0);
           IcomScopeRenderSnapshot? frame;
           IcomScopeGpuViewport size;
           lock (gate)
@@ -117,7 +129,11 @@ namespace SkyRoof
             frame = latest;
             size = viewport;
           }
+          animate = false;
           if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
+          long now = Stopwatch.GetTimestamp();
+          long period = Stopwatch.Frequency / 60;
+          nextDraw = nextDraw == 0 || now - nextDraw >= period ? now + period : nextDraw + period;
           gl.MakeCurrent();
           VerifyCurrentContext(context, dc);
           if (frame == null)
@@ -129,10 +145,12 @@ namespace SkyRoof
             continue;
           }
           long startTick = Stopwatch.GetTimestamp();
-          drawing.Draw(frame, size);
+          double lag = clock.Lag(frame.Waterfall, startTick, size.Scene.Held);
+          animate = !size.Scene.Held && size.Scene.Waterfall.Height > 1 && lag > 0;
+          drawing.Draw(frame, size, lag);
           SwapCurrentBuffers(context, dc);
           Interlocked.Increment(ref presentCount);
-          RecordPresent(frame, startTick);
+          RecordPresent(frame, startTick, lag);
           if (ready) continue;
           ready = true;
           status(null);
@@ -187,20 +205,30 @@ namespace SkyRoof
         throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "OpenGL SwapBuffers failed");
     }
 
-    private void RecordPresent(IcomScopeRenderSnapshot frame, long startTick)
+    private void RecordPresent(IcomScopeRenderSnapshot frame, long startTick, double lag)
     {
+      var history = frame.Waterfall;
+      if (history.SweepNumber > 0 && history.Epoch == lastEpoch &&
+          history.SweepNumber == lastSweep && lag != lastLag) interpolatedCount++;
+      lastEpoch = history.Epoch;
+      lastSweep = history.SweepNumber;
+      lastLag = lag;
       long now = Stopwatch.GetTimestamp();
       metrics.Record(now, now - startTick, frame.Frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
       if (lastPerfTick == 0)
       {
         lastPerfTick = now;
         lastFreshCount = metrics.FreshPaintCount;
+        lastPresentCount = PresentCount;
         return;
       }
       double elapsed = (now - lastPerfTick) / (double)Stopwatch.Frequency;
       if (elapsed < 0.5) return;
       long fresh = metrics.FreshPaintCount;
-      Volatile.Write(ref perf, new IcomScopeGpuPerf(fresh, (fresh - lastFreshCount) / elapsed, metrics.Snapshot()));
+      long total = PresentCount;
+      Volatile.Write(ref perf, new IcomScopeGpuPerf(fresh, (fresh - lastFreshCount) / elapsed, metrics.Snapshot())
+      { PresentFps = (total - lastPresentCount) / elapsed, InterpolatedCount = interpolatedCount });
+      lastPresentCount = total;
       lastFreshCount = fresh;
       lastPerfTick = now;
     }
