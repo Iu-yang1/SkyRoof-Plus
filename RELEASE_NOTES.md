@@ -1,5 +1,12 @@
 # SkyRoof-Plus v.1.87
 
+## 连续瀑布图呈现 / Continuous waterfall presentation
+
+- 固定宽度时间面积重采样、分数 bin 频移、原始 475 点历史保留；消除整数分组切换造成的滚动跳动。
+- GPU 独立线程目标 60 Hz 几何呈现，GDI+ 使用 SIMD 重采样与 DIB；中间帧不生成新的 RF 采样，插值引入约一个扫频周期的显示延迟。
+- 用户实机反馈显示效果较前版明显改善；Windows CI 1785 项通过，原有模拟性能标准通过。实际物理呈现率尚未量化。
+- Continuous time-area resampling, fractional frequency offsets, and target 60 Hz geometry presentation. All 475 native bins retained. User reports substantially improved visual behavior; physical presentation rate has not been benchmarked.
+
 - 频谱底部状态栏增加 4 px（96 DPI）统一顶部留白，状态文字与诊断按钮对齐，按 DPI 比例缩放，保持按钮有效高度。Windows 模拟布局及像素渲染回归覆盖多个窗口宽度与 DPI。 / Add DPI-scaled spacing above the scope footer without shrinking the controls.
 
 - 频谱主界面隐藏正常接收链路说明，保留简洁状态条与故障提示；诊断默认概览，详细计数及布局信息可展开，复制始终包含完整报告。Compact spectrum diagnostics with expandable full report; normal reception text moved off the main panel.
