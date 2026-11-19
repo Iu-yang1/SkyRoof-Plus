@@ -3204,6 +3204,7 @@ namespace SkyRoof
           $"Processing queue dropped partials: {SpectrumView.ProcessingDroppedPartials:N0}",
           $"Scope renderer: {SpectrumView.WaterfallRenderer}",
           $"GPU scope buffer swaps: {SpectrumView.GpuPresentCount:N0}",
+          $"GPU geometry presentation swaps: {gpuPerf.PresentFps:0.0}/s (not DWM presentations), interpolated {gpuPerf.InterpolatedCount:N0}",
           $"GPU fresh waveform swaps: {gpuPerf.FreshFps:0.0}/s (not DWM presentations), total {gpuPerf.FreshCount:N0}",
           $"GPU draw+swap wall time p95/p99: {gpuTiming.PaintP95Ms:F1}/{gpuTiming.PaintP99Ms:F1} ms",
           $"GPU fresh swap interval p95/p99/max: {gpuTiming.IntervalP95Ms:F1}/{gpuTiming.IntervalP99Ms:F1}/{gpuTiming.IntervalMaxMs:F1} ms",

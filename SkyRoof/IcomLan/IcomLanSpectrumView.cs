@@ -2325,7 +2325,7 @@ namespace SkyRoof
         gdiHistory = new IcomScopeGdiHistoryBitmap(rows.Length);
       }
       WaterfallHead = snapshot?.Head ?? -1;
-      gdiHistory.Update(rows);
+      gdiHistory.SetContinuousSource(rows);
     }
 
     private void DrawWaterfallRing(Graphics graphics, Rectangle destination, IcomScopeWaterfallSnapshot? history)

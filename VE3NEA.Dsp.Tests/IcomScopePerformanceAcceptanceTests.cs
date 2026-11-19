@@ -248,7 +248,7 @@ public sealed class IcomScopePerformanceAcceptanceTests
         previousRows = rows;
         return;
       }
-      bitmap!.Update(snapshot.Colors);
+      bitmap!.SetContinuousSource(snapshot.Colors);
       bitmap.DrawContinuous(graphics!, new Rectangle(0, 760, 3840, 1400), snapshot.Head, 0, 1, 0.5);
     }
 

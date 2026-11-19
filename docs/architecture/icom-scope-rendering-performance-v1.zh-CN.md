@@ -64,3 +64,5 @@ GPU 默认开启（旧配置未含该字段时也为 true；显式 false 保留�
 - 横向频移使用每行分数 bin offset，使用相邻源色彩插值；GPU 横向缩小仍保峰值，软件路径使用原始 475 点的分数对齐及 DIB 水平缩放。AVG/PEAK 使用原有整数频率历史管理，不改变曲线处理。
 - 软件渲染以 System.Numerics.Vector<int> 面积滤波写入固定像素缓冲，最后原生 DIB 输出；新增对真实 DrawContinuous 的 4K 性能回归，像素回读，环形两次回绕连续性，恒定颜色与单扫描能量测试。旧分组函数暂留给原有兼容绘制 API 和回归基线。
 - 本阶段未调整版本号、发布配置或主分支；真实 GPU/DWM 60 Hz、GDI+ 高并发及 IC-9700 视觉验证待 CI/硬件实测。
+
+补充：GPU presenter 使用私有 Windows 高精度 waitable timer（旧系统回退普通 timer），不更改全局时钟精度；只在插值尚未结束时按目标 60 Hz 唤醒，同一节拍内合并呈现通知。诊断区分总 geometry swap FPS、同扫频几何插值次数和真实新 waveform FPS。软件 live path 直接引用不可变颜色快照，省去不再使用的原始 DIB 中间复制。Mesa llvmpipe 4.5 实际执行 Shader（FNV-1a vertex e104f706 / fragment 9694a9a3），240/136、800/120 到达边界逐像素零差，240/480 最大 1 个颜色等级；半扫频与 -0.25 bin 像素回读通过。不是物理 GPU 性能测试。
