@@ -148,10 +148,13 @@ namespace SkyRoof
     {
       lock (gate)
       {
-        if (stopped) return;
-        stopped = true;
-        wake.Set();
+        if (!stopped)
+        {
+          stopped = true;
+          wake.Set();
+        }
       }
+      if (Thread.CurrentThread != thread) thread.Join();
     }
   }
 }

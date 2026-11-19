@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 namespace SkyRoof
 {
@@ -563,8 +561,6 @@ namespace SkyRoof
         if (WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
         if (waterfallRect.Height > 0 && WaterfallBitmap != null)
         {
-          e.Graphics.InterpolationMode = InterpolationMode.Bilinear;
-          e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
           DrawWaterfallRing(e.Graphics, waterfallRect);
         }
       }
@@ -2279,115 +2275,12 @@ namespace SkyRoof
       gdiHistory.Update(rows);
     }
 
-    private void DrawWaterfallRing(
-      Graphics graphics,
-      Rectangle destination)
+    private void DrawWaterfallRing(Graphics graphics, Rectangle destination)
     {
-      var bitmap = WaterfallBitmap;
-      if (bitmap == null ||
-          historyRows == 0)
-        return;
-
-      GetVisibleFractionRange(
-        HorizontalZoomFactor,
-        HorizontalZoomCenter,
-        out double visibleStart,
-        out double visibleEnd);
-
-      int sourceLeft =
-        Math.Clamp(
-          (int)Math.Floor(
-            visibleStart *
-            (bitmap.Width - 1)),
-          0,
-          bitmap.Width - 1);
-
-      int sourceRight =
-        Math.Clamp(
-          (int)Math.Ceiling(
-            visibleEnd *
-            (bitmap.Width - 1)) + 1,
-          sourceLeft + 1,
-          bitmap.Width);
-
-      int sourceWidth =
-        sourceRight -
-        sourceLeft;
-
-      if (WaterfallHead < 0)
-      {
-        graphics.DrawImage(
-          bitmap,
-          destination,
-          new Rectangle(
-            sourceLeft,
-            0,
-            sourceWidth,
-            bitmap.Height),
-          GraphicsUnit.Pixel);
-        return;
-      }
-
-      int rows =
-        historyRows;
-      int firstRows =
-        rows -
-        WaterfallHead;
-
-      int firstHeight =
-        (int)Math.Round(
-          destination.Height *
-          firstRows /
-          (double)rows);
-
-      firstHeight =
-        Math.Clamp(
-          firstHeight,
-          0,
-          destination.Height);
-
-      if (firstRows > 0 &&
-          firstHeight > 0)
-      {
-        graphics.DrawImage(
-          bitmap,
-          new Rectangle(
-            destination.Left,
-            destination.Top,
-            destination.Width,
-            firstHeight),
-          new Rectangle(
-            sourceLeft,
-            WaterfallHead,
-            sourceWidth,
-            firstRows),
-          GraphicsUnit.Pixel);
-      }
-
-      int secondRows =
-        WaterfallHead;
-      int secondHeight =
-        destination.Height -
-        firstHeight;
-
-      if (secondRows > 0 &&
-          secondHeight > 0)
-      {
-        graphics.DrawImage(
-          bitmap,
-          new Rectangle(
-            destination.Left,
-            destination.Top +
-            firstHeight,
-            destination.Width,
-            secondHeight),
-          new Rectangle(
-            sourceLeft,
-            0,
-            sourceWidth,
-            secondRows),
-          GraphicsUnit.Pixel);
-      }
+      if (gdiHistory == null) return;
+      GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
+        out double visibleStart, out double visibleEnd);
+      gdiHistory.Draw(graphics, destination, WaterfallHead, visibleStart, visibleEnd);
     }
 
     // Raw CI-V levels are not calibrated dBm. Only the display is remapped.

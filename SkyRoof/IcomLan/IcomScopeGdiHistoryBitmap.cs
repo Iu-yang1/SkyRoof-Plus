@@ -1,4 +1,5 @@
 using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
 namespace SkyRoof
@@ -41,6 +42,36 @@ namespace SkyRoof
       }
       uploaded = rows;
       return copied;
+    }
+
+    internal void Draw(Graphics graphics, Rectangle destination, int head, double start, double end)
+    {
+      int first = Math.Clamp((int)Math.Floor(start * (Points - 1)), 0, Points - 1);
+      int right = Math.Clamp((int)Math.Ceiling(end * (Points - 1)) + 1, first + 1, Points);
+      int width = right - first;
+      int rows = Image.Height;
+      head = Math.Max(0, head);
+      int firstRows = rows - head;
+      int split = (int)Math.Round(destination.Height * firstRows / (double)rows);
+      GraphicsState state = graphics.Save();
+      try
+      {
+        graphics.CompositingMode = CompositingMode.SourceCopy;
+        graphics.CompositingQuality = CompositingQuality.HighSpeed;
+        graphics.InterpolationMode = InterpolationMode.Bilinear;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        DrawPart(graphics, new Rectangle(destination.X, destination.Y, destination.Width, split),
+          new Rectangle(first, head, width, firstRows));
+        DrawPart(graphics, new Rectangle(destination.X, destination.Y + split, destination.Width, destination.Height - split),
+          new Rectangle(first, 0, width, head));
+      }
+      finally { graphics.Restore(state); }
+    }
+
+    private void DrawPart(Graphics graphics, Rectangle dest, Rectangle source)
+    {
+      if (source.Height <= 0 || dest.Height <= 0) return;
+      graphics.DrawImage(Image, dest, source, GraphicsUnit.Pixel);
     }
 
     public void Dispose()

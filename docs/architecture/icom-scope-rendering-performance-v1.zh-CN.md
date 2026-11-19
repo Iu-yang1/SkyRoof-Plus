@@ -41,3 +41,7 @@
 ## Phase 3：独立整图 GPU 呈现（开发分支）
 
 同一个 native OpenGL surface 贯穿频谱 plot 与瀑布图；Win32 region 留出原有轴文字和分隔条。GPU 线程使用原始 475 点 trace/peak 纹理及固定四边形 VBO，通过亚像素线段距离场抗锯齿，压缩时保峰值；网格、RX/TX 参考、估计通带阴影、游标线及小型文字纹理均在独立线程呈现。文字坐标保留既有频率映射及调谐手势冻结几何。新数据无需等待 UI paint 即可触发 GL swap；UI 忙时轴标签或布局更新可能暂缓。设置界面名称为 GPU spectrum (experimental)，仍默认关闭并自动回退。真实显卡、docking/焦点交互尚待验证。
+
+## v1.87 默认后端及模拟验收
+
+GPU 默认开启（旧配置未含该字段时也为 true；显式 false 保留）。R8 纹理保留 475 点原值，DWORD 对齐每行 476 字节；普通扫频上传变化行和必要元数据，频移不搬移旧原始采样。GDI+ 使用固定像素缓冲区及 SourceCopy 环形绘制。`IcomScopePerformanceAcceptanceTests` 测试实际 router/worker、实际 4K 离屏 GDI+ 瀑布绘制及无显卡依赖的 GPU 上传准备模拟；以 30/60 Hz 定时输入、800 行历史、两个合成计算负载线程、连续多普勒及换向检验扫描完整率、P95/P99 间隔。GPU shader 执行和 Windows 实际呈现未包含在模拟指标内。

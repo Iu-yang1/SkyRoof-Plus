@@ -1,3 +1,18 @@
+# SkyRoof-Plus v.1.87
+
+## Icom LAN spectrum — GPU 默认渲染与 GDI+ 优化
+
+- GPU 频谱默认启用，使用独立 OpenGL 3.3 原生呈现线程；设置中可关闭，初始化或交换缓冲失败自动切回 GDI+。
+- 采集、完整扫频处理和 UI 状态同步分流；保留 475 个原始频率采样点、AVG/PEAK、HOLD、MAIN/SUB/AUTO、多普勒频移与手动调谐。
+- R8 原始环形纹理每行仅 476 字节（含对齐），正常更新只上传变化行；Doppler 通过频移元数据重映射。频谱曲线亚像素抗锯齿，减少片元重复计算。
+- GDI+ 使用持久固定像素缓冲、变更行复制与 SourceCopy 绘制，避免每次重建位图和 LockBits 中间副本。
+- 30/60 Hz 合成输入、800 行历史、频移换向、两个合成负载线程与 4K 离屏软件绘图验收由 Windows CI 执行。GPU 模拟仅覆盖原始数据、上传准备、线程调度和帧间隔；并非实际显卡、DWM 或 RS-BA1 对照实测。完整数值随 CI 构建记录核验。
+- 本版独立 v.1.87 标签，保留 v.1.86 及全部历史安装包。签名状态由原有发布流程决定。
+
+**English:** GPU scope is now the default with automatic GDI+ fallback. Independent processing and rendering, R8 incremental waterfall uploads, metadata-only Doppler shifts, and persistent GDI+ pixel storage maintain all 475 native bins. The Windows acceptance suite includes paced synthetic input, concurrent synthetic load and offscreen GDI+ rendering; GPU hardware/DWM and RS-BA1 comparisons remain outside simulated acceptance.
+
+---
+
 # SkyRoof-Plus v.1.86
 
 ### v1.86 同版本修复 — UNNE-1B 齿轮与工具栏

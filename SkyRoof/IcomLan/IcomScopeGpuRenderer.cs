@@ -140,30 +140,37 @@ namespace SkyRoof
       }
     }
 
+    private bool MetadataChangedAt(IcomScopeWaterfallRow[] rows, int y) =>
+      uploaded == null || uploaded.Length != rows.Length ||
+      IcomScopeTextureTransfer.MetadataChanged(uploaded[y], rows[y]);
+
     private void UploadMetadata(IcomScopeWaterfallRow[] rows)
     {
       int count = 0;
       for (int y = 0; y < rows.Length; y++)
-        if (uploaded == null || uploaded.Length != rows.Length ||
-            IcomScopeTextureTransfer.MetadataChanged(uploaded[y], rows[y])) count++;
+        if (MetadataChangedAt(rows, y)) count++;
       if (count == 0) return;
       BindTexture(1);
       if (count > 8)
       {
-        for (int y = 0; y < rows.Length; y++)
-          IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadata.AsSpan(y * 4, 4));
-        gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, 0, 1, rows.Length,
-          OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadata);
+        UploadAllMetadata(rows);
         return;
       }
       for (int y = 0; y < rows.Length; y++)
       {
-        if (uploaded != null && uploaded.Length == rows.Length &&
-            !IcomScopeTextureTransfer.MetadataChanged(uploaded[y], rows[y])) continue;
+        if (!MetadataChangedAt(rows, y)) continue;
         IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadataRow);
         gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, y, 1, 1,
           OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadataRow);
       }
+    }
+
+    private void UploadAllMetadata(IcomScopeWaterfallRow[] rows)
+    {
+      for (int y = 0; y < rows.Length; y++)
+        IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadata.AsSpan(y * 4, 4));
+      gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, 0, 1, rows.Length,
+        OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadata);
     }
 
     private void CheckError()
