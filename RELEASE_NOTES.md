@@ -1,5 +1,7 @@
 # SkyRoof-Plus v.1.87
 
+- 频谱主界面隐藏正常接收链路说明，保留简洁状态条与故障提示；诊断默认概览，详细计数及布局信息可展开，复制始终包含完整报告。Compact spectrum diagnostics with expandable full report; normal reception text moved off the main panel.
+
 ## 2026-11-19 原地修复构建 / In-place test rebuild
 
 - 修复频移时 AVG 历史重置、瀑布历史噪声底被覆盖、紧凑瀑布时间轴混叠及 GPU 父子窗口覆盖问题。保留 GPU 默认和软件回退、475 点原始输入及历史。

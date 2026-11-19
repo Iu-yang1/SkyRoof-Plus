@@ -101,7 +101,7 @@ jobs:
               (Get-Content Directory.Build.props -Raw).Contains('v1.86-unne-gear-square-buttons-replacement-20261118')
             $replaceV187 = $version -eq '1.87' -and
               "${{ github.event_name }}" -eq 'push' -and
-              (Get-Content Directory.Build.props -Raw).Contains('v1.87-scope-flash-test-replacement-20261119')
+              (Get-Content Directory.Build.props -Raw).Contains('v1.87-scope-diagnostics-compact-replacement-20261119')
             if ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
@@ -154,7 +154,7 @@ jobs:
               Write-Host "Authorized in-place v.1.86 SAVE and UNNE FM/BPSK decode replacement"
             }
             elseif ($replaceV187) {
-              if ($existingSha -ne '85d2eddca41cdf0d192056e6aa759d55c2f4a273') {
+              if ($existingSha -ne '6f215d1cfaf9fe2d77add1594fb122b4683a13d1') {
                 throw 'v.1.87 original tag has moved; refusing replacement'
               }
               $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
@@ -163,12 +163,12 @@ jobs:
                 throw 'v.1.87 Release identity differs from verified stable baseline'
               }
               $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.87.exe' })
-              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 766201495 -or
-                  $oldAsset[0].digest -ne 'sha256:abe47cc98a6bb72fc209ba345dd6ce602ead47aada18f0ce94829f2bed827485') {
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 766325272 -or
+                  $oldAsset[0].digest -ne 'sha256:1335d21bda67d69b2e70ad4bd24324fde217166884291959be5c82cf93202acd') {
                 throw 'v.1.87 published installer was changed before replacement'
               }
               "REPLACE_V187=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-              Write-Host "Authorized in-place v.1.87 scope flicker test replacement"
+              Write-Host "Authorized in-place v.1.87 compact scope diagnostics replacement"
             }
             elseif (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
@@ -595,7 +595,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.86 release target commit' }
           Write-Host "v.1.86 rebuilt in place: $newCommit sha256:$localHash"
 
-      - name: Finalize one-time v.1.87 scope flicker test installer replacement
+      - name: Finalize one-time v.1.87 compact scope diagnostics installer replacement
         if: env.REPLACE_V187 == 'true'
         shell: pwsh
         env:
@@ -604,7 +604,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = 'v.1.87'
           $newCommit = "${{ github.sha }}"
-          $oldCommit = '85d2eddca41cdf0d192056e6aa759d55c2f4a273'
+          $oldCommit = '6f215d1cfaf9fe2d77add1594fb122b4683a13d1'
           $name = 'SkyRoofSetup-v.1.87.exe'
           $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json

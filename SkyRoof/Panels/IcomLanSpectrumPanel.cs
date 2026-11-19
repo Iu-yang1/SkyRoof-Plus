@@ -1242,9 +1242,7 @@ namespace SkyRoof
         {
           try
           {
-            Clipboard.SetText(
-              LastDiagnosticsText + Environment.NewLine +
-              Environment.NewLine + ScopeToolbarDiagnostics());
+            Clipboard.SetText(CreateDiagnosticsReport().FullText);
           }
           catch (System.Runtime.InteropServices.ExternalException)
           {
@@ -1281,6 +1279,7 @@ namespace SkyRoof
         RefreshScopeDynamicWidths();
         UpdateScopeGroupMeasurements();
         FitToolbarsToWidth();
+        UpdateStatusRow();
       };
 
       SpectrumView.Dock = DockStyle.Fill;
@@ -1355,6 +1354,8 @@ namespace SkyRoof
       StatusLabel.ForeColor = colors.Muted;
       StatusLabel.Text = UiLocalizationService.Get("Spectrum.StoppedHint");
       root.Controls.Add(StatusLabel, 0, 2);
+      StatusLabel.TextChanged += (_, _) => UpdateStatusRow();
+      UpdateStatusRow();
 
       StatsLabel.Dock = DockStyle.Fill;
       StatsLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -3273,15 +3274,23 @@ namespace SkyRoof
       }
     }
 
+    private void UpdateStatusRow()
+    {
+      if (SpectrumRootLayout == null) return;
+      bool visible = IcomScopeDiagnosticsReport.ShowInline(StatusLabel.Text);
+      float height = visible ? 26f * DeviceDpi / 96f : 0f;
+      if (SpectrumRootLayout.RowStyles[2].Height == height) return;
+      StatusLabel.Visible = visible;
+      SpectrumRootLayout.RowStyles[2].Height = height;
+    }
+
+    private IcomScopeDiagnosticsReport CreateDiagnosticsReport() =>
+      new(StatsLabel.Text, StatusLabel.Text, LastDiagnosticsText, ScopeToolbarDiagnostics());
+
     private void ShowSpectrumDiagnostics()
     {
-      MessageBox.Show(
-        this,
-        LastDiagnosticsText + Environment.NewLine +
-          Environment.NewLine + ScopeToolbarDiagnostics(),
-        "频谱诊断",
-        MessageBoxButtons.OK,
-        MessageBoxIcon.Information);
+      using var dialog = new IcomScopeDiagnosticsDialog(CreateDiagnosticsReport());
+      dialog.ShowDialog(this);
     }
 
     private static string FormatSpectrumSource(

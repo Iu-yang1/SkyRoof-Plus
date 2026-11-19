@@ -824,4 +824,10 @@ STOP cancels</value></data>
   <data name="QsoScheduler.ProgressOverlap" xml:space="preserve"><value>Matching {0}%</value></data>
   <data name="QsoScheduler.Completed" xml:space="preserve"><value>{0} common windows</value></data>
   <data name="QsoScheduler.Failed" xml:space="preserve"><value>Failed: {0}</value></data>
+  <data name="Spectrum.DiagnosticsTitle" xml:space="preserve"><value>Spectrum diagnostics</value></data>
+  <data name="Spectrum.DiagnosticsSummary" xml:space="preserve"><value>Overview</value></data>
+  <data name="Spectrum.DiagnosticsDetails" xml:space="preserve"><value>Full report — reception, transport, CAT, rendering and layout</value></data>
+  <data name="Spectrum.DiagnosticsExpand" xml:space="preserve"><value>Show details</value></data>
+  <data name="Spectrum.DiagnosticsCollapse" xml:space="preserve"><value>Hide details</value></data>
+  <data name="Spectrum.DiagnosticsCopyAll" xml:space="preserve"><value>Copy full report</value></data>
 </root>

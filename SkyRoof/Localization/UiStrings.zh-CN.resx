@@ -824,4 +824,10 @@
   <data name="QsoScheduler.ProgressOverlap" xml:space="preserve"><value>匹配窗口 {0}%</value></data>
   <data name="QsoScheduler.Completed" xml:space="preserve"><value>共 {0} 个共同窗口</value></data>
   <data name="QsoScheduler.Failed" xml:space="preserve"><value>计算失败：{0}</value></data>
+  <data name="Spectrum.DiagnosticsTitle" xml:space="preserve"><value>频谱诊断</value></data>
+  <data name="Spectrum.DiagnosticsSummary" xml:space="preserve"><value>概览</value></data>
+  <data name="Spectrum.DiagnosticsDetails" xml:space="preserve"><value>完整报告 — 接收、传输、CAT、渲染与布局</value></data>
+  <data name="Spectrum.DiagnosticsExpand" xml:space="preserve"><value>展开详情</value></data>
+  <data name="Spectrum.DiagnosticsCollapse" xml:space="preserve"><value>收起详情</value></data>
+  <data name="Spectrum.DiagnosticsCopyAll" xml:space="preserve"><value>复制完整报告</value></data>
 </root>
