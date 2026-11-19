@@ -3,7 +3,7 @@ using SharpGL.Version;
 
 namespace SkyRoof
 {
-  internal sealed record IcomScopeGpuViewport(int Width, int Height, float Start, float End);
+  internal sealed record IcomScopeGpuViewport(int Width, int Height, IcomScopeGpuScene? Scene);
 
   internal sealed class IcomScopeGpuPresenter : IDisposable
   {
@@ -13,7 +13,7 @@ namespace SkyRoof
     private readonly AutoResetEvent wake = new(false);
     private readonly Thread thread;
     private IcomScopeRenderSnapshot? latest;
-    private IcomScopeGpuViewport viewport = new(0, 0, 0, 1);
+    private IcomScopeGpuViewport viewport = new(0, 0, null);
     private bool stopped, started;
     private int minimumGeneration;
     private long presentCount;
@@ -100,7 +100,7 @@ namespace SkyRoof
             frame = latest;
             size = viewport;
           }
-          if (size.Width < 2 || size.Height < 2) continue;
+          if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
           if (frame == null)
           {
             gl.Viewport(0, 0, size.Width, size.Height);
@@ -109,7 +109,7 @@ namespace SkyRoof
             gl.Blit(IntPtr.Zero);
             continue;
           }
-          drawing.Draw(frame.Waterfall, size);
+          drawing.Draw(frame, size);
           gl.Blit(IntPtr.Zero);
           Interlocked.Increment(ref presentCount);
           if (ready) continue;

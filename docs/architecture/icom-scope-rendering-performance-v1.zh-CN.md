@@ -37,3 +37,7 @@
 - Settings > Icom LAN Spectrum > GPU waterfall (experimental) 提供独立 native OpenGL 3.3 专用呈现线程；默认 false，保留 GDI+ 兼容路径。GPU 直接读取原始 475 点环形纹理、每行元数据及 161×161 LUT；正常 sweep 单行增量上传，Doppler 只更新元数据，颜色参数变化更新 LUT。GPU 显示压缩时保峰值，放大时线性插值；并不增大 RF 分辨率。
 - GPU 上下文创建或绘制失败触发日志及 GDI+ 自动回退。Native HWND 由 WinForms 管理；上下文、纹理、交换缓冲由呈现线程管理；在 HWND teardown 前释放上下文。当前曲线、交互和文字仍为 GDI+，尚未完成全图 GPU 化。GPU buffer swap 计数不是 DWM/光学显示证明。
 - 已新增模拟完整扫描/partial、Doppler 换向边缘裁剪、平均与峰值、CPU/GPU LUT 等价和 UI 不消费时仍处理全部 sweep 的回归。Windows GPU 实际呈现、RS-BA1 A/B 及并发 CW/遥测端到端性能仍需实际运行验证。
+
+## Phase 3：独立整图 GPU 呈现（开发分支）
+
+同一个 native OpenGL surface 贯穿频谱 plot 与瀑布图；Win32 region 留出原有轴文字和分隔条。GPU 线程使用原始 475 点 trace/peak 纹理及固定四边形 VBO，通过亚像素线段距离场抗锯齿，压缩时保峰值；网格、RX/TX 参考、估计通带阴影、游标线及小型文字纹理均在独立线程呈现。文字坐标保留既有频率映射及调谐手势冻结几何。新数据无需等待 UI paint 即可触发 GL swap；UI 忙时轴标签或布局更新可能暂缓。设置界面名称为 GPU spectrum (experimental)，仍默认关闭并自动回退。真实显卡、docking/焦点交互尚待验证。

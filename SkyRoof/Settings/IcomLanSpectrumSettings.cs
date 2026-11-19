@@ -237,8 +237,8 @@ namespace SkyRoof
     [DefaultValue(true)]
     public bool ShowWaterfall { get; set; } = true;
 
-    [DisplayName("GPU waterfall (experimental)")]
-    [Description("Use a dedicated native OpenGL 3.3 presentation thread. Falls back to the software renderer if the GPU context fails.")]
+    [DisplayName("GPU spectrum (experimental)")]
+    [Description("Use a dedicated OpenGL 3.3 thread for both trace and waterfall. Falls back to the software renderer if context creation or drawing fails.")]
     [DefaultValue(false)]
     public bool UseGpuWaterfall { get; set; }
 

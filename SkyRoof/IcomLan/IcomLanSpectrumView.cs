@@ -537,58 +537,39 @@ namespace SkyRoof
       int displayNoiseFloor = snapshot?.NoiseFloor ?? 0;
       // Software raster is still available until the GPU reports a successful swap.
 
-      if (SmoothingBins > 1)
+      GetLayout(out Rectangle headerRect, out Rectangle spectrumRect,
+        out Rectangle splitterRect, out Rectangle waterfallRect);
+      DrawHeader(e.Graphics, headerRect, frame, scopeBack, textColor);
+      bool usesGpu = UpdateGpuSurface(spectrumRect, waterfallRect, snapshot);
+      if (usesGpu)
       {
-        SmoothSamplesInto(samples, smoothSamples, SmoothingBins);
-        samples = smoothSamples;
-        if (peakVisible)
+        // The native region leaves the original frequency axis and splitter exposed.
+        DrawFrequencyGrid(e.Graphics, spectrumRect, GetSpectrumPlotRectangle(spectrumRect),
+          frame?.Geometry ?? default, GetDisplayFrequencyOffset(frame), textColor);
+      }
+      else
+      {
+        if (SmoothingBins > 1)
         {
-          SmoothSamplesInto(peakSamples, smoothPeakSamples, SmoothingBins);
-          peakSamples = smoothPeakSamples;
+          SmoothSamplesInto(samples, smoothSamples, SmoothingBins);
+          samples = smoothSamples;
+          if (peakVisible)
+          {
+            SmoothSamplesInto(peakSamples, smoothPeakSamples, SmoothingBins);
+            peakSamples = smoothPeakSamples;
+          }
+        }
+        DrawSpectrum(e.Graphics, spectrumRect, samples, peakSamples, peakVisible,
+          displayNoiseFloor, frame, scopeBack, textColor);
+        if (WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
+        if (waterfallRect.Height > 0 && WaterfallBitmap != null)
+        {
+          e.Graphics.InterpolationMode = InterpolationMode.Bilinear;
+          e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
+          DrawWaterfallRing(e.Graphics, waterfallRect);
         }
       }
-
-      GetLayout(
-        out Rectangle headerRect,
-        out Rectangle spectrumRect,
-        out Rectangle splitterRect,
-        out Rectangle waterfallRect);
-
-      DrawHeader(
-        e.Graphics,
-        headerRect,
-        frame,
-        scopeBack,
-        textColor);
-
-      DrawSpectrum(
-        e.Graphics,
-        spectrumRect,
-        samples,
-        peakSamples,
-        peakVisible,
-        displayNoiseFloor,
-        frame,
-        scopeBack,
-        textColor);
-
-      DrawSplitter(
-        e.Graphics,
-        splitterRect);
-
-      bool usesGpu = UpdateGpuSurface(waterfallRect, snapshot);
-      if (!usesGpu && WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
-      if (!usesGpu && waterfallRect.Height > 0 && WaterfallBitmap != null)
-      {
-        e.Graphics.InterpolationMode =
-          InterpolationMode.Bilinear;
-        e.Graphics.PixelOffsetMode =
-          PixelOffsetMode.Half;
-
-        DrawWaterfallRing(
-          e.Graphics,
-          waterfallRect);
-      }
+      DrawSplitter(e.Graphics, splitterRect);
 
       Color borderColor = ScopeGrid;
 
@@ -2109,7 +2090,7 @@ namespace SkyRoof
         TextFormatFlags.NoPadding);
     }
 
-    private static string FormatCursorText(
+    internal static string FormatCursorText(
       long frequencyHz,
       long referenceFrequencyHz)
     {
@@ -2191,20 +2172,21 @@ namespace SkyRoof
       Invalidate();
     }
 
-    private bool UpdateGpuSurface(Rectangle bounds, IcomScopeRenderSnapshot? snapshot)
+    private bool UpdateGpuSurface(Rectangle spectrum, Rectangle waterfall, IcomScopeRenderSnapshot? snapshot)
     {
-      if (!gpuRequested || gpuFailed || !WaterfallVisible || bounds.Width < 3 || bounds.Height < 3)
+      Rectangle plot = GetSpectrumPlotRectangle(spectrum);
+      if (!gpuRequested || gpuFailed || plot.Width < 3 || plot.Height < 3)
       {
         if (gpuSurface != null) gpuSurface.Visible = false;
         return false;
       }
-
-      Rectangle inner = Rectangle.Inflate(bounds, -1, -1);
+      var bounds = Rectangle.FromLTRB(plot.Left, plot.Top, plot.Right,
+        waterfall.Height > 0 ? waterfall.Bottom : plot.Bottom);
       if (gpuSurface == null)
       {
         try
         {
-          var surface = new IcomScopeGpuSurface(GpuStatusChanged) { Bounds = inner };
+          var surface = new IcomScopeGpuSurface(GpuStatusChanged) { Bounds = bounds };
           gpuSurface = surface;
           Controls.Add(surface);
           surface.BringToFront();
@@ -2217,13 +2199,28 @@ namespace SkyRoof
         }
       }
       if (gpuSurface is not { } gpu) return false;
-      if (gpu.Bounds != inner) gpu.Bounds = inner;
+      if (gpu.Bounds != bounds) gpu.Bounds = bounds;
       if (!gpu.Visible) gpu.Visible = true;
-      GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
-        out double start, out double end);
-      gpu.SetZoom(start, end);
+      gpu.SetScene(CreateGpuScene(plot, waterfall, bounds));
       if (snapshot != null) gpu.Offer(snapshot);
       return true;
+    }
+
+    private IcomScopeGpuScene CreateGpuScene(Rectangle plot, Rectangle waterfall, Rectangle surface)
+    {
+      var tuning = new IcomScopeGpuTuning(ReceiveFrequencyHz, TransmitFrequencyHz,
+        MainDisplayFrequencyOffsetHz, SubDisplayFrequencyOffsetHz, ReceiveMode, TransmitMode,
+        RxPassbandPreferences);
+      Point? pointer = PointerInside && plot.Contains(PointerLocation)
+        ? new Point(PointerLocation.X - plot.Left, PointerLocation.Y - plot.Top) : null;
+      GetVisibleFractionRange(TuneGestureZoomFactor, TuneGestureZoomCenter, out double start, out double end);
+      var mouse = new IcomScopeGpuPointer(pointer, FrequencyTuning ? TuneGestureGeometry : default,
+        TuneGestureDisplayFrequencyOffsetHz, start, end);
+      var options = new IcomScopeGpuOptions(HorizontalZoomFactor, HorizontalZoomCenter, SmoothingBins,
+        PeakEnabled, lastZoomRevision, Font.Name, Font.Size, Font.Style);
+      plot.Offset(-surface.X, -surface.Y);
+      if (waterfall.Height > 0) waterfall.Offset(-surface.X, -surface.Y);
+      return new(plot, waterfall, tuning, mouse, options);
     }
 
     private void GpuStatusChanged(IcomScopeGpuSurface sender, string? error)

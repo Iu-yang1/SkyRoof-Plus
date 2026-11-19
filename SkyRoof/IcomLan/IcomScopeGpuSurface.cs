@@ -8,7 +8,8 @@ namespace SkyRoof
     private volatile IcomScopeGpuPresenter? presenter;
     private IcomScopeRenderSnapshot? latest;
     private int minimumGeneration;
-    private double start, end = 1;
+    private IcomScopeGpuScene? scene;
+    private Rectangle regionPlot, regionWaterfall;
 
     internal IcomScopeGpuSurface(Action<IcomScopeGpuSurface, string?> status)
     {
@@ -51,10 +52,19 @@ namespace SkyRoof
       presenter?.Clear(generation);
     }
 
-    internal void SetZoom(double first, double last)
+    internal void SetScene(IcomScopeGpuScene value)
     {
-      start = first;
-      end = last;
+      scene = value;
+      if (regionPlot != value.Plot || regionWaterfall != value.Waterfall)
+      {
+        regionPlot = value.Plot;
+        regionWaterfall = value.Waterfall;
+        var region = new Region(regionPlot);
+        if (!regionWaterfall.IsEmpty) region.Union(regionWaterfall);
+        var old = Region;
+        Region = region;
+        old?.Dispose();
+      }
       UpdateViewport();
     }
 
@@ -96,7 +106,7 @@ namespace SkyRoof
     private void UpdateViewport()
     {
       var size = Visible ? ClientSize : Size.Empty;
-      presenter?.SetViewport(new(size.Width, size.Height, (float)start, (float)end));
+      presenter?.SetViewport(new(size.Width, size.Height, scene));
     }
 
     protected override void WndProc(ref Message m)

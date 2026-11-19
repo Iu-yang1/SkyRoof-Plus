@@ -19,6 +19,7 @@ namespace SkyRoof
     private int[]? uploadedTable;
     private int[] metadata = [];
     private int locStart, locEnd, locHead, locRows, locWidth;
+    private readonly IcomScopeGpuPlotRenderer plot;
 
     internal IcomScopeGpuRenderer(OpenGL gl)
     {
@@ -45,6 +46,7 @@ namespace SkyRoof
       gl.GenTextures(3, textures);
       for (int i = 0; i < textures.Length; i++) ConfigureTexture(i);
       shader.Unbind(gl);
+      plot = new IcomScopeGpuPlotRenderer(gl, vao, VertexShader);
       CheckError();
     }
 
@@ -63,23 +65,36 @@ namespace SkyRoof
       gl.TexParameter(OpenGL.GL_TEXTURE_2D, OpenGL.GL_TEXTURE_WRAP_T, OpenGL.GL_CLAMP_TO_EDGE);
     }
 
-    internal void Draw(IcomScopeWaterfallSnapshot snapshot, IcomScopeGpuViewport viewport)
+    internal void Draw(IcomScopeRenderSnapshot frame, IcomScopeGpuViewport viewport)
+    {
+      if (viewport.Scene is not { } scene) return;
+      var state = IcomScopeGpuPlotState.FromSnapshot(frame, scene);
+      gl.Viewport(0, 0, viewport.Width, viewport.Height);
+      gl.ClearColor(5f / 255, 8f / 255, 14f / 255, 1);
+      gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+      plot.Draw(frame, scene, viewport.Height, state);
+      if (scene.Waterfall.Width > 1 && scene.Waterfall.Height > 1)
+        DrawWaterfall(frame.Waterfall, scene.Waterfall, viewport.Height, state);
+      CheckError();
+    }
+
+    private void DrawWaterfall(IcomScopeWaterfallSnapshot snapshot, Rectangle rect,
+      int height, IcomScopeGpuPlotState state)
     {
       if (snapshot.Rows.Length == 0) return;
       Upload(snapshot);
-      gl.Viewport(0, 0, viewport.Width, viewport.Height);
+      gl.Viewport(rect.X, height - rect.Bottom, rect.Width, rect.Height);
       shader.Bind(gl);
       vao.Bind(gl);
       for (int i = 0; i < textures.Length; i++) BindTexture(i);
-      gl.Uniform1(locStart, viewport.Start);
-      gl.Uniform1(locEnd, viewport.End);
+      gl.Uniform1(locStart, state.Start);
+      gl.Uniform1(locEnd, state.End);
       gl.Uniform1(locHead, Math.Max(0, snapshot.Head));
       gl.Uniform1(locRows, snapshot.Rows.Length);
-      gl.Uniform1(locWidth, viewport.Width);
+      gl.Uniform1(locWidth, rect.Width);
       gl.DrawArrays(OpenGL.GL_TRIANGLE_STRIP, 0, 4);
       vao.Unbind(gl);
       shader.Unbind(gl);
-      CheckError();
     }
 
     private void Upload(IcomScopeWaterfallSnapshot snapshot)
@@ -152,6 +167,7 @@ namespace SkyRoof
 
     public void Dispose()
     {
+      plot.Dispose();
       gl.DeleteTextures(3, textures);
       // SharpGL 3.1.1 exposes no VertexBuffer.Delete; WGL context teardown
       // reclaims the buffer, while the VAO and program have explicit APIs.
