@@ -1410,6 +1410,7 @@ namespace SkyRoof
           settings.SpectrumHeightPercent);
         SpectrumView.SetWaterfallVisible(
           settings.ShowWaterfall);
+        SpectrumView.SetGpuWaterfall(settings.UseGpuWaterfall);
         SpectrumView.SetWaterfallDisplay(
           settings.WaterfallBrightness,
           settings.WaterfallContrast,
@@ -3277,6 +3278,8 @@ namespace SkyRoof
           $"Completed sweeps replaced in mailbox: {ScopeFrameMailbox.ReplacedCompleteSweeps:N0}",
           $"Processing queue dropped sweeps: {SpectrumView.ProcessingDroppedSweeps:N0}",
           $"Processing queue dropped partials: {SpectrumView.ProcessingDroppedPartials:N0}",
+          $"Waterfall renderer: {SpectrumView.WaterfallRenderer}",
+          $"GPU waterfall buffer swaps: {SpectrumView.GpuPresentCount:N0}",
           $"Control changes awaiting radio confirmation: {PendingScopeControls.Count}",
           $"Unconfirmed controls after timeout: {UnconfirmedScopeControlCount}",
           $"Packets: {effectiveCapture.PacketCount:N0}",

@@ -1,7 +1,7 @@
 namespace SkyRoof
 {
   internal sealed record IcomScopeRenderSnapshot(int Generation, IcomScopeFrame? Frame,
-    byte[] Samples, byte[] Peak, bool PeakValid, int NoiseFloor, int Head, int[][] Colors);
+    byte[] Samples, byte[] Peak, bool PeakValid, int NoiseFloor, int Head, int[][] Colors, IcomScopeWaterfallSnapshot Waterfall);
 
   // Owned exclusively by the render worker. Published arrays are immutable.
   internal sealed class IcomScopeRenderModel
@@ -11,17 +11,11 @@ namespace SkyRoof
     private readonly byte[] peak = new byte[Points];
     private readonly Queue<byte[]> average = new();
     private readonly int[] sums = new int[Points];
-    private readonly int[] colorMap = new int[161];
-    private int[] palette = IcomLanSpectrumView.BuildPalette(IcomScopeWaterfallPalette.Classic);
-    private byte[][] raw = [];
-    private int[][] colors = [];
-    private int[][] publishedColors = [];
-    private int head = -1;
+    private readonly IcomScopeWaterfallRing history = new();
     private int generation;
     private int noiseFloor;
     private int averageCount = 1;
-    private int brightness, contrast = 100;
-    private bool peakEnabled, peakValid, dirty = true, rowsChanged = true, visible = true;
+    private bool peakEnabled, peakValid;
     private double shiftResidual;
     private IcomScopeFrame? frame, anchor;
 
@@ -29,29 +23,16 @@ namespace SkyRoof
 
     internal void SetHistoryRows(int rows)
     {
-      if (raw.Length == rows) return;
-      raw = Enumerable.Range(0, rows).Select(_ => new byte[Points]).ToArray();
-      colors = new int[rows][];
-      publishedColors = [];
-      head = -1;
+      if (history.Rows == rows) return;
+      history.Resize(rows);
       anchor = null;
       shiftResidual = 0;
-      dirty = rowsChanged = true;
     }
 
-    internal void SetWaterfallVisible(bool value)
-    {
-      visible = value;
-      if (value) dirty = true;
-    }
-
-    internal void SetDisplay(int offset, int gain, IcomScopeWaterfallPalette kind)
-    {
-      brightness = offset;
-      contrast = gain;
-      palette = IcomLanSpectrumView.BuildPalette(kind);
-      dirty = true;
-    }
+    internal void SetWaterfallVisible(bool value) => history.SetVisible(value);
+    internal void SetCpuRaster(bool enabled) => history.SetCpuRaster(enabled);
+    internal void SetDisplay(int offset, int gain, IcomScopeWaterfallPalette kind) =>
+      history.SetDisplay(offset, gain, kind);
 
     internal void SetAverage(int count)
     {
@@ -81,14 +62,12 @@ namespace SkyRoof
 
     private void ResetHistory()
     {
-      foreach (byte[] row in raw) Array.Clear(row);
-      head = -1;
+      history.Clear();
       anchor = null;
       noiseFloor = 0;
       shiftResidual = 0;
       ClearPeak();
       ResetAverage();
-      dirty = true;
     }
 
     private void ResetAverage()
@@ -109,7 +88,7 @@ namespace SkyRoof
         noiseFloor = floor == 0 || noiseFloor == 0 ? floor : (3 * noiseFloor + floor + 2) / 4;
       }
       UpdateTrace(next);
-      if (next.SweepComplete) AppendHistory(next.Samples);
+      if (next.SweepComplete) history.Append(next.Samples, noiseFloor);
     }
 
     private void AdvanceGeometry(IcomScopeFrame next)
@@ -136,10 +115,9 @@ namespace SkyRoof
 
     private void ShiftHistory(int shift)
     {
-      foreach (byte[] row in raw) Shift(row, shift);
+      history.Shift(shift);
       if (averageCount > 1) ResetAverage();
       if (peakValid) Shift(peak, shift);
-      dirty = true;
     }
 
     private static void Shift(byte[] row, int shift)
@@ -182,43 +160,11 @@ namespace SkyRoof
         samples[i] = (byte)Math.Clamp((int)Math.Round(sums[i] / (double)average.Count), 0, 160);
     }
 
-    private void AppendHistory(byte[] input)
-    {
-      head = head < 0 ? 0 : (head + raw.Length - 1) % raw.Length;
-      Array.Copy(input, raw[head], Points);
-      if (!visible) dirty = true;
-      if (dirty) return;
-      BuildColorMap();
-      colors[head] = Colorize(raw[head]);
-      rowsChanged = true;
-    }
-
-    private void BuildColorMap() =>
-      IcomLanSpectrumView.FillWaterfallColorMap(colorMap, palette, noiseFloor, brightness, contrast);
-
-    private int[] Colorize(byte[] row)
-    {
-      var result = new int[Points];
-      for (int x = 0; x < Points; x++) result[x] = colorMap[Math.Min(160, (int)row[x])];
-      return result;
-    }
-
     internal IcomScopeRenderSnapshot Snapshot()
     {
-      if (visible && dirty)
-      {
-        BuildColorMap();
-        for (int y = 0; y < raw.Length; y++) colors[y] = Colorize(raw[y]);
-        dirty = false;
-        rowsChanged = true;
-      }
-      if (visible && rowsChanged)
-      {
-        publishedColors = (int[][])colors.Clone();
-        rowsChanged = false;
-      }
+      var waterfall = history.Snapshot(noiseFloor);
       return new(generation, frame, (byte[])samples.Clone(), (byte[])peak.Clone(),
-        peakValid, noiseFloor, head, visible ? publishedColors : []);
+        peakValid, noiseFloor, waterfall.Head, waterfall.Colors, waterfall);
     }
   }
 }

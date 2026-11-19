@@ -39,6 +39,12 @@ namespace SkyRoof
     private readonly IcomScopeRenderWorker renderWorker;
     private int renderGeneration;
     private int repaintQueued;
+    private volatile IcomScopeGpuSurface? gpuSurface;
+    private bool gpuRequested;
+    private bool gpuFailed;
+    private string gpuStatus = "GDI+";
+    internal string WaterfallRenderer => gpuStatus;
+    internal long GpuPresentCount => gpuSurface?.PresentCount ?? 0;
     private IcomScopeFrame? latestSubmittedFrame;
     private IcomScopeFrame? LatestFrame;
     private int AverageSweepCount = 1;
@@ -292,6 +298,7 @@ namespace SkyRoof
 
     private void RequestWorkerRepaint()
     {
+      if (renderWorker?.Latest is { } snapshot) gpuSurface?.Offer(snapshot);
       if (!IsHandleCreated || IsDisposed || Disposing ||
           Interlocked.Exchange(ref repaintQueued, 1) != 0) return;
       try
@@ -486,6 +493,7 @@ namespace SkyRoof
       {
         TuneCommitTimer.Stop();
         TuneCommitTimer.Dispose();
+        RemoveGpuSurface();
         renderWorker.Dispose();
         WaterfallBitmap?.Dispose();
         WaterfallBitmap = null;
@@ -524,7 +532,7 @@ namespace SkyRoof
       byte[] peakSamples = snapshot?.Peak ?? EmptySamples;
       bool peakVisible = PeakEnabled && snapshot?.PeakValid == true;
       int displayNoiseFloor = snapshot?.NoiseFloor ?? 0;
-      if (WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
+      // Software raster is still available until the GPU reports a successful swap.
 
       if (SmoothingBins > 1)
       {
@@ -565,8 +573,9 @@ namespace SkyRoof
         e.Graphics,
         splitterRect);
 
-      if (waterfallRect.Height > 0 &&
-          WaterfallBitmap != null)
+      bool usesGpu = UpdateGpuSurface(waterfallRect, snapshot);
+      if (!usesGpu && WaterfallVisible) ApplyWaterfallSnapshot(snapshot);
+      if (!usesGpu && waterfallRect.Height > 0 && WaterfallBitmap != null)
       {
         e.Graphics.InterpolationMode =
           InterpolationMode.Bilinear;
@@ -2165,6 +2174,96 @@ namespace SkyRoof
         y);
     }
 
+    internal void SetGpuWaterfall(bool enabled)
+    {
+      if (gpuRequested == enabled) return;
+      gpuRequested = enabled;
+      gpuFailed = false;
+      if (!enabled)
+      {
+        RemoveGpuSurface();
+        gpuStatus = "GDI+";
+        renderWorker.Configure(model => model.SetCpuRaster(true));
+      }
+      Invalidate();
+    }
+
+    private bool UpdateGpuSurface(Rectangle bounds, IcomScopeRenderSnapshot? snapshot)
+    {
+      if (!gpuRequested || gpuFailed || !WaterfallVisible || bounds.Width < 3 || bounds.Height < 3)
+      {
+        if (gpuSurface != null) gpuSurface.Visible = false;
+        return false;
+      }
+
+      Rectangle inner = Rectangle.Inflate(bounds, -1, -1);
+      if (gpuSurface == null)
+      {
+        try
+        {
+          var surface = new IcomScopeGpuSurface(GpuStatusChanged) { Bounds = inner };
+          gpuSurface = surface;
+          Controls.Add(surface);
+          surface.BringToFront();
+          gpuStatus = "OpenGL initializing";
+        }
+        catch (Exception ex)
+        {
+          SwitchToCpu(ex.Message);
+          return false;
+        }
+      }
+      var gpu = gpuSurface!;
+      if (gpu.Bounds != inner) gpu.Bounds = inner;
+      if (!gpu.Visible) gpu.Visible = true;
+      GetVisibleFractionRange(HorizontalZoomFactor, HorizontalZoomCenter,
+        out double start, out double end);
+      gpu.SetZoom(start, end);
+      if (snapshot != null) gpu.Offer(snapshot);
+      return true;
+    }
+
+    private void GpuStatusChanged(IcomScopeGpuSurface sender, string? error)
+    {
+      if (!IsHandleCreated || IsDisposed || Disposing) return;
+      try
+      {
+        BeginInvoke((Action)(() =>
+        {
+          if (IsDisposed || Disposing || !ReferenceEquals(sender, gpuSurface)) return;
+          if (error != null) SwitchToCpu(error);
+          else
+          {
+            gpuStatus = "OpenGL / " + sender.Renderer;
+            renderWorker.Configure(model => model.SetCpuRaster(false));
+            WaterfallBitmap?.Dispose();
+            WaterfallBitmap = null;
+            uploadedRows = null;
+          }
+          Invalidate();
+        }));
+      }
+      catch (InvalidOperationException) { }
+    }
+
+    private void SwitchToCpu(string reason)
+    {
+      gpuFailed = true;
+      gpuStatus = "GDI+ fallback: " + reason;
+      RemoveGpuSurface();
+      renderWorker.Configure(model => model.SetCpuRaster(true));
+      Invalidate();
+    }
+
+    private void RemoveGpuSurface()
+    {
+      var previous = gpuSurface;
+      gpuSurface = null;
+      if (previous == null) return;
+      Controls.Remove(previous);
+      previous.Dispose();
+    }
+
     private void ApplyWaterfallSnapshot(IcomScopeRenderSnapshot? snapshot)
     {
       int[][]? rows = snapshot?.Colors;
@@ -2187,7 +2286,7 @@ namespace SkyRoof
       if (ReferenceEquals(rows, uploadedRows)) return;
 
       var rect = new Rectangle(0, 0, ScopePoints, rows.Length);
-      BitmapData data = WaterfallBitmap.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+      BitmapData data = WaterfallBitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
       try
       {
         // Only changed immutable row references need a copy. A new history

@@ -54,6 +54,31 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
+    public void GpuHistoryShiftOnlyChangesMetadataAndNeverResurrectsClippedBins()
+    {
+      var ring = new IcomScopeWaterfallRing();
+      ring.Resize(40);
+      ring.SetCpuRaster(false);
+      var raw = Enumerable.Range(0, 475).Select(i => (byte)(i % 160 + 1)).ToArray();
+      ring.Append(raw, 20);
+      var first = ring.Snapshot(20);
+      ring.Shift(-8);
+      var shifted = ring.Snapshot(20);
+      shifted.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
+      shifted.Rows[0].At(0).Should().Be(raw[8]);
+      ring.Shift(8);
+      var reverse = ring.Snapshot(20);
+      reverse.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
+      reverse.Rows[0].At(0).Should().Be(0);
+      reverse.Rows[0].At(8).Should().Be(raw[8]);
+      reverse.Colors.Should().BeEmpty();
+      ring.SetCpuRaster(true);
+      var software = ring.Snapshot(20);
+      software.Colors.Should().HaveCount(40);
+      software.Colors[0][8].Should().Be(software.ColorTable[20 * 161 + raw[8]]);
+    }
+
+    [Fact]
     public void AveragingPeakAndResetPreserveRawDataAndGeneration()
     {
       var model = new IcomScopeRenderModel();

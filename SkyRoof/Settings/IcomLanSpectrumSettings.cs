@@ -237,6 +237,11 @@ namespace SkyRoof
     [DefaultValue(true)]
     public bool ShowWaterfall { get; set; } = true;
 
+    [DisplayName("GPU waterfall (experimental)")]
+    [Description("Use a dedicated native OpenGL 3.3 presentation thread. Falls back to the software renderer if the GPU context fails.")]
+    [DefaultValue(false)]
+    public bool UseGpuWaterfall { get; set; }
+
     [DisplayName("Waterfall brightness")]
     [Description("Display-level offset applied to waterfall colors. Valid useful range is about -80 to +80.")]
     [DefaultValue(0)]
