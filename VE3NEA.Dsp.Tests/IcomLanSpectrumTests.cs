@@ -8,6 +8,54 @@ namespace VE3NEA.Dsp.Tests
   public class IcomLanSpectrumTests
   {
     [Fact]
+    public void ScopePaintMetricsSeparatesNewWaveformsFromOverlayRedraws()
+    {
+      var metrics = new IcomScopePaintMetrics();
+      long ms = System.Diagnostics.Stopwatch.Frequency / 1000;
+      long utc = TimeSpan.TicksPerSecond;
+      metrics.Record(100 * ms, 3 * ms, utc, utc + 10 * TimeSpan.TicksPerMillisecond);
+      metrics.Record(110 * ms, 5 * ms, utc, utc + 20 * TimeSpan.TicksPerMillisecond);
+      metrics.Record(133 * ms, 4 * ms, utc + 1, utc + 24 * TimeSpan.TicksPerMillisecond + 1);
+      metrics.Record(233 * ms, 9 * ms, utc + 2, utc + 30 * TimeSpan.TicksPerMillisecond + 2);
+      metrics.FreshPaintCount.Should().Be(3);
+      var result = metrics.Snapshot();
+      result.IntervalP99Ms.Should().BeApproximately(100, 0.1);
+      result.PaintP95Ms.Should().BeApproximately(9, 0.1);
+      result.LastAgeMs.Should().Be(30);
+      metrics.ResetWindow();
+      metrics.Snapshot().IntervalMaxMs.Should().Be(0);
+      metrics.FreshPaintCount.Should().Be(3);
+    }
+
+    [Fact]
+    public void ScopeWaterfallLookupIsBitExactForEveryRawLevel()
+    {
+      var palette = Enumerable.Range(0, 161).Select(i => i + 1000).ToArray();
+      var lookup = new int[161];
+      foreach (int floor in new[] { 0, 30, 80, 160 })
+      foreach (int brightness in new[] { -80, 0, 80 })
+      foreach (int contrast in new[] { 25, 100, 250 })
+      {
+        IcomLanSpectrumView.FillWaterfallColorMap(lookup, palette, floor, brightness, contrast);
+        for (int level = 0; level <= 160; level++)
+          lookup[level].Should().Be(palette[IcomLanSpectrumView.MapWaterfallLevel(
+            IcomLanSpectrumView.MapAdaptiveWaterfallLevel(level, floor), brightness, contrast)]);
+      }
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(9)]
+    public void ScopeReusableSmoothingMatchesOriginalApi(int bins)
+    {
+      byte[] input = Enumerable.Range(0, 475).Select(i => (byte)((i * 19) % 161)).ToArray();
+      byte[] output = new byte[input.Length];
+      IcomLanSpectrumView.SmoothSamplesInto(input, output, bins);
+      output.Should().Equal(IcomLanSpectrumView.SmoothSamplesForDisplay(input, bins));
+    }
+
+    [Fact]
     public void CenterMarkerFollowsScopeGeometryRatherThanStaleCatFrequency()
     {
       var center = new IcomScopeFrame {

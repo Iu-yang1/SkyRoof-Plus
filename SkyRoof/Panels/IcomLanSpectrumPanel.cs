@@ -92,7 +92,9 @@ namespace SkyRoof
     private long LastScopeUpdates;
     private DateTime LastRateTime = DateTime.UtcNow;
     private double ScopeFps;
-    private double DisplayFps;
+    private double WaveformUpdateFps;
+    private double FreshPaintFps;
+    private long LastFreshPaintCount;
     private double WaterfallDeliveryFps;
     private long RenderedCompleteSweeps;
     private long LastRenderedCompleteSweeps;
@@ -1619,7 +1621,10 @@ namespace SkyRoof
       LastScopeUpdates = 0;
       LastRateTime = DateTime.UtcNow;
       ScopeFps = 0;
-      DisplayFps = 0;
+      WaveformUpdateFps = 0;
+      FreshPaintFps = 0;
+      LastFreshPaintCount = SpectrumView.PaintMetrics.FreshPaintCount;
+      SpectrumView.PaintMetrics.ResetWindow();
       WaterfallDeliveryFps = 0;
       RenderedCompleteSweeps = 0;
       LastRenderedCompleteSweeps = 0;
@@ -1879,8 +1884,14 @@ namespace SkyRoof
           IcomScopeFrame[] frames = ScopeFrameMailbox.TakeAll();
           if (Capture != null)
           {
+            bool changed = false;
             foreach (IcomScopeFrame newest in frames)
-              RenderScopeFrame(newest);
+              changed |= RenderScopeFrame(newest);
+            if (changed)
+            {
+              RefreshScopeGeometryAfterBatch();
+              SpectrumView.Invalidate();
+            }
           }
         }));
       }
@@ -1890,11 +1901,11 @@ namespace SkyRoof
       }
     }
 
-    private void RenderScopeFrame(IcomScopeFrame frame)
+    private bool RenderScopeFrame(IcomScopeFrame frame)
     {
       long ticks = frame.TimestampUtc.Ticks;
       if (ticks <= LastRenderedScopeFrameTicks)
-        return;
+        return false;
 
       // HOLD is a local display freeze. Keep consuming capture events so the
       // transport stays healthy, but freeze the displayed scope state/geometry
@@ -1902,7 +1913,7 @@ namespace SkyRoof
       if (LocalHold)
       {
         LastRenderedScopeFrameTicks = ticks;
-        return;
+        return false;
       }
 
       ScopeState.Update(frame);
@@ -1910,24 +1921,32 @@ namespace SkyRoof
       // frames may confirm MODE/SPAN for either receiver independently.
       PendingScopeControls.ObserveFrame(frame);
       if (!ScopeState.ShouldDisplay(frame))
-        return;
+        return false;
 
       SynchronizePendingEdgeIfNeeded(
         frame);
-      SpectrumView.PushFrame(frame);
+      SpectrumView.PushFrame(frame, invalidate: false);
       if (frame.SweepComplete)
         RenderedCompleteSweeps++;
       LastRenderedScopeFrameTicks = ticks;
 
-      // Do not write all ComboBox selections / NumericUpDown values on
-      // every 27 00 frame. That repeatedly mutates native Win32 controls
-      // even if only the 475 waveform amplitude values changed, and can
-      // steal selection in an open dropdown. Geometry still refreshes
-      // immediately on a real MODE/SPAN/frequency transition.
+      return true;
+    }
+
+    private void RefreshScopeGeometryAfterBatch()
+    {
+      var frame = ScopeState.LatestSelectedFrame;
+      if (frame == null) return;
+      // Center-mode Doppler only moves the axis drawn by the view. The
+      // toolbar displays half-span, so it needs no full control refresh
+      // for changes in center frequency. The 500-ms status timer still
+      // updates controls and tuning readback, and real mode/span changes
+      // remain immediate.
       if (LastGeometryUiScope != frame.Scope ||
           LastGeometryUiMode != frame.Mode ||
-          LastGeometryUiA != frame.FrequencyAHz ||
-          LastGeometryUiB != frame.FrequencyBHz)
+          LastGeometryUiB != frame.FrequencyBHz ||
+          (frame.Mode != (byte)IcomScopeMode.Center &&
+           LastGeometryUiA != frame.FrequencyAHz))
       {
         LastGeometryUiScope = frame.Scope;
         LastGeometryUiMode = frame.Mode;
@@ -3096,7 +3115,10 @@ namespace SkyRoof
         LastScopeUpdates = scopeUpdates;
         LastRateTime = now;
         ScopeFps = 0;
-        DisplayFps = 0;
+        WaveformUpdateFps = 0;
+        FreshPaintFps = 0;
+        LastFreshPaintCount = SpectrumView.PaintMetrics.FreshPaintCount;
+        SpectrumView.PaintMetrics.ResetWindow();
         WaterfallDeliveryFps = 0;
         LastRenderedCompleteSweeps = RenderedCompleteSweeps;
       }
@@ -3106,7 +3128,10 @@ namespace SkyRoof
       if (elapsed >= 0.4)
       {
         ScopeFps = (scopeFrames - LastScopeFrames) / elapsed;
-        DisplayFps = (scopeUpdates - LastScopeUpdates) / elapsed;
+        WaveformUpdateFps = (scopeUpdates - LastScopeUpdates) / elapsed;
+        long freshPaints = SpectrumView.PaintMetrics.FreshPaintCount;
+        FreshPaintFps = (freshPaints - LastFreshPaintCount) / elapsed;
+        LastFreshPaintCount = freshPaints;
         WaterfallDeliveryFps =
           (RenderedCompleteSweeps - LastRenderedCompleteSweeps) / elapsed;
         LastScopeFrames = scopeFrames;
@@ -3167,6 +3192,8 @@ namespace SkyRoof
         ScopeReadbackRequestedForSession =
           true;
       }
+
+      var painting = SpectrumView.PaintMetrics.Snapshot();
 
       string transportSummary =
         capture.IsDirectLan
@@ -3255,7 +3282,12 @@ namespace SkyRoof
           $"Complete sweeps: {scopeFrames:N0}",
           $"Complete sweeps captured: {ScopeFps:0.0}/s",
           $"Complete sweeps delivered to waterfall: {WaterfallDeliveryFps:0.0}/s",
-          $"Waveform update rate: {DisplayFps:0.0}/s",
+          $"Waveform updates received: {WaveformUpdateFps:0.0}/s",
+          $"Fresh waveform OnPaint completions: {FreshPaintFps:0.0}/s (not DWM presentations)",
+          $"Paint CPU wall time p95/p99: {painting.PaintP95Ms:F1}/{painting.PaintP99Ms:F1} ms",
+          $"Fresh waveform paint interval p95/p99/max: {painting.IntervalP95Ms:F1}/{painting.IntervalP99Ms:F1}/{painting.IntervalMaxMs:F1} ms",
+          $"Last painted waveform age after assembly: {painting.LastAgeMs:F1} ms",
+          $"Fresh waveform paint count: {SpectrumView.PaintMetrics.FreshPaintCount:N0}",
           $"Invalid scope frames: {effectiveCapture.InvalidScopeFrameCount:N0}",
           $"Serial transport sequence skips (not proven lost 27 00 sweeps): {effectiveCapture.SequenceGapCount:N0}",
           $"Duplicate chunks: {effectiveCapture.DuplicateChunkCount:N0}",

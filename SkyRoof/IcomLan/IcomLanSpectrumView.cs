@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -30,6 +31,14 @@ namespace SkyRoof
     private const long MouseWheelTuneStepHz = 100;
 
     private readonly object DataSync = new();
+    private readonly byte[] paintSamples = new byte[ScopePoints];
+    private readonly byte[] paintPeakSamples = new byte[ScopePoints];
+    private readonly byte[] smoothSamples = new byte[ScopePoints];
+    private readonly byte[] smoothPeakSamples = new byte[ScopePoints];
+    private PointF[] tracePoints = Array.Empty<PointF>();
+    private readonly int[] waterfallColorMap = new int[161];
+    private readonly IcomScopePaintMetrics paintMetrics = new();
+    internal IcomScopePaintMetrics PaintMetrics => paintMetrics;
     private int[] Palette =
       BuildPalette(
         IcomScopeWaterfallPalette.Classic);
@@ -311,7 +320,7 @@ namespace SkyRoof
       Invalidate();
     }
 
-    internal void PushFrame(IcomScopeFrame frame)
+    internal void PushFrame(IcomScopeFrame frame, bool invalidate = true)
     {
       if (frame.Samples.Length < ScopePoints)
         return;
@@ -472,7 +481,7 @@ namespace SkyRoof
       if (zoomReset)
         ZoomChanged?.Invoke(1);
 
-      Invalidate();
+      if (invalidate) Invalidate();
     }
 
     internal void Clear()
@@ -751,10 +760,15 @@ namespace SkyRoof
         return
           (byte[])samples.Clone();
 
-      int radius =
-        normalized / 2;
-      var output =
-        new byte[samples.Length];
+      var output = new byte[samples.Length];
+      SmoothSamplesInto(samples, output, normalized);
+      return output;
+    }
+
+    internal static void SmoothSamplesInto(ReadOnlySpan<byte> samples,
+      Span<byte> output, int bins)
+    {
+      int radius = bins / 2;
 
       int windowSum = 0;
       int windowStart = 0;
@@ -804,7 +818,6 @@ namespace SkyRoof
             160);
       }
 
-      return output;
     }
 
 
@@ -863,8 +876,13 @@ namespace SkyRoof
       base.Dispose(disposing);
     }
 
+    // OnPaint clears every destination pixel; avoid the separate GDI
+    // background fill before WinForms presents its double buffer.
+    protected override void OnPaintBackground(PaintEventArgs e) { }
+
     protected override void OnPaint(PaintEventArgs e)
     {
+      long paintStart = Stopwatch.GetTimestamp();
       base.OnPaint(e);
 
       Color scopeBack =
@@ -881,10 +899,8 @@ namespace SkyRoof
         return;
 
       IcomScopeFrame? frame;
-      byte[] samples =
-        new byte[ScopePoints];
-      byte[] peakSamples =
-        new byte[ScopePoints];
+      byte[] samples = paintSamples;
+      byte[] peakSamples = paintPeakSamples;
       bool peakVisible;
       int displayNoiseFloor;
 
@@ -907,21 +923,18 @@ namespace SkyRoof
           PeakEnabled &&
           PeakValid;
         displayNoiseFloor = DisplayNoiseFloor;
-        RebuildWaterfallBitmapIfNeeded();
+        if (WaterfallVisible) RebuildWaterfallBitmapIfNeeded();
       }
 
       if (SmoothingBins > 1)
       {
-        samples =
-          SmoothSamplesForDisplay(
-            samples,
-            SmoothingBins);
-
+        SmoothSamplesInto(samples, smoothSamples, SmoothingBins);
+        samples = smoothSamples;
         if (peakVisible)
-          peakSamples =
-            SmoothSamplesForDisplay(
-              peakSamples,
-              SmoothingBins);
+        {
+          SmoothSamplesInto(peakSamples, smoothPeakSamples, SmoothingBins);
+          peakSamples = smoothPeakSamples;
+        }
       }
 
       GetLayout(
@@ -987,6 +1000,10 @@ namespace SkyRoof
           waterfallRect.Top,
           waterfallRect.Width - 1,
           waterfallRect.Height - 1);
+
+      long paintEnd = Stopwatch.GetTimestamp();
+      paintMetrics.Record(paintEnd, paintEnd - paintStart,
+        frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
     }
 
     protected override void OnMouseWheel(
@@ -1806,12 +1823,6 @@ namespace SkyRoof
       Color background,
       Color textColor)
     {
-      using var back =
-        new SolidBrush(background);
-      graphics.FillRectangle(
-        back,
-        bounds);
-
       string left;
       string right;
 
@@ -1927,12 +1938,6 @@ namespace SkyRoof
       Color background,
       Color textColor)
     {
-      using var backgroundBrush =
-        new SolidBrush(background);
-      graphics.FillRectangle(
-        backgroundBrush,
-        bounds);
-
       Rectangle plot =
         GetSpectrumPlotRectangle(
           bounds);
@@ -2151,7 +2156,7 @@ namespace SkyRoof
       }
     }
 
-    private static void DrawTrace(
+    private void DrawTrace(
       Graphics graphics,
       Rectangle plot,
       byte[] samples,
@@ -2171,7 +2176,7 @@ namespace SkyRoof
         DashStyle.Solid);
     }
 
-    private static void DrawPeakTrace(
+    private void DrawPeakTrace(
       Graphics graphics,
       Rectangle plot,
       byte[] samples,
@@ -2191,7 +2196,7 @@ namespace SkyRoof
         DashStyle.Dot);
     }
 
-    private static void DrawSampleTrace(
+    private void DrawSampleTrace(
       Graphics graphics,
       Rectangle plot,
       byte[] samples,
@@ -2229,11 +2234,10 @@ namespace SkyRoof
       if (endIndex <= startIndex)
         return;
 
-      var points =
-        new List<PointF>(
-          endIndex -
-          startIndex +
-          1);
+      int pointCount = endIndex - startIndex + 1;
+      if (tracePoints.Length != pointCount)
+        tracePoints = new PointF[pointCount];
+      double visibleWidth = Math.Max(1e-12, visibleEnd - visibleStart);
 
       float usableHeight =
         Math.Max(
@@ -2247,11 +2251,7 @@ namespace SkyRoof
         double fullFraction =
           i /
           (double)last;
-        double visibleFraction =
-          ToVisiblePlotFraction(
-            fullFraction,
-            zoomFactor,
-            zoomCenter);
+        double visibleFraction = (fullFraction - visibleStart) / visibleWidth;
 
         float x =
           plot.Left +
@@ -2268,14 +2268,8 @@ namespace SkyRoof
           normalized *
           usableHeight;
 
-        points.Add(
-          new PointF(
-            x,
-            y));
+        tracePoints[i - startIndex] = new PointF(x, y);
       }
-
-      if (points.Count < 2)
-        return;
 
       GraphicsState state =
         graphics.Save();
@@ -2296,7 +2290,7 @@ namespace SkyRoof
 
         graphics.DrawLines(
           pen,
-          points.ToArray());
+          tracePoints);
       }
       finally
       {
@@ -2722,18 +2716,19 @@ namespace SkyRoof
           rowIndex >= WaterfallRows.Length)
         return;
 
-      byte[] row =
-        WaterfallRows[rowIndex];
+      // If a full recolor is already required, do not write a row twice.
+      // Hidden waterfalls retain raw history, rebuilding on the next show.
+      if (!WaterfallVisible || WaterfallDirty)
+      {
+        WaterfallDirty = true;
+        return;
+      }
 
-      for (int x = 0;
-           x < ScopePoints;
-           x++)
-        WaterfallArgbRow[x] =
-          Palette[
-            MapWaterfallLevel(
-                MapAdaptiveWaterfallLevel(row[x], DisplayNoiseFloor),
-                WaterfallBrightness,
-                WaterfallContrast)];
+      FillWaterfallColorMap(waterfallColorMap, Palette, DisplayNoiseFloor,
+        WaterfallBrightness, WaterfallContrast);
+      byte[] row = WaterfallRows[rowIndex];
+      for (int x = 0; x < ScopePoints; x++)
+        WaterfallArgbRow[x] = waterfallColorMap[Math.Min(160, (int)row[x])];
 
       Rectangle rect =
         new(
@@ -2770,6 +2765,8 @@ namespace SkyRoof
           WaterfallRows.Length == 0)
         return;
 
+      FillWaterfallColorMap(waterfallColorMap, Palette, DisplayNoiseFloor,
+        WaterfallBrightness, WaterfallContrast);
       int index = 0;
 
       for (int y = 0;
@@ -2782,12 +2779,7 @@ namespace SkyRoof
         for (int x = 0;
              x < ScopePoints;
              x++)
-          WaterfallArgb[index++] =
-            Palette[
-              MapWaterfallLevel(
-                MapAdaptiveWaterfallLevel(row[x], DisplayNoiseFloor),
-                WaterfallBrightness,
-                WaterfallContrast)];
+          WaterfallArgb[index++] = waterfallColorMap[Math.Min(160, (int)row[x])];
       }
 
       Rectangle rect =
@@ -2950,9 +2942,18 @@ namespace SkyRoof
 
     // Raw CI-V levels are not calibrated dBm. Only the display is remapped.
     // A 40th-percentile baseline resists narrowband signal peaks.
+    internal static void FillWaterfallColorMap(Span<int> output, ReadOnlySpan<int> palette,
+      int noiseFloor, int brightness, int contrast)
+    {
+      for (int level = 0; level <= 160; level++)
+        output[level] = palette[MapWaterfallLevel(
+          MapAdaptiveWaterfallLevel(level, noiseFloor), brightness, contrast)];
+    }
+
     internal static int EstimateNoiseFloor(ReadOnlySpan<byte> samples)
     {
       Span<int> histogram = stackalloc int[161];
+      histogram.Clear();
       int validCount = 0;
       foreach (byte sample in samples)
       {
