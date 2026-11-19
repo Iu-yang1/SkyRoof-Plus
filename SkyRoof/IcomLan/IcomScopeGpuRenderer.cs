@@ -41,10 +41,10 @@ namespace SkyRoof
       quad.Create(gl);
       quad.Bind(gl);
       quad.SetData(gl, 0, new float[] { -1, -1, -1, 1, 1, -1, 1, 1 }, false, 2);
-      VertexBufferArray.Unbind(gl);
+      vao.Unbind(gl);
       gl.GenTextures(3, textures);
       for (int i = 0; i < textures.Length; i++) ConfigureTexture(i);
-      ShaderProgram.Unbind(gl);
+      shader.Unbind(gl);
       CheckError();
     }
 
@@ -77,8 +77,8 @@ namespace SkyRoof
       gl.Uniform1(locRows, snapshot.Rows.Length);
       gl.Uniform1(locWidth, viewport.Width);
       gl.DrawArrays(OpenGL.GL_TRIANGLE_STRIP, 0, 4);
-      VertexBufferArray.Unbind(gl);
-      ShaderProgram.Unbind(gl);
+      vao.Unbind(gl);
+      shader.Unbind(gl);
       CheckError();
     }
 
@@ -102,9 +102,10 @@ namespace SkyRoof
     private void AllocateRaw(IcomScopeWaterfallRow[] rows)
     {
       var initial = new int[Points * rows.Length];
-      for (int y = 0; y < rows.Length; y++)
-        for (int x = 0; x < Points; x++)
-          initial[y * Points + x] = BitConverter.SingleToInt32Bits(rows[y].Samples[x]);
+      int index = 0;
+      foreach (var row in rows)
+        foreach (byte value in row.Samples)
+          initial[index++] = BitConverter.SingleToInt32Bits(value);
       BindTexture(0);
       gl.TexImage2D(OpenGL.GL_TEXTURE_2D, 0, OpenGL.GL_R32F, Points, rows.Length, 0,
         OpenGL.GL_RED, OpenGL.GL_FLOAT, initial);
@@ -152,7 +153,8 @@ namespace SkyRoof
     public void Dispose()
     {
       gl.DeleteTextures(3, textures);
-      quad.Delete(gl);
+      // SharpGL 3.1.1 exposes no VertexBuffer.Delete; WGL context teardown
+      // reclaims the buffer, while the VAO and program have explicit APIs.
       vao.Delete(gl);
       shader.Delete(gl);
     }

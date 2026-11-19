@@ -67,14 +67,13 @@ namespace SkyRoof
 
     internal void Shift(int delta)
     {
-      for (int i = 0; i < raw.Length; i++)
+      foreach (ref var row in raw.AsSpan())
       {
-        var row = raw[i];
         if (row.First == row.End) continue;
         int offset = row.Offset + delta;
         int first = Math.Max(row.First, -offset);
         int end = Math.Min(row.End, Points - offset);
-        raw[i] = end <= first
+        row = end <= first
           ? new(Blank, 0, 0, 0, row.Floor)
           : row with { Offset = offset, First = first, End = end };
       }
@@ -99,10 +98,12 @@ namespace SkyRoof
     {
       if (visible && recolor)
       {
-        for (int y = 0; y < raw.Length; y++)
+        int y = 0;
+        foreach (ref var row in raw.AsSpan())
         {
-          raw[y] = raw[y] with { Floor = floor };
-          if (cpuRaster) colors[y] = Colorize(raw[y]);
+          row = row with { Floor = floor };
+          if (cpuRaster) colors[y] = Colorize(row);
+          y++;
         }
         recolor = false;
         changed = true;

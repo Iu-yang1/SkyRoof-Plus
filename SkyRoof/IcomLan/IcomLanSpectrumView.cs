@@ -317,7 +317,8 @@ namespace SkyRoof
     {
       LatestFrame = null;
       int generation = Interlocked.Increment(ref renderGeneration);
-      renderWorker.Configure(model => model.Clear(generation));
+      gpuSurface?.Clear(generation);
+      renderWorker.Reset(generation);
       Invalidate();
     }
 
@@ -2245,7 +2246,10 @@ namespace SkyRoof
           Invalidate();
         }));
       }
-      catch (InvalidOperationException) { }
+      catch (InvalidOperationException ex)
+      {
+        Serilog.Log.Debug(ex, "Scope surface was closed before GPU status could be delivered");
+      }
     }
 
     private void SwitchToCpu(string reason)

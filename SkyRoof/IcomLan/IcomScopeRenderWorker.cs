@@ -64,6 +64,25 @@ namespace SkyRoof
       }
     }
 
+    internal void Reset(int generation)
+    {
+      lock (gate)
+      {
+        if (stopped) return;
+        // The queued settings must survive clear. Only obsolete waveform work is discarded.
+        var node = pending.First;
+        while (node != null)
+        {
+          var next = node.Next;
+          if (node.Value.Frame != null) pending.Remove(node);
+          node = next;
+        }
+        frameCount = 0;
+        pending.AddLast(new Work(null, model => model.Clear(generation)));
+        wake.Set();
+      }
+    }
+
     internal void Configure(Action<IcomScopeRenderModel> command)
     {
       lock (gate)

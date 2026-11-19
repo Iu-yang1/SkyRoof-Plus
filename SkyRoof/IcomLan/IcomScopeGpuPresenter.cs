@@ -15,6 +15,7 @@ namespace SkyRoof
     private IcomScopeRenderSnapshot? latest;
     private IcomScopeGpuViewport viewport = new(0, 0, 0, 1);
     private bool stopped, started;
+    private int minimumGeneration;
     private long presentCount;
     private string renderer = "starting";
 
@@ -42,8 +43,20 @@ namespace SkyRoof
     {
       lock (gate)
       {
-        if (stopped || (latest != null && value.Sequence <= latest.Sequence)) return;
+        if (stopped || value.Generation < minimumGeneration ||
+            (latest != null && value.Sequence <= latest.Sequence)) return;
         latest = value;
+        wake.Set();
+      }
+    }
+
+    internal void Clear(int generation)
+    {
+      lock (gate)
+      {
+        if (stopped) return;
+        minimumGeneration = generation;
+        if (latest != null && latest.Generation < generation) latest = null;
         wake.Set();
       }
     }
@@ -87,7 +100,15 @@ namespace SkyRoof
             frame = latest;
             size = viewport;
           }
-          if (size.Width < 2 || size.Height < 2 || frame == null) continue;
+          if (size.Width < 2 || size.Height < 2) continue;
+          if (frame == null)
+          {
+            gl.Viewport(0, 0, size.Width, size.Height);
+            gl.ClearColor(0.02f, 0.03f, 0.055f, 1f);
+            gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+            gl.Blit(IntPtr.Zero);
+            continue;
+          }
           drawing.Draw(frame.Waterfall, size);
           gl.Blit(IntPtr.Zero);
           Interlocked.Increment(ref presentCount);

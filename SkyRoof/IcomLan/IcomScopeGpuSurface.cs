@@ -7,6 +7,7 @@ namespace SkyRoof
     private readonly Action<IcomScopeGpuSurface, string?> status;
     private volatile IcomScopeGpuPresenter? presenter;
     private IcomScopeRenderSnapshot? latest;
+    private int minimumGeneration;
     private double start, end = 1;
 
     internal IcomScopeGpuSurface(Action<IcomScopeGpuSurface, string?> status)
@@ -33,6 +34,7 @@ namespace SkyRoof
 
     internal void Offer(IcomScopeRenderSnapshot snapshot)
     {
+      if (snapshot.Generation < Volatile.Read(ref minimumGeneration)) return;
       IcomScopeRenderSnapshot? current;
       do
       {
@@ -41,6 +43,12 @@ namespace SkyRoof
       }
       while (!ReferenceEquals(Interlocked.CompareExchange(ref latest, snapshot, current), current));
       presenter?.Offer(snapshot);
+    }
+
+    internal void Clear(int generation)
+    {
+      Volatile.Write(ref minimumGeneration, generation);
+      presenter?.Clear(generation);
     }
 
     internal void SetZoom(double first, double last)
@@ -56,6 +64,7 @@ namespace SkyRoof
       var next = new IcomScopeGpuPresenter(Handle, error => status(this, error));
       presenter = next;
       UpdateViewport();
+      next.Clear(Volatile.Read(ref minimumGeneration));
       if (Volatile.Read(ref latest) is { } snapshot) next.Offer(snapshot);
       next.Start();
     }
@@ -94,7 +103,8 @@ namespace SkyRoof
     {
       if (m.Msg == 0x84) // WM_NCHITTEST; hand tuning/zoom back to the parent.
       {
-        m.Result = new IntPtr(-1); // HTTRANSPARENT (same UI thread).
+        m = new Message { HWnd = m.HWnd, Msg = m.Msg, WParam = m.WParam,
+          LParam = m.LParam, Result = new IntPtr(-1) }; // HTTRANSPARENT.
         return;
       }
       base.WndProc(ref m);

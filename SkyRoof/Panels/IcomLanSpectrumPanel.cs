@@ -57,7 +57,7 @@ namespace SkyRoof
     private readonly IcomScopeFrameRouter FrameRouter = new();
     private IcomScopeState ScopeState => FrameRouter.State;
     private readonly IcomScopeController ScopeController;
-    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new(12);
+    private readonly IcomScopeUiFrameMailbox ScopeFrameMailbox = new(1);
     private int ScopeCaptureEpoch;
     private Action<IcomScopeFrame>? primaryFrameHandler, nativeFrameHandler;
     private byte LastGeometryUiScope = byte.MaxValue;
