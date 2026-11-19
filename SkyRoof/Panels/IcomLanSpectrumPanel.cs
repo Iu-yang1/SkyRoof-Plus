@@ -1890,7 +1890,7 @@ namespace SkyRoof
             if (changed)
             {
               RefreshScopeGeometryAfterBatch();
-              SpectrumView.Invalidate();
+              // Worker publication schedules the waveform repaint.
             }
           }
         }));
@@ -1925,7 +1925,7 @@ namespace SkyRoof
 
       SynchronizePendingEdgeIfNeeded(
         frame);
-      SpectrumView.PushFrame(frame, invalidate: false);
+      SpectrumView.PushFrame(frame);
       if (frame.SweepComplete)
         RenderedCompleteSweeps++;
       LastRenderedScopeFrameTicks = ticks;
@@ -3275,6 +3275,8 @@ namespace SkyRoof
           $"Queue rejected: {queueStats?.Rejected.ToString("N0") ?? "n/a"}",
           $"Scope UI coalesced waveform frames: {ScopeFrameMailbox.ReplacedFrames:N0}",
           $"Completed sweeps replaced in mailbox: {ScopeFrameMailbox.ReplacedCompleteSweeps:N0}",
+          $"Processing queue dropped sweeps: {SpectrumView.ProcessingDroppedSweeps:N0}",
+          $"Processing queue dropped partials: {SpectrumView.ProcessingDroppedPartials:N0}",
           $"Control changes awaiting radio confirmation: {PendingScopeControls.Count}",
           $"Unconfirmed controls after timeout: {UnconfirmedScopeControlCount}",
           $"Packets: {effectiveCapture.PacketCount:N0}",
