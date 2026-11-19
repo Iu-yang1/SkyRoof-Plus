@@ -9,8 +9,7 @@ namespace SkyRoof
     private const int Points = IcomScopeAssembler.ScopePointCount;
     private readonly byte[] samples = new byte[Points];
     private readonly byte[] peak = new byte[Points];
-    private readonly Queue<byte[]> average = new();
-    private readonly int[] sums = new int[Points];
+    private readonly IcomScopeRollingAverage average = new();
     private readonly IcomScopeWaterfallRing history = new();
     private int generation;
     private long sequence, zoomRevision;
@@ -74,7 +73,6 @@ namespace SkyRoof
     private void ResetAverage()
     {
       average.Clear();
-      Array.Clear(sums);
     }
 
     internal void Push(IcomScopeFrame next)
@@ -112,7 +110,7 @@ namespace SkyRoof
             shiftResidual = residual;
             if (shift != 0) ShiftHistory(shift);
           }
-          if (before.LowerFrequencyHz != after.LowerFrequencyHz) ResetAverage();
+          // Sub-bin Doppler motion leaves the existing average intact.
         }
       }
       anchor = next;
@@ -121,7 +119,7 @@ namespace SkyRoof
     private void ShiftHistory(int shift)
     {
       history.Shift(shift);
-      if (averageCount > 1) ResetAverage();
+      if (averageCount > 1) average.Shift(shift);
       if (peakValid) Shift(peak, shift);
     }
 
@@ -151,23 +149,14 @@ namespace SkyRoof
       peakValid = true;
     }
 
-    private void AddAverage(byte[] input)
-    {
-      var copy = input.AsSpan(0, Points).ToArray();
-      average.Enqueue(copy);
-      for (int i = 0; i < Points; i++) sums[i] += copy[i];
-      if (average.Count > averageCount)
-      {
-        var old = average.Dequeue();
-        for (int i = 0; i < Points; i++) sums[i] -= old[i];
-      }
-      for (int i = 0; i < Points; i++)
-        samples[i] = (byte)Math.Clamp((int)Math.Round(sums[i] / (double)average.Count), 0, 160);
-    }
+    private void AddAverage(byte[] input) =>
+      average.Append(input, averageCount, samples);
+
+    internal int AverageDepth => average.Count;
 
     internal IcomScopeRenderSnapshot Snapshot()
     {
-      var waterfall = history.Snapshot(noiseFloor);
+      var waterfall = history.Snapshot();
       return new(generation, ++sequence, zoomRevision, frame, (byte[])samples.Clone(), (byte[])peak.Clone(),
         peakValid, noiseFloor, waterfall.Head, waterfall.Colors, waterfall);
     }

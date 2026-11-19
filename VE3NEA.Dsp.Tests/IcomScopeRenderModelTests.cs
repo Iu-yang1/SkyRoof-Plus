@@ -61,21 +61,87 @@ namespace VE3NEA.Dsp.Tests
       ring.SetCpuRaster(false);
       var raw = Enumerable.Range(0, 475).Select(i => (byte)(i % 160 + 1)).ToArray();
       ring.Append(raw, 20);
-      var first = ring.Snapshot(20);
+      var first = ring.Snapshot();
       ring.Shift(-8);
-      var shifted = ring.Snapshot(20);
+      var shifted = ring.Snapshot();
       shifted.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
       shifted.Rows[0].At(0).Should().Be(raw[8]);
       ring.Shift(8);
-      var reverse = ring.Snapshot(20);
+      var reverse = ring.Snapshot();
       reverse.Rows[0].Samples.Should().BeSameAs(first.Rows[0].Samples);
       reverse.Rows[0].At(0).Should().Be(0);
       reverse.Rows[0].At(8).Should().Be(raw[8]);
       reverse.Colors.Should().BeEmpty();
       ring.SetCpuRaster(true);
-      var software = ring.Snapshot(20);
+      var software = ring.Snapshot();
       software.Colors.Should().HaveCount(40);
       software.Colors[0][8].Should().Be(software.ColorTable[20 * 161 + raw[8]]);
+    }
+
+    [Fact]
+    public void AvgFourDoesNotRestartWithEverySubBinDopplerChange()
+    {
+      var model = new IcomScopeRenderModel();
+      model.SetAverage(4);
+      for (int i = 1; i <= 12; i++)
+      {
+        byte value = (byte)(i % 2 == 0 ? 100 : 20);
+        model.Push(Frame(i, 435000000 + i, level: value));
+        var snapshot = model.Snapshot();
+        if (i >= 4)
+        {
+          model.AverageDepth.Should().Be(4);
+          snapshot.Samples[237].Should().Be(60);
+        }
+      }
+    }
+
+    [Fact]
+    public void AverageMovesWithWholeBinDopplerAndDoesNotAttenuateUnobservedEdges()
+    {
+      var avg = new IcomScopeRollingAverage();
+      var output = new byte[475];
+      byte[] old = Enumerable.Repeat((byte)40, 475).ToArray();
+      old[237] = 160;
+      avg.Append(old, 4, output);
+      avg.Shift(-1);
+      byte[] next = Enumerable.Repeat((byte)80, 475).ToArray();
+      next[236] = 120;
+      avg.Append(next, 4, output);
+      output[236].Should().Be(140);
+      output[100].Should().Be(60);
+      output[474].Should().Be(80);
+      avg.Shift(1);
+      avg.Append(next, 4, output);
+      // The first historical row lost its leftmost bin permanently.
+      output[0].Should().Be(80);
+      avg.Count.Should().Be(3);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void WaterfallHistoryRetainsItsOwnNoiseFloorThroughShiftAndRecolor(bool cpuRaster)
+    {
+      var ring = new IcomScopeWaterfallRing();
+      ring.Resize(40);
+      ring.SetCpuRaster(cpuRaster);
+      var samples = Enumerable.Repeat((byte)60, 475).ToArray();
+      ring.Append(samples, 20);
+      var first = ring.Snapshot();
+      int firstColor = first.ColorTable[20 * 161 + 60];
+      ring.Shift(-1);
+      ring.Append(samples, 40);
+      var next = ring.Snapshot();
+      next.Rows[0].Floor.Should().Be(20);
+      next.Rows[next.Head].Floor.Should().Be(40);
+      next.Rows[0].At(100).Should().Be(60);
+      if (cpuRaster) next.Colors[0][100].Should().Be(firstColor);
+      ring.SetDisplay(15, 120, IcomScopeWaterfallPalette.Classic);
+      var recolored = ring.Snapshot();
+      recolored.Rows[0].Floor.Should().Be(20);
+      recolored.Rows[recolored.Head].Floor.Should().Be(40);
+      if (cpuRaster) recolored.Colors[0][100].Should().Be(recolored.ColorTable[20 * 161 + 60]);
     }
 
     [Fact]

@@ -35,14 +35,14 @@ public sealed class IcomScopePerformanceAcceptanceTests
     ring.Resize(800);
     var input = Enumerable.Range(0, 475).Select(x => (byte)(x % 161)).ToArray();
     ring.Append(input, 20);
-    var original = ring.Snapshot(20);
+    var original = ring.Snapshot();
     var packed = IcomScopeTextureTransfer.Pack(original.Rows);
     var bytes = new byte[packed.Length * sizeof(int)];
     Buffer.BlockCopy(packed, 0, bytes, 0, bytes.Length);
     Assert.Equal(476 * 800, bytes.Length);
     Assert.Equal(input, bytes.Take(475).ToArray());
     ring.Shift(-7);
-    var shifted = ring.Snapshot(20);
+    var shifted = ring.Snapshot();
     Assert.False(IcomScopeTextureTransfer.RawChanged(original.Rows[0], shifted.Rows[0]));
     Assert.True(IcomScopeTextureTransfer.MetadataChanged(original.Rows[0], shifted.Rows[0]));
     Assert.Equal(input[7], shifted.Rows[0].At(0));
