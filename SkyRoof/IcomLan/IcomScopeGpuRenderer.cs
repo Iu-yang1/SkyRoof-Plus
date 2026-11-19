@@ -167,8 +167,12 @@ namespace SkyRoof
 
     private void UploadAllMetadata(IcomScopeWaterfallRow[] rows)
     {
-      for (int y = 0; y < rows.Length; y++)
-        IcomScopeTextureTransfer.EncodeMetadata(rows[y], metadata.AsSpan(y * 4, 4));
+      int offset = 0;
+      foreach (var row in rows)
+      {
+        IcomScopeTextureTransfer.EncodeMetadata(row, metadata.AsSpan(offset, 4));
+        offset += 4;
+      }
       gl.TexSubImage2D(OpenGL.GL_TEXTURE_2D, 0, 0, 0, 1, rows.Length,
         OpenGL.GL_RGBA, OpenGL.GL_FLOAT, metadata);
     }

@@ -541,7 +541,7 @@ namespace SkyRoof
       if (usesGpu)
       {
         // The native region leaves the original frequency axis and splitter exposed.
-        DrawFrequencyGrid(e.Graphics, spectrumRect, GetSpectrumPlotRectangle(spectrumRect),
+        DrawFrequencyGrid(e.Graphics, (spectrumRect, GetSpectrumPlotRectangle(spectrumRect)),
           frame?.Geometry ?? default, GetDisplayFrequencyOffset(frame), textColor, drawLines: false);
       }
       else
@@ -1556,8 +1556,7 @@ namespace SkyRoof
 
       DrawFrequencyGrid(
         graphics,
-        bounds,
-        plot,
+        (bounds, plot),
         geometry,
         displayOffsetHz,
         textColor);
@@ -1604,12 +1603,12 @@ namespace SkyRoof
 
     private void DrawFrequencyGrid(
       Graphics graphics,
-      Rectangle spectrumBounds,
-      Rectangle plot,
+      (Rectangle Bounds, Rectangle Plot) layout,
       IcomScopeGeometry geometry,
       long displayOffsetHz,
       Color textColor, bool drawLines = true)
     {
+      var (spectrumBounds, plot) = layout;
       int intervals =
         plot.Width >= 900
           ? 5

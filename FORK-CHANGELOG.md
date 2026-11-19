@@ -1,3 +1,8 @@
+# SkyRoof Fork v.1.87 / GPU Spectrum and GDI+ Performance
+
+- Default OpenGL scope with software fallback; 475 native bins retained, R8 ring uploads and persistent GDI+ raster.
+- Paced 30/60 Hz simulated acceptance with 800-row history and 4K offscreen GDI+; actual GPU hardware results remain separate.
+
 # SkyRoof Fork v.1.86 / UNNE-1B Production IQ/CRC/CFO Validated Stable
 
 ### v.1.86 原位安装包替换（不递增版本号）— 2026-11-18

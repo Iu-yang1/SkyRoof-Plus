@@ -81,10 +81,22 @@ public sealed class IcomScopePerformanceAcceptanceTests
     if (hz == 60) Assert.True(result.FreshFps >= 58, json);
   }
 
-  private sealed record Result(string Backend, int SourceHz, int InputFrames,
-    long ProcessedFrames, int FreshFrames, long DroppedSweeps, int NativeBins,
-    double FreshFps, double P95IntervalMs, double P99IntervalMs, double MaxIntervalMs,
-    double P95LatencyMs, double P99LatencyMs);
+  private sealed record Result
+  {
+    public string Backend { get; init; } = "";
+    public int SourceHz { get; init; }
+    public int InputFrames { get; init; }
+    public long ProcessedFrames { get; init; }
+    public int FreshFrames { get; init; }
+    public long DroppedSweeps { get; init; }
+    public int NativeBins { get; init; }
+    public double FreshFps { get; init; }
+    public double P95IntervalMs { get; init; }
+    public double P99IntervalMs { get; init; }
+    public double MaxIntervalMs { get; init; }
+    public double P95LatencyMs { get; init; }
+    public double P99LatencyMs { get; init; }
+  }
 
   private sealed class ScopeScenario : IDisposable
   {
@@ -143,11 +155,16 @@ public sealed class IcomScopePerformanceAcceptanceTests
         cwLoad.Join();
         telemetryLoad.Join();
       }
-      return new(gpu ? "GPU upload surrogate" : "GDI+ 3840x2160 offscreen",
-        hz, Count, worker.ProcessedSweeps, fresh, worker.DroppedSweeps, 475,
-        (fresh - Warmup - 1) * Stopwatch.Frequency / (double)Math.Max(1, last - first),
-        Percentile(intervals, .95), Percentile(intervals, .99), Percentile(intervals, 1),
-        Percentile(latencies, .95), Percentile(latencies, .99));
+      return new Result
+      {
+        Backend = gpu ? "GPU upload surrogate" : "GDI+ 3840x2160 offscreen",
+        SourceHz = hz, InputFrames = Count, ProcessedFrames = worker.ProcessedSweeps,
+        FreshFrames = fresh, DroppedSweeps = worker.DroppedSweeps, NativeBins = 475,
+        FreshFps = (fresh - Warmup - 1) * Stopwatch.Frequency / (double)Math.Max(1, last - first),
+        P95IntervalMs = Percentile(intervals, .95), P99IntervalMs = Percentile(intervals, .99),
+        MaxIntervalMs = Percentile(intervals, 1),
+        P95LatencyMs = Percentile(latencies, .95), P99LatencyMs = Percentile(latencies, .99)
+      };
     }
 
     private void Produce()
