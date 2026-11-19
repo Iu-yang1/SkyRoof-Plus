@@ -78,6 +78,55 @@ namespace VE3NEA.Dsp.Tests
       software.Colors[0][8].Should().Be(software.ColorTable[20 * 161 + raw[8]]);
     }
 
+    [Theory]
+    [InlineData(240, 136)]
+    [InlineData(800, 120)]
+    public void CompactWaterfallHistoryDoesNotResampleOldRowsOnEverySweep(int rows, int height)
+    {
+      var raster = new IcomScopeWaterfallTimeRaster(height);
+      var source = Enumerable.Range(0, rows).Select(i =>
+        Enumerable.Repeat(unchecked((int)0xff000000) | i, 475).ToArray()).ToArray();
+      var first = raster.Update(source, 0);
+      for (int n = 1; n <= rows * 2; n++)
+      {
+        int head = (rows - n % rows) % rows;
+        source = (int[][])source.Clone();
+        source[head] = Enumerable.Repeat(unchecked((int)0xff000000) | (n + rows), 475).ToArray();
+        var next = raster.Update(source, head);
+        int scroll = (first.Head - next.Head + height) % height;
+        scroll.Should().BeInRange(0, 1);
+        for (int y = 1 + scroll; y < height; y++)
+          next.Rows[(next.Head + y) % height].Should().BeSameAs(
+            first.Rows[(first.Head + y - scroll) % height]);
+        first = next;
+      }
+    }
+
+    [Fact]
+    public void CompactTimeRasterUsesAllSweepsInCompletedGroup()
+    {
+      var source = Enumerable.Range(0, 4).Select(i =>
+        Enumerable.Repeat(unchecked((int)0xff000000), 475).ToArray()).ToArray();
+      source[0] = Enumerable.Repeat(unchecked((int)0xff000020), 475).ToArray();
+      source[3] = Enumerable.Repeat(unchecked((int)0xff000060), 475).ToArray();
+      var result = new IcomScopeWaterfallTimeRaster(2).Update(source, 3);
+      result.Rows[result.Head][0].Should().Be(unchecked((int)0xff000040));
+    }
+
+    [Fact]
+    public void AvgFourRemainsStableAtFixedCenterFrequency()
+    {
+      var model = new IcomScopeRenderModel();
+      model.SetAverage(4);
+      for (int i = 1; i <= 32; i++)
+      {
+        model.Push(Frame(i, level: (byte)(i % 2 == 0 ? 100 : 20)));
+        if (i < 4) continue;
+        model.AverageDepth.Should().Be(4);
+        model.Snapshot().Samples[237].Should().Be(60);
+      }
+    }
+
     [Fact]
     public void AvgFourDoesNotRestartWithEverySubBinDopplerChange()
     {
