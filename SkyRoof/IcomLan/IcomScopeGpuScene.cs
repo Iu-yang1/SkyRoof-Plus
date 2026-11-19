@@ -11,8 +11,12 @@ namespace SkyRoof
     IcomScopeGpuTuning Tuning, IcomScopeGpuPointer Pointer, IcomScopeGpuOptions Options);
 
   internal readonly record struct IcomScopeGpuPlotState(float Start, float End,
-    float Marker, float BandLeft, float BandRight, int CursorX, string CursorText, string MarkerText)
+    float Marker, (float Left, float Right) Band, (int X, string Text) CursorLabel, string MarkerText)
   {
+    internal float BandLeft => Band.Left;
+    internal float BandRight => Band.Right;
+    internal int CursorX => CursorLabel.X;
+    internal string CursorText => CursorLabel.Text;
     internal static IcomScopeGpuPlotState FromSnapshot(IcomScopeRenderSnapshot frame, IcomScopeGpuScene scene)
     {
       var geometry = frame.Frame?.Geometry ?? default;
@@ -32,8 +36,7 @@ namespace SkyRoof
             new Rectangle(0, 0, scene.Plot.Width, scene.Plot.Height), zoom, center, out var bounds))
         band = (bounds.Left, bounds.Right);
       var cursor = Cursor(scene, geometry, tuned, offset, start, end);
-      return new((float)start, (float)end, marker, band.Item1, band.Item2,
-        cursor.X, cursor.Text, sub ? "TX" : "RX");
+      return new((float)start, (float)end, marker, band, cursor, sub ? "TX" : "RX");
     }
 
     private static float MarkerFraction(IcomScopeGeometry geometry, long tuned, long offset,
