@@ -12,6 +12,8 @@ namespace SkyRoof
     private readonly int[] pixels;
     private GCHandle pin;
     private int[][]? uploaded;
+    private IcomScopeWaterfallTimeRaster? timeRaster;
+    private IcomScopeGdiHistoryBitmap? compact;
     internal Bitmap Image { get; }
 
     internal IcomScopeGdiHistoryBitmap(int rows)
@@ -46,6 +48,11 @@ namespace SkyRoof
 
     internal void Draw(Graphics graphics, Rectangle destination, int head, double start, double end)
     {
+      if (destination.Height > 0 && destination.Height < Image.Height && uploaded != null)
+      {
+        DrawCompact(graphics, destination, head, start, end);
+        return;
+      }
       int first = Math.Clamp((int)Math.Floor(start * (Points - 1)), 0, Points - 1);
       int right = Math.Clamp((int)Math.Ceiling(end * (Points - 1)) + 1, first + 1, Points);
       int width = right - first;
@@ -59,6 +66,20 @@ namespace SkyRoof
       if (IcomScopeGdiDib.TryDraw(graphics, pin.AddrOfPinnedObject(), Image.Size,
           (top, topSource), (bottom, bottomSource))) return;
       DrawCompatibility(graphics, (top, topSource), (bottom, bottomSource));
+    }
+
+    private void DrawCompact(Graphics graphics, Rectangle destination, int head, double start, double end)
+    {
+      if (uploaded == null) return;
+      if (compact == null || timeRaster == null || compact.Image.Height != destination.Height)
+      {
+        compact?.Dispose();
+        compact = new IcomScopeGdiHistoryBitmap(destination.Height);
+        timeRaster = new IcomScopeWaterfallTimeRaster(destination.Height);
+      }
+      var mapped = timeRaster.Update(uploaded, head);
+      compact.Update(mapped.Rows);
+      compact.Draw(graphics, destination, mapped.Head, start, end);
     }
 
     private void DrawCompatibility(Graphics graphics, (Rectangle Dest, Rectangle Source) top,
@@ -86,6 +107,7 @@ namespace SkyRoof
     public void Dispose()
     {
       if (!pin.IsAllocated) return;
+      compact?.Dispose();
       Image.Dispose();
       pin.Free();
     }

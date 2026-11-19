@@ -1,5 +1,11 @@
 # SkyRoof-Plus v.1.87
 
+## 2026-11-19 原地修复构建 / In-place test rebuild
+
+- 修复频移时 AVG 历史重置、瀑布历史噪声底被覆盖、紧凑瀑布时间轴混叠及 GPU 父子窗口覆盖问题。保留 GPU 默认和软件回退、475 点原始输入及历史。
+- 该构建供用户实机验证；固定频率曲线闪烁的全部原因尚未确认。保持现有 v.1.87 标签、安装包名称及发布状态；若无签名服务，安装包仍未签名（与原构建相同），由 CI 核验 SHA-256。
+- Preserve rolling averages and per-row noise floors, stabilize compact waterfall time grouping and isolate native GPU painting. Physical flicker verification remains pending.
+
 ## Icom LAN spectrum — GPU 默认渲染与 GDI+ 优化
 
 - GPU 频谱默认启用，使用独立 OpenGL 3.3 原生呈现线程；设置中可关闭，初始化或交换缓冲失败自动切回 GDI+。

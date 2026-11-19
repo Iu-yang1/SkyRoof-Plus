@@ -99,6 +99,9 @@ jobs:
             $replaceV186 = $version -eq '1.86' -and
               "${{ github.event_name }}" -eq 'push' -and
               (Get-Content Directory.Build.props -Raw).Contains('v1.86-unne-gear-square-buttons-replacement-20261118')
+            $replaceV187 = $version -eq '1.87' -and
+              "${{ github.event_name }}" -eq 'push' -and
+              (Get-Content Directory.Build.props -Raw).Contains('v1.87-scope-flash-test-replacement-20261119')
             if ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
@@ -149,6 +152,23 @@ jobs:
               }
               "REPLACE_V186=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
               Write-Host "Authorized in-place v.1.86 SAVE and UNNE FM/BPSK decode replacement"
+            }
+            elseif ($replaceV187) {
+              if ($existingSha -ne '85d2eddca41cdf0d192056e6aa759d55c2f4a273') {
+                throw 'v.1.87 original tag has moved; refusing replacement'
+              }
+              $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or $null -eq $oldRelease -or
+                  $oldRelease.id -ne 450876000 -or $oldRelease.prerelease -ne $false) {
+                throw 'v.1.87 Release identity differs from verified stable baseline'
+              }
+              $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.87.exe' })
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 766201495 -or
+                  $oldAsset[0].digest -ne 'sha256:abe47cc98a6bb72fc209ba345dd6ce602ead47aada18f0ce94829f2bed827485') {
+                throw 'v.1.87 published installer was changed before replacement'
+              }
+              "REPLACE_V187=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+              Write-Host "Authorized in-place v.1.87 scope flicker test replacement"
             }
             elseif (-not $explicitReplacement -or
                 $existingSha -ne 'ac3379b7fd6c09cf435c7fc3b3c515310c76f758') {
@@ -355,7 +375,7 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_TOKEN)) {
             "SIGNPATH_AVAILABLE=false" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
+            if ($env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
               Write-Host "::warning::Explicitly user-authorized stable v.1.86 UNNE-1B IQ-verified release (or earlier authorized versions) may ship unsigned; clearly disclose Authenticode and verify SHA-256."
             } else {
               Write-Host "::warning::No SignPath token configured; release will be an unsigned pre-release."
@@ -409,7 +429,7 @@ jobs:
             throw "SignPath is configured but installer signature is not valid: $($signature.Status)"
           }
           if ($env:SIGNPATH_AVAILABLE -ne 'true') {
-            if ("${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
+            if ($env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
               Write-Host "::warning::Publishing user-authorized unsigned stable release; Authenticode status is clearly disclosed."
             } else {
               Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
@@ -436,9 +456,9 @@ jobs:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
           # User-authorized unsigned stable releases v.1.71-v.1.73 and v.1.76-v.1.78. Signatures and hashes reported.
           # Only user-authorized v.1.86 and previous explicitly listed versions may be unsigned stable; all other unsigned builds remain prereleases.
-          prerelease: ${{ env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' && steps.get_version.outputs.version != '1.76' && steps.get_version.outputs.version != '1.77' && steps.get_version.outputs.version != '1.78' && steps.get_version.outputs.version != '1.82' && steps.get_version.outputs.version != '1.86' }}
+          prerelease: ${{ env.REPLACE_V187 != 'true' && env.REPLACE_V169 != 'true' && env.SIGNPATH_AVAILABLE != 'true' && steps.get_version.outputs.version != '1.71' && steps.get_version.outputs.version != '1.72' && steps.get_version.outputs.version != '1.73' && steps.get_version.outputs.version != '1.76' && steps.get_version.outputs.version != '1.77' && steps.get_version.outputs.version != '1.78' && steps.get_version.outputs.version != '1.82' && steps.get_version.outputs.version != '1.86' }}
           tag_name: v.${{ steps.get_version.outputs.version }}
-          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' || env.REPLACE_V178 == 'true' || env.REPLACE_V186 == 'true' }}
+          overwrite_files: ${{ env.REPLACE_V169 == 'true' || env.REPLACE_V173 == 'true' || env.REPLACE_V178 == 'true' || env.REPLACE_V186 == 'true' || env.REPLACE_V187 == 'true' }}
           fail_on_unmatched_files: true
           target_commitish: ${{ github.sha }}
           body_path: RELEASE_NOTES.md
@@ -575,6 +595,39 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.86 release target commit' }
           Write-Host "v.1.86 rebuilt in place: $newCommit sha256:$localHash"
 
+      - name: Finalize one-time v.1.87 scope flicker test installer replacement
+        if: env.REPLACE_V187 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.87'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = '85d2eddca41cdf0d192056e6aa759d55c2f4a273'
+          $name = 'SkyRoofSetup-v.1.87.exe'
+          $localHash = (Get-FileHash -LiteralPath "install/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release -or
+              $release.id -ne 450876000 -or $release.prerelease -ne $false) {
+            throw 'v.1.87 Release identity changed during rebuild'
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].digest -ne "sha256:$localHash") {
+            throw 'The freshly uploaded v.1.87 installer SHA-256 does not match the local build'
+          }
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or
+              (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw 'v.1.87 tag moved during release upload; refusing retarget'
+          }
+          git tag -f $tag $newCommit
+          git push origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget v.1.87 after installer verification' }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.87 release target commit' }
+          Write-Host "v.1.87 rebuilt in place: $newCommit sha256:$localHash"
+
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh
         env:
@@ -600,7 +653,7 @@ jobs:
           }
           $asset = @($release.assets | Where-Object { $_.name -eq $name })
           if ($asset.Count -ne 1) { throw "Release asset $name missing or duplicated" }
-          $expectedPrerelease = $env:REPLACE_V169 -ne 'true' -and
+          $expectedPrerelease = $env:REPLACE_V187 -ne 'true' -and $env:REPLACE_V169 -ne 'true' -and
              $env:SIGNPATH_AVAILABLE -ne 'true' -and
              "${{ steps.get_version.outputs.version }}" -notin @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')
           if ($release.isPrerelease -ne $expectedPrerelease) {

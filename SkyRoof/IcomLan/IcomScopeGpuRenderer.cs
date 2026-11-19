@@ -19,7 +19,7 @@ namespace SkyRoof
     private IcomScopeWaterfallRow[]? uploaded;
     private int[]? uploadedTable;
     private int[] metadata = [];
-    private int locStart, locEnd, locHead, locRows, locWidth;
+    private int locStart, locEnd, locHead, locRows, locWidth, locHeight;
     private readonly IcomScopeGpuPlotRenderer plot;
 
     internal IcomScopeGpuRenderer(OpenGL gl)
@@ -35,6 +35,7 @@ namespace SkyRoof
       locHead = shader.GetUniformLocation(gl, "uHead");
       locRows = shader.GetUniformLocation(gl, "uRows");
       locWidth = shader.GetUniformLocation(gl, "uWidth");
+      locHeight = shader.GetUniformLocation(gl, "uHeight");
       gl.Uniform1(shader.GetUniformLocation(gl, "uRaw"), 0);
       gl.Uniform1(shader.GetUniformLocation(gl, "uMeta"), 1);
       gl.Uniform1(shader.GetUniformLocation(gl, "uColors"), 2);
@@ -93,6 +94,7 @@ namespace SkyRoof
       gl.Uniform1(locHead, Math.Max(0, snapshot.Head));
       gl.Uniform1(locRows, snapshot.Rows.Length);
       gl.Uniform1(locWidth, rect.Width);
+      gl.Uniform1(locHeight, rect.Height);
       gl.DrawArrays(OpenGL.GL_TRIANGLE_STRIP, 0, 4);
       vao.Unbind(gl);
       shader.Unbind(gl);
@@ -209,7 +211,7 @@ namespace SkyRoof
       out vec4 color;
       uniform sampler2D uRaw, uMeta, uColors;
       uniform float uStart, uEnd;
-      uniform int uHead, uRows, uWidth;
+      uniform int uHead, uRows, uWidth, uHeight;
       int levelAt(int x, int row, ivec4 meta) {
         int src = x - meta.x;
         if (src < meta.y || src >= meta.z) return 0;
@@ -218,23 +220,40 @@ namespace SkyRoof
       vec4 mapped(int level, int floor) {
         return texelFetch(uColors, ivec2(level,clamp(floor,0,160)),0);
       }
-      void main() {
-        int row = (uHead + clamp(int(uv.y * float(uRows)),0,uRows-1)) % uRows;
+      vec4 rowColor(int row, float x, float binsPerPixel) {
         ivec4 meta = ivec4(texelFetch(uMeta,ivec2(0,row),0));
-        float xFraction = clamp((uv.x*float(uWidth)-0.5)/max(1.0,float(uWidth)-1.0),0.0,1.0);
-        float x = clamp(mix(uStart,uEnd,xFraction) * 474.0,0.0,474.0);
-        float binsPerPixel = (uEnd-uStart) * 474.0 / max(1.0,float(uWidth)-1.0);
         if (binsPerPixel > 1.0) {
           int first = clamp(int(ceil(x-binsPerPixel*0.5)),0,474);
           int last = clamp(int(floor(x+binsPerPixel*0.5)),first,474);
           int peak = 0;
           for (int i=first;i<=last;i++) peak=max(peak,levelAt(i,row,meta));
-          color = mapped(peak,meta.w);
+          return mapped(peak,meta.w);
         } else {
           int first = int(floor(x));
           int last = min(first+1,474);
-          color = mix(mapped(levelAt(first,row,meta),meta.w),
-                      mapped(levelAt(last,row,meta),meta.w),fract(x));
+          return mix(mapped(levelAt(first,row,meta),meta.w),
+                     mapped(levelAt(last,row,meta),meta.w),fract(x));
+        }
+      }
+      void main() {
+        float xFraction = clamp((uv.x*float(uWidth)-0.5)/max(1.0,float(uWidth)-1.0),0.0,1.0);
+        float x = clamp(mix(uStart,uEnd,xFraction) * 474.0,0.0,474.0);
+        float binsPerPixel = (uEnd-uStart) * 474.0 / max(1.0,float(uWidth)-1.0);
+        if (uHeight >= uRows) {
+          int row = (uHead + clamp(int(uv.y * float(uRows)),0,uRows-1)) % uRows;
+          color = rowColor(row,x,binsPerPixel);
+        } else {
+          int phase = (uRows-uHead)%uRows;
+          int newest = phase*uHeight/uRows;
+          int y = clamp(int(uv.y*float(uHeight)),0,uHeight-1);
+          int group = (newest-y+uHeight)%uHeight;
+          int first = (group*uRows+uHeight-1)/uHeight;
+          int end = ((group+1)*uRows+uHeight-1)/uHeight;
+          if (group == newest) end=min(end,phase+1);
+          vec4 sum = vec4(0);
+          for (int i=first;i<end;i++)
+            sum += rowColor((uRows-i)%uRows,x,binsPerPixel);
+          color=sum/float(max(1,end-first));
         }
         color.a=1.0;
       }

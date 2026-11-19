@@ -98,8 +98,12 @@ namespace SkyRoof
         if (!gl.Create(OpenGLVersion.OpenGL3_3, RenderContextType.NativeWindow, 1, 1, 32, window))
           throw new InvalidOperationException("OpenGL native context creation failed");
         gl.MakeCurrent();
-        if (WglGetCurrentContext() == IntPtr.Zero || WglGetCurrentDC() == IntPtr.Zero)
-          throw new InvalidOperationException("OpenGL native context is not current");
+        IntPtr context = WglGetCurrentContext();
+        IntPtr dc = WglGetCurrentDC();
+        VerifyCurrentContext(context, dc);
+        // Only the back buffer is cleared/drawn; the front is retained until
+        // all chart and waterfall commands are submitted.
+        gl.DrawBuffer(OpenGL.GL_BACK);
         Volatile.Write(ref renderer, gl.GetString(OpenGL.GL_RENDERER) ?? "unknown renderer");
         drawing = new IcomScopeGpuRenderer(gl);
         while (true)
@@ -114,17 +118,19 @@ namespace SkyRoof
             size = viewport;
           }
           if (size.Width < 2 || size.Height < 2 || size.Scene == null) continue;
+          gl.MakeCurrent();
+          VerifyCurrentContext(context, dc);
           if (frame == null)
           {
             gl.Viewport(0, 0, size.Width, size.Height);
             gl.ClearColor(0.02f, 0.03f, 0.055f, 1f);
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
-            SwapCurrentBuffers();
+            SwapCurrentBuffers(context, dc);
             continue;
           }
           long startTick = Stopwatch.GetTimestamp();
           drawing.Draw(frame, size);
-          SwapCurrentBuffers();
+          SwapCurrentBuffers(context, dc);
           Interlocked.Increment(ref presentCount);
           RecordPresent(frame, startTick);
           if (ready) continue;
@@ -167,9 +173,17 @@ namespace SkyRoof
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SwapBuffers(IntPtr dc);
 
-    private static void SwapCurrentBuffers()
+    private static void VerifyCurrentContext(IntPtr context, IntPtr dc)
     {
-      if (!SwapBuffers(WglGetCurrentDC()))
+      if (context == IntPtr.Zero || dc == IntPtr.Zero ||
+          WglGetCurrentContext() != context || WglGetCurrentDC() != dc)
+        throw new InvalidOperationException("OpenGL scope context/DC changed before presentation");
+    }
+
+    private static void SwapCurrentBuffers(IntPtr context, IntPtr dc)
+    {
+      VerifyCurrentContext(context, dc);
+      if (!SwapBuffers(dc))
         throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "OpenGL SwapBuffers failed");
     }
 

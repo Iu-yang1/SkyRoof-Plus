@@ -96,6 +96,18 @@ namespace SkyRoof
     internal event Action<long, bool>? TuneFrequencyRequested;
     internal event Action? TuningCompleted;
 
+    // The parent is a buffered GDI window; the native child owns the GL
+    // pixels. Clip the final WinForms buffer blit at the HWND boundary.
+    protected override CreateParams CreateParams
+    {
+      get
+      {
+        var parameters = base.CreateParams;
+        parameters.Style |= IcomScopePaintOwnership.ClipChildren;
+        return parameters;
+      }
+    }
+
     internal IcomLanSpectrumView()
     {
       DoubleBuffered = true;
@@ -301,13 +313,26 @@ namespace SkyRoof
         BeginInvoke((Action)(() =>
         {
           Interlocked.Exchange(ref repaintQueued, 0);
-          if (!IsDisposed && !Disposing) Invalidate();
+          if (!IsDisposed && !Disposing) InvalidateWaveformChrome();
         }));
       }
       catch (InvalidOperationException)
       {
         Interlocked.Exchange(ref repaintQueued, 0);
       }
+    }
+
+    private void InvalidateWaveformChrome()
+    {
+      if (gpuSurface is not { Visible: true } gpu)
+      {
+        Invalidate();
+        return;
+      }
+      // Live waveform publications need not invalidate a GPU-owned pixel.
+      // Child expose/resize notifications remain independent of this path.
+      using var chrome = gpu.CreateParentChromeRegion(ClientRectangle);
+      Invalidate(chrome, false);
     }
 
     internal void Clear()
@@ -511,13 +536,12 @@ namespace SkyRoof
       Color textColor =
         ScopeForeground;
 
-      e.Graphics.Clear(scopeBack);
-      e.Graphics.SmoothingMode =
-        SmoothingMode.AntiAlias;
-
-      if (ClientSize.Width < 20 ||
-          ClientSize.Height < 20)
+      e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+      if (ClientSize.Width < 20 || ClientSize.Height < 20)
+      {
+        PaintBackground(e.Graphics, scopeBack);
         return;
+      }
 
       var snapshot = renderWorker.Latest;
       if (snapshot?.Generation != renderGeneration) snapshot = null;
@@ -536,8 +560,16 @@ namespace SkyRoof
 
       GetLayout(out Rectangle headerRect, out Rectangle spectrumRect,
         out Rectangle splitterRect, out Rectangle waterfallRect);
-      DrawHeader(e.Graphics, headerRect, frame, scopeBack, textColor);
       bool usesGpu = UpdateGpuSurface(spectrumRect, waterfallRect, snapshot);
+      // Graphics.Clear can bypass the logical drawing region. Fill only
+      // parent-owned pixels, and keep the HWND clip for the final blit.
+      if (usesGpu && gpuSurface is { Visible: true } gpu)
+      {
+        using var chrome = gpu.CreateParentChromeRegion(ClientRectangle);
+        e.Graphics.SetClip(chrome, CombineMode.Intersect);
+      }
+      PaintBackground(e.Graphics, scopeBack);
+      DrawHeader(e.Graphics, headerRect, frame, scopeBack, textColor);
       if (usesGpu)
       {
         // The native region leaves the original frequency axis and splitter exposed.
@@ -592,6 +624,12 @@ namespace SkyRoof
       long paintEnd = Stopwatch.GetTimestamp();
       paintMetrics.Record(paintEnd, paintEnd - paintStart,
         frame?.TimestampUtc.Ticks ?? 0, DateTime.UtcNow.Ticks);
+    }
+
+    private void PaintBackground(Graphics graphics, Color color)
+    {
+      using var brush = new SolidBrush(color);
+      graphics.FillRectangle(brush, ClientRectangle);
     }
 
     protected override void OnMouseWheel(

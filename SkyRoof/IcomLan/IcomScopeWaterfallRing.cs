@@ -10,6 +10,17 @@ namespace SkyRoof
       int source = x - Offset;
       return source >= First && source < End ? Samples[source] : 0;
     }
+
+    internal IcomScopeWaterfallRow Translate(int delta)
+    {
+      if (First == End || delta == 0) return this;
+      int offset = Offset + delta;
+      int first = Math.Max(First, -offset);
+      int end = Math.Min(End, IcomScopeWaterfallRing.Points - offset);
+      return end <= first
+        ? this with { Offset = 0, First = 0, End = 0 }
+        : this with { Offset = offset, First = first, End = end };
+    }
   }
 
   internal sealed record IcomScopeWaterfallSnapshot(int Head, IcomScopeWaterfallRow[] Rows,
@@ -67,16 +78,9 @@ namespace SkyRoof
 
     internal void Shift(int delta)
     {
+      if (delta == 0) return;
       foreach (ref var row in raw.AsSpan())
-      {
-        if (row.First == row.End) continue;
-        int offset = row.Offset + delta;
-        int first = Math.Max(row.First, -offset);
-        int end = Math.Min(row.End, Points - offset);
-        row = end <= first
-          ? new(Blank, 0, 0, 0, row.Floor)
-          : row with { Offset = offset, First = first, End = end };
-      }
+        row = row.Translate(delta);
       changed = recolor = true;
     }
 
@@ -94,17 +98,16 @@ namespace SkyRoof
       }
     }
 
-    internal IcomScopeWaterfallSnapshot Snapshot(int floor)
+    internal IcomScopeWaterfallSnapshot Snapshot()
     {
       if (visible && recolor)
       {
         int y = 0;
-        int[]? blank = null;
-        foreach (ref var row in raw.AsSpan())
+        var blanks = new Dictionary<int, int[]>();
+        foreach (var row in raw)
         {
-          row = row with { Floor = floor };
           if (cpuRaster)
-            colors[y] = row.First == row.End ? blank ??= Colorize(row) : Colorize(row);
+            colors[y] = row.First == row.End ? BlankColor(row, blanks) : Colorize(row);
           y++;
         }
         recolor = false;
@@ -122,6 +125,16 @@ namespace SkyRoof
         colorChanged = false;
       }
       return new(head, published, table, visible && cpuRaster ? publishedColors : []);
+    }
+
+    private int[] BlankColor(IcomScopeWaterfallRow row, Dictionary<int, int[]> cache)
+    {
+      if (!cache.TryGetValue(row.Floor, out var result))
+      {
+        result = Colorize(row);
+        cache.Add(row.Floor, result);
+      }
+      return result;
     }
 
     private int[] Colorize(IcomScopeWaterfallRow row)

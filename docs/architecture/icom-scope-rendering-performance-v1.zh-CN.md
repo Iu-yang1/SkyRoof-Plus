@@ -47,3 +47,11 @@
 GPU 默认开启（旧配置未含该字段时也为 true；显式 false 保留）。R8 纹理保留 475 点原值，DWORD 对齐每行 476 字节；普通扫频上传变化行和必要元数据，频移不搬移旧原始采样。GDI+ 使用固定像素缓冲区及 SourceCopy 环形绘制。`IcomScopePerformanceAcceptanceTests` 测试实际 router/worker、实际 4K 离屏 GDI+ 瀑布绘制及无显卡依赖的 GPU 上传准备模拟；以 30/60 Hz 定时输入、800 行历史、两个合成计算负载线程、连续多普勒及换向检验扫描完整率、P95/P99 间隔。GPU shader 执行和 Windows 实际呈现未包含在模拟指标内。
 
 第一轮 4K 离屏 GDI+ 双线性缩放仅 3.58 FPS（150 扫描全部处理但只呈现 19 帧），不满足验收。以原生 StretchDIBits COLORONCOLOR 直接绘制固定 top-down DIB 两段环形历史，保留源像素，避免 GDI+ 高成本软件插值；DrawImage 最近邻作为兼容路径。增加环形顶部、源频率方向与像素回读测试；重新执行同一 30 Hz 4K 性能阈值。
+
+## v1.87 原生 GPU 窗口闪烁修复（待 Windows CI / 用户实测）
+
+用户报告 GPU 频谱及瀑布持续闪烁。原本 worker 每次发布快照都触发父窗口整窗 Invalidate + Graphics.Clear，而子 HWND 的独立 WGL 线程同时交换缓冲；原实现未显式隔离父缓冲 blit 的子区域。修复通过 WS_CLIPCHILDREN / WS_CLIPSIBLINGS、精确父区域裁剪、仅失效 chrome、显式 WM_ERASEBKGND 消费及 GL_BACK 绘制建立唯一像素所有者。WGL 上下文与 DC 在绘制/交换前核对。测试在 Windows 上验证 parent/child styles、150 次模拟父区域重绘不覆盖 plot/waterfall 像素及瀑布隐藏时的裁剪。该测试不代表物理 GPU / DWM 闪烁已实测消除。
+
+## 录屏复核：GPU 与 GDI+ 共用频谱数据闪烁（v1.87）
+
+11.262 秒、278 帧录屏，AVG 4、CENTER、25 kHz。第 50–53 帧曲线从原始噪声起伏逐渐变平，第 54 帧中心频率从 436.792911 MHz 变至 436.792909 MHz 后再次变粗。每次 1–2 Hz 变化远小于 25000/474≈52.74 Hz 的 bin 间隔。源码 AdvanceGeometry 原先每次 LowerFrequencyHz 变化都 ResetAverage，而且整数 bin 平移也清空 AVG。结果是周期性 AVG 4→1→2→3→4；无需图形驱动即可复现。保持亚 bin 平均历史，整数 bin 平移按有效 RF 区间移动每条历史，缺测边缘不计入除数，真实模式/跨度/大频移仍按原规则重置。瀑布各历史行保留采集时的 Floor，避免频移和软件后端重新栅格化时统一套用最新噪声底，亮度/对比度/调色板手动控制仍生效。视频未证明旧数据序列倒退，也不能单独证明物理 GPU 绘图无闪烁；PR #252 的父子窗口隔离作为独立修复保留。
