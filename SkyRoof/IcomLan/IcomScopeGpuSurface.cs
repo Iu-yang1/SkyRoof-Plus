@@ -16,7 +16,7 @@ namespace SkyRoof
       this.status = status;
       SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
         ControlStyles.Opaque, true);
-      SetStyle(ControlStyles.Selectable, false);
+      SetStyle(ControlStyles.Selectable | ControlStyles.OptimizedDoubleBuffer, false);
       TabStop = false;
     }
 
@@ -26,9 +26,13 @@ namespace SkyRoof
       {
         var parameters = base.CreateParams;
         parameters.ClassStyle |= 0x20; // CS_OWNDC: stable device context for WGL.
+        parameters.Style |= IcomScopePaintOwnership.ClipSiblings;
         return parameters;
       }
     }
+
+    internal Region CreateParentChromeRegion(Rectangle client) =>
+      IcomScopePaintOwnership.CreateChromeRegion(client, Bounds.Location, regionPlot, regionWaterfall);
 
     internal long PresentCount => presenter?.PresentCount ?? 0;
     internal IcomScopeGpuPerf Perf => presenter?.Perf ?? IcomScopeGpuPerf.Empty;
@@ -112,6 +116,12 @@ namespace SkyRoof
 
     protected override void WndProc(ref Message m)
     {
+      if (m.Msg == IcomScopePaintOwnership.EraseBackground)
+      {
+        // No UI-thread background brush may touch the native front buffer.
+        m.Result = new IntPtr(1);
+        return;
+      }
       if (m.Msg == 0x84) // WM_NCHITTEST; hand tuning/zoom back to the parent.
       {
         m = new Message { HWnd = m.HWnd, Msg = m.Msg, WParam = m.WParam,
