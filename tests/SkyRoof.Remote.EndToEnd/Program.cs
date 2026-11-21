@@ -84,13 +84,31 @@ try
     using var tokenDoc = JsonDocument.Parse(await tokenReply.Content.ReadAsStringAsync());
     var token = tokenDoc.RootElement.GetProperty("token").GetString()!;
     var tokenId = tokenDoc.RootElement.GetProperty("id").GetGuid();
-    HubConnection CreateHub() => new HubConnectionBuilder()
+    var added = await admin.PostAsJsonAsync("/api/v1/admin/users", new {
+        userName = "field-operator", password = "SimulationOperatorP@ssw0rd!", role = "Operator"
+    });
+    Ensure(added.StatusCode == HttpStatusCode.Created, "Admin could not provision separate Operator");
+    using var createdUser = JsonDocument.Parse(await added.Content.ReadAsStringAsync());
+    var operatorId = createdUser.RootElement.GetProperty("id").GetString()!;
+    using var operatorCookies = new HttpClientHandler { CookieContainer = new CookieContainer() };
+    using var operatorClient = new HttpClient(operatorCookies) { BaseAddress = new Uri(baseUrl) };
+    (await operatorClient.PostAsJsonAsync("/api/v1/auth/login", new {
+        userName = "field-operator", password = "SimulationOperatorP@ssw0rd!"
+    })).EnsureSuccessStatusCode();
+    var operatorTokenResult = await operatorClient.PostAsJsonAsync("/api/v1/auth/tokens",
+        new { name = "operator-client" });
+    operatorTokenResult.EnsureSuccessStatusCode();
+    using var operatorTokenDoc = JsonDocument.Parse(await operatorTokenResult.Content.ReadAsStringAsync());
+    var operatorToken = operatorTokenDoc.RootElement.GetProperty("token").GetString()!;
+
+    HubConnection CreateHub(string credential) => new HubConnectionBuilder()
         .WithUrl(baseUrl + "/hub/control", options =>
-            options.AccessTokenProvider = () => Task.FromResult<string?>(token))
+            options.AccessTokenProvider = () => Task.FromResult<string?>(credential))
         .AddMessagePackProtocol().Build();
 
-    await using var a = CreateHub();
-    await using var b = CreateHub();
+
+    await using var a = CreateHub(token);
+    await using var b = CreateHub(operatorToken);
     await a.StartAsync();
     await b.StartAsync();
     var initial = await a.InvokeAsync<RemoteCatStatus>("GetCatReadback");
@@ -122,7 +140,7 @@ try
     Ensure(off && !File.Exists(journal),
         "Releasing active SignalR session did not clear PTT and its lease");
 
-    await using var revoked = CreateHub();
+    await using var revoked = CreateHub(token);
     await revoked.StartAsync();
     (await admin.DeleteAsync("/api/v1/auth/tokens/" + tokenId)).EnsureSuccessStatusCode();
     var denied = false;
@@ -130,6 +148,23 @@ try
     catch (Microsoft.AspNetCore.SignalR.HubException) { denied = true; }
     Ensure(denied, "Previously authenticated SignalR token remained authorized after revocation");
     await revoked.StopAsync();
+
+    var updatedRole = await admin.PutAsJsonAsync("/api/v1/admin/users/" + operatorId + "/role",
+        new { role = "Viewer" });
+    updatedRole.EnsureSuccessStatusCode();
+    await using var viewer = CreateHub(operatorToken);
+    await viewer.StartAsync();
+    var viewerRadio = await viewer.InvokeAsync<RemoteCatStatus>("GetCatReadback");
+    Ensure(!viewerRadio.ActualPtt, "Viewer did not receive authorized radio status");
+    var viewerDenied = false;
+    try {
+        await viewer.InvokeAsync<RemoteCatStatus>("ExecuteCatCommand",
+            new RemoteCatCommand("viewer-ptt", DeviceOperation.DeviceManualBegin));
+    }
+    catch (Microsoft.AspNetCore.SignalR.HubException) { viewerDenied = true; }
+    Ensure(viewerDenied && radio.Count("T 1") == 1,
+        "Viewer role was allowed to transmit through a stale token");
+    await viewer.StopAsync();
     Console.WriteLine("PASS: authenticated Host -> Station Core -> real CAT Device; two operators, disconnect and token revocation.");
 }
 finally
