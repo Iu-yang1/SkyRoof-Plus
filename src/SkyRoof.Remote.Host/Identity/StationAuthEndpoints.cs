@@ -83,8 +83,8 @@ public static class StationAuthEndpoints
         var digest = Digest(request.Code);
         var now = DateTimeOffset.UtcNow;
         var code = await db.LoginCodes.AsNoTracking().SingleOrDefaultAsync(x =>
-            x.Digest == digest && x.ExpiresUtc > now && x.ConsumedUtc == null);
-        if (code is null) return Results.Unauthorized();
+            x.Digest == digest && x.ConsumedUtc == null);
+        if (code is null || code.ExpiresUtc <= now) return Results.Unauthorized();
         // Atomic consume protects against concurrent reuse across clients.
         var changed = await db.LoginCodes.Where(x => x.Id == code.Id && x.ConsumedUtc == null)
             .ExecuteUpdateAsync(set => set.SetProperty(x => x.ConsumedUtc, now));
