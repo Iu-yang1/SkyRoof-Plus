@@ -1,0 +1,32 @@
+name: Remote Authenticated Host Station Device E2E
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Ipc.Contracts/**','protocols/ipc/device_control.proto','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Device.Integration/FakeRigctld.cs','.github/workflows/remote-end-to-end.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Ipc.Contracts/**','protocols/ipc/device_control.proto','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Device.Integration/FakeRigctld.cs','.github/workflows/remote-end-to-end.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  authenticated-control:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Device, Station and Host
+        shell: pwsh
+        run: |
+          dotnet build src/SkyRoof.Remote.Device/SkyRoof.Remote.Device.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src/SkyRoof.Remote.Station/SkyRoof.Remote.Station.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build authenticated E2E client and fake rigctld
+        run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
+      - name: Execute real three-process authorized CAT transaction test
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
