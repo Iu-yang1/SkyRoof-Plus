@@ -14,10 +14,23 @@ builder.WebHost.ConfigureKestrel(server =>
     server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));
 builder.Services.AddGrpc();
 builder.Services.AddSingleton(new RigctldLink(host, port));
+var journal = Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PTT_JOURNAL");
+if (string.IsNullOrWhiteSpace(journal))
+{
+    var stationId = Environment.GetEnvironmentVariable("SKYROOF_STATION_ID") ?? "default";
+    var stableId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(stationId)))[..16];
+    journal = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData),
+        "SkyRoof", "Remote", "ptt-" + stableId + ".json");
+}
+builder.Services.AddSingleton(new PttLeaseJournal(journal, $"{dialect}:{host}:{port}"));
 builder.Services.AddSingleton(p => new RadioCatBackend(p.GetRequiredService<RigctldLink>(), dialect));
 builder.Services.AddSingleton<StationDeviceService>();
 var app = builder.Build();
 app.MapGrpcService<StationDeviceService>();
+await app.Services.GetRequiredService<StationDeviceService>()
+    .RecoverAfterRestartAsync(CancellationToken.None);
 app.Logger.LogInformation("Device process attached to CAT {Host}:{Port} dialect {Dialect} via pipe {Pipe}",
     host, port, dialect, pipe);
 await app.RunAsync();

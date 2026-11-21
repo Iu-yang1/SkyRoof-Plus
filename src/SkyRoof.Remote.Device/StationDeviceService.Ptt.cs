@@ -29,6 +29,7 @@ public sealed partial class StationDeviceService
 
         if (existing is not null && same && transmitting)
         {
+            journal.Save(command.TransactionId, command.SessionId);
             _owner = new DeviceOwner(command.TransactionId, command.SessionId, digital,
                 requestedHz, requestedMode, requestedSource, ++_epoch);
             return ("source-takeover-no-rf-transition", true);
@@ -53,6 +54,7 @@ public sealed partial class StationDeviceService
             await cat.SetTxModeAsync(requestedMode, token);
             _txMode = requestedMode;
         }
+        journal.Save(command.TransactionId, command.SessionId);
         await cat.SetPttAsync(true, token);
         if (!await cat.ReadPttAsync(token))
             throw new IOException("PTT assertion not confirmed by CAT readback.");
@@ -75,6 +77,7 @@ public sealed partial class StationDeviceService
             if (await cat.ReadPttAsync(token))
                 throw new IOException("PTT remained ON after release.");
         }
+        journal.Clear();
         _owner = null;
         ++_epoch;
         return ("ptt-released", true);

@@ -14,6 +14,8 @@ commandLine.Environment["SKYROOF_DEVICE_PIPE"] = pipe;
 commandLine.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
 commandLine.Environment["SKYROOF_CAT_PORT"] = rig.Port.ToString();
 commandLine.Environment["SKYROOF_CAT_DIALECT"] = "skycat";
+var journalFile = Path.Combine(Path.GetTempPath(), "skyroof-lease-" + Guid.NewGuid().ToString("N") + ".json");
+commandLine.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journalFile;
 using var device = Process.Start(commandLine)
     ?? throw new InvalidOperationException("CAT Device service failed to start.");
 try
@@ -64,6 +66,7 @@ try
         "SkyCAT duplex mode mapping incorrect");
 
     var a = await Send(DeviceOperation.DeviceManualBegin, hz: 435_550_000, mode: "LSB", source: "LAN");
+    Check(File.Exists(journalFile), "Owned PTT lease was not persisted.");
     Check(a.ActualPtt && a.ActiveSessionId == "A" && rig.Count("T 1") == 1,
         "First keyed transmission not confirmed");
     var repeated = await Send(DeviceOperation.DeviceManualBegin, hz: 435_550_000,
@@ -85,6 +88,7 @@ try
         && rig.Count("I 435560000") == 1 && rig.Count("X USB 0") == 1,
         "Configuration change did not create a new RF transaction");
     var released = await Send(DeviceOperation.DeviceManualEnd, "tx-c", "C");
+    Check(!File.Exists(journalFile), "PTT journal survived a confirmed release.");
     Check(!released.ActualPtt && released.Result == "ptt-released"
         && rig.Count("T 0") == 2, "Original owner key-up did not return RX");
 
@@ -146,6 +150,7 @@ finally
 {
     if (!device.HasExited) device.Kill(entireProcessTree: true);
     await device.WaitForExitAsync();
+    if (File.Exists(journalFile)) File.Delete(journalFile);
 }
 
 static void Check(bool condition, string explanation)

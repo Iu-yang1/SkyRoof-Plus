@@ -4,7 +4,8 @@ using System.Net.Sockets;
 
 namespace SkyRoof.Remote.Device;
 
-public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<StationDeviceService> logger)
+public sealed partial class StationDeviceService(RadioCatBackend cat, PttLeaseJournal journal,
+    ILogger<StationDeviceService> logger)
     : StationDevice.StationDeviceBase
 {
     private readonly SemaphoreSlim _commands = new(1, 1);
@@ -21,11 +22,37 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<St
         string TransactionId, string SessionId, bool Digital,
         long FrequencyHz, string Mode, string AudioSource, ulong Epoch);
 
+    public async Task RecoverAfterRestartAsync(CancellationToken token)
+    {
+        await _commands.WaitAsync(token);
+        try { await RecoverOrphanedPttAsync(token); }
+        finally { _commands.Release(); }
+    }
+
+    private async Task RecoverOrphanedPttAsync(CancellationToken token)
+    {
+        if (_owner is not null || journal.Read() is null) return;
+        if (await cat.ReadPttAsync(token))
+        {
+            await cat.SetPttAsync(false, token);
+            if (await cat.ReadPttAsync(token))
+                throw new IOException("Unable to release previously owned PTT after restart.");
+        }
+        journal.Clear();
+        _digitalPaused = true;
+        ++_revision;
+        ++_epoch;
+    }
+
     public override async Task<DeviceSnapshot> Readback(
         DeviceReadbackRequest request, ServerCallContext context)
     {
         await _commands.WaitAsync(context.CancellationToken);
-        try { return await ReadSnapshotAsync("readback", context.CancellationToken); }
+        try
+        {
+            await RecoverOrphanedPttAsync(context.CancellationToken);
+            return await ReadSnapshotAsync("readback", context.CancellationToken);
+        }
         catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
         { throw FailedCat(e); }
         finally { _commands.Release(); }
@@ -37,6 +64,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<St
         await _commands.WaitAsync(context.CancellationToken);
         try
         {
+            await RecoverOrphanedPttAsync(context.CancellationToken);
             var result = await ReleaseSessionAsync(request.SessionId, context.CancellationToken);
             if (result.Changed) _revision++;
             return await ReadSnapshotAsync(result.Description, context.CancellationToken);
@@ -53,6 +81,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<St
         try
         {
             var ct = context.CancellationToken;
+            await RecoverOrphanedPttAsync(ct);
             var result = request.Operation switch
             {
                 DeviceOperation.DeviceRxFrequency => await TuneRxAsync(request, ct),
