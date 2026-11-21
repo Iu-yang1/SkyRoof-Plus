@@ -1,0 +1,54 @@
+name: Remote V1 Multi-Process Development Package
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','.github/workflows/remote-development-package.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','.github/workflows/remote-development-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  packaged-e2e:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Dockview frontend
+        shell: pwsh
+        run: |
+          Push-Location src/SkyRoof.Remote.Web
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+      - name: Publish all four processes
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/remote-v1 | Out-Null
+          foreach ($part in @('Device','Station','Host','Supervisor')) {
+            dotnet publish "src/SkyRoof.Remote.$part/SkyRoof.Remote.$part.csproj" -c Release -r win-x64 --self-contained false -o "artifacts/remote-v1/$part"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if (-not (Test-Path artifacts/remote-v1/Host/wwwroot/index.html)) { throw 'React assets missing' }
+          Copy-Item deploy/remote artifacts/remote-v1/configuration-examples -Recurse -Force
+      - name: Build end-to-end simulation harness
+        run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
+      - name: Run CAT transactions against binaries from publish directories
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- artifacts/remote-v1/Device/SkyRoof.Remote.Device.dll artifacts/remote-v1/Station/SkyRoof.Remote.Station.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll
+      - name: Compress after smoke passes
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force
+      - name: Upload development artifact, not a release
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyRoof-Remote-V1-development-win-x64
+          path: artifacts/SkyRoof-Remote-V1-development-win-x64.zip
+          retention-days: 5
