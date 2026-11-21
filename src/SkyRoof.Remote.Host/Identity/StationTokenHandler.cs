@@ -26,8 +26,9 @@ public sealed class StationTokenHandler(
         if (raw.Length < 20) return AuthenticateResult.Fail("Invalid credential.");
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
         var credential = await db.AccessTokens.AsNoTracking().SingleOrDefaultAsync(t =>
-            t.Digest == digest && t.RevokedUtc == null && t.ExpiresUtc > DateTimeOffset.UtcNow);
-        if (credential is null) return AuthenticateResult.Fail("Credential expired or revoked.");
+            t.Digest == digest && t.RevokedUtc == null);
+        if (credential is null || credential.ExpiresUtc <= DateTimeOffset.UtcNow)
+            return AuthenticateResult.Fail("Credential expired or revoked.");
         var user = await users.FindByIdAsync(credential.OwnerUserId);
         if (user is null || user.LockoutEnd > DateTimeOffset.UtcNow)
             return AuthenticateResult.Fail("Account unavailable.");
