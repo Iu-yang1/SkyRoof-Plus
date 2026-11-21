@@ -56,6 +56,22 @@ export function RadioPanel() {
       .catch(err => setError(String(err)));
   }
 
+  useEffect(() => {
+    if (!hub) return;
+    const timer = window.setInterval(() => {
+      const txId = heldTx.current;
+      if (txId === null) return;
+      queue(async () => {
+        const state = await hub.invoke<DeviceReadback>('ExecuteCatCommand', {
+          TransactionId: txId, Operation: DeviceOperation.ManualHeartbeat,
+          FrequencyHz: 0, Mode: '', AudioSource: ''
+        });
+        setRadio(state);
+      });
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [hub]);
+
   function pttDown() {
     if (!hub || heldTx.current) return;
     const id = crypto.randomUUID();
