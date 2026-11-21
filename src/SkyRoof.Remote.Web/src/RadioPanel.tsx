@@ -85,20 +85,25 @@ export function RadioPanel() {
     });
   }
 
+  const pressRef = useRef(pttDown);
+  const releaseRef = useRef(pttUp);
+  pressRef.current = pttDown;
+  releaseRef.current = pttUp;
+
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (event.code !== 'Space' || event.repeat ||
           target?.closest('input, textarea, select, button, [contenteditable]')) return;
       event.preventDefault();
-      pttDown();
+      pressRef.current();
     };
     const up = (event: KeyboardEvent) => {
       if (event.code !== 'Space' || !heldTx.current) return;
       event.preventDefault();
-      pttUp();
+      releaseRef.current();
     };
-    const blur = () => pttUp();
+    const blur = () => releaseRef.current();
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);
@@ -106,9 +111,9 @@ export function RadioPanel() {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', blur);
-      pttUp();
+      releaseRef.current();
     };
-  });
+  }, [hub]);
 
   function tune(event: FormEvent<HTMLFormElement>, target: 'rx' | 'tx') {
     event.preventDefault();
