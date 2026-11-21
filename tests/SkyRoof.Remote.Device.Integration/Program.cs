@@ -71,10 +71,10 @@ try
         "First keyed transmission not confirmed");
     var repeated = await Send(DeviceOperation.DeviceManualBegin, hz: 435_550_000,
         mode: "LSB", source: "LAN");
-    Check(repeated.Result == "duplicate" && rig.Count("T 1") == 1, "Idempotent PTT ON failed");
+    Check(repeated.StatusText == "duplicate" && rig.Count("T 1") == 1, "Idempotent PTT ON failed");
     var takeover = await Send(DeviceOperation.DeviceManualBegin, "tx-b", "B",
         435_550_000, "LSB", "LAN");
-    Check(takeover.ActualPtt && takeover.Result == "source-takeover-no-rf-transition"
+    Check(takeover.ActualPtt && takeover.StatusText == "source-takeover-no-rf-transition"
         && takeover.ActiveSessionId == "B" && rig.Count("T 1") == 1
         && rig.Count("T 0") == 0, "Same-configuration PTT takeover toggled RF");
     var stale = await Send(DeviceOperation.DeviceManualEnd, "tx-a", "A");
@@ -83,13 +83,13 @@ try
 
     var reconfigured = await Send(DeviceOperation.DeviceManualBegin, "tx-c", "C",
         435_560_000, "USB", "LAN");
-    Check(reconfigured.Result == "rf-reconfigured" && reconfigured.ActualPtt
+    Check(reconfigured.StatusText == "rf-reconfigured" && reconfigured.ActualPtt
         && rig.Count("T 0") == 1 && rig.Count("T 1") == 2
         && rig.Count("I 435560000") == 1 && rig.Count("X USB 0") == 1,
         "Configuration change did not create a new RF transaction");
     var released = await Send(DeviceOperation.DeviceManualEnd, "tx-c", "C");
     Check(!File.Exists(journalFile), "PTT journal survived a confirmed release.");
-    Check(!released.ActualPtt && released.Result == "ptt-released"
+    Check(!released.ActualPtt && released.StatusText == "ptt-released"
         && rig.Count("T 0") == 2, "Original owner key-up did not return RX");
 
     var digital = await Send(DeviceOperation.DeviceDigitalBegin, "slot-1", "scheduler");
@@ -100,7 +100,7 @@ try
         "Manual PTT did not cancel digital auto TX");
     await Send(DeviceOperation.DeviceManualEnd, "tx-d", "D");
     var paused = await Send(DeviceOperation.DeviceDigitalBegin, "slot-2", "scheduler");
-    Check(!paused.ActualPtt && paused.Result == "digital-busy",
+    Check(!paused.ActualPtt && paused.StatusText == "digital-busy",
         "Digital automatic TX resumed despite default pause");
 
     var enabled = await Send(DeviceOperation.DeviceResumeDigitalTx);
@@ -119,7 +119,7 @@ try
     var disconnected = await client.ReleaseSessionAsync(new DeviceReleaseSessionRequest {
         SessionId = "web-1"
     });
-    Check(!disconnected.ActualPtt && disconnected.Result == "session-released",
+    Check(!disconnected.ActualPtt && disconnected.StatusText == "session-released",
         "Disconnected owner did not release hardware PTT.");
 
     rig.RejectNext("T 1");

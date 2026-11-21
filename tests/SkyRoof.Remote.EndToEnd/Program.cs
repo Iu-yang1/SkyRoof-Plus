@@ -123,7 +123,7 @@ try
     var takeover = await b.InvokeAsync<RemoteCatStatus>("ExecuteCatCommand",
         new RemoteCatCommand("B-ptt", DeviceOperation.DeviceManualBegin,
             435_650_000, "USB", "LAN"));
-    Ensure(takeover.ActualPtt && takeover.Result == "source-takeover-no-rf-transition"
+    Ensure(takeover.ActualPtt && takeover.Outcome == "source-takeover-no-rf-transition"
         && radio.Count("T 1") == 1 && radio.Count("T 0") == 0,
         "Second SignalR operator unexpectedly toggled RF");
     await a.StopAsync();

@@ -45,6 +45,6 @@ message DeviceSnapshot {
   uint64 transaction_epoch = 8;
   uint64 revision = 9;
   bool digital_automation_paused = 10;
-  string result = 11;
+  string status_text = 11;
   int32 device_process_id = 12;
 }

@@ -34,8 +34,10 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
                 _writer = new StreamWriter(stream, Encoding.ASCII, 4096, leaveOpen: true)
                     { NewLine = "\n", AutoFlush = true };
             }
-            await _writer!.WriteLineAsync(command.AsMemory(), ct);
-            var reply = await _reader!.ReadLineAsync(ct);
+            var writer = _writer ?? throw new IOException("CAT write stream not connected.");
+            var reader = _reader ?? throw new IOException("CAT read stream not connected.");
+            await writer.WriteLineAsync(command.AsMemory(), ct);
+            var reply = await reader.ReadLineAsync(ct);
             if (reply is null) throw new IOException("Rigctld disconnected before reply.");
             return reply.Trim();
         }
