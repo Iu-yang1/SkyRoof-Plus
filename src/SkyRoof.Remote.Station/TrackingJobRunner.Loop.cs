@@ -6,7 +6,7 @@ namespace SkyRoof.Remote.Station;
 
 public sealed partial class TrackingJobRunner
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -24,6 +24,11 @@ public sealed partial class TrackingJobRunner
             _status = new TrackingJobStatus { Phase = "restore-error", Error = ex.Message };
         }
 
+        return base.StartAsync(cancellationToken);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
         try
         {

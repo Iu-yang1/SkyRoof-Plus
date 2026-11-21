@@ -9,7 +9,7 @@ using SkyRoof.Remote.Ipc;
 namespace SkyRoof.Remote.Host.Realtime;
 
 [Authorize]
-public sealed class StationControlHub(
+public sealed partial class StationControlHub(
     StationDeviceBridge device,
     StationIdentityDb db,
     UserManager<StationUser> users,

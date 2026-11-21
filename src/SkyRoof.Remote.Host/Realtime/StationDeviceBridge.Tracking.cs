@@ -22,7 +22,18 @@ public sealed partial class StationDeviceBridge
     public async Task<RemoteTrackingStatus> TrackAsync(
         RemoteTrackingRequest input, bool apply, CancellationToken ct)
     {
-        var request = new TrackingRequest
+        var request = MapTrackingRequest(input);
+        var client = new StationTracking.StationTrackingClient(_channel.Value);
+        try
+        {
+            var result = apply
+                ? await client.ApplyAsync(request, deadline: DateTime.UtcNow.AddSeconds(18), cancellationToken: ct)
+                : await client.PredictAsync(request, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            return MapTrackingStatus(result);
+        }
+        catch (RpcException ex) { throw new HubException("Tracking failed: " + ex.Status.Detail); }
+    }
+    private static TrackingRequest MapTrackingRequest(RemoteTrackingRequest input) => new TrackingRequest
         {
             TleLine1 = input.TleLine1,
             TleLine2 = input.TleLine2,
@@ -37,19 +48,12 @@ public sealed partial class StationDeviceBridge
             PointRotator = input.PointRotator,
             ElevationMaskDegrees = input.ElevationMaskDegrees
         };
-        var client = new StationTracking.StationTrackingClient(_channel.Value);
-        try
-        {
-            var result = apply
-                ? await client.ApplyAsync(request, deadline: DateTime.UtcNow.AddSeconds(18), cancellationToken: ct)
-                : await client.PredictAsync(request, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
-            return new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
+
+    private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
                 result.AzimuthDegrees, result.ElevationDegrees, result.RangeMetres,
                 result.RangeRateMetresPerSecond, result.RxHz, result.TxHz,
                 result.OrbitBackend, result.DataQuality, result.CatApplied, result.RotatorApplied,
                 result.ActualRxHz, result.ActualTxHz, result.RotatorReadback?.AzimuthDegrees,
                 result.RotatorReadback?.ElevationDegrees, result.RotatorError);
-        }
-        catch (RpcException ex) { throw new HubException("Tracking failed: " + ex.Status.Detail); }
-    }
+
 }
