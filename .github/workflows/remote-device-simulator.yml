@@ -1,0 +1,25 @@
+name: Remote Device Command Transaction Simulator
+
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['protocols/ipc/device_simulation.proto','src/SkyRoof.Remote.Device.Simulator/**','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Device.Simulator.Smoke/**','.github/workflows/remote-device-simulator.yml']
+  pull_request:
+    paths: ['protocols/ipc/device_simulation.proto','src/SkyRoof.Remote.Device.Simulator/**','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Device.Simulator.Smoke/**','.github/workflows/remote-device-simulator.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  device-simulation:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build src/SkyRoof.Remote.Device.Simulator/SkyRoof.Remote.Device.Simulator.csproj -c Release -warnaserror
+      - run: dotnet build tests/SkyRoof.Remote.Device.Simulator.Smoke/SkyRoof.Remote.Device.Simulator.Smoke.csproj -c Release -warnaserror
+      - run: dotnet run --project tests/SkyRoof.Remote.Device.Simulator.Smoke/SkyRoof.Remote.Device.Simulator.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Device.Simulator/bin/Release/net10.0-windows/SkyRoof.Remote.Device.Simulator.dll

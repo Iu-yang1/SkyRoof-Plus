@@ -1,0 +1,25 @@
+name: Remote Real CAT Device Integration
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Device/**','protocols/ipc/device_control.proto','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Device.Integration/**','.github/workflows/remote-real-cat-device.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Device/**','protocols/ipc/device_control.proto','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Device.Integration/**','.github/workflows/remote-real-cat-device.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rigctld-device:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Device server
+        run: dotnet build src/SkyRoof.Remote.Device/SkyRoof.Remote.Device.csproj -c Release -warnaserror
+      - name: Build simulated CAT hardware and gRPC client
+        run: dotnet build tests/SkyRoof.Remote.Device.Integration/SkyRoof.Remote.Device.Integration.csproj -c Release -warnaserror
+      - name: Run cross-process Device and SkyCAT duplex hardware simulation
+        run: dotnet run --project tests/SkyRoof.Remote.Device.Integration/SkyRoof.Remote.Device.Integration.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll

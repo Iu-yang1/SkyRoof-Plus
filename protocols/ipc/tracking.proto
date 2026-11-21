@@ -1,0 +1,77 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service DeviceRotator {
+  rpc Point(RotatorPoint) returns (RotatorPosition);
+  rpc Read(RotatorRead) returns (RotatorPosition);
+  rpc Stop(RotatorRead) returns (RotatorPosition);
+}
+message RotatorPoint {
+  double azimuth_degrees = 1;
+  double elevation_degrees = 2;
+}
+message RotatorRead {}
+message RotatorPosition {
+  double azimuth_degrees = 1;
+  double elevation_degrees = 2;
+}
+
+service StationTracking {
+  rpc Predict(TrackingRequest) returns (TrackingSnapshot);
+  rpc Apply(TrackingRequest) returns (TrackingSnapshot);
+}
+message TrackingRequest {
+  string tle_line1 = 1;
+  string tle_line2 = 2;
+  double latitude_degrees = 3;
+  double longitude_degrees = 4;
+  double height_metres = 5;
+  int64 utc_unix_milliseconds = 6;
+  int64 downlink_hz = 7;
+  int64 uplink_hz = 8;
+  bool correct_downlink = 9;
+  bool correct_uplink = 10;
+  bool point_rotator = 11;
+  double elevation_mask_degrees = 12;
+}
+message TrackingSnapshot {
+  int32 norad_number = 1;
+  int64 utc_unix_milliseconds = 2;
+  double azimuth_degrees = 3;
+  double elevation_degrees = 4;
+  double range_metres = 5;
+  double range_rate_metres_per_second = 6;
+  int64 rx_hz = 7;
+  int64 tx_hz = 8;
+  string orbit_backend = 9;
+  string data_quality = 10;
+  bool cat_applied = 11;
+  bool rotator_applied = 12;
+  RotatorPosition rotator_readback = 13;
+  int64 actual_rx_hz = 14;
+  int64 actual_tx_hz = 15;
+  string rotator_error = 16;
+}
+
+service StationTrackingJobs {
+  rpc Start(TrackingJobStart) returns (TrackingJobStatus);
+  rpc Status(TrackingJobQuery) returns (TrackingJobStatus);
+  rpc Stop(TrackingJobStop) returns (TrackingJobStatus);
+}
+message TrackingJobStart {
+  TrackingRequest tracking = 1;
+  int32 interval_milliseconds = 2;
+  bool resume_after_restart = 3;
+}
+message TrackingJobQuery {}
+message TrackingJobStop { string job_id = 1; }
+message TrackingJobStatus {
+  string job_id = 1;
+  bool running = 2;
+  string phase = 3;
+  int64 completed_ticks = 4;
+  TrackingSnapshot latest = 5;
+  string error = 6;
+  bool resume_after_restart = 7;
+}

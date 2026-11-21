@@ -1,0 +1,43 @@
+{
+  "Processes": [
+    {
+      "Name": "Device",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Device/SkyRoof.Remote.Device.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Device",
+      "Environment": {
+        "SKYROOF_CAT_HOST": "127.0.0.1",
+        "SKYROOF_CAT_PORT": "4532",
+        "SKYROOF_CAT_DIALECT": "skycat",
+        "SKYROOF_DEVICE_PIPE": "skyroof-station-device"
+      }
+    },
+    {
+      "Name": "Station",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Station/SkyRoof.Remote.Station.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Station",
+      "Environment": {
+        "SKYROOF_DEVICE_PIPE": "skyroof-station-device",
+        "SKYROOF_STATION_PIPE": "skyroof-station-core"
+      }
+    },
+    {
+      "Name": "Host",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Host/SkyRoof.Remote.Host.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Host",
+      "Environment": {
+        "SKYROOF_STATION_PIPE": "skyroof-station-core",
+        "ASPNETCORE_URLS": "http://127.0.0.1:8076",
+        "SKYROOF_AUTH_DB": "C:/SkyRoofRemote/data/station-users.db"
+      }
+    }
+  ]
+}

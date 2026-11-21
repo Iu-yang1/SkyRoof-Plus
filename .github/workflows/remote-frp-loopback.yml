@@ -1,0 +1,28 @@
+name: Remote FRP TCP QUIC UDP Loopback
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['tests/remote/frp_loopback_probe.py','.github/workflows/remote-frp-loopback.yml','deploy/remote/**']
+  pull_request:
+    paths: ['tests/remote/frp_loopback_probe.py','.github/workflows/remote-frp-loopback.yml','deploy/remote/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frp-udp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Download pinned official FRP and check SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o /tmp/frp.tar.gz \
+            https://github.com/fatedier/frp/releases/download/v0.72.0/frp_0.72.0_linux_amd64.tar.gz
+          echo 'daf719b32ca2778770bb92955e231a07414d754378b9af328aa2642862479804  /tmp/frp.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/frp.tar.gz -C /tmp
+      - name: Exercise real TCP/QUIC tunnels with UDP media mapping
+        run: python3 tests/remote/frp_loopback_probe.py --frps /tmp/frp_0.72.0_linux_amd64/frps --frpc /tmp/frp_0.72.0_linux_amd64/frpc

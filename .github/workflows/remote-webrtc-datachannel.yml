@@ -1,0 +1,28 @@
+name: Remote Native WebRTC DataChannel Loopback
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['native/SkyRoof.Media.Native/tests/webrtc/**','.github/workflows/remote-webrtc-datachannel.yml']
+  pull_request:
+    paths: ['native/SkyRoof.Media.Native/tests/webrtc/**','.github/workflows/remote-webrtc-datachannel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rtc-loopback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Clone pinned libdatachannel v0.24.7
+        run: |
+          git clone --recursive --depth 1 --branch v0.24.7 https://github.com/paullouisageneau/libdatachannel.git /tmp/libdatachannel
+          test "$(git -C /tmp/libdatachannel rev-parse HEAD)" = "800e849a1ede5667caaf8f6caa1eb21e4906dd87"
+      - name: Install Opus codec headers
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libopus-dev pkg-config
+      - name: Build real WebRTC C API peers
+        run: |
+          cmake -S native/SkyRoof.Media.Native/tests/webrtc -B /tmp/skyroof-rtc -DCMAKE_BUILD_TYPE=Release -DLIBDATACHANNEL_SOURCE=/tmp/libdatachannel
+          cmake --build /tmp/skyroof-rtc --target skyroof_webrtc_loopback --parallel 2
+      - name: Exercise ICE, SDP and DataChannel
+        run: ctest --test-dir /tmp/skyroof-rtc --output-on-failure

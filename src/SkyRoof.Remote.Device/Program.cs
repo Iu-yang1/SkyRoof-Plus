@@ -1,0 +1,39 @@
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes;
+using SkyRoof.Remote.Device;
+
+if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows Named Pipe Device runtime.");
+var pipe = Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PIPE") ?? "skyroof-station-device";
+var host = Environment.GetEnvironmentVariable("SKYROOF_CAT_HOST") ?? "127.0.0.1";
+var port = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_CAT_PORT"), out var selected)
+    ? selected : 4532;
+var dialect = string.Equals(Environment.GetEnvironmentVariable("SKYROOF_CAT_DIALECT"),
+    "rigctld", StringComparison.OrdinalIgnoreCase) ? CatDialect.Rigctld : CatDialect.SkyCat;
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(server =>
+    server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));
+builder.Services.AddGrpc();
+builder.Services.AddSingleton(new RigctldLink(host, port));
+var journal = Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PTT_JOURNAL");
+if (string.IsNullOrWhiteSpace(journal))
+{
+    var stationId = Environment.GetEnvironmentVariable("SKYROOF_STATION_ID") ?? "default";
+    var stableId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(stationId)))[..16];
+    journal = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData),
+        "SkyRoof", "Remote", "ptt-" + stableId + ".json");
+}
+builder.Services.AddSingleton(new PttLeaseJournal(journal, $"{dialect}:{host}:{port}"));
+builder.Services.AddSingleton(p => new RadioCatBackend(p.GetRequiredService<RigctldLink>(), dialect));
+builder.Services.AddSingleton<StationDeviceService>();
+builder.Services.AddSingleton<RotatorService>();
+builder.Services.AddHostedService<PttLeaseMonitor>();
+var app = builder.Build();
+app.MapGrpcService<StationDeviceService>();
+app.MapGrpcService<RotatorService>();
+await app.Services.GetRequiredService<StationDeviceService>()
+    .RecoverAfterRestartAsync(CancellationToken.None);
+app.Logger.LogInformation("Device process attached to CAT {Host}:{Port} dialect {Dialect} via pipe {Pipe}",
+    host, port, dialect, pipe);
+await app.RunAsync();

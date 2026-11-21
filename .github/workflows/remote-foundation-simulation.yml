@@ -1,0 +1,41 @@
+name: Remote Foundation Simulation
+
+on:
+  push:
+    branches:
+      - feature/remote-v1-multiprocess-foundation
+    paths:
+      - 'src/SkyRoof.Remote.Foundation/**'
+      - 'tests/SkyRoof.Remote.Foundation.SimTests/**'
+      - '.github/workflows/remote-foundation-simulation.yml'
+  pull_request:
+    paths:
+      - 'src/SkyRoof.Remote.Foundation/**'
+      - 'tests/SkyRoof.Remote.Foundation.SimTests/**'
+      - '.github/workflows/remote-foundation-simulation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore tests/SkyRoof.Remote.Foundation.SimTests/SkyRoof.Remote.Foundation.SimTests.csproj
+      - name: Build
+        run: dotnet build tests/SkyRoof.Remote.Foundation.SimTests/SkyRoof.Remote.Foundation.SimTests.csproj -c Release --no-restore -warnaserror
+      - name: Run deterministic simulations
+        run: dotnet run --project tests/SkyRoof.Remote.Foundation.SimTests/SkyRoof.Remote.Foundation.SimTests.csproj -c Release --no-build

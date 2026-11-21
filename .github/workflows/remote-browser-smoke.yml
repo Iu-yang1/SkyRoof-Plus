@@ -1,0 +1,58 @@
+name: Remote Dockview Browser Interaction Smoke
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Web/**','src/SkyRoof.Remote.Host/**','.github/workflows/remote-browser-smoke.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Web/**','src/SkyRoof.Remote.Host/**','.github/workflows/remote-browser-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Web and install pinned Playwright
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd src/SkyRoof.Remote.Web
+          npm install --no-audit --no-fund
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Build Host
+        run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release
+      - name: Real Chromium UI test against authenticated Host
+        shell: bash
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:8076
+          SKYROOF_AUTH_DB: /tmp/skyroof-browser-smoke-users.db
+          SKYROOF_BOOTSTRAP_ADMIN_USER: browser-admin
+          SKYROOF_BOOTSTRAP_ADMIN_PASSWORD: BrowserSmokeTestP@ssw0rd!
+        run: |
+          set -euo pipefail
+          dotnet src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll > /tmp/skyroof-browser-host.log 2>&1 &
+          HOST_PID=$!
+          trap 'kill "$HOST_PID" 2>/dev/null || true; cat /tmp/skyroof-browser-host.log | tail -50' EXIT
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8076/health/ready > /dev/null; then break; fi
+            sleep .25
+          done
+          cd src/SkyRoof.Remote.Web
+          npx playwright test --config playwright.config.ts
+      - name: Upload browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-browser-smoke-failure
+          path: src/SkyRoof.Remote.Web/test-results/
+          retention-days: 3

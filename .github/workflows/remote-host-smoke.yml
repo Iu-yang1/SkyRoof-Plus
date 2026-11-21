@@ -1,0 +1,25 @@
+name: Remote Host Authentication and Realtime Smoke
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Host/**','tests/SkyRoof.Remote.Host.Smoke/**','.github/workflows/remote-host-smoke.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Host/**','tests/SkyRoof.Remote.Host.Smoke/**','.github/workflows/remote-host-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Remote Host
+        run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release
+      - name: Build simulated remote client
+        run: dotnet build tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release
+      - name: Run HTTP + SignalR + WSS process-level smoke
+        run: dotnet run --project tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
