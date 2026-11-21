@@ -36,6 +36,22 @@ public sealed partial class StationDeviceService
         return ("tx-mode-requested", true);
     }
 
+    private async Task<(string Description, bool Changed)> TrackFrequenciesAsync(
+        DeviceCommand command, CancellationToken ct)
+    {
+        if (command.FrequencyHz <= 0 || command.TxFrequencyHz < 0)
+            throw new ArgumentException("Invalid tracking frequencies.");
+        await cat.SetRxFrequencyAsync(command.FrequencyHz, ct);
+        if (command.TxFrequencyHz > 0)
+        {
+            await cat.SetTxFrequencyAsync(command.TxFrequencyHz, ct);
+            _txHz = command.TxFrequencyHz;
+            if (_owner is not null)
+                _owner = _owner with { FrequencyHz = command.TxFrequencyHz };
+        }
+        return ("tracking-frequencies-applied", true);
+    }
+
     private static void RequireTransaction(DeviceCommand command)
     {
         if (string.IsNullOrWhiteSpace(command.TransactionId) ||

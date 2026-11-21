@@ -15,7 +15,7 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
     private StreamReader? _reader;
     private StreamWriter? _writer;
 
-    private async Task<string> SendAsync(string command, CancellationToken token)
+    private async Task<string> SendAsync(string command, CancellationToken token, int replyLines = 1)
     {
         await _gate.WaitAsync(token);
         try
@@ -39,6 +39,12 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
             await writer.WriteLineAsync(command.AsMemory(), ct);
             var reply = await reader.ReadLineAsync(ct);
             if (reply is null) throw new IOException("Rigctld disconnected before reply.");
+            if (replyLines == 2 && !reply.StartsWith("RPRT ", StringComparison.Ordinal))
+            {
+                var second = await reader.ReadLineAsync(ct)
+                    ?? throw new IOException("Rotator disconnected before elevation reply.");
+                return reply.Trim() + "\n" + second.Trim();
+            }
             return reply.Trim();
         }
         catch
@@ -66,6 +72,8 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
 
     public async Task<string> ReadStringAsync(string command, CancellationToken token) =>
         await SendAsync(command, token);
+
+    public Task<string> ReadPositionAsync(CancellationToken token) => SendAsync("p", token, 2);
 
     private void Reset()
     {

@@ -27,6 +27,7 @@ public sealed partial class StationDeviceService
                 DeviceOperation.DeviceEmergencyRx => await StopAsync(ct),
                 DeviceOperation.DeviceResumeDigitalTx => ResumeDigital(),
                 DeviceOperation.DeviceManualHeartbeat => RenewManualLease(request),
+                DeviceOperation.DeviceTrackFrequencies => await TrackFrequenciesAsync(request, ct),
                 _ => throw new ArgumentException("Invalid DeviceOperation")
             };
             if (result.Changed) _revision++;
