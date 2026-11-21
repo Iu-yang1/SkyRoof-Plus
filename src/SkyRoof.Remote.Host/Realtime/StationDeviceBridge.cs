@@ -19,9 +19,9 @@ public sealed class StationDeviceBridge(IConfiguration settings) : IDisposable
 {
     private readonly Lazy<GrpcChannel> _channel = new(() =>
     {
-        var pipe = settings["SkyRoof:DevicePipe"] ??
-            Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PIPE") ??
-            "skyroof-station-device";
+        var pipe = settings["SkyRoof:StationPipe"] ??
+            Environment.GetEnvironmentVariable("SKYROOF_STATION_PIPE") ??
+            "skyroof-station-core";
         var handler = new SocketsHttpHandler
         {
             ConnectCallback = async (_, token) =>
