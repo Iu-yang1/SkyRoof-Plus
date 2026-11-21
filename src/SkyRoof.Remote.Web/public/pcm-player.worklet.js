@@ -1,3 +1,4 @@
+/* global AudioWorkletProcessor, registerProcessor */
 class SkyRoofPcmPlayer extends AudioWorkletProcessor {
   constructor() {
     super();
