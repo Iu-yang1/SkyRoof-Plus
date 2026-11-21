@@ -16,6 +16,7 @@ commandLine.Environment["SKYROOF_CAT_PORT"] = rig.Port.ToString();
 commandLine.Environment["SKYROOF_CAT_DIALECT"] = "skycat";
 var journalFile = Path.Combine(Path.GetTempPath(), "skyroof-lease-" + Guid.NewGuid().ToString("N") + ".json");
 commandLine.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journalFile;
+commandLine.Environment["SKYROOF_PTT_LEASE_TIMEOUT_MS"] = "3000";
 using var device = Process.Start(commandLine)
     ?? throw new InvalidOperationException("CAT Device service failed to start.");
 try
@@ -121,6 +122,34 @@ try
     });
     Check(!disconnected.ActualPtt && disconnected.StatusText == "session-released",
         "Disconnected owner did not release hardware PTT.");
+
+    var leased = await Send(DeviceOperation.DeviceManualBegin, "heartbeat-tx", "lease-user");
+    Check(leased.ActualPtt, "PTT watchdog fixture could not key radio");
+    for (var iteration = 0; iteration < 3; iteration++)
+    {
+        await Task.Delay(1100);
+        var fresh = await Send(DeviceOperation.DeviceManualHeartbeat, "heartbeat-tx", "lease-user");
+        Check(fresh.ActualPtt && fresh.StatusText == "manual-ptt-lease-renewed",
+            "Valid owner heartbeat did not maintain its PTT lease");
+    }
+    var staleHeartbeat = await Send(DeviceOperation.DeviceManualHeartbeat,
+        "heartbeat-tx", "another-user");
+    Check(staleHeartbeat.ActualPtt && staleHeartbeat.StatusText == "stale-ptt-heartbeat-ignored",
+        "Non-owning session was able to renew a different PTT lease.");
+    var expired = false;
+    for (var attempt = 0; attempt < 45; attempt++)
+    {
+        await Task.Delay(150);
+        var state = await client.ReadbackAsync(new DeviceReadbackRequest());
+        if (!state.ActualPtt && state.ActiveSessionId == "")
+        {
+            expired = true;
+            break;
+        }
+    }
+    Check(expired && !File.Exists(journalFile),
+        "Timed-out manual PTT lease did not release RF and clear its persistent grant.");
+    Console.WriteLine("PASS: heartbeat renews current session; stale owner heartbeat rejected; expired PTT returns RX.");
 
     rig.RejectNext("T 1");
     try
