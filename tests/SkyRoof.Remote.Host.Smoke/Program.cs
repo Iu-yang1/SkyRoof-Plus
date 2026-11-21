@@ -128,10 +128,21 @@ try
         .StatusCode == HttpStatusCode.Unauthorized, "One-use login code was replayed.");
     Ensure((await second.GetAsync("/api/v1/station")).IsSuccessStatusCode,
         "One-use code cookie not authorized.");
+    using var authorizedStream = new ClientWebSocket();
+    authorizedStream.Options.SetRequestHeader("Authorization", "Bearer " + token);
+    await authorizedStream.ConnectAsync(
+        new Uri($"ws://127.0.0.1:{port}/ws/audio"), CancellationToken.None);
+
     Ensure((await user.DeleteAsync("/api/v1/auth/tokens/" + tokenId)).StatusCode ==
         HttpStatusCode.NoContent, "Token revocation failed.");
     Ensure((await bearer.GetAsync("/api/v1/station")).StatusCode == HttpStatusCode.Unauthorized,
         "Revoked token remained authorized.");
+    using var accessDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+    var close = await authorizedStream.ReceiveAsync(new byte[512].AsMemory(), accessDeadline.Token);
+    Ensure(close.MessageType == WebSocketMessageType.Close,
+        "Active raw PCM WebSocket remained open after token revocation");
+    Console.WriteLine("PASS: revoked Access Token terminates ongoing audio WSS.");
+
     Console.WriteLine("PASS: Identity/SQLite, token/code, SignalR MessagePack, binary WebSocket.");
 }
 finally
