@@ -1,4 +1,7 @@
 using System.Net.WebSockets;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using SkyRoof.Remote.Host.Identity;
 using SkyRoof.Remote.Foundation.Signals;
 using SkyRoof.Remote.SignalBus;
 
@@ -46,9 +49,20 @@ public static class LiveAudioWebSocket
         using (var socket = await context.WebSockets.AcceptWebSocketAsync())
         {
             var cursor = new SignalCursor();
+            var nextAuthorizationCheck = DateTimeOffset.MinValue;
             while (socket.State == WebSocketState.Open &&
                 !context.RequestAborted.IsCancellationRequested)
             {
+                if (DateTimeOffset.UtcNow >= nextAuthorizationCheck)
+                {
+                    nextAuthorizationCheck = DateTimeOffset.UtcNow.AddSeconds(1);
+                    if (!await StillAuthorizedAsync(context))
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation,
+                            "Access revoked", context.RequestAborted);
+                        break;
+                    }
+                }
                 if (!ring.TryReadNext(cursor, out var frame) || frame is null)
                 {
                     await Task.Delay(10, context.RequestAborted);
@@ -80,4 +94,21 @@ public static class LiveAudioWebSocket
             }
         }
     }
+    private static async Task<bool> StillAuthorizedAsync(HttpContext context)
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return false;
+        var db = context.RequestServices.GetRequiredService<StationIdentityDb>();
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u =>
+            u.Id == userId, context.RequestAborted);
+        if (user is null || user.LockoutEnd > DateTimeOffset.UtcNow) return false;
+        var credential = context.User.FindFirstValue("skyroof_credential");
+        if (credential is null) return true;
+        if (!Guid.TryParse(credential, out var id)) return false;
+        var token = await db.AccessTokens.AsNoTracking().SingleOrDefaultAsync(t =>
+            t.Id == id && t.OwnerUserId == userId && t.RevokedUtc == null,
+            context.RequestAborted);
+        return token is not null && token.ExpiresUtc > DateTimeOffset.UtcNow;
+    }
+
 }
