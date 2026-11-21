@@ -53,3 +53,25 @@ message TrackingSnapshot {
   int64 actual_tx_hz = 15;
   string rotator_error = 16;
 }
+
+service StationTrackingJobs {
+  rpc Start(TrackingJobStart) returns (TrackingJobStatus);
+  rpc Status(TrackingJobQuery) returns (TrackingJobStatus);
+  rpc Stop(TrackingJobStop) returns (TrackingJobStatus);
+}
+message TrackingJobStart {
+  TrackingRequest tracking = 1;
+  int32 interval_milliseconds = 2;
+  bool resume_after_restart = 3;
+}
+message TrackingJobQuery {}
+message TrackingJobStop { string job_id = 1; }
+message TrackingJobStatus {
+  string job_id = 1;
+  bool running = 2;
+  string phase = 3;
+  int64 completed_ticks = 4;
+  TrackingSnapshot latest = 5;
+  string error = 6;
+  bool resume_after_restart = 7;
+}

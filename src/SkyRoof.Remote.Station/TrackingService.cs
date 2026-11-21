@@ -12,11 +12,12 @@ public sealed class TrackingService(DeviceControlForwarder device) :
         ServerCallContext context) => Task.FromResult(Calculate(request));
 
     public override async Task<TrackingSnapshot> Apply(TrackingRequest request,
-        ServerCallContext context)
+        ServerCallContext context) => await ApplyAtAsync(request, context.CancellationToken);
+
+    internal async Task<TrackingSnapshot> ApplyAtAsync(TrackingRequest request, CancellationToken ct)
     {
         var result = Calculate(request);
         if (result.ElevationDegrees < request.ElevationMaskDegrees) return result;
-        var ct = context.CancellationToken;
         await _apply.WaitAsync(ct);
         try
         {

@@ -12,8 +12,12 @@ builder.WebHost.ConfigureKestrel(k =>
 builder.Services.AddGrpc();
 builder.Services.AddSingleton<DeviceControlForwarder>();
 builder.Services.AddSingleton<TrackingService>();
+builder.Services.AddSingleton<TrackingJobStore>();
+builder.Services.AddSingleton<TrackingJobRunner>();
+builder.Services.AddHostedService(p => p.GetRequiredService<TrackingJobRunner>());
 var app = builder.Build();
 app.MapGrpcService<DeviceControlForwarder>();
 app.MapGrpcService<TrackingService>();
+app.MapGrpcService<TrackingJobsService>();
 app.Logger.LogInformation("Station Core listening on {Pipe}", stationPipe);
 await app.RunAsync();
