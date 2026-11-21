@@ -25,3 +25,18 @@ button:hover{background:#42617c}
 .login label{display:grid;gap:5px;font-size:12px}
 .login input{background:#111c27;color:#fff;padding:9px;border:1px solid #547087}
 .error{color:#ffb2b2}
+
+.radio-panel{display:flex;flex-direction:column;gap:12px}
+.radio-panel .frequency{margin:4px 0;letter-spacing:.05em;font-size:clamp(20px,2.7vw,32px)}
+.radio-panel .tx-frequency{color:#89c4f5}
+.radio-panel .frequency small{font-size:11px;color:#98b5ce}
+.cat-status{font-size:11px;color:#8dcaa6}
+.readout{border:1px solid #3b596f;padding:8px;font-size:12px}
+.tune-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tune-grid form{display:grid;gap:6px}
+.tune-grid label{display:grid;gap:6px;font-size:12px}
+.tune-grid input{background:#0c1721;color:#eef5fc;border:1px solid #59778d;min-width:0;width:100%;padding:7px}
+.mode-select{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.mode-select select{background:#182d3f;color:#eef4f8;padding:5px}
+.ptt-button{padding:12px;touch-action:none;font-weight:700;letter-spacing:.1em;user-select:none}
+.ptt-button.active{background:#8d2e31;color:#fff}

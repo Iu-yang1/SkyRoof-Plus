@@ -1,5 +1,35 @@
+import { createContext } from 'react';
 import { HubConnectionBuilder, type HubConnection } from '@microsoft/signalr';
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
+
+export const DeviceHubContext = createContext<HubConnection | null>(null);
+
+export enum DeviceOperation {
+  RxFrequency = 1,
+  TxFrequency = 2,
+  RxMode = 3,
+  TxMode = 4,
+  ManualBegin = 5,
+  ManualEnd = 6,
+  DigitalBegin = 7,
+  DigitalEnd = 8,
+  Stop = 9,
+  ResumeDigital = 10
+}
+
+export interface DeviceReadback {
+  RxFrequencyHz: number;
+  TxFrequencyHz: number;
+  RxMode: string;
+  TxMode: string;
+  ActualPtt: boolean;
+  ActiveTransactionId: string;
+  ActiveSessionId: string;
+  Epoch: number;
+  Revision: number;
+  DigitalAutomationPaused: boolean;
+  Outcome: string;
+}
 
 export interface StationInfo { protocol: string; runtimeMode: string; user: string | null }
 

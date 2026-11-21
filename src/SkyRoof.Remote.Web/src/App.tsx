@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent } from 'dockview-react';
-import { connectControl, queryStation, signIn, type StationInfo } from './host';
+import { connectControl, queryStation, signIn, DeviceHubContext, type StationInfo } from './host';
+import { type HubConnection } from '@microsoft/signalr';
+import { RadioPanel } from './RadioPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 
-function RadioPanel() {
-  return <section className="panel"><header>RADIO · SAT</header>
-    <div className="frequency">435.650.000 <small>MHz</small></div>
-    <p>USB · 示例频率，无真实 CAT 状态，不发送 PTT。</p>
-  </section>;
-}
 function SatellitePanel() {
   return <section className="panel"><header>SATELLITES</header>
     <p>RS-44 · FO-29 · SO-50 · ISS</p>
@@ -72,6 +68,7 @@ export default function App() {
   const [status, setStatus] = useState('Disconnected');
   const [error, setError] = useState('');
   const [workspace, setWorkspace] = useState('local');
+  const [hub, setHub] = useState<HubConnection | null>(null);
 
   useEffect(() => {
     void queryStation().then(setStation).catch(err => setError(String(err)))
@@ -84,9 +81,9 @@ export default function App() {
     void connectControl().then(hub => {
       disconnect = () => { void hub.stop(); };
       if (closed) disconnect?.();
-      else setStatus('SignalR/MessagePack connected');
+      else { setHub(hub); setStatus('SignalR/MessagePack connected'); }
     }).catch(err => { if (!closed) setStatus(String(err)); });
-    return () => { closed = true; disconnect?.(); };
+    return () => { closed = true; setHub(null); disconnect?.(); };
   }, [station]);
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
@@ -115,7 +112,9 @@ export default function App() {
       <button className={workspace === 'remote' ? 'active' : ''} onClick={() => setWorkspace('remote')}>Remote Workspace</button>
       <small>第二工作区仅展示独立布局，不连接另一台真实台站</small>
     </nav>
-    <Workbench key={workspace} station={workspace} />
-    <footer className="status">{station.runtimeMode} · Simulation Only · No hardware TX</footer>
+    <DeviceHubContext.Provider value={workspace === "local" ? hub : null}>
+      <Workbench key={workspace} station={workspace} />
+    </DeviceHubContext.Provider>
+    <footer className="status">{station.runtimeMode} · Device CAT via Station Core · Audio/DSP integration pending</footer>
   </div>;
 }
