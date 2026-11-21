@@ -47,6 +47,8 @@ public sealed class FakeRigctld : IAsyncDisposable
             while (!_stop.IsCancellationRequested)
             {
                 using var client = await _server.AcceptTcpClientAsync(_stop.Token);
+                try
+                {
                 using var stream = client.GetStream();
                 using var reader = new StreamReader(stream, Encoding.ASCII);
                 using var writer = new StreamWriter(stream, Encoding.ASCII) { NewLine = "\n", AutoFlush = true };
@@ -68,6 +70,9 @@ public sealed class FakeRigctld : IAsyncDisposable
                     }
                     await writer.WriteLineAsync(reply.AsMemory(), _stop.Token);
                 }
+                }
+                catch (IOException) { }
+                catch (SocketException) { }
             }
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }

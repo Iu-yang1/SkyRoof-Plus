@@ -144,6 +144,50 @@ try
     Check(stop.ActualPtt && rig.Count("T 0") == expectedReleases,
         "STOP should not release a PTT transmission the Device process does not own");
     rig.SetExternalPtt(false);
+    var crashTxn = await Send(DeviceOperation.DeviceManualBegin, "crash-tx", "crash-session");
+    Check(crashTxn.ActualPtt && File.Exists(journalFile),
+        "Crash simulation did not establish an owned PTT grant.");
+    var stopBeforeCrash = rig.Count("T 0");
+    device.Kill(entireProcessTree: true);
+    await device.WaitForExitAsync();
+
+    using var restarted = Process.Start(commandLine)
+        ?? throw new InvalidOperationException("Device did not restart.");
+    try
+    {
+        using var nextHandler = new SocketsHttpHandler {
+            ConnectCallback = async (_, ct) => {
+                var stream = new NamedPipeClientStream(".", pipe, PipeDirection.InOut,
+                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                await stream.ConnectAsync(3000, ct);
+                return stream;
+            }
+        };
+        using var nextChannel = GrpcChannel.ForAddress("http://localhost",
+            new GrpcChannelOptions { HttpHandler = nextHandler });
+        var nextClient = new StationDevice.StationDeviceClient(nextChannel);
+        DeviceSnapshot? recovered = null;
+        for (var i = 0; i < 40; i++)
+        {
+            try {
+                recovered = await nextClient.ReadbackAsync(new DeviceReadbackRequest(),
+                    deadline: DateTime.UtcNow.AddSeconds(3));
+                break;
+            }
+            catch (RpcException) { await Task.Delay(150); }
+        }
+        Check(recovered is { ActualPtt: false, DigitalAutomationPaused: true },
+            "New Device process failed to release previously owned radio TX.");
+        Check(recovered!.ActiveTransactionId == "" &&
+            rig.Count("T 0") == stopBeforeCrash + 1 &&
+            !File.Exists(journalFile), "Restart left an orphaned RF transaction.");
+    }
+    finally
+    {
+        if (!restarted.HasExited) restarted.Kill(entireProcessTree: true);
+        await restarted.WaitForExitAsync();
+    }
+    Console.WriteLine("PASS: orphaned hardware PTT released on real Device process restart.");
     Console.WriteLine("PASS: independent CAT Device service, SkyCAT duplex F/I and M/X, readback, PTT handover, pause, NACK, external PTT.");
 }
 finally
