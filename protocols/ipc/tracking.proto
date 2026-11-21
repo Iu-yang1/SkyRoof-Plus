@@ -49,4 +49,7 @@ message TrackingSnapshot {
   bool cat_applied = 11;
   bool rotator_applied = 12;
   RotatorPosition rotator_readback = 13;
+  int64 actual_rx_hz = 14;
+  int64 actual_tx_hz = 15;
+  string rotator_error = 16;
 }

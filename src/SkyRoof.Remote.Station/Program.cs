@@ -11,7 +11,9 @@ builder.WebHost.ConfigureKestrel(k =>
     k.ListenNamedPipe(stationPipe, options => options.Protocols = HttpProtocols.Http2));
 builder.Services.AddGrpc();
 builder.Services.AddSingleton<DeviceControlForwarder>();
+builder.Services.AddSingleton<TrackingService>();
 var app = builder.Build();
 app.MapGrpcService<DeviceControlForwarder>();
+app.MapGrpcService<TrackingService>();
 app.Logger.LogInformation("Station Core listening on {Pipe}", stationPipe);
 await app.RunAsync();

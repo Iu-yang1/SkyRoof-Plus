@@ -42,6 +42,9 @@ public sealed class DeviceControlForwarder : StationDevice.StationDeviceBase, ID
         _device = new StationDevice.StationDeviceClient(_channel);
     }
 
+    internal StationDevice.StationDeviceClient Cat => _device;
+    internal DeviceRotator.DeviceRotatorClient Rotator => new(_channel);
+
     public override async Task<DeviceSnapshot> Execute(
         DeviceCommand request, ServerCallContext context) =>
         await _device.ExecuteAsync(request,
