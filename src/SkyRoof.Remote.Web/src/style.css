@@ -1,0 +1,27 @@
+:root{font-family:"Segoe UI",system-ui,sans-serif;color:#dbe8f0;background:#141a21;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0}button,input{font:inherit}
+button{background:#304253;color:#eaf3fb;border:1px solid #587083;border-radius:4px;padding:6px 10px;cursor:pointer}
+button:hover{background:#42617c}
+.app{display:flex;flex-direction:column;height:100dvh;min-height:0}
+.titlebar{background:#17232e;display:flex;align-items:center;gap:18px;padding:9px 14px;border-bottom:1px solid #425565;font-size:12px}
+.titlebar strong{font-size:19px;color:#95c8f0}
+.titlebar small{margin-left:auto;color:#9bafbd}
+.station-tabs{background:#24303c;display:flex;align-items:center;gap:8px;padding:5px 10px}
+.station-tabs button{background:transparent;border:0}.station-tabs button.active{background:#364f68}
+.station-tabs small{margin-left:auto;font-size:11px;color:#93a7ba}
+.workspace{flex:1;min-height:0;display:flex;flex-direction:column}
+.toolbar{padding:5px 12px;display:flex;align-items:center;justify-content:space-between;background:#1b2933;font-size:11px}
+.dock{flex:1;min-height:0}
+.status{font-size:11px;background:#1d2a35;padding:6px 12px;color:#a4b8c6}
+.panel{height:100%;overflow:auto;background:#172430;padding:12px}
+.panel header{font-size:11px;font-weight:600;color:#a8c6e6;letter-spacing:.06em}
+.panel p,.panel small{color:#aabac7}
+.frequency{font: 32px Consolas,monospace;color:#fff}
+.scope{display:flex;flex-direction:column;gap:7px}
+.scope canvas{width:100%;height:160px;flex:1;min-height:120px;background:#08121e}
+.scope footer{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.login{height:100dvh;display:grid;place-items:center}
+.login form{width:min(370px,95vw);padding:26px;background:#202c38;border:1px solid #455c6e;display:grid;gap:12px}
+.login label{display:grid;gap:5px;font-size:12px}
+.login input{background:#111c27;color:#fff;padding:9px;border:1px solid #547087}
+.error{color:#ffb2b2}
