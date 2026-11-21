@@ -60,16 +60,40 @@ public sealed class ManagedProcessSupervisor(
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
         finally
         {
-            foreach (var child in children)
+            foreach (var child in children.Where(x =>
+                !string.Equals(x.Spec.Name, "Device", StringComparison.OrdinalIgnoreCase)))
+                StopChild(child.Process);
+
+            foreach (var child in children.Where(x =>
+                string.Equals(x.Spec.Name, "Device", StringComparison.OrdinalIgnoreCase)))
             {
-                if (child.Process is { } process)
+                if (child.Process is { HasExited: false })
                 {
-                    if (!process.HasExited)
-                        process.Kill(entireProcessTree: true);
-                    process.Dispose();
+                    var pipe = child.Spec.Environment.GetValueOrDefault("SKYROOF_DEVICE_PIPE")
+                        ?? Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PIPE")
+                        ?? "skyroof-station-device";
+                    try
+                    {
+                        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                        if (!await DeviceShutdown.ReleaseOwnedPttAsync(pipe, timeout.Token))
+                            logger.LogWarning("Device PTT release was not confirmed by CAT readback.");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Device PTT release failed during Supervisor shutdown.");
+                    }
                 }
+                StopChild(child.Process);
             }
         }
+    }
+
+    private static void StopChild(Process? process)
+    {
+        if (process is null) return;
+        if (!process.HasExited)
+            process.Kill(entireProcessTree: true);
+        process.Dispose();
     }
 
     private static Process Launch(ManagedProcessSpec spec)
