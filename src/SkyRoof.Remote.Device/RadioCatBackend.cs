@@ -6,6 +6,7 @@ public enum CatDialect { SkyCat, Rigctld }
 
 public sealed class RadioCatBackend(RigctldLink link, CatDialect dialect)
 {
+    public bool SupportsDuplexFrequencies => dialect == CatDialect.SkyCat;
     public Task<long> ReadRxFrequencyAsync(CancellationToken ct) => link.ReadLongAsync("f", ct);
     public Task<long> ReadTxFrequencyAsync(CancellationToken ct) =>
         link.ReadLongAsync(dialect == CatDialect.SkyCat ? "i" : "f", ct);

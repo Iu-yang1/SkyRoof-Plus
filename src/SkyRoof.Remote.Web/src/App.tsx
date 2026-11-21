@@ -4,14 +4,9 @@ import { connectControl, queryStation, signIn, DeviceHubContext, type StationInf
 import { type HubConnection } from '@microsoft/signalr';
 import { RadioPanel } from './RadioPanel';
 import { AudioPanel } from './AudioPanel';
+import { TrackingPanel } from './TrackingPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 
-function SatellitePanel() {
-  return <section className="panel"><header>SATELLITES</header>
-    <p>RS-44 · FO-29 · SO-50 · ISS</p>
-    <small>轨道、Doppler 与 Az/El 尚待 Station Core 状态流接入。</small>
-  </section>;
-}
 function RotatorPanel() {
   return <section className="panel"><header>ROTATOR</header>
     <p>AZ — · EL —</p>
@@ -25,7 +20,7 @@ function DigitalPanel() {
 }
 const components = {
   radio: RadioPanel, audio: AudioPanel, scope: SpectrumPanel,
-  satellites: SatellitePanel, rotator: RotatorPanel, digital: DigitalPanel
+  satellites: TrackingPanel, rotator: RotatorPanel, digital: DigitalPanel
 };
 
 function Workbench({ station }: { station: string }) {

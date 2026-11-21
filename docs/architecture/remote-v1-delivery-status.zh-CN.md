@@ -7,8 +7,8 @@
 | P0 | 核对原 SkyRoof RadioLink、CAT/SkyCAT、Direct LAN、CI，建立独立测试基线 | 全部旧版性能回归基线 |
 | P1 | Protobuf、gRPC Named Pipe、共享内存 SignalBus、流 Epoch/Sequence/SampleIndex | 生产 IPC ACL、协议升级兼容 |
 | P2 | Supervisor 普通后台和 Windows Service 兼容宿主，故障重启，停止前尝试释放 Device PTT | 真实 SCM/Session0 账号与权限实测 |
-| P3 | 独立 Device：SkyCAT/rigctld TCP、RX/TX 独立频率、模式/PTT、读回、故障事务日志和心跳过期 RF 释放 | 完整 IC-9700 Direct LAN/Rotator/SDR/ONVIF 和实机验收 |
-| P4 | Station Core 独立 gRPC 进程，Host→Station→Device 命令链 | 真实 RadioLink、Orekit 轨道/Doppler 和调度迁移 |
+| P3 | 独立 Device：SkyCAT/rigctld TCP、RX/TX 独立频率、模式/PTT、读回、故障事务日志和心跳过期 RF 释放 | IC-9700 Direct LAN、原旋转器路径规划/反馈策略、SDR/ONVIF 和实机验收 |
+| P4 | Station Core 独立 gRPC 进程，Host→Station→Device 命令链 | RadioLink 转发器模型、Orekit、连续跟踪和调度迁移 |
 | P5 | Shared Memory Ring 多进程读写、慢读者丢帧测试 | FT4、CW、Q65、遥测等 DSP 迁移 |
 | P6 | C++ libopus 48 kHz PCM 编解码、SAP/1、跨进程 PCM16→认证 WSS、WebAudio Worklet 接收 | 真正 Media Service 的 IC-9700 音频 I/O、Opus/PCM 自动切换与 ASRC |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
@@ -37,3 +37,10 @@ SkyCAT/rigctld 模拟测试不是 IC-9700 Direct LAN 全功能。Native Opus 与
 继续开发的核心顺序：迁移 Station 的 Orbit/RadioLink，接入 Icom Direct LAN/Rotator，搬迁 DSP 和完整音频 Media Service，随后把 WinForms 与 Web 的多台站窗口接到同一业务契约，完成实机及网络容错验收。
 
 变更留痕：参考 PR #254 的提交 SHA、GitHub Actions 运行和 CI 失败日志；当前通过 API 提交代码，不能证实 Git 提交已加密签名。
+
+
+## 本轮增量：单次轨道观测及执行
+
+Station 直接引用原工程 SkyRoof.Orbit.Contracts / SkyRoof.Orbit.SgpNet，复用含地球自转速度修正的观测结果。PredictTracking 只读；ApplyTracking 由 Operator 授权，对地平以上（用户指定 mask）观测执行双向 CAT 和可选 rotctld P 命令，返回实际读回。普通 simplex rigctld 不假装支持独立上下行；使用 SkyCAT 独立 F/I 的路径完成双工。React 新增手工 TLE 单次观测及执行面板。当前不是连续轨道跟踪服务；未迁移现有的自动目标选择、ISS OEM、Orekit 数据、角度路径规划、Park 和全部 RadioLink 转发器逻辑。
+
+新增 E2E 测试引用 Vallado 固定历元 TLE、几何距离有限差分（径向速度误差小于 3 m/s）、两方向 Doppler 符号、CAT F/I、rotctld P/p、Viewer 只读权限和不新增 PTT 命令。具体通过状态以本分支 CI 为准。

@@ -44,3 +44,11 @@ button:hover{background:#42617c}
 .audio-panel{display:flex;flex-direction:column;gap:10px}
 .audio-panel .audio-buttons{display:flex;gap:10px}
 .audio-panel .readout{font:12px Consolas,monospace;color:#c8e8f7}
+
+.tracking-panel form,.tracking-result{display:grid;gap:8px;margin-top:8px}
+.tracking-panel form label{display:grid;gap:3px;font-size:11px}
+.tracking-panel input:not([type=checkbox]){width:100%;min-width:0;background:#0c1721;color:#eef5fc;border:1px solid #59778d;padding:5px}
+.tracking-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.tracking-options{display:flex;gap:10px;flex-wrap:wrap}
+.tracking-options label{display:flex!important;align-items:center}
+.tracking-panel .audio-buttons{display:flex;gap:8px;flex-wrap:wrap}
