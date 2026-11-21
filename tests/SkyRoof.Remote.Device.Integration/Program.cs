@@ -40,7 +40,8 @@ try
     }
     Check(initial is { ActualPtt: false, RxFrequencyHz: 145900000, TxFrequencyHz: 435650000 },
         "Initial CAT readback incorrect");
-    Check(initial.DeviceProcessId != Environment.ProcessId, "Service did not run in separate process");
+    if (initial is null || initial.DeviceProcessId == Environment.ProcessId)
+        throw new InvalidOperationException("Service did not run in separate process");
 
     async Task<DeviceSnapshot> Send(DeviceOperation kind, string id = "tx-a", string session = "A",
         long hz = 0, string mode = "", string source = "") =>
