@@ -4,19 +4,20 @@ namespace SkyRoof.Remote.Foundation.Signals;
 
 // SAP/1: 52-byte little-endian fixed header. UTC timestamp uses Unix nanoseconds.
 // For accuracy and continuity, FirstSampleIndex is authoritative over network arrival time.
-public readonly record struct AudioFrameHeader(
-    byte Codec,
-    ushort Flags,
-    uint StreamId,
-    uint StreamEpoch,
-    ulong Sequence,
-    ulong FirstSampleIndex,
-    long UtcNanoseconds,
-    uint SampleRate,
-    ushort SamplesPerChannel,
-    byte Channels,
-    uint PayloadLength)
+public readonly record struct AudioFrameHeader
 {
+    public required byte Codec { get; init; }
+    public required ushort Flags { get; init; }
+    public required uint StreamId { get; init; }
+    public required uint StreamEpoch { get; init; }
+    public required ulong Sequence { get; init; }
+    public required ulong FirstSampleIndex { get; init; }
+    public required long UtcNanoseconds { get; init; }
+    public required uint SampleRate { get; init; }
+    public required ushort SamplesPerChannel { get; init; }
+    public required byte Channels { get; init; }
+    public required uint PayloadLength { get; init; }
+
     public const uint Magic = 0x31504153; // "SAP1" in little endian
     public const byte Version = 1;
     public const int Size = 52;
@@ -51,17 +52,20 @@ public readonly record struct AudioFrameHeader(
             return false;
         var bytes = BinaryPrimitives.ReadUInt32LittleEndian(packet[48..52]);
         if (bytes > (uint)(packet.Length - Size)) return false;
-        header = new AudioFrameHeader(
-            packet[5],
-            BinaryPrimitives.ReadUInt16LittleEndian(packet[6..8]),
-            BinaryPrimitives.ReadUInt32LittleEndian(packet[8..12]),
-            BinaryPrimitives.ReadUInt32LittleEndian(packet[12..16]),
-            BinaryPrimitives.ReadUInt64LittleEndian(packet[16..24]),
-            BinaryPrimitives.ReadUInt64LittleEndian(packet[24..32]),
-            BinaryPrimitives.ReadInt64LittleEndian(packet[32..40]),
-            BinaryPrimitives.ReadUInt32LittleEndian(packet[40..44]),
-            BinaryPrimitives.ReadUInt16LittleEndian(packet[44..46]),
-            packet[46], bytes);
+        header = new AudioFrameHeader
+        {
+            Codec = packet[5],
+            Flags = BinaryPrimitives.ReadUInt16LittleEndian(packet[6..8]),
+            StreamId = BinaryPrimitives.ReadUInt32LittleEndian(packet[8..12]),
+            StreamEpoch = BinaryPrimitives.ReadUInt32LittleEndian(packet[12..16]),
+            Sequence = BinaryPrimitives.ReadUInt64LittleEndian(packet[16..24]),
+            FirstSampleIndex = BinaryPrimitives.ReadUInt64LittleEndian(packet[24..32]),
+            UtcNanoseconds = BinaryPrimitives.ReadInt64LittleEndian(packet[32..40]),
+            SampleRate = BinaryPrimitives.ReadUInt32LittleEndian(packet[40..44]),
+            SamplesPerChannel = BinaryPrimitives.ReadUInt16LittleEndian(packet[44..46]),
+            Channels = packet[46],
+            PayloadLength = bytes
+        };
         return true;
     }
 }

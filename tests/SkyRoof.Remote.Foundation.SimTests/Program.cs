@@ -116,8 +116,7 @@ Test("ICE failure returns WSS, media-specific failure returns RTC Data", () =>
 });
 Test("SAP/1 audio binary header round-trip and size", () =>
 {
-    var original = new AudioFrameHeader(2, 7, 9, 12, 1001, 48000, 123456789,
-        48000, 480, 1, 960);
+    var original = new AudioFrameHeader { Codec = 2, Flags = 7, StreamId = 9, StreamEpoch = 12, Sequence = 1001, FirstSampleIndex = 48000, UtcNanoseconds = 123456789, SampleRate = 48000, SamplesPerChannel = 480, Channels = 1, PayloadLength = 960 };
     var bytes = new byte[AudioFrameHeader.Size + 960];
     original.Write(bytes);
     Check(bytes[0] == (byte)'S' && bytes[1] == (byte)'A'
@@ -127,7 +126,7 @@ Test("SAP/1 audio binary header round-trip and size", () =>
 });
 Test("SAP/1 rejects truncation and unknown version", () =>
 {
-    var header = new AudioFrameHeader(1, 0, 1, 1, 1, 0, 10, 48000, 480, 1, 10);
+    var header = new AudioFrameHeader { Codec = 1, Flags = 0, StreamId = 1, StreamEpoch = 1, Sequence = 1, FirstSampleIndex = 0, UtcNanoseconds = 10, SampleRate = 48000, SamplesPerChannel = 480, Channels = 1, PayloadLength = 10 };
     var bytes = new byte[AudioFrameHeader.Size + 10];
     header.Write(bytes);
     Check(!AudioFrameHeader.TryRead(bytes.AsSpan(0, 40), out _));
@@ -141,8 +140,7 @@ Test("Ten thousand sequential audio blocks preserve sample continuity", () =>
     var packet = new byte[AudioFrameHeader.Size];
     for (ulong i = 0; i < 10000; i++)
     {
-        var h = new AudioFrameHeader(1, 0, 2, 10, i, i * 480, (long)i * 10_000_000,
-            48000, 480, 1, 0);
+        var h = new AudioFrameHeader { Codec = 1, Flags = 0, StreamId = 2, StreamEpoch = 10, Sequence = i, FirstSampleIndex = i * 480, UtcNanoseconds = (long)i * 10_000_000, SampleRate = 48000, SamplesPerChannel = 480, Channels = 1, PayloadLength = 0 };
         h.Write(packet);
         Check(AudioFrameHeader.TryRead(packet, out var parsed));
         Check(parsed.Sequence == i && parsed.FirstSampleIndex == i * 480);
