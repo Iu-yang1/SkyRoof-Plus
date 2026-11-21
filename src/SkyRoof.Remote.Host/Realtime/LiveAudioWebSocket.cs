@@ -58,7 +58,7 @@ public static class LiveAudioWebSocket
                     nextAuthorizationCheck = DateTimeOffset.UtcNow.AddSeconds(1);
                     if (!await StillAuthorizedAsync(context))
                     {
-                        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation,
+                        await socket.CloseOutputAsync(WebSocketCloseStatus.PolicyViolation,
                             "Access revoked", context.RequestAborted);
                         break;
                     }

@@ -4,10 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using SkyRoof.Remote.Host.Identity;
 using SkyRoof.Remote.Host.Realtime;
 
-var builder = WebApplication.CreateBuilder(args);
 var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
 var webUiAvailable = File.Exists(Path.Combine(webRoot, "index.html"));
-if (webUiAvailable) builder.WebHost.UseWebRoot(webRoot);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+    WebRootPath = webUiAvailable ? webRoot : null
+});
 var database = Environment.GetEnvironmentVariable("SKYROOF_AUTH_DB")
     ?? Path.Combine(AppContext.BaseDirectory, "station-users.db");
 var databaseFolder = Path.GetDirectoryName(Path.GetFullPath(database))

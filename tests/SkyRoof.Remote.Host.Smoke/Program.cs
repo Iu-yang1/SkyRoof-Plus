@@ -138,8 +138,15 @@ try
     Ensure((await bearer.GetAsync("/api/v1/station")).StatusCode == HttpStatusCode.Unauthorized,
         "Revoked token remained authorized.");
     using var accessDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(6));
-    var close = await authorizedStream.ReceiveAsync(new byte[512].AsMemory(), accessDeadline.Token);
-    Ensure(close.MessageType == WebSocketMessageType.Close,
+    // The ring may already contain audio sent before the revoke completed.
+    // Consume those queued frames before asserting the policy close.
+    var receiveBuffer = new byte[8192];
+    ValueWebSocketReceiveResult close;
+    do
+    {
+        close = await authorizedStream.ReceiveAsync(receiveBuffer.AsMemory(), accessDeadline.Token);
+    } while (close.MessageType != WebSocketMessageType.Close);
+    Ensure(authorizedStream.CloseStatus == WebSocketCloseStatus.PolicyViolation,
         "Active raw PCM WebSocket remained open after token revocation");
     Console.WriteLine("PASS: revoked Access Token terminates ongoing audio WSS.");
 
