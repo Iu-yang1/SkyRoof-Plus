@@ -187,4 +187,5 @@ Test("Restart retains future jobs but never replays expired or started jobs", ()
     Check(scheduler.Get(started).Status == TimedTxStatus.Cancelled);
     Check(scheduler.Get(future).Status == TimedTxStatus.Sealed);
 });
-Console.WriteLine($"PASS: {count} deterministic simulation groups.");
+WorkspaceTests.Run();
+Console.WriteLine($"PASS: {count} deterministic foundation simulation groups + Workspace.");
