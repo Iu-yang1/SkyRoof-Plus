@@ -80,13 +80,13 @@ export default function App() {
   useEffect(() => {
     if (!station) return;
     let closed = false;
-    let disconnect = () => {};
+    let disconnect: (() => void) | undefined;
     void connectControl().then(hub => {
       disconnect = () => { void hub.stop(); };
-      if (closed) disconnect();
+      if (closed) disconnect?.();
       else setStatus('SignalR/MessagePack connected');
     }).catch(err => { if (!closed) setStatus(String(err)); });
-    return () => { closed = true; disconnect(); };
+    return () => { closed = true; disconnect?.(); };
   }, [station]);
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
