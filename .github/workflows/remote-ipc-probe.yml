@@ -1,0 +1,60 @@
+name: Remote Named Pipe IPC Probe
+
+on:
+  push:
+    branches:
+      - feature/remote-v1-multiprocess-foundation
+    paths:
+      - 'protocols/ipc/**'
+      - 'src/SkyRoof.Remote.Ipc.*/**'
+      - '.github/workflows/remote-ipc-probe.yml'
+  pull_request:
+    paths:
+      - 'protocols/ipc/**'
+      - 'src/SkyRoof.Remote.Ipc.*/**'
+      - '.github/workflows/remote-ipc-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-grpc-ipc:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore and build separate processes
+        shell: pwsh
+        run: |
+          dotnet build src/SkyRoof.Remote.Ipc.Probe.Server/SkyRoof.Remote.Ipc.Probe.Server.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src/SkyRoof.Remote.Ipc.Probe.Client/SkyRoof.Remote.Ipc.Probe.Client.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute independent server/client process simulation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pipe = "skyroof-probe-$env:GITHUB_RUN_ID"
+          $serverDll = "src/SkyRoof.Remote.Ipc.Probe.Server/bin/Release/net10.0-windows/SkyRoof.Remote.Ipc.Probe.Server.dll"
+          $clientDll = "src/SkyRoof.Remote.Ipc.Probe.Client/bin/Release/net10.0-windows/SkyRoof.Remote.Ipc.Probe.Client.dll"
+          $outFile = Join-Path $env:RUNNER_TEMP "remote-ipc-server.out"
+          $errFile = Join-Path $env:RUNNER_TEMP "remote-ipc-server.err"
+          $server = Start-Process dotnet -ArgumentList @($serverDll, $pipe) -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+          try {
+            $passed = $false
+            for ($attempt = 0; $attempt -lt 8; $attempt++) {
+              dotnet $clientDll $pipe
+              if ($LASTEXITCODE -eq 0) { $passed = $true; break }
+              Start-Sleep -Seconds 1
+            }
+            if (-not $passed) { throw "Cross-process Named Pipe gRPC probe failed" }
+          }
+          finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $outFile) { Get-Content $outFile }
+            if (Test-Path $errFile) { Get-Content $errFile }
+          }
