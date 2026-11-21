@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes;
 using SkyRoof.Remote.Device;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows Named Pipe Device runtime.");
