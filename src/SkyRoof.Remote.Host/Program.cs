@@ -65,6 +65,7 @@ app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal)
     .RequireAuthorization();
 app.MapStationAuth();
 app.MapStationAdministration();
+app.MapLiveAudioStream();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
 app.MapFallbackToFile("index.html");
