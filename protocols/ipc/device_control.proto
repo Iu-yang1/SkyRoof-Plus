@@ -1,0 +1,47 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service StationDevice {
+  rpc Execute(DeviceCommand) returns (DeviceSnapshot);
+  rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
+}
+
+enum DeviceOperation {
+  DEVICE_OP_UNKNOWN = 0;
+  DEVICE_RX_FREQUENCY = 1;
+  DEVICE_TX_FREQUENCY = 2;
+  DEVICE_RX_MODE = 3;
+  DEVICE_TX_MODE = 4;
+  DEVICE_MANUAL_BEGIN = 5;
+  DEVICE_MANUAL_END = 6;
+  DEVICE_DIGITAL_BEGIN = 7;
+  DEVICE_DIGITAL_END = 8;
+  DEVICE_EMERGENCY_RX = 9;
+}
+
+message DeviceCommand {
+  string transaction_id = 1;
+  string session_id = 2;
+  DeviceOperation operation = 3;
+  int64 frequency_hz = 4;
+  string mode = 5;
+  string audio_source = 6;
+}
+
+message DeviceReadbackRequest {}
+
+message DeviceSnapshot {
+  int64 rx_frequency_hz = 1;
+  int64 tx_frequency_hz = 2;
+  string rx_mode = 3;
+  string tx_mode = 4;
+  bool actual_ptt = 5;
+  string active_transaction_id = 6;
+  string active_session_id = 7;
+  uint64 transaction_epoch = 8;
+  uint64 revision = 9;
+  bool digital_automation_paused = 10;
+  string result = 11;
+  int32 device_process_id = 12;
+}
