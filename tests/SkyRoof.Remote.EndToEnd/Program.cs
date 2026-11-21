@@ -26,6 +26,7 @@ listener.Stop();
 var baseUrl = $"http://127.0.0.1:{port}";
 
 await using var radio = new FakeRigctld();
+await using var rotator = new FakeRigctld();
 ProcessStartInfo Setup(string dll)
 {
     var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
@@ -38,6 +39,8 @@ deviceInfo.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
 deviceInfo.Environment["SKYROOF_CAT_PORT"] = radio.Port.ToString();
 deviceInfo.Environment["SKYROOF_CAT_DIALECT"] = "skycat";
 deviceInfo.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journal;
+deviceInfo.Environment["SKYROOF_ROTATOR_HOST"] = "127.0.0.1";
+deviceInfo.Environment["SKYROOF_ROTATOR_PORT"] = rotator.Port.ToString();
 var stationInfo = Setup(stationDll);
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
@@ -140,6 +143,13 @@ try
     Ensure(off && !File.Exists(journal),
         "Releasing active SignalR session did not clear PTT and its lease");
 
+    await using (var tracker = CreateHub(operatorToken))
+    {
+        await tracker.StartAsync();
+        await TrackingChecks.RunAsync(tracker, radio, rotator);
+        await tracker.StopAsync();
+    }
+
     await using var revoked = CreateHub(token);
     await revoked.StartAsync();
     (await admin.DeleteAsync("/api/v1/auth/tokens/" + tokenId)).EnsureSuccessStatusCode();
@@ -156,6 +166,16 @@ try
     await viewer.StartAsync();
     var viewerRadio = await viewer.InvokeAsync<RemoteCatStatus>("GetCatReadback");
     Ensure(!viewerRadio.ActualPtt, "Viewer did not receive authorized radio status");
+    var viewerPrediction = await viewer.InvokeAsync<RemoteTrackingStatus>("PredictTracking", TrackingChecks.Request());
+    Ensure(viewerPrediction.NoradNumber == 5 && !viewerPrediction.CatApplied,
+        "Viewer cannot access read-only orbital predictions");
+    var trackingDenied = false;
+    try
+    {
+        await viewer.InvokeAsync<RemoteTrackingStatus>("ApplyTracking", TrackingChecks.Request());
+    }
+    catch (Microsoft.AspNetCore.SignalR.HubException) { trackingDenied = true; }
+    Ensure(trackingDenied, "Viewer could apply orbital tracking");
     var viewerDenied = false;
     try {
         await viewer.InvokeAsync<RemoteCatStatus>("ExecuteCatCommand",

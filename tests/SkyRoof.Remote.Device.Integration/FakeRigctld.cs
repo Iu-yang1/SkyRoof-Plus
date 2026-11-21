@@ -13,6 +13,7 @@ public sealed class FakeRigctld : IAsyncDisposable
     private long _rx = 145_900_000;
     private long _tx = 435_650_000;
     private bool _ptt;
+    private double _azimuth, _elevation;
     private string _rxMode = "USB", _txMode = "USB";
     private string? _rejectNext;
 
@@ -86,6 +87,15 @@ public sealed class FakeRigctld : IAsyncDisposable
         if (command == "f") return _rx.ToString(CultureInfo.InvariantCulture);
         if (command == "i") return _tx.ToString(CultureInfo.InvariantCulture);
         if (command == "t") return _ptt ? "1" : "0";
+        if (command == "p") return FormattableString.Invariant($"{_azimuth:F3}\n{_elevation:F3}");
+        if (command == "S") return "RPRT 0";
+        if (command.StartsWith("P ", StringComparison.Ordinal))
+        {
+            var angles = command.Split(' ');
+            _azimuth = double.Parse(angles[1], CultureInfo.InvariantCulture);
+            _elevation = double.Parse(angles[2], CultureInfo.InvariantCulture);
+            return "RPRT 0";
+        }
         if (command.StartsWith("F ", StringComparison.Ordinal))
             _rx = long.Parse(command.AsSpan(2), CultureInfo.InvariantCulture);
         else if (command.StartsWith("I ", StringComparison.Ordinal))
