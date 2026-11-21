@@ -99,6 +99,25 @@ try
     Check(!paused.ActualPtt && paused.Result == "digital-busy",
         "Digital automatic TX resumed despite default pause");
 
+    var enabled = await Send(DeviceOperation.DeviceResumeDigitalTx);
+    Check(!enabled.DigitalAutomationPaused, "Authorized digital resume failed.");
+    var scheduled = await Send(DeviceOperation.DeviceDigitalBegin, "slot-2", "scheduler");
+    Check(scheduled.ActualPtt, "Digitals did not resume after explicit authorization.");
+    await Send(DeviceOperation.DeviceDigitalEnd, "slot-2", "scheduler");
+
+    var held = await Send(DeviceOperation.DeviceManualBegin, "session-tx", "web-1");
+    Check(held.ActualPtt, "New session failed to assert PTT.");
+    var unrelated = await client.ReleaseSessionAsync(new DeviceReleaseSessionRequest {
+        SessionId = "web-2"
+    });
+    Check(unrelated.ActualPtt && unrelated.ActiveSessionId == "web-1",
+        "Unrelated disconnected session released live operator.");
+    var disconnected = await client.ReleaseSessionAsync(new DeviceReleaseSessionRequest {
+        SessionId = "web-1"
+    });
+    Check(!disconnected.ActualPtt && disconnected.Result == "session-released",
+        "Disconnected owner did not release hardware PTT.");
+
     rig.RejectNext("T 1");
     try
     {
@@ -109,6 +128,7 @@ try
     Check(!(await client.ReadbackAsync(new DeviceReadbackRequest())).ActualPtt,
         "PTT reject left hardware transmitting");
 
+    var expectedReleases = rig.Count("T 0");
     rig.SetExternalPtt(true);
     try
     {
@@ -117,7 +137,7 @@ try
     }
     catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition) { }
     var stop = await Send(DeviceOperation.DeviceEmergencyRx);
-    Check(stop.ActualPtt && rig.Count("T 0") == 3,
+    Check(stop.ActualPtt && rig.Count("T 0") == expectedReleases,
         "STOP should not release a PTT transmission the Device process does not own");
     rig.SetExternalPtt(false);
     Console.WriteLine("PASS: independent CAT Device service, SkyCAT duplex F/I and M/X, readback, PTT handover, pause, NACK, external PTT.");

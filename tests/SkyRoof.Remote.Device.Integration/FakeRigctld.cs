@@ -72,6 +72,8 @@ public sealed class FakeRigctld : IAsyncDisposable
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
         catch (SocketException) when (_stop.IsCancellationRequested) { }
+        catch (IOException) { }
+        catch (SocketException) { }
     }
 
     private string Execute(string command)
