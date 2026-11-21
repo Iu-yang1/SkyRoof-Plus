@@ -18,6 +18,8 @@ jobs:
         run: |
           git clone --recursive --depth 1 --branch v0.24.7 https://github.com/paullouisageneau/libdatachannel.git /tmp/libdatachannel
           test "$(git -C /tmp/libdatachannel rev-parse HEAD)" = "800e849a1ede5667caaf8f6caa1eb21e4906dd87"
+      - name: Install Opus codec headers
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libopus-dev pkg-config
       - name: Build real WebRTC C API peers
         run: |
           cmake -S native/SkyRoof.Media.Native/tests/webrtc -B /tmp/skyroof-rtc -DCMAKE_BUILD_TYPE=Release -DLIBDATACHANNEL_SOURCE=/tmp/libdatachannel
