@@ -62,6 +62,7 @@ app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal)
         runtimeMode = "foundation-prototype", user = principal.Identity?.Name }))
     .RequireAuthorization();
 app.MapStationAuth();
+app.MapStationAdministration();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
 await app.RunAsync();
