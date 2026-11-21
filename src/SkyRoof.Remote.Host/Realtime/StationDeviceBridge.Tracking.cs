@@ -1,0 +1,55 @@
+using Grpc.Core;
+using Microsoft.AspNetCore.SignalR;
+using SkyRoof.Remote.Ipc;
+
+namespace SkyRoof.Remote.Host.Realtime;
+
+public sealed record RemoteTrackingRequest(string TleLine1, string TleLine2,
+    double LatitudeDegrees, double LongitudeDegrees, double HeightMetres,
+    long UtcUnixMilliseconds, long DownlinkHz, long UplinkHz,
+    bool CorrectDownlink, bool CorrectUplink, bool PointRotator,
+    double ElevationMaskDegrees);
+
+public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseconds,
+    double AzimuthDegrees, double ElevationDegrees, double RangeMetres,
+    double RangeRateMetresPerSecond, long RxHz, long TxHz,
+    string OrbitBackend, string DataQuality, bool CatApplied, bool RotatorApplied,
+    long ActualRxHz, long ActualTxHz, double? ActualAzimuthDegrees,
+    double? ActualElevationDegrees, string RotatorError);
+
+public sealed partial class StationDeviceBridge
+{
+    public async Task<RemoteTrackingStatus> TrackAsync(
+        RemoteTrackingRequest input, bool apply, CancellationToken ct)
+    {
+        var request = new TrackingRequest
+        {
+            TleLine1 = input.TleLine1,
+            TleLine2 = input.TleLine2,
+            LatitudeDegrees = input.LatitudeDegrees,
+            LongitudeDegrees = input.LongitudeDegrees,
+            HeightMetres = input.HeightMetres,
+            UtcUnixMilliseconds = input.UtcUnixMilliseconds,
+            DownlinkHz = input.DownlinkHz,
+            UplinkHz = input.UplinkHz,
+            CorrectDownlink = input.CorrectDownlink,
+            CorrectUplink = input.CorrectUplink,
+            PointRotator = input.PointRotator,
+            ElevationMaskDegrees = input.ElevationMaskDegrees
+        };
+        var client = new StationTracking.StationTrackingClient(_channel.Value);
+        try
+        {
+            var result = apply
+                ? await client.ApplyAsync(request, deadline: DateTime.UtcNow.AddSeconds(18), cancellationToken: ct)
+                : await client.PredictAsync(request, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            return new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
+                result.AzimuthDegrees, result.ElevationDegrees, result.RangeMetres,
+                result.RangeRateMetresPerSecond, result.RxHz, result.TxHz,
+                result.OrbitBackend, result.DataQuality, result.CatApplied, result.RotatorApplied,
+                result.ActualRxHz, result.ActualTxHz, result.RotatorReadback?.AzimuthDegrees,
+                result.RotatorReadback?.ElevationDegrees, result.RotatorError);
+        }
+        catch (RpcException ex) { throw new HubException("Tracking failed: " + ex.Status.Detail); }
+    }
+}

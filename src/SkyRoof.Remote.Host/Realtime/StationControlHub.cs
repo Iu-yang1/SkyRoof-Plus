@@ -30,6 +30,18 @@ public sealed class StationControlHub(
         return await device.ReadbackAsync(Context.ConnectionAborted);
     }
 
+    public async Task<RemoteTrackingStatus> PredictTracking(RemoteTrackingRequest request)
+    {
+        await VerifyCurrentSessionAsync(requireOperator: false);
+        return await device.TrackAsync(request, false, Context.ConnectionAborted);
+    }
+
+    public async Task<RemoteTrackingStatus> ApplyTracking(RemoteTrackingRequest request)
+    {
+        await VerifyCurrentSessionAsync(requireOperator: true);
+        return await device.TrackAsync(request, true, Context.ConnectionAborted);
+    }
+
     public async Task<RemoteCatStatus> ExecuteCatCommand(RemoteCatCommand command)
     {
         await VerifyCurrentSessionAsync(requireOperator: true);

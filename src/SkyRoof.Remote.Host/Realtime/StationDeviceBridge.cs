@@ -15,7 +15,7 @@ public sealed record RemoteCatStatus(
     bool ActualPtt, string ActiveTransactionId, string ActiveSessionId,
     ulong Epoch, ulong Revision, bool DigitalAutomationPaused, string Outcome);
 
-public sealed class StationDeviceBridge(IConfiguration settings) : IDisposable
+public sealed partial class StationDeviceBridge(IConfiguration settings) : IDisposable
 {
     private readonly Lazy<GrpcChannel> _channel = new(() =>
     {
