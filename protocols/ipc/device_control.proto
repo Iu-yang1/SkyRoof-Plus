@@ -5,6 +5,7 @@ option csharp_namespace = "SkyRoof.Remote.Ipc";
 service StationDevice {
   rpc Execute(DeviceCommand) returns (DeviceSnapshot);
   rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
+  rpc ReleaseSession(DeviceReleaseSessionRequest) returns (DeviceSnapshot);
 }
 
 enum DeviceOperation {
@@ -18,6 +19,7 @@ enum DeviceOperation {
   DEVICE_DIGITAL_BEGIN = 7;
   DEVICE_DIGITAL_END = 8;
   DEVICE_EMERGENCY_RX = 9;
+  DEVICE_RESUME_DIGITAL_TX = 10;
 }
 
 message DeviceCommand {
@@ -30,6 +32,7 @@ message DeviceCommand {
 }
 
 message DeviceReadbackRequest {}
+message DeviceReleaseSessionRequest { string session_id = 1; }
 
 message DeviceSnapshot {
   int64 rx_frequency_hz = 1;

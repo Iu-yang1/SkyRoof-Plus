@@ -31,6 +31,21 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<St
         finally { _commands.Release(); }
     }
 
+    public override async Task<DeviceSnapshot> ReleaseSession(
+        DeviceReleaseSessionRequest request, ServerCallContext context)
+    {
+        await _commands.WaitAsync(context.CancellationToken);
+        try
+        {
+            var result = await ReleaseSessionAsync(request.SessionId, context.CancellationToken);
+            if (result.Changed) _revision++;
+            return await ReadSnapshotAsync(result.Description, context.CancellationToken);
+        }
+        catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
+        { throw FailedCat(e); }
+        finally { _commands.Release(); }
+    }
+
     public override async Task<DeviceSnapshot> Execute(
         DeviceCommand request, ServerCallContext context)
     {
@@ -49,6 +64,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, ILogger<St
                 DeviceOperation.DeviceManualEnd => await EndAsync(request, false, ct),
                 DeviceOperation.DeviceDigitalEnd => await EndAsync(request, true, ct),
                 DeviceOperation.DeviceEmergencyRx => await StopAsync(ct),
+                DeviceOperation.DeviceResumeDigitalTx => ResumeDigital(),
                 _ => throw new ArgumentException("Invalid DeviceOperation")
             };
             if (result.Changed) _revision++;

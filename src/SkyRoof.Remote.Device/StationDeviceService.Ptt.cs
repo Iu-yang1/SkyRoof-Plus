@@ -80,6 +80,31 @@ public sealed partial class StationDeviceService
         return ("ptt-released", true);
     }
 
+    private (string Description, bool Changed) ResumeDigital()
+    {
+        var wasPaused = _digitalPaused;
+        _digitalPaused = false;
+        return ("digital-automation-enabled", wasPaused);
+    }
+
+    private async Task<(string Description, bool Changed)> ReleaseSessionAsync(
+        string sessionId, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            throw new ArgumentException("Session ID is required.");
+        if (_owner is not { Digital: false } active || active.SessionId != sessionId)
+            return ("session-not-owner", false);
+        if (await cat.ReadPttAsync(token))
+        {
+            await cat.SetPttAsync(false, token);
+            if (await cat.ReadPttAsync(token))
+                throw new IOException("PTT remained ON after disconnect.");
+        }
+        _owner = null;
+        ++_epoch;
+        return ("session-released", true);
+    }
+
     private async Task<(string Description, bool Changed)> StopAsync(CancellationToken token)
     {
         _digitalPaused = true;
