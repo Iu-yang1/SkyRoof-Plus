@@ -103,6 +103,7 @@ public sealed partial class StationDeviceService
             if (await cat.ReadPttAsync(token))
                 throw new IOException("PTT remained ON after disconnect.");
         }
+        journal.Clear();
         _owner = null;
         ++_epoch;
         return ("session-released", true);
@@ -118,6 +119,7 @@ public sealed partial class StationDeviceService
             if (await cat.ReadPttAsync(token))
                 throw new IOException("PTT remained ON after STOP.");
         }
+        journal.Clear();
         _owner = null;
         ++_epoch;
         return ("owned-ptt-released", true);
