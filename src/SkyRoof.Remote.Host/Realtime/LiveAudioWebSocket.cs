@@ -74,8 +74,8 @@ public static class LiveAudioWebSocket
                 };
                 var outgoing = new byte[AudioFrameHeader.Size + frame.Payload.Length];
                 header.Write(outgoing);
-                frame.Payload.CopyTo(outgoing.AsSpan(AudioFrameHeader.Size));
-                await socket.SendAsync(outgoing, WebSocketMessageType.Binary,
+                frame.Payload.AsSpan().CopyTo(outgoing.AsSpan(AudioFrameHeader.Size));
+                await socket.SendAsync(outgoing.AsMemory(), WebSocketMessageType.Binary,
                     endOfMessage: true, context.RequestAborted);
             }
         }

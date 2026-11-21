@@ -7,6 +7,8 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR.Client;
 using SkyRoof.Remote.Foundation.Signals;
+using SkyRoof.Remote.SignalBus;
+using System.Diagnostics;
 
 var reserve = new TcpListener(IPAddress.Loopback, 0);
 reserve.Start();
@@ -14,11 +16,14 @@ var port = ((IPEndPoint)reserve.LocalEndpoint).Port;
 reserve.Stop();
 var url = $"http://127.0.0.1:{port}";
 var database = Path.Combine(Path.GetTempPath(), $"skyroof-smoke-{Guid.NewGuid():N}.db");
+var busName = "rx-smoke-" + Guid.NewGuid().ToString("N");
+using var bus = new NamedSignalRing(busName, slots: 64, payloadCapacity: 4096, initialEpoch: 33);
 var processInfo = new System.Diagnostics.ProcessStartInfo("dotnet") { UseShellExecute = false };
 processInfo.ArgumentList.Add(Path.GetFullPath(args.Single()));
 processInfo.Environment["ASPNETCORE_URLS"] = url;
 processInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 processInfo.Environment["SKYROOF_AUTH_DB"] = database;
+processInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = busName;
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_USER"] = "station-admin";
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_PASSWORD"] = "ExampleStationAdminPassw0rd!";
 using var host = System.Diagnostics.Process.Start(processInfo)
@@ -85,6 +90,31 @@ try
         Ensure(reply.MessageType == WebSocketMessageType.Binary && reply.Count == packet.Length,
             "Binary SAP/1 WSS echo failed.");
     }
+
+    Ensure((await anon.GetAsync("/ws/audio")).StatusCode == HttpStatusCode.Unauthorized,
+        "Anonymous access to real WSS audio feed allowed");
+    using (var media = new ClientWebSocket())
+    {
+        media.Options.SetRequestHeader("Authorization", "Bearer " + token);
+        await media.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws/audio"), CancellationToken.None);
+        var pcm = Enumerable.Range(0, 960).Select(i => (byte)(i % 251)).ToArray();
+        bus.Publish(4800, Stopwatch.GetTimestamp(), 48000, 480, pcm);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var packet = new byte[AudioFrameHeader.Size + pcm.Length];
+        var response = await media.ReceiveAsync(packet.AsMemory(), deadline.Token);
+        Ensure(response.MessageType == WebSocketMessageType.Binary &&
+            response.Count == packet.Length &&
+            AudioFrameHeader.TryRead(packet, out var parsed) &&
+            parsed.Codec == 2 &&
+            parsed.StreamEpoch == 33 &&
+            parsed.FirstSampleIndex == 4800 &&
+            parsed.SampleRate == 48000 &&
+            parsed.SamplesPerChannel == 480 &&
+            parsed.PayloadLength == pcm.Length &&
+            packet.AsSpan(AudioFrameHeader.Size).SequenceEqual(pcm),
+            "Real cross-process PCM16 SignalBus -> authenticated WSS SAP/1 failed");
+    }
+    Console.WriteLine("PASS: live cross-process raw PCM16 WSS over authenticated Station Host.");
 
     var codeReply = await user.PostAsJsonAsync("/api/v1/auth/login-codes", new { });
     codeReply.EnsureSuccessStatusCode();
