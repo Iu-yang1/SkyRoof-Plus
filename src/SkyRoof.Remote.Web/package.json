@@ -12,8 +12,8 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "dockview-react": "8.9.1",
-    "@microsoft/signalr": "10.0.15",
-    "@microsoft/signalr-protocol-msgpack": "10.0.15"
+    "@microsoft/signalr": "10.0.11",
+    "@microsoft/signalr-protocol-msgpack": "10.0.11"
   },
   "devDependencies": {
     "@types/react": "19.2.0",
