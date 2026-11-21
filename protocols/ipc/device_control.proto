@@ -20,6 +20,7 @@ enum DeviceOperation {
   DEVICE_DIGITAL_END = 8;
   DEVICE_EMERGENCY_RX = 9;
   DEVICE_RESUME_DIGITAL_TX = 10;
+  DEVICE_MANUAL_HEARTBEAT = 11;
 }
 
 message DeviceCommand {

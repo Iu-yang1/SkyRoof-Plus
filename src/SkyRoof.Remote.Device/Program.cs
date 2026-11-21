@@ -27,6 +27,7 @@ if (string.IsNullOrWhiteSpace(journal))
 builder.Services.AddSingleton(new PttLeaseJournal(journal, $"{dialect}:{host}:{port}"));
 builder.Services.AddSingleton(p => new RadioCatBackend(p.GetRequiredService<RigctldLink>(), dialect));
 builder.Services.AddSingleton<StationDeviceService>();
+builder.Services.AddHostedService<PttLeaseMonitor>();
 var app = builder.Build();
 app.MapGrpcService<StationDeviceService>();
 await app.Services.GetRequiredService<StationDeviceService>()

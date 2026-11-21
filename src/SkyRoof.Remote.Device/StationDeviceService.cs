@@ -17,6 +17,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, PttLeaseJo
     private ulong _revision;
     private ulong _epoch;
     private bool _digitalPaused;
+    private long _lastManualBeat;
 
     private sealed record DeviceOwner(
         string TransactionId, string SessionId, bool Digital,

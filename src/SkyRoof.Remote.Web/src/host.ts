@@ -14,7 +14,8 @@ export enum DeviceOperation {
   DigitalBegin = 7,
   DigitalEnd = 8,
   Stop = 9,
-  ResumeDigital = 10
+  ResumeDigital = 10,
+  ManualHeartbeat = 11
 }
 
 export interface DeviceReadback {

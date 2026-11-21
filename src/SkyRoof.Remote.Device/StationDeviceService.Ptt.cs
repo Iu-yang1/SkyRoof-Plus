@@ -32,6 +32,7 @@ public sealed partial class StationDeviceService
             journal.Save(command.TransactionId, command.SessionId);
             _owner = new DeviceOwner(command.TransactionId, command.SessionId, digital,
                 requestedHz, requestedMode, requestedSource, ++_epoch);
+            if (!digital) _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
             return ("source-takeover-no-rf-transition", true);
         }
 
@@ -60,6 +61,7 @@ public sealed partial class StationDeviceService
             throw new IOException("PTT assertion not confirmed by CAT readback.");
         _owner = new DeviceOwner(command.TransactionId, command.SessionId, digital,
             requestedHz, requestedMode, requestedSource, ++_epoch);
+        if (!digital) _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
         return (existing is null ? "ptt-asserted" : "rf-reconfigured", true);
     }
 
@@ -81,6 +83,19 @@ public sealed partial class StationDeviceService
         _owner = null;
         ++_epoch;
         return ("ptt-released", true);
+    }
+
+    private (string Description, bool Changed) RenewManualLease(DeviceCommand command)
+    {
+        RequireTransaction(command);
+        if (_owner is { Digital: false } active &&
+            active.TransactionId == command.TransactionId &&
+            active.SessionId == command.SessionId)
+        {
+            _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
+            return ("manual-ptt-lease-renewed", false);
+        }
+        return ("stale-ptt-heartbeat-ignored", false);
     }
 
     private (string Description, bool Changed) ResumeDigital()
