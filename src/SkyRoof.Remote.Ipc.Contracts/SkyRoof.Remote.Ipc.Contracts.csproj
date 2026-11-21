@@ -9,5 +9,6 @@
     <PackageReference Include="Grpc.Core.Api" Version="2.85.0" />
     <PackageReference Include="Grpc.Tools" Version="2.85.0" PrivateAssets="all" />
     <Protobuf Include="../../protocols/ipc/station_probe.proto" GrpcServices="Both" />
+    <Protobuf Include="../../protocols/ipc/device_simulation.proto" GrpcServices="Both" />
   </ItemGroup>
 </Project>
