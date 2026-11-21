@@ -11,5 +11,6 @@
     <Protobuf Include="../../protocols/ipc/station_probe.proto" GrpcServices="Both" />
     <Protobuf Include="../../protocols/ipc/device_simulation.proto" GrpcServices="Both" />
     <Protobuf Include="../../protocols/ipc/device_control.proto" GrpcServices="Both" />
+      <Protobuf Include="../../protocols/ipc/tracking.proto" GrpcServices="Both" />
   </ItemGroup>
 </Project>

@@ -21,6 +21,7 @@ enum DeviceOperation {
   DEVICE_EMERGENCY_RX = 9;
   DEVICE_RESUME_DIGITAL_TX = 10;
   DEVICE_MANUAL_HEARTBEAT = 11;
+  DEVICE_TRACK_FREQUENCIES = 12;
 }
 
 message DeviceCommand {
@@ -30,6 +31,7 @@ message DeviceCommand {
   int64 frequency_hz = 4;
   string mode = 5;
   string audio_source = 6;
+  int64 tx_frequency_hz = 7;
 }
 
 message DeviceReadbackRequest {}
