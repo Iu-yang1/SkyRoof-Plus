@@ -49,6 +49,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR().AddMessagePackProtocol();
+builder.Services.AddSingleton<StationDeviceBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
