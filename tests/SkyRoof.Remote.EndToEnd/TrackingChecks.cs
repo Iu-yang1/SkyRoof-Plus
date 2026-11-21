@@ -25,7 +25,9 @@ internal static class TrackingChecks
     {
         var request = Request();
         var prediction = await hub.InvokeAsync<RemoteTrackingStatus>("PredictTracking", request);
-        Check(prediction.NoradNumber == 5 && prediction.OrbitBackend == "sgpnet"
+        var expectedBackend = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") == "sgpnet"
+            ? "sgpnet" : "orekit-ikvm";
+        Check(prediction.NoradNumber == 5 && prediction.OrbitBackend == expectedBackend
             && prediction.ElevationDegrees > 0 && prediction.RangeMetres > 0
             && !prediction.CatApplied && !prediction.RotatorApplied, "Invalid orbit prediction");
         var earlier = await hub.InvokeAsync<RemoteTrackingStatus>("PredictTracking",
@@ -57,7 +59,7 @@ internal static class TrackingChecks
             "Expected actual TCP commands missing");
         Check(radio.Count("T 1") == 1, "Orbital tracking unexpectedly keyed transmitter");
         Console.WriteLine(FormattableString.Invariant(
-            $"PASS: TLE -> SGP.NET -> range-rate {prediction.RangeRateMetresPerSecond:F3} m/s -> RX {prediction.RxHz} TX {prediction.TxHz} -> rotctld AZ {prediction.AzimuthDegrees:F3} EL {prediction.ElevationDegrees:F3}"));
+            $"PASS: TLE -> {prediction.OrbitBackend} -> range-rate {prediction.RangeRateMetresPerSecond:F3} m/s -> RX {prediction.RxHz} TX {prediction.TxHz} -> rotctld AZ {prediction.AzimuthDegrees:F3} EL {prediction.ElevationDegrees:F3}"));
     }
 
     private static void Check(bool valid, string message)

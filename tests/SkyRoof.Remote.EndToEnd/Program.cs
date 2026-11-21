@@ -46,6 +46,7 @@ var stationInfo = Setup(stationDll);
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
+stationInfo.Environment["SKYROOF_ORBIT_BACKEND"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") ?? "orekit";
 var hostInfo = Setup(hostDll);
 hostInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 hostInfo.Environment["ASPNETCORE_URLS"] = baseUrl;

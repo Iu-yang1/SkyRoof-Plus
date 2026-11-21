@@ -11,7 +11,7 @@ permissions:
 jobs:
   authenticated-control:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-dotnet@v4
@@ -28,5 +28,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build authenticated E2E client and fake rigctld
         run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
-      - name: Execute real three-process authorized CAT transaction test
+      - name: Execute real three-process authorized CAT transaction test (Orekit)
+        env:
+          SKYROOF_TEST_ORBIT_BACKEND: orekit
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+
+      - name: Execute SGP.NET comparison path
+        env:
+          SKYROOF_TEST_ORBIT_BACKEND: sgpnet
         run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll

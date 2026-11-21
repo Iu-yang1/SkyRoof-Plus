@@ -96,7 +96,7 @@ export function TrackingPanel() {
 
   const displayed = job?.Running ? job.Latest : status;
   return <section className="panel tracking-panel">
-    <header>SATELLITE TRACKING · SGP.NET</header>
+    <header>SATELLITE TRACKING</header>
     <form onSubmit={event => {
       const button = (event.nativeEvent as SubmitEvent).submitter;
       void submit(event, button?.getAttribute('value') ?? 'predict');
