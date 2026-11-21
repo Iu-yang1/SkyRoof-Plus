@@ -1,5 +1,4 @@
-/* global AudioWorkletProcessor, registerProcessor */
-class SkyRoofPcmPlayer extends AudioWorkletProcessor {
+class SkyRoofPcmPlayer extends globalThis.AudioWorkletProcessor {
   constructor() {
     super();
     this.queue = [];
@@ -70,4 +69,4 @@ class SkyRoofPcmPlayer extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor('skyroof-pcm-player', SkyRoofPcmPlayer);
+globalThis.registerProcessor('skyroof-pcm-player', SkyRoofPcmPlayer);
