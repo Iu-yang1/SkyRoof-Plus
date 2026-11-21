@@ -18,6 +18,7 @@ var devicePipe = "skyroof-e2e-device-" + suffix;
 var stationPipe = "skyroof-e2e-station-" + suffix;
 var journal = Path.Combine(Path.GetTempPath(), "skyroof-e2e-ptt-" + suffix + ".json");
 var db = Path.Combine(Path.GetTempPath(), "skyroof-e2e-db-" + suffix + ".db");
+var trackingFile = Path.Combine(Path.GetTempPath(), "skyroof-e2e-tracking-" + suffix + ".json");
 
 var listener = new TcpListener(IPAddress.Loopback, 0);
 listener.Start();
@@ -44,6 +45,7 @@ deviceInfo.Environment["SKYROOF_ROTATOR_PORT"] = rotator.Port.ToString();
 var stationInfo = Setup(stationDll);
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
+stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
 var hostInfo = Setup(hostDll);
 hostInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 hostInfo.Environment["ASPNETCORE_URLS"] = baseUrl;
@@ -55,6 +57,7 @@ hostInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_PASSWORD"] = "SimulatedStationP@ss
 using var device = Process.Start(deviceInfo) ?? throw new InvalidOperationException("Device start failed");
 using var station = Process.Start(stationInfo) ?? throw new InvalidOperationException("Station start failed");
 using var host = Process.Start(hostInfo) ?? throw new InvalidOperationException("Host start failed");
+Process? restartedStation = null;
 try
 {
     using var anonymous = new HttpClient { BaseAddress = new Uri(baseUrl) };
@@ -150,6 +153,9 @@ try
         await tracker.StopAsync();
     }
 
+    restartedStation = await ContinuousTrackingChecks.RunAsync(
+        () => CreateHub(operatorToken), station, stationInfo, radio, rotator, trackingFile);
+
     await using var revoked = CreateHub(token);
     await revoked.StartAsync();
     (await admin.DeleteAsync("/api/v1/auth/tokens/" + tokenId)).EnsureSuccessStatusCode();
@@ -189,12 +195,19 @@ try
 }
 finally
 {
+    if (restartedStation is not null)
+    {
+        if (!restartedStation.HasExited) restartedStation.Kill(entireProcessTree: true);
+        await restartedStation.WaitForExitAsync();
+        restartedStation.Dispose();
+    }
     foreach (var process in new[] { host, station, device })
     {
         if (!process.HasExited) process.Kill(entireProcessTree: true);
     }
     await Task.WhenAll(host.WaitForExitAsync(), station.WaitForExitAsync(), device.WaitForExitAsync());
     if (File.Exists(journal)) File.Delete(journal);
+    if (File.Exists(trackingFile)) File.Delete(trackingFile);
 }
 static void Ensure(bool valid, string message)
 {

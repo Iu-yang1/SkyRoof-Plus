@@ -31,6 +31,11 @@ public sealed class FakeRigctld : IAsyncDisposable
         lock (_sync) return _commands.Count(x => x == command);
     }
 
+    public int CountPrefix(string prefix)
+    {
+        lock (_sync) return _commands.Count(x => x.StartsWith(prefix, StringComparison.Ordinal));
+    }
+
     public void SetExternalPtt(bool value)
     {
         lock (_sync) _ptt = value;
