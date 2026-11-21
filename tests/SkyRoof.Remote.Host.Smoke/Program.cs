@@ -59,7 +59,7 @@ try
     bearer.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     Ensure((await bearer.GetAsync("/api/v1/station")).IsSuccessStatusCode, "Bearer auth failed.");
 
-    using (var hub = new HubConnectionBuilder().WithUrl(url + "/hub/control", opts =>
+    await using (var hub = new HubConnectionBuilder().WithUrl(url + "/hub/control", opts =>
         opts.AccessTokenProvider = () => Task.FromResult<string?>(token))
         .AddMessagePackProtocol().Build())
     {
