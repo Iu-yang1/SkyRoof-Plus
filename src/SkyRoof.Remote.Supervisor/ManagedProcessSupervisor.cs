@@ -8,6 +8,7 @@ public sealed class ManagedProcessSpec
     public string Executable { get; set; } = "";
     public string[] Arguments { get; set; } = [];
     public string? WorkingDirectory { get; set; }
+    public Dictionary<string, string> Environment { get; set; } = [];
 }
 
 public sealed class ManagedProcessSupervisor(
@@ -82,6 +83,8 @@ public sealed class ManagedProcessSupervisor(
         };
         foreach (var arg in spec.Arguments)
             start.ArgumentList.Add(arg);
+        foreach (var (name, value) in spec.Environment)
+            start.Environment[name] = value;
         return Process.Start(start)
             ?? throw new InvalidOperationException("Cannot start managed process " + spec.Name);
     }

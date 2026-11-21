@@ -53,6 +53,8 @@ builder.Services.AddSingleton<StationDeviceBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseWebSockets();
@@ -65,4 +67,5 @@ app.MapStationAuth();
 app.MapStationAdministration();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
+app.MapFallbackToFile("index.html");
 await app.RunAsync();
