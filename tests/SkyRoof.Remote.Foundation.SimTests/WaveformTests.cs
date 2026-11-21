@@ -10,21 +10,18 @@ internal static class WaveformTests
         {
             var store = new TimedWaveformStore(root);
             var id = Guid.NewGuid();
+            var request = new WaveformUploadRequest(id, 48000, 1,
+                TimedWaveformFormat.Pcm16Le, 480);
             var bytes = Enumerable.Range(0, 960).Select(x => (byte)(x % 251)).ToArray();
-            var result = store.UploadAndSealAsync(id, new MemoryStream(bytes), 48000, 1,
-                TimedWaveformFormat.Pcm16Le, 480).GetAwaiter().GetResult();
+            var result = store.UploadAndSealAsync(request, new MemoryStream(bytes)).GetAwaiter().GetResult();
             Check(result.PayloadBytes == 960 && result.Sha256.Length == 64);
             Check(store.VerifyAsync(id).GetAwaiter().GetResult());
             var restored = new TimedWaveformStore(root);
             Check(restored.ReadSealedAsync(id).GetAwaiter().GetResult() == result);
-            Check(restored.UploadAndSealAsync(id, new MemoryStream(bytes), 48000, 1,
-                TimedWaveformFormat.Pcm16Le, 480).GetAwaiter().GetResult() == result);
-            ExpectInvalid(() => restored.UploadAndSealAsync(id,
-                new MemoryStream(new byte[960]), 48000, 1,
-                TimedWaveformFormat.Pcm16Le, 480).GetAwaiter().GetResult());
-            ExpectInvalidData(() => restored.UploadAndSealAsync(Guid.NewGuid(),
-                new MemoryStream(new byte[959]), 48000, 1,
-                TimedWaveformFormat.Pcm16Le, 480).GetAwaiter().GetResult());
+            Check(restored.UploadAndSealAsync(request, new MemoryStream(bytes)).GetAwaiter().GetResult() == result);
+            ExpectInvalid(() => restored.UploadAndSealAsync(request, new MemoryStream(new byte[960])).GetAwaiter().GetResult());
+            ExpectInvalidData(() => restored.UploadAndSealAsync(request with { JobId = Guid.NewGuid() },
+                new MemoryStream(new byte[959])).GetAwaiter().GetResult());
             File.WriteAllBytes(Path.Combine(root, result.FileName), new byte[960]);
             Check(!restored.VerifyAsync(id).GetAwaiter().GetResult());
             Console.WriteLine("PASS: staged waveform integrity, idempotence, restart, tampering and size checks.");

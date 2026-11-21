@@ -7,7 +7,9 @@ using SkyRoof.Remote.Host.Realtime;
 var builder = WebApplication.CreateBuilder(args);
 var database = Environment.GetEnvironmentVariable("SKYROOF_AUTH_DB")
     ?? Path.Combine(AppContext.BaseDirectory, "station-users.db");
-Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(database))!);
+var databaseFolder = Path.GetDirectoryName(Path.GetFullPath(database))
+    ?? throw new InvalidOperationException("Invalid station database path.");
+Directory.CreateDirectory(databaseFolder);
 
 builder.Services.AddDbContext<StationIdentityDb>(options =>
     options.UseSqlite("Data Source=" + database));

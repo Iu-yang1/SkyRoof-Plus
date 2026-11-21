@@ -5,6 +5,9 @@ namespace SkyRoof.Remote.Foundation.Timing;
 
 public enum TimedWaveformFormat { Pcm16Le = 2, Float32Le = 4 }
 
+public sealed record WaveformUploadRequest(Guid JobId, int SampleRate, int Channels,
+    TimedWaveformFormat Format, long Frames);
+
 public sealed record TimedWaveformArtifact(
     Guid JobId, int SampleRate, int Channels, TimedWaveformFormat Format,
     long SampleFrames, long PayloadBytes, string Sha256, string FileName);

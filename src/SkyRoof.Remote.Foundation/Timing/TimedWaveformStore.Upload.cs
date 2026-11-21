@@ -6,16 +6,16 @@ namespace SkyRoof.Remote.Foundation.Timing;
 public sealed partial class TimedWaveformStore
 {
     public async Task<TimedWaveformArtifact> UploadAndSealAsync(
-        Guid jobId, Stream pcm, int sampleRate, int channels,
-        TimedWaveformFormat format, long frames, CancellationToken cancellationToken = default)
+        WaveformUploadRequest request, Stream pcm,
+        CancellationToken cancellationToken = default)
     {
-        if (jobId == Guid.Empty || sampleRate <= 0 || channels <= 0 || frames <= 0 ||
-            format is not (TimedWaveformFormat.Pcm16Le or TimedWaveformFormat.Float32Le))
+        if (request.JobId == Guid.Empty || request.SampleRate <= 0 || request.Channels <= 0 || request.Frames <= 0 ||
+            request.Format is not (TimedWaveformFormat.Pcm16Le or TimedWaveformFormat.Float32Le))
             throw new ArgumentException("Invalid waveform metadata.");
         ArgumentNullException.ThrowIfNull(pcm);
-        var expectedBytes = checked(frames * channels * (int)format);
+        var expectedBytes = checked(request.Frames * request.Channels * (int)request.Format);
         Directory.CreateDirectory(_root);
-        var fileName = jobId.ToString("N") + ".pcm";
+        var fileName = request.JobId.ToString("N") + ".pcm";
         var destination = Path.Combine(_root, fileName);
         var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".part";
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -40,13 +40,13 @@ public sealed partial class TimedWaveformStore
                 await output.FlushAsync(cancellationToken);
             }
             var digest = Convert.ToHexString(hash.GetHashAndReset());
-            var result = new TimedWaveformArtifact(jobId, sampleRate, channels, format,
-                frames, length, digest, fileName);
-            var manifest = Path.Combine(_root, jobId.ToString("N") + ".json");
+            var result = new TimedWaveformArtifact(request.JobId, request.SampleRate, request.Channels, request.Format,
+                request.Frames, length, digest, fileName);
+            var manifest = Path.Combine(_root, request.JobId.ToString("N") + ".json");
             if (File.Exists(manifest))
             {
-                var existing = await ReadSealedAsync(jobId, cancellationToken);
-                if (existing != result || !await VerifyAsync(jobId, cancellationToken))
+                var existing = await ReadSealedAsync(request.JobId, cancellationToken);
+                if (existing != result || !await VerifyAsync(request.JobId, cancellationToken))
                     throw new InvalidOperationException("Job ID already sealed with different content.");
                 return existing;
             }

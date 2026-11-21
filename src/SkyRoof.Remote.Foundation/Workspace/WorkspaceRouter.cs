@@ -52,8 +52,6 @@ public sealed class WorkspaceRouter
         }
     }
 
-    // Key-down resolves the active workspace exactly once. Key-up must target the
-    // originally bound station, even if the user switched workspaces while holding PTT.
     public BoundShortcut KeyDown(string key, string actionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -87,8 +85,6 @@ public sealed class WorkspaceRouter
                 ActiveStationId = null;
                 if (_stations.Count != 0) SetActiveCore(_stations.Keys.First());
             }
-            // Held shortcuts retain the original StationId for their release.
-            // The disconnected host will also release its own active PTT session.
         }
     }
 }

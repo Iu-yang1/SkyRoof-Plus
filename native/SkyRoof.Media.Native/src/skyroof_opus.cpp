@@ -1,5 +1,6 @@
 #include "skyroof_media_native.h"
 #include <new>
+#include <memory>
 #include <opus/opus.h>
 
 struct SrOpusEncoder { OpusEncoder *state; };
@@ -29,7 +30,7 @@ extern "C" int sr_opus_encoder_encode(SrOpusEncoder *encoder,
 extern "C" void sr_opus_encoder_destroy(SrOpusEncoder *encoder) {
     if (!encoder) return;
     opus_encoder_destroy(encoder->state);
-    delete encoder;
+    std::unique_ptr<SrOpusEncoder> owned(encoder);
 }
 
 extern "C" SrOpusDecoder *sr_opus_decoder_create(int sample_rate, int channels) {
@@ -52,5 +53,5 @@ extern "C" int sr_opus_decoder_decode(SrOpusDecoder *decoder,
 extern "C" void sr_opus_decoder_destroy(SrOpusDecoder *decoder) {
     if (!decoder) return;
     opus_decoder_destroy(decoder->state);
-    delete decoder;
+    std::unique_ptr<SrOpusDecoder> owned(decoder);
 }

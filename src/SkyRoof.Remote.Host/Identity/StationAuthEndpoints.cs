@@ -38,7 +38,8 @@ public static class StationAuthEndpoints
     private static async Task<IResult> CreateTokenAsync(
         NameRequest request, ClaimsPrincipal principal, StationIdentityDb db)
     {
-        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("Authenticated user ID is missing.");
         if (string.IsNullOrWhiteSpace(request.Name)) return Results.BadRequest();
         var raw = "srt_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var record = new StationAccessToken
@@ -68,7 +69,8 @@ public static class StationAuthEndpoints
         db.LoginCodes.Add(new StationLoginCode
         {
             Id = Guid.NewGuid(),
-            OwnerUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier)!,
+            OwnerUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("Authenticated user ID is missing."),
             Digest = Digest(code),
             ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(2)
         });
