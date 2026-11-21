@@ -3,6 +3,7 @@ import { DockviewReact, type DockviewApi, type DockviewReadyEvent } from 'dockvi
 import { connectControl, queryStation, signIn, DeviceHubContext, type StationInfo } from './host';
 import { type HubConnection } from '@microsoft/signalr';
 import { RadioPanel } from './RadioPanel';
+import { AudioPanel } from './AudioPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 
 function SatellitePanel() {
@@ -23,7 +24,7 @@ function DigitalPanel() {
   </section>;
 }
 const components = {
-  radio: RadioPanel, scope: SpectrumPanel,
+  radio: RadioPanel, audio: AudioPanel, scope: SpectrumPanel,
   satellites: SatellitePanel, rotator: RotatorPanel, digital: DigitalPanel
 };
 
@@ -44,6 +45,8 @@ function Workbench({ station }: { station: string }) {
       position: { referencePanel: 'radio', direction: 'right' } });
     ready.api.addPanel({ id: 'rot', title: 'Rotator', component: 'rotator',
       position: { referencePanel: 'sat', direction: 'below' } });
+    ready.api.addPanel({ id: 'audio', title: 'RX Audio', component: 'audio',
+      position: { referencePanel: 'rot', direction: 'below' } });
     ready.api.addPanel({ id: 'digital', title: 'Digital', component: 'digital',
       position: { referencePanel: 'scope', direction: 'right' } });
   }, [key]);

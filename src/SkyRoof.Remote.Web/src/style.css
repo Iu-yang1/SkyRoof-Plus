@@ -40,3 +40,7 @@ button:hover{background:#42617c}
 .mode-select select{background:#182d3f;color:#eef4f8;padding:5px}
 .ptt-button{padding:12px;touch-action:none;font-weight:700;letter-spacing:.1em;user-select:none}
 .ptt-button.active{background:#8d2e31;color:#fff}
+
+.audio-panel{display:flex;flex-direction:column;gap:10px}
+.audio-panel .audio-buttons{display:flex;gap:10px}
+.audio-panel .readout{font:12px Consolas,monospace;color:#c8e8f7}
