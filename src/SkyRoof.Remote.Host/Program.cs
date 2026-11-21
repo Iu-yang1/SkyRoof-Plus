@@ -5,6 +5,9 @@ using SkyRoof.Remote.Host.Identity;
 using SkyRoof.Remote.Host.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
+var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+var webUiAvailable = File.Exists(Path.Combine(webRoot, "index.html"));
+if (webUiAvailable) builder.WebHost.UseWebRoot(webRoot);
 var database = Environment.GetEnvironmentVariable("SKYROOF_AUTH_DB")
     ?? Path.Combine(AppContext.BaseDirectory, "station-users.db");
 var databaseFolder = Path.GetDirectoryName(Path.GetFullPath(database))
@@ -53,8 +56,11 @@ builder.Services.AddSingleton<StationDeviceBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
-app.UseDefaultFiles();
-app.UseStaticFiles();
+if (webUiAvailable)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseWebSockets();
@@ -68,5 +74,5 @@ app.MapStationAdministration();
 app.MapLiveAudioStream();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
-app.MapFallbackToFile("index.html");
+if (webUiAvailable) app.MapFallbackToFile("index.html");
 await app.RunAsync();
