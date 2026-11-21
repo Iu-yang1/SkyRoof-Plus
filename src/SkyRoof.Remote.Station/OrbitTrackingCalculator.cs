@@ -1,14 +1,17 @@
 using SkyRoof.Orbit.Contracts;
-using SkyRoof.Orbit.SgpNet;
 using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Station;
 
-internal static class OrbitTrackingCalculator
+public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
 {
     private const double SpeedOfLight = 299_792_458.0;
 
-    internal static TrackingSnapshot Predict(TrackingRequest request)
+    private readonly object _sync = new();
+    private string? _line1, _line2;
+    private IOrbitTrack? _track;
+
+    internal TrackingSnapshot Predict(TrackingRequest request)
     {
         if (!double.IsFinite(request.LatitudeDegrees) ||
             request.LatitudeDegrees is < -90 or > 90 ||
@@ -20,14 +23,24 @@ internal static class OrbitTrackingCalculator
             throw new ArgumentException("Invalid ground site or tracking frequencies.");
 
         var utc = DateTimeOffset.FromUnixTimeMilliseconds(request.UtcUnixMilliseconds);
-        var backend = new SgpNetOrbitBackend();
-        var track = backend.CreateTleTrack(request.TleLine1, request.TleLine2);
-        var observed = track.Observe(new GroundStationSpec(request.LatitudeDegrees,
-            request.LongitudeDegrees, request.HeightMetres), utc);
+        OrbitObservation observed;
+        int noradNumber;
+        lock (_sync)
+        {
+            if (_track is null || _line1 != request.TleLine1 || _line2 != request.TleLine2)
+            {
+                _track = backend.CreateTleTrack(request.TleLine1, request.TleLine2);
+                _line1 = request.TleLine1;
+                _line2 = request.TleLine2;
+            }
+            noradNumber = _track.NoradNumber;
+            observed = _track.Observe(new GroundStationSpec(request.LatitudeDegrees,
+                request.LongitudeDegrees, request.HeightMetres), utc);
+        }
         var factor = observed.RangeRateMetresPerSecond / SpeedOfLight;
         return new TrackingSnapshot
         {
-            NoradNumber = track.NoradNumber,
+            NoradNumber = noradNumber,
             UtcUnixMilliseconds = utc.ToUnixTimeMilliseconds(),
             AzimuthDegrees = observed.AzimuthDegrees,
             ElevationDegrees = observed.ElevationDegrees,

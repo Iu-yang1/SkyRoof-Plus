@@ -3,7 +3,7 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Station;
 
-public sealed class TrackingService(DeviceControlForwarder device) :
+public sealed class TrackingService(DeviceControlForwarder device, OrbitTrackingCalculator calculator) :
     StationTracking.StationTrackingBase
 {
     private readonly SemaphoreSlim _apply = new(1, 1);
@@ -16,7 +16,12 @@ public sealed class TrackingService(DeviceControlForwarder device) :
 
     internal async Task<TrackingSnapshot> ApplyAtAsync(TrackingRequest request, CancellationToken ct)
     {
-        var result = Calculate(request);
+        return await ApplyPredictionAsync(request, Calculate(request), ct);
+    }
+
+    internal async Task<TrackingSnapshot> ApplyPredictionAsync(TrackingRequest request,
+        TrackingSnapshot result, CancellationToken ct)
+    {
         if (result.ElevationDegrees < request.ElevationMaskDegrees) return result;
         await _apply.WaitAsync(ct);
         try
@@ -51,9 +56,9 @@ public sealed class TrackingService(DeviceControlForwarder device) :
         finally { _apply.Release(); }
     }
 
-    private static TrackingSnapshot Calculate(TrackingRequest request)
+    internal TrackingSnapshot Calculate(TrackingRequest request)
     {
-        try { return OrbitTrackingCalculator.Predict(request); }
+        try { return calculator.Predict(request); }
         catch (Exception e) when (e is ArgumentException or FormatException or OverflowException)
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, e.Message));

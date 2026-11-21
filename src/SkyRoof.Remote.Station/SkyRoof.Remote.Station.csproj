@@ -6,6 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../SkyRoof.Orbit.SgpNet/SkyRoof.Orbit.SgpNet.csproj" />
+    <ProjectReference Include="../../SkyRoof.Orbit.Orekit/SkyRoof.Orbit.Orekit.csproj" />
+    <Content Include="../../SkyRoof.Orbit.Orekit.Smoke/TestData/tai-utc.dat" Link="orekit-data/tai-utc.dat" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />

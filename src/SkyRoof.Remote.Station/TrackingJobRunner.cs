@@ -67,14 +67,14 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
         _nextTick = 0;
     }
 
-    private static void Validate(TrackingJobStart request)
+    private void Validate(TrackingJobStart request)
     {
         if (request.Tracking is null || request.IntervalMilliseconds < 100)
             throw new RpcException(new Status(StatusCode.InvalidArgument,
                 "Tracking configuration and an interval of at least 100 ms are required."));
         var current = request.Tracking.Clone();
         current.UtcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        try { OrbitTrackingCalculator.Predict(current); }
+        try { tracking.Calculate(current); }
         catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
         { throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message)); }
     }
