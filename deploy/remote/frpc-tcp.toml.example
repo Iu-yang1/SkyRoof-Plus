@@ -1,0 +1,22 @@
+serverAddr = "relay.example.com"
+serverPort = 7000
+auth.method = "token"
+auth.token = "REPLACE_WITH_PRIVATE_TOKEN"
+transport.protocol = "tcp"
+transport.tls.enable = true
+transport.tls.trustedCaFile = "C:/SkyRoof/frps-ca.crt"
+log.level = "info"
+
+[[proxies]]
+name = "skyroof-a-control"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8076
+remotePort = 18076
+
+[[proxies]]
+name = "skyroof-a-webrtc"
+type = "udp"
+localIP = "127.0.0.1"
+localPort = 50110
+remotePort = 52000
