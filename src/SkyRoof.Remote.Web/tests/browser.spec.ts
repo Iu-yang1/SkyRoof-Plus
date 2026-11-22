@@ -17,8 +17,20 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   const stored = await page.evaluate(() => localStorage.getItem('skyroof.layout.local'));
   expect(stored).toBeTruthy();
 
+  const localSlot = page.locator('.workspace-slot').first();
+  const remoteSlot = page.locator('.workspace-slot').nth(1);
+  const originalLocal = await localSlot.elementHandle();
+  expect(originalLocal).toBeTruthy();
+  await expect(localSlot).toBeVisible();
+  await expect(remoteSlot).toBeHidden();
   await page.getByRole('button', { name: 'Remote Workspace' }).click();
+  await expect(localSlot).toBeHidden();
+  await expect(remoteSlot).toBeVisible();
   await expect(page.getByText('No Station Hub linked to this Workspace')).toBeVisible();
+  expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
   await page.getByRole('button', { name: 'Local Station' }).click();
+  await expect(localSlot).toBeVisible();
+  await expect(remoteSlot).toBeHidden();
+  expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
   await expect(page.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
 });
