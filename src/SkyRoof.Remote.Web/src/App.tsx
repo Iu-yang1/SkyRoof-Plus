@@ -74,13 +74,44 @@ export default function App() {
   useEffect(() => {
     if (!station) return;
     let closed = false;
-    let disconnect: (() => void) | undefined;
-    void connectControl().then(hub => {
-      disconnect = () => { void hub.stop(); };
-      if (closed) disconnect?.();
-      else { setHub(hub); setStatus('SignalR/MessagePack connected'); }
-    }).catch(err => { if (!closed) setStatus(String(err)); });
-    return () => { closed = true; setHub(null); disconnect?.(); };
+    let connection: HubConnection | null = null;
+    let retryTimer: number | null = null;
+
+    const reconnect = async () => {
+      if (closed) return;
+      try {
+        const next = await connectControl();
+        if (closed) { await next.stop(); return; }
+        connection = next;
+        next.onreconnecting(() => {
+          if (!closed) setStatus('SignalR reconnecting');
+        });
+        next.onreconnected(() => {
+          if (!closed) setStatus('SignalR/MessagePack connected');
+        });
+        next.onclose(() => {
+          if (closed || connection !== next) return;
+          connection = null;
+          setHub(null);
+          setStatus('SignalR disconnected · retrying');
+          retryTimer = window.setTimeout(() => { void reconnect(); }, 3000);
+        });
+        setHub(next);
+        setStatus('SignalR/MessagePack connected');
+      } catch (err) {
+        if (closed) return;
+        setStatus('SignalR unavailable · retrying: ' + String(err));
+        retryTimer = window.setTimeout(() => { void reconnect(); }, 3000);
+      }
+    };
+
+    void reconnect();
+    return () => {
+      closed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      if (connection) void connection.stop();
+      setHub(null);
+    };
   }, [station]);
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
