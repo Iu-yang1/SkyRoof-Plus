@@ -31,6 +31,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build authenticated E2E client and fake rigctld
         run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
+      - name: Assert all three executable paths exist
+        shell: pwsh
+        run: |
+          @(
+            'src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll',
+            'src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/SkyRoof.Remote.Station.dll',
+            'src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll'
+          ) | ForEach-Object {
+            if (-not (Test-Path $_)) { throw "Expected built process missing: $_" }
+          }
       - name: Execute real three-process authorized CAT transaction test (Orekit)
         env:
           SKYROOF_TEST_ORBIT_BACKEND: orekit
@@ -39,4 +49,4 @@ jobs:
       - name: Execute SGP.NET comparison path
         env:
           SKYROOF_TEST_ORBIT_BACKEND: sgpnet
-        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
