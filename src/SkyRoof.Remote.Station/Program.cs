@@ -27,5 +27,6 @@ app.Logger.LogInformation("Station orbit backend: {Backend}", app.Services.GetRe
 app.MapGrpcService<DeviceControlForwarder>();
 app.MapGrpcService<TrackingService>();
 app.MapGrpcService<TrackingJobsService>();
+app.MapGrpcService<RotatorControlForwarder>();
 app.Logger.LogInformation("Station Core listening on {Pipe}", stationPipe);
 await app.RunAsync();
