@@ -32,12 +32,24 @@ public sealed partial class NamedSignalRing : IDisposable
             checked(HeaderBytes + (long)slots * _stride), MemoryMappedFileAccess.ReadWrite);
         _view = _mapping.CreateViewAccessor();
         _mutex = new Mutex(false, "Local\\SkyRoofRemoteBusLock_" + name);
-        if (initialEpoch != 0) ResetEpoch(initialEpoch);
-        else Locked(() =>
+        try
         {
-            ValidateHeader();
-            return true;
-        });
+            if (initialEpoch != 0) ResetEpoch(initialEpoch);
+            else Locked(() =>
+            {
+                ValidateHeader();
+                return true;
+            });
+        }
+        catch
+        {
+            // A WSS reader may connect before the Media process creates the ring.
+            // Failed opens must not retain named mapping, view or mutex handles.
+            _mutex.Dispose();
+            _view.Dispose();
+            _mapping.Dispose();
+            throw;
+        }
     }
 
     public ulong StreamEpoch => Locked(() => _view.ReadUInt64(8));
