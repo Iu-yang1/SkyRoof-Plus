@@ -7,18 +7,18 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   await page.getByLabel('PASSWORD').fill('BrowserSmokeTestP@ssw0rd!');
   await page.getByRole('button', { name: 'SIGN IN' }).click();
 
+  const localSlot = page.locator('.workspace-slot').first();
+  const remoteSlot = page.locator('.workspace-slot').nth(1);
   await expect(page.getByText('REMOTE V1 · DEV PROTOTYPE')).toBeVisible();
-  await expect(page.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
-  await expect(page.getByText('48,000 samples/s · PCM16 · SAP/1')).toBeVisible();
-  await expect(page.getByText('FT4 / CW CONSOLE')).toBeVisible();
+  await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
+  await expect(localSlot.getByText('48,000 samples/s · PCM16 · SAP/1')).toBeVisible();
+  await expect(localSlot.getByText('FT4 / CW CONSOLE')).toBeVisible();
   await expect(page.getByText('SignalR/MessagePack connected')).toBeVisible();
 
   await page.getByRole('button', { name: 'SAVE LAYOUT' }).click();
   const stored = await page.evaluate(() => localStorage.getItem('skyroof.layout.local'));
   expect(stored).toBeTruthy();
 
-  const localSlot = page.locator('.workspace-slot').first();
-  const remoteSlot = page.locator('.workspace-slot').nth(1);
   const originalLocal = await localSlot.elementHandle();
   expect(originalLocal).toBeTruthy();
   await expect(localSlot).toBeVisible();
@@ -26,11 +26,11 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   await page.getByRole('button', { name: 'Remote Workspace' }).click();
   await expect(localSlot).toBeHidden();
   await expect(remoteSlot).toBeVisible();
-  await expect(page.getByText('No Station Hub linked to this Workspace')).toBeVisible();
+  await expect(remoteSlot.getByText('No Station Hub linked to this Workspace')).toBeVisible();
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
   await page.getByRole('button', { name: 'Local Station' }).click();
   await expect(localSlot).toBeVisible();
   await expect(remoteSlot).toBeHidden();
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
-  await expect(page.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
+  await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
 });
