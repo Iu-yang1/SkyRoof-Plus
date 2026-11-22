@@ -20,6 +20,12 @@ var data = new
     Processes = new[]
     {
         new {
+            Name = "unavailable-optional-component",
+            Executable = Path.Combine(dir, "missing-optional-service.exe"),
+            Arguments = Array.Empty<string>(),
+            WorkingDirectory = dir
+        },
+        new {
             Name = "simulated-device",
             Executable = "dotnet",
             Arguments = new[] { selfDll, "child", markerPath },
@@ -46,7 +52,7 @@ try
         await Task.Delay(200);
     }
     if (!restarted) throw new InvalidOperationException("Supervisor did not restart crashed child.");
-    Console.WriteLine("PASS: independently supervised child process restarted after injected crash.");
+    Console.WriteLine("PASS: supervisor isolated missing child and independently restarted the healthy child's injected crash.");
 }
 finally
 {

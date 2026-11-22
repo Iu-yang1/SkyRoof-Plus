@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace SkyRoof.Remote.Supervisor;
@@ -50,9 +51,23 @@ public sealed partial class ManagedProcessSupervisor(
                         child.NextStart = DateTimeOffset.UtcNow.AddSeconds(wait);
                     }
                     if (DateTimeOffset.UtcNow < child.NextStart) continue;
-                    child.Process = Launch(child.Spec);
-                    logger.LogInformation("Started child {Child}, PID {Pid}.",
-                        child.Spec.Name, child.Process.Id);
+                    try
+                    {
+                        child.Process = Launch(child.Spec);
+                        child.FailureCount = 0;
+                        logger.LogInformation("Started child {Child}, PID {Pid}.",
+                            child.Spec.Name, child.Process.Id);
+                    }
+                    catch (Exception ex) when (ex is Win32Exception or IOException
+                        or InvalidOperationException)
+                    {
+                        child.FailureCount++;
+                        var delay = Math.Min(30, 1 << Math.Min(5, child.FailureCount - 1));
+                        child.NextStart = DateTimeOffset.UtcNow.AddSeconds(delay);
+                        logger.LogError(ex,
+                            "Child {Child} launch failed; retry in {Delay}s. Other services remain running.",
+                            child.Spec.Name, delay);
+                    }
                 }
                 await timer.WaitForNextTickAsync(stoppingToken);
             }
