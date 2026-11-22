@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext, type DeviceReadback, DeviceOperation } from './host';
 
 function toHz(mhz: string): number {
@@ -25,6 +25,7 @@ export function RadioPanel() {
   const [transmitting, setTransmitting] = useState(false);
   const pending = useRef<Promise<void>>(Promise.resolve());
   const heldTx = useRef<string | null>(null);
+  const heldPointer = useRef<number | null>(null);
   const heldRef = useRef<{ rx: string; tx: string; mode: string }>({ rx, tx, mode });
   heldRef.current = { rx, tx, mode };
 
@@ -94,6 +95,7 @@ export function RadioPanel() {
     const txId = heldTx.current;
     if (!hub || !txId) return;
     heldTx.current = null;
+    heldPointer.current = null;
     queue(async () => {
       const next = await hub.invoke<DeviceReadback>('ExecuteCatCommand', {
         TransactionId: txId, Operation: DeviceOperation.ManualEnd,
@@ -123,12 +125,20 @@ export function RadioPanel() {
       releaseRef.current();
     };
     const blur = () => releaseRef.current();
+    // A hidden but mounted Workspace must retain TX until its original pointer is released.
+    const pointerEnd = (event: PointerEvent) => {
+      if (heldPointer.current === event.pointerId) releaseRef.current();
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('pointerup', pointerEnd);
+    window.addEventListener('pointercancel', pointerEnd);
     window.addEventListener('blur', blur);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('pointerup', pointerEnd);
+      window.removeEventListener('pointercancel', pointerEnd);
       window.removeEventListener('blur', blur);
       releaseRef.current();
     };
@@ -150,10 +160,15 @@ export function RadioPanel() {
     });
   }
 
-  function pointerDown(event: PointerEvent<HTMLButtonElement>) {
-    if (event.button !== 0) return;
+  function pointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || !hub || !radio || !activeRef.current || heldTx.current) return;
+    heldPointer.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     pttDown();
+  }
+
+  function pointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (heldPointer.current === event.pointerId) pttUp();
   }
 
   return <section className="panel radio-panel">
@@ -175,8 +190,8 @@ export function RadioPanel() {
     </select></label>
     <button className={'ptt-button ' + (transmitting || radio?.ActualPtt ? 'active' : '')}
       disabled={!hub || !radio}
-      onPointerDown={pointerDown} onPointerUp={pttUp}
-      onPointerCancel={pttUp}
+      onPointerDown={pointerDown} onPointerUp={pointerUp}
+      onPointerCancel={pointerUp}
       type="button">PTT · HOLD / SPACE</button>
     {error && <p role="alert" className="error">{error}</p>}
     <small>此界面直接调用 Station Core 的 CAT 事务；Device 必须连接实际 SkyCAT/rigctld。没有音频 TX 时仅有 PTT/CAT，不代表可传送话音。</small>
