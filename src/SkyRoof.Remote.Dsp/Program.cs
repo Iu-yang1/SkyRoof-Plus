@@ -37,9 +37,7 @@ while (true)
                 spectrum.ResetEpoch((ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
             }
             var oldDiscontinuities = analyzer.Discontinuities;
-            analyzer.Accept(frame.StreamEpoch, frame.FirstSampleIndex,
-                frame.SampleRate, frame.SampleCount, channels, frame.Payload,
-                (firstSample, db) =>
+            analyzer.Accept(frame, channels, (firstSample, db) =>
                 {
                     var payload = new byte[db.Length * sizeof(float)];
                     for (var i = 0; i < db.Length; ++i)

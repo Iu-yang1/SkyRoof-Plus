@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Numerics;
+using SkyRoof.Remote.SignalBus;
 
 namespace SkyRoof.Remote.Dsp;
 
@@ -35,9 +36,13 @@ public sealed class AudioSpectrumTransform
         Array.Clear(_samples);
     }
 
-    public void Accept(ulong epoch, ulong firstSampleIndex, int sampleRate, int samplesPerChannel,
-        int channels, ReadOnlySpan<byte> pcm, Action<ulong, float[]> onSpectrum)
+    public void Accept(SignalFrame frame, int channels, Action<ulong, float[]> onSpectrum)
     {
+        var epoch = frame.StreamEpoch;
+        var firstSampleIndex = frame.FirstSampleIndex;
+        var sampleRate = frame.SampleRate;
+        var samplesPerChannel = frame.SampleCount;
+        var pcm = frame.Payload.AsSpan();
         if (sampleRate != SampleRate || channels is < 1 or > 2 ||
             samplesPerChannel < 1 || pcm.Length != samplesPerChannel * channels * sizeof(short))
             throw new InvalidDataException("Audio spectrum input must be 48 kHz PCM16 LE.");
