@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
