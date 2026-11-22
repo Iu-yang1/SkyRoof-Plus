@@ -1,0 +1,22 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service MediaIngress {
+  rpc PublishRx(stream RxPcmChunk) returns (RxStreamReceipt);
+}
+
+message RxPcmChunk {
+  uint64 first_sample_index = 1;
+  int32 sample_rate = 2;
+  int32 samples_per_channel = 3;
+  int32 channels = 4;
+  bytes pcm16 = 5;
+}
+
+message RxStreamReceipt {
+  uint64 epoch = 1;
+  int64 frames_written = 2;
+  uint64 samples_skipped = 3;
+  string state = 4;
+}
