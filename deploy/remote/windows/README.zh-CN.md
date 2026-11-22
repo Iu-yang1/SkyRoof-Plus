@@ -26,3 +26,7 @@ Windows x64 需 .NET 10 Runtime 和可访问的本机 SkyCAT/rigctld 服务。�
 ## AF Spectrum（音频 FFT）
 
 在独立 Dsp 进程的 SKYROOF_RX_AUDIO_BUS 指定与 Media 相同的 RX PCM 总线，在 SKYROOF_AF_SPECTRUM_BUS 指定输出总线，并将相同输出配置给 Host。客户端登录后通过 /ws/af-spectrum 获取实际 48 kHz PCM 音频 FFT：4096 点 Hann 窗、1600 点步进、理论约 30 帧/秒，0–24 kHz 共 475 个功率电平（dBFS），每帧拥有 Epoch 与序号。浏览器的 AF Spectrum 独立窗口渲染这些实测数据。不能据此推断电台 RF/IF 频谱；该功能不提供任何 RF 发射或旋转控制。
+
+## Windows Service 双模式宿主
+
+管理员 PowerShell：先用 dotnet publish -r win-x64 得到 Supervisor exe，再执行 Install-RemoteService.ps1，传入 -Executable、-Configuration 及可选 -ServiceName、-Startup auto。安装完成后执行 Start-Service SkyRoofRemote。普通后台运行仍使用 SKYROOF_SUPERVISOR_CONFIG；SCM 启动通过 --config 指向同一份 JSON。卸载执行 Remove-RemoteService.ps1，保留 SQLite 及设备持久化数据。Windows Service 的 Session 0 与交互式 WinForms 不同，实机时需核对服务账户对串口、CAT 服务、命名管道和用户数据目录的访问权限。独立 CI 使用真实 SCM 注册/启动/停止和受管子进程退出检查；该模拟不代表已完成真实设备的 Windows Service 访问测试。
