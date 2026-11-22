@@ -52,3 +52,6 @@ button:hover{background:#42617c}
 .tracking-options{display:flex;gap:10px;flex-wrap:wrap}
 .tracking-options label{display:flex!important;align-items:center}
 .tracking-panel .audio-buttons{display:flex;gap:8px;flex-wrap:wrap}
+
+.workspace-slot{flex:1;min-height:0;min-width:0;flex-direction:column}
+.workspace-slot>.workspace{flex:1;min-height:0}

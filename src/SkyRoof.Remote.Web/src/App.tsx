@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent } from 'dockview-react';
-import { connectControl, queryStation, signIn, DeviceHubContext, type StationInfo } from './host';
+import { connectControl, queryStation, signIn, DeviceHubContext, WorkspaceActiveContext, type StationInfo } from './host';
 import { type HubConnection } from '@microsoft/signalr';
 import { RadioPanel } from './RadioPanel';
 import { AudioPanel } from './AudioPanel';
@@ -109,9 +109,20 @@ export default function App() {
       <button className={workspace === 'remote' ? 'active' : ''} onClick={() => setWorkspace('remote')}>Remote Workspace</button>
       <small>第二工作区仅展示独立布局，不连接另一台真实台站</small>
     </nav>
-    <DeviceHubContext.Provider value={workspace === "local" ? hub : null}>
-      <Workbench key={workspace} station={workspace} />
-    </DeviceHubContext.Provider>
+    <div className="workspace-slot" style={{ display: workspace === 'local' ? 'flex' : 'none' }}>
+      <DeviceHubContext.Provider value={hub}>
+        <WorkspaceActiveContext.Provider value={workspace === 'local'}>
+          <Workbench station="local" />
+        </WorkspaceActiveContext.Provider>
+      </DeviceHubContext.Provider>
+    </div>
+    <div className="workspace-slot" style={{ display: workspace === 'remote' ? 'flex' : 'none' }}>
+      <DeviceHubContext.Provider value={null}>
+        <WorkspaceActiveContext.Provider value={workspace === 'remote'}>
+          <Workbench station="remote" />
+        </WorkspaceActiveContext.Provider>
+      </DeviceHubContext.Provider>
+    </div>
     <footer className="status">{station.runtimeMode} · Device CAT via Station Core · AF DSP bridge available; RF/IF and TX integration pending</footer>
   </div>;
 }

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
-import { DeviceHubContext, type DeviceReadback, DeviceOperation } from './host';
+import { DeviceHubContext, WorkspaceActiveContext, type DeviceReadback, DeviceOperation } from './host';
 
 function toHz(mhz: string): number {
   const frequency = Number(mhz);
@@ -14,6 +14,9 @@ function fromHz(hz: number): string {
 
 export function RadioPanel() {
   const hub = useContext(DeviceHubContext);
+  const workspaceActive = useContext(WorkspaceActiveContext);
+  const activeRef = useRef(workspaceActive);
+  activeRef.current = workspaceActive;
   const [radio, setRadio] = useState<DeviceReadback | null>(null);
   const [rx, setRx] = useState('');
   const [tx, setTx] = useState('');
@@ -73,7 +76,7 @@ export function RadioPanel() {
   }, [hub]);
 
   function pttDown() {
-    if (!hub || heldTx.current) return;
+    if (!hub || !activeRef.current || heldTx.current) return;
     const id = crypto.randomUUID();
     heldTx.current = id;
     const { tx: frequency, mode: txMode } = heldRef.current;
@@ -109,7 +112,7 @@ export function RadioPanel() {
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (event.code !== 'Space' || event.repeat ||
+      if (!activeRef.current || event.code !== 'Space' || event.repeat ||
           target?.closest('input, textarea, select, button, [contenteditable]')) return;
       event.preventDefault();
       pressRef.current();

@@ -3,6 +3,7 @@ import { HubConnectionBuilder, type HubConnection } from '@microsoft/signalr';
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 
 export const DeviceHubContext = createContext<HubConnection | null>(null);
+export const WorkspaceActiveContext = createContext(true);
 
 export enum DeviceOperation {
   RxFrequency = 1,

@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { WorkspaceActiveContext } from './host';
 
 type Playback = { context: AudioContext; socket: WebSocket; node: AudioWorkletNode };
 
 export function AudioPanel() {
+  const workspaceActive = useContext(WorkspaceActiveContext);
   const playback = useRef<Playback | null>(null);
   const [status, setStatus] = useState('RX AUDIO OFF');
   const [frames, setFrames] = useState(0);
@@ -21,7 +23,7 @@ export function AudioPanel() {
   }
 
   async function start() {
-    if (playback.current) return;
+    if (playback.current || !workspaceActive) return;
     setStatus('CONNECTING...');
     let context: AudioContext | null = null;
     try {
@@ -72,7 +74,7 @@ export function AudioPanel() {
         count++;
         if (count % 15 === 0) setFrames(count);
       };
-      await context.resume();
+      if (workspaceActive) await context.resume();
     } catch (error) {
       if (context) await context.close();
       playback.current?.socket.close();
@@ -80,6 +82,15 @@ export function AudioPanel() {
       setStatus(String(error));
     }
   }
+
+  // Keep the source stream/identity alive while preventing non-active stations
+  // from playing audio. Switching back resumes the same bounded Worklet.
+  useEffect(() => {
+    const current = playback.current;
+    if (!current) return;
+    if (workspaceActive) void current.context.resume();
+    else void current.context.suspend();
+  }, [workspaceActive]);
 
   useEffect(() => () => {
     const current = playback.current;
@@ -97,7 +108,7 @@ export function AudioPanel() {
     <div className="readout">48,000 samples/s · PCM16 · SAP/1</div>
     <div className="readout">Received {frames} frames · Buffer {bufferedMs} ms · Underruns {underruns}</div>
     <div className="audio-buttons">
-      <button onClick={() => { void start(); }}>PLAY RX</button>
+      <button disabled={!workspaceActive} onClick={() => { void start(); }}>PLAY RX</button>
       <button onClick={stop}>STOP RX</button>
     </div>
     <small>独立 WSS 接收路径。当前无实际 IC-9700 RX PCM 输入；Voice Track/RTC Data 自动切换仍待 Media Service 集成。</small>
