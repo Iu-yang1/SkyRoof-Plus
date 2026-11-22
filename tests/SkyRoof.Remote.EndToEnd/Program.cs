@@ -121,7 +121,7 @@ try
     await using var b = CreateHub(operatorToken);
     await a.StartAsync();
     await b.StartAsync();
-    var initial = await a.InvokeAsync<RemoteCatStatus>("GetCatReadback");
+    var initial = await CatStartupChecks.WaitReadbackAsync(a);
     Ensure(initial.RxFrequencyHz == 145_900_000 && !initial.ActualPtt,
         "Host -> Station -> Device readback was not real");
 
@@ -174,7 +174,7 @@ try
     updatedRole.EnsureSuccessStatusCode();
     await using var viewer = CreateHub(operatorToken);
     await viewer.StartAsync();
-    var viewerRadio = await viewer.InvokeAsync<RemoteCatStatus>("GetCatReadback");
+    var viewerRadio = await CatStartupChecks.WaitReadbackAsync(viewer);
     Ensure(!viewerRadio.ActualPtt, "Viewer did not receive authorized radio status");
     var viewerPrediction = await viewer.InvokeAsync<RemoteTrackingStatus>("PredictTracking", TrackingChecks.Request());
     Ensure(viewerPrediction.NoradNumber == 5 && !viewerPrediction.CatApplied,
