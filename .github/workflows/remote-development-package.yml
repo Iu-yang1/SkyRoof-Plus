@@ -2,7 +2,7 @@ name: Remote V1 Multi-Process Development Package
 on:
   push:
     branches: [feature/remote-v1-multiprocess-foundation]
-    paths: ['src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Media.Integration/**','.github/workflows/remote-development-package.yml']
+    paths: ['src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Media.Integration/**','tests/SkyRoof.Remote.Dsp.Integration/**','.github/workflows/remote-development-package.yml']
   pull_request:
     paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','.github/workflows/remote-development-package.yml']
   workflow_dispatch:
@@ -29,11 +29,11 @@ jobs:
           npm run build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Pop-Location
-      - name: Publish all five processes
+      - name: Publish all six processes
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts/remote-v1 | Out-Null
-          foreach ($part in @('Device','Station','Media','Host','Supervisor')) {
+          foreach ($part in @('Device','Station','Media','Dsp','Host','Supervisor')) {
             dotnet publish "src/SkyRoof.Remote.$part/SkyRoof.Remote.$part.csproj" -c Release -r win-x64 --self-contained false -o "artifacts/remote-v1/$part"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
@@ -47,6 +47,10 @@ jobs:
         run: dotnet build tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release -warnaserror
       - name: Exercise published Media process and SignalBus RX PCM16
         run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Media/SkyRoof.Remote.Media.dll
+      - name: Build independent DSP AF integration harness
+        run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
+      - name: Exercise packaged DSP AF FFT on synthetic PCM
+        run: dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
       - name: Compress after smoke passes
         shell: pwsh
         run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force

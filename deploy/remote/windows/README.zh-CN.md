@@ -1,10 +1,11 @@
 # SkyRoof Remote V1 Windows x64 多进程开发测试包
 
-此包包含 Device、Station、Media、Host、Supervisor 五个 .NET 10 进程，以及 React/Dockview 网页，不是完整 SkyRoof Remote V1 正式版本。
+此包包含 Device、Station、Media、Dsp、Host、Supervisor 六个 .NET 10 进程，以及 React/Dockview 网页，不是完整 SkyRoof Remote V1 正式版本。
 
 - Device：独立控制 SkyCAT/rigctld 兼容 CAT TCP；处理上下行频率、模式、PTT、设备读回、崩溃事务恢复与超时释放
 - Station：独立 gRPC 命名管道控制入口
 - Media：独立 gRPC Windows Named Pipe RX PCM16 入口，将真实来源提供的 PCM 帧写入 SignalBus，并与 Host 的认证 WSS 音频端点联动
+- Dsp：从 Media 共享内存 PCM16 产生真实 AF Hann-FFT 音频频谱，发布 475-bin AF Spectrum SignalBus
 - Host：Identity/SQLite、MessagePack SignalR、身份与权限、网页
 - Supervisor：普通后台运行并兼容 Windows Service 托管，可监管上述进程
 
@@ -21,3 +22,7 @@ Windows x64 需 .NET 10 Runtime 和可访问的本机 SkyCAT/rigctld 服务。�
 从 Windows 本机私有管道 SKYROOF_MEDIA_PIPE（示例：skyroof-station-media-primary）调用 MediaIngress.PublishRx 客户端流式 RPC。传入 PCM16 小端、48 kHz、单/双声道，每包 1–960 sample/channel，附单调递增 FirstSampleIndex。gRPC 的首次 PublishRx 建立新的音源代际，后接入的音源接管共享流，旧音源不再写入。时间戳与序号由服务端 SignalBus 记录；传输期间的样本缺口可在 RxStreamReceipt.SamplesSkipped 诊断，数据不会被误重放。Host /ws/audio 使用相同 SKYROOF_RX_AUDIO_BUS 和匹配的 SKYROOF_RX_AUDIO_CHANNELS（1 或 2）供合法已登录用户消费。
 
 当前不包含真实 IC-9700 Direct LAN 捕获、RX PCM 自动重采样、TX PCM 或数字模式定时发射，也不应把此入口作为公网服务暴露。
+
+## AF Spectrum（音频 FFT）
+
+在独立 Dsp 进程的 SKYROOF_RX_AUDIO_BUS 指定与 Media 相同的 RX PCM 总线，在 SKYROOF_AF_SPECTRUM_BUS 指定输出总线，并将相同输出配置给 Host。客户端登录后通过 /ws/af-spectrum 获取实际 48 kHz PCM 音频 FFT：4096 点 Hann 窗、1600 点步进、理论约 30 帧/秒，0–24 kHz 共 475 个功率电平（dBFS），每帧拥有 Epoch 与序号。浏览器的 AF Spectrum 独立窗口渲染这些实测数据。不能据此推断电台 RF/IF 频谱；该功能不提供任何 RF 发射或旋转控制。

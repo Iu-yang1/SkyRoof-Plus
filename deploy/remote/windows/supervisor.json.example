@@ -41,6 +41,19 @@
       }
     },
     {
+      "Name": "Dsp",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Dsp/SkyRoof.Remote.Dsp.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Dsp",
+      "Environment": {
+        "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
+        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
+        "SKYROOF_RX_AUDIO_CHANNELS": "1"
+      }
+    },
+    {
       "Name": "Host",
       "Executable": "dotnet",
       "Arguments": [
@@ -52,7 +65,8 @@
         "ASPNETCORE_URLS": "http://127.0.0.1:8076",
         "SKYROOF_AUTH_DB": "C:/SkyRoofRemote/data/station-users.db",
         "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
-        "SKYROOF_RX_AUDIO_CHANNELS": "1"
+        "SKYROOF_RX_AUDIO_CHANNELS": "1",
+        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary"
       }
     }
   ]

@@ -9,7 +9,7 @@
 | P2 | Supervisor 普通后台和 Windows Service 兼容宿主，故障重启，停止前尝试释放 Device PTT | 真实 SCM/Session0 账号与权限实测 |
 | P3 | 独立 Device：SkyCAT/rigctld TCP、RX/TX 独立频率、模式/PTT、读回、故障事务日志和心跳过期 RF 释放 | IC-9700 Direct LAN、原旋转器路径规划/反馈策略、SDR/ONVIF 和实机验收 |
 | P4 | Station Core 独立 gRPC 进程，Host→Station→Device 命令链 | RadioLink 转发器模型、Orekit、连续跟踪和调度迁移 |
-| P5 | Shared Memory Ring 多进程读写、慢读者丢帧测试 | FT4、CW、Q65、遥测等 DSP 迁移 |
+| P5 | Shared Memory Ring 多进程读写、慢读者丢帧测试 | FT4、CW、Q65、遥测等数字解码器迁移，当前仅音频 FFT |
 | P6 | C++ libopus 48 kHz PCM 编解码、SAP/1、跨进程 PCM16→认证 WSS、WebAudio Worklet 接收 | 真实 IC-9700 音频 I/O、Opus/PCM 自动切换、ASRC 和 TX PCM |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
@@ -21,7 +21,7 @@
 | P14 | React/Dockview 工作台、实际 CAT 调谐和 PTT、WebGL2 模拟频谱、WSS Audio Worklet、布局持久化 | 原 SkyRoof 全部 Panel、多远端主机、浏览器操作验收 |
 | P15 | UTC/单调时钟预约模型、SHA-256 PCM 封存和恢复 | 外部 WSJT-X CAT/PCM Bridge、真实 Timestamped RF TX 及标定 |
 | P16 | 原生媒体、FRP、SignalBus、E2E 多进程、凭据、断线、崩溃等 CI | 大规模网络故障注入、24h 运行和无线电实机验收 |
-| P17 | Windows x64 五进程+Web 开发包 CI，要求从发布文件启动并重跑 E2E | 正式签名安装包、升级/回滚、Windows Service 实验 |
+| P17 | Windows x64 六进程+Web 开发包 CI，要求从发布文件启动并重跑 E2E | 正式签名安装包、升级/回滚、Windows Service 实验 |
 | P18 | 独立 CI + 原项目 Compile Check、Docs 与 aislop Quality Gate | 所有阻断条件消除，许可证审查，正式 Release |
 
 ## 当前已闭合的模拟链路
@@ -56,3 +56,7 @@ Station Orekit EOP 数据：默认在用户数据目录缓存 IERS `finals2000A.
 ## P6 新增独立 Media Service
 
 `SkyRoof.Remote.Media` 使用本机私有 gRPC Named Pipe 接收 48 kHz PCM16 单/双声道流，以共享内存 SignalBus 为站内 RX 音频总线，供 Host 认证 WSS 使用。接收端具备样本索引校验、缺口计数、后连接音源接管和新 StreamEpoch，禁止旧源覆盖新源。Windows CI 新增独立进程下的字节级 RX PCM、缺口、源接管及格式验证；开发包集成 Media 独立进程。该接口实际接收客户端送入的 PCM，但尚未连接 IC-9700 LAN 实机或 TX 音频管线，仍需单独验收。
+
+## P5 音频谱 DSP 新增
+
+建立独立 SkyRoof.Remote.Dsp 进程，读取 Media SignalBus PCM16，执行真实 Hann 4096 FFT，1600-sample hop，输出 475 个 dBFS AF bin，独立 StreamEpoch，在样本中断/代际变动时重建上下文。Host GET /ws/af-spectrum 是经认证的 WebSocket，网页另有 AF Spectrum Dockview 工作区。测试向真实 DSP 子进程注入 1 kHz 与切换后的 2.5 kHz 正弦波，检查峰值频率、电平和 Epoch；仅能声称 AF Spectrum 功能，不代表 IC-9700 RF/IF 频谱或 CW/FT4 解码器完成。
