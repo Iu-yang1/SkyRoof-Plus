@@ -54,7 +54,6 @@ public sealed partial class ManagedProcessSupervisor(
                     try
                     {
                         child.Process = Launch(child.Spec);
-                        child.FailureCount = 0;
                         logger.LogInformation("Started child {Child}, PID {Pid}.",
                             child.Spec.Name, child.Process.Id);
                     }
