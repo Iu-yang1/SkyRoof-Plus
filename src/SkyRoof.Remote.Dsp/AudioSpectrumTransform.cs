@@ -102,13 +102,19 @@ public sealed class AudioSpectrumTransform
         var output = new float[BinCount];
         for (var i = 0; i < BinCount; ++i)
         {
+            // 475 display bins are wider than native FFT bins. Averaging dB
+            // values at their centers attenuates narrow CW tones by >10 dB.
+            // Preserve peak amplitude by pooling FFT power inside each display
+            // frequency cell; convert the peak to dBFS only once.
             var center = i * (FftLength / 2.0) / (BinCount - 1);
-            var lower = (int)Math.Floor(center);
-            var frac = center - lower;
-            double Ampl(int index) => 20 * Math.Log10(Math.Max(1e-6,
-                fft[index].Magnitude * (index == 0 ? 1 : 2) / _windowSum));
-            var db = (1 - frac) * Ampl(lower) + frac * Ampl(Math.Min(FftLength / 2, lower + 1));
-            output[i] = (float)Math.Clamp(db, -120, 0);
+            var width = (FftLength / 2.0) / (BinCount - 1);
+            var first = Math.Max(0, (int)Math.Ceiling(center - width / 2));
+            var last = Math.Min(FftLength / 2, (int)Math.Floor(center + width / 2));
+            var peak = 0.0;
+            for (var j = first; j <= last; ++j)
+                peak = Math.Max(peak, fft[j].Magnitude * (j is 0 or FftLength / 2 ? 1 : 2)
+                    / _windowSum);
+            output[i] = (float)Math.Clamp(20 * Math.Log10(Math.Max(1e-6, peak)), -120, 0);
         }
         return output;
     }
