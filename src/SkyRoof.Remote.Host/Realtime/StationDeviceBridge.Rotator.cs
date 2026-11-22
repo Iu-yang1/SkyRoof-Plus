@@ -4,7 +4,8 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Host.Realtime;
 
-public sealed record RemoteRotatorPosition(double AzimuthDegrees, double ElevationDegrees);
+public sealed record RemoteRotatorPosition(double AzimuthDegrees, double ElevationDegrees,
+    bool ReadbackFresh, bool StopTransmitted, bool HasPosition);
 
 public sealed partial class StationDeviceBridge
 {
@@ -33,7 +34,8 @@ public sealed partial class StationDeviceBridge
         try
         {
             var result = await action(RotatorClient, token);
-            return new RemoteRotatorPosition(result.AzimuthDegrees, result.ElevationDegrees);
+            return new RemoteRotatorPosition(result.AzimuthDegrees, result.ElevationDegrees,
+                result.ReadbackFresh, result.StopTransmitted, result.HasPosition);
         }
         catch (RpcException ex)
         {

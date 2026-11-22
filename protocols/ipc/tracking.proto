@@ -15,6 +15,9 @@ message RotatorRead {}
 message RotatorPosition {
   double azimuth_degrees = 1;
   double elevation_degrees = 2;
+  bool readback_fresh = 3;
+  bool stop_transmitted = 4;
+  bool has_position = 5;
 }
 
 service StationTracking {

@@ -1,7 +1,8 @@
 import { useContext, useEffect, useState, type FormEvent } from 'react';
 import { DeviceHubContext } from './host';
 
-type Position = { AzimuthDegrees: number; ElevationDegrees: number };
+type Position = { AzimuthDegrees: number; ElevationDegrees: number;
+  ReadbackFresh: boolean; StopTransmitted: boolean; HasPosition: boolean };
 
 export function RotatorPanel() {
   const hub = useContext(DeviceHubContext);
@@ -50,15 +51,17 @@ export function RotatorPanel() {
     try {
       const response = await hub.invoke<Position>('StopRotator');
       setPosition(response);
-      setStatus('STOP sent; position readback received');
+      setStatus(response.StopTransmitted
+        ? 'STOP command acknowledged · position not freshly verified'
+        : 'STOP outcome unknown');
     } catch (error) { setStatus('STOP outcome unconfirmed: ' + String(error)); }
     finally { setBusy(false); }
   };
 
   return <section className="panel rotator-panel">
     <header>ROTATOR · LIVE GS-232 / ROTCTLD</header>
-    <div className="readout">AZ {position ? position.AzimuthDegrees.toFixed(2) : '—'}° ·
-      EL {position ? position.ElevationDegrees.toFixed(2) : '—'}°</div>
+    <div className="readout">AZ {position?.HasPosition ? position.AzimuthDegrees.toFixed(2) : '—'}° ·
+      EL {position?.HasPosition ? position.ElevationDegrees.toFixed(2) : '—'}°</div>
     <p>{status}</p>
     <form onSubmit={event => { void point(event); }}>
       <div className="tracking-grid">
