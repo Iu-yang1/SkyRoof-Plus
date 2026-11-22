@@ -18,9 +18,10 @@ function DigitalPanel() {
     <p>DSP 解码及 TX 事务等待业务迁移后接入。</p>
   </section>;
 }
+function RfSpectrumPanel() { return <SpectrumPanel />; }
 function AfSpectrumPanel() { return <SpectrumPanel audioFrequency />; }
 const components = {
-  radio: RadioPanel, audio: AudioPanel, scope: SpectrumPanel, afscope: AfSpectrumPanel,
+  radio: RadioPanel, audio: AudioPanel, scope: RfSpectrumPanel, afscope: AfSpectrumPanel,
   satellites: TrackingPanel, rotator: RotatorPanel, digital: DigitalPanel
 };
 
