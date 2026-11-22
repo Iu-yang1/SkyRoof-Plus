@@ -50,3 +50,5 @@ Station 直接引用原工程 SkyRoof.Orbit.Contracts / SkyRoof.Orbit.SgpNet，�
 Station 通过独立 BackgroundService 执行单调时钟周期调度，使用台站当前 UTC 重新计算 TLE 观测、CAT 多普勒和 rotctld 指向；不补发历史坐标。共享台站任务提供 Start/Status/Stop，Operator 可启停，Viewer 只读；旧任务 ID 的停止请求不影响新任务。ResumeAfterRestart 默认由页面开启，任务以独立配置文件持久化（SKYROOF_TRACKING_JOB_FILE），仅恢复已授权的跟踪任务，不恢复 PTT。停止清除持久化记录，并向已使用的旋转器发送 STOP。设备失败会显示错误并按新历元重试。新增 E2E 模拟覆盖掉线、Station 强杀重启、恢复、停止及停止后无新设备写入。仍缺真实 Orekit/ISS OEM、完整 RadioLink 转发器及旋转器路径规划迁移；CI 结论以具体运行记录为准。
 
 Station 原生引用既有 Orekit/IKVM，默认选择 Orekit，使用 SKYROOF_OREKIT_DATA 或发布目录 orekit-data（随包复制原有 tai-utc.dat）。只有显式设置 SKYROOF_ORBIT_BACKEND=sgpnet 才使用对照后端；失败不隐式降级。复用同一 TLE track，单次计算周期只生成一次观测。E2E 在 Orekit 和 SGP.NET 两种实际后端执行，发布目录 E2E 默认 Orekit；尚需核实 CI 和完整 EOP 数据／ISS OEM。
+
+Station Orekit EOP 数据：默认在用户数据目录缓存 IERS `finals2000A.all`，首次启动或文件超过 7 天时按原 SkyRoof 的 USNO/IERS 镜像顺序更新；校验数据行数/长度、SHA-256，先临时文件再原子替换。网络失败保留旧缓存并通过 Orekit DataQuality 显示数据覆盖范围。可以用 `SKYROOF_OREKIT_EOP_SOURCES` 指定镜像或本地文件，设置 `SKYROOF_OREKIT_EOP_AUTO=false` 关闭自动更新；`SKYROOF_OREKIT_DATA` 指向自定义目录。仅在 Orekit 进程初始化前更新，更新 EOP 后需要重新启动 Station 加载新数据。E2E 测试禁用互联网更新，使用发布目录固定 UTC 数据。

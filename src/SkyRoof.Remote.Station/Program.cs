@@ -19,6 +19,10 @@ builder.Services.AddSingleton<TrackingJobStore>();
 builder.Services.AddSingleton<TrackingJobRunner>();
 builder.Services.AddHostedService(p => p.GetRequiredService<TrackingJobRunner>());
 var app = builder.Build();
+if (!string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ORBIT_BACKEND"),
+    "sgpnet", StringComparison.OrdinalIgnoreCase))
+    await StationOrekitEopBootstrap.RefreshAsync(StationOrbitBackend.DataDirectory(), app.Logger);
+
 app.Logger.LogInformation("Station orbit backend: {Backend}", app.Services.GetRequiredService<IOrbitBackend>().BackendId);
 app.MapGrpcService<DeviceControlForwarder>();
 app.MapGrpcService<TrackingService>();
