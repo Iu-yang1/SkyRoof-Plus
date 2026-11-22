@@ -34,3 +34,20 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
   await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
 });
+
+test('station control recovers when first SignalR negotiation fails', async ({ page }) => {
+  let attempts = 0;
+  await page.route('**/hub/control/negotiate*', async route => {
+    attempts++;
+    if (attempts === 1) await route.abort('failed');
+    else await route.continue();
+  });
+
+  await page.goto('http://127.0.0.1:8076');
+  await page.getByLabel('USER').fill('browser-admin');
+  await page.getByLabel('PASSWORD').fill('BrowserSmokeTestP@ssw0rd!');
+  await page.getByRole('button', { name: 'SIGN IN' }).click();
+
+  await expect(page.getByText('SignalR/MessagePack connected')).toBeVisible({ timeout: 20000 });
+  expect(attempts).toBeGreaterThanOrEqual(2);
+});
