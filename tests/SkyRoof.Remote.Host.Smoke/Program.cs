@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Headers;
@@ -18,12 +19,15 @@ var url = $"http://127.0.0.1:{port}";
 var database = Path.Combine(Path.GetTempPath(), $"skyroof-smoke-{Guid.NewGuid():N}.db");
 var busName = "rx-smoke-" + Guid.NewGuid().ToString("N");
 using var bus = new NamedSignalRing(busName, slots: 64, payloadCapacity: 4096, initialEpoch: 33);
+var afBusName = "af-smoke-" + Guid.NewGuid().ToString("N");
+using var afBus = new NamedSignalRing(afBusName, 64, 4096, initialEpoch: 44);
 var processInfo = new System.Diagnostics.ProcessStartInfo("dotnet") { UseShellExecute = false };
 processInfo.ArgumentList.Add(Path.GetFullPath(args.Single()));
 processInfo.Environment["ASPNETCORE_URLS"] = url;
 processInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 processInfo.Environment["SKYROOF_AUTH_DB"] = database;
 processInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = busName;
+processInfo.Environment["SKYROOF_AF_SPECTRUM_BUS"] = afBusName;
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_USER"] = "station-admin";
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_PASSWORD"] = "ExampleStationAdminPassw0rd!";
 using var host = System.Diagnostics.Process.Start(processInfo)
@@ -116,6 +120,29 @@ try
     }
     Console.WriteLine("PASS: live cross-process raw PCM16 WSS over authenticated Station Host.");
 
+    Ensure((await anon.GetAsync("/ws/af-spectrum")).StatusCode == HttpStatusCode.Unauthorized,
+        "Anonymous AF spectrum access allowed");
+    using (var afSocket = new ClientWebSocket())
+    {
+        afSocket.Options.SetRequestHeader("Authorization", "Bearer " + token);
+        await afSocket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws/af-spectrum"),
+            CancellationToken.None);
+        var bins = new byte[475 * sizeof(float)];
+        BinaryPrimitives.WriteSingleLittleEndian(bins.AsSpan(20 * 4), -6.25f);
+        afBus.Publish(4096, Stopwatch.GetTimestamp(), 48000, 475, bins);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var wire = new byte[24 + bins.Length];
+        var message = await afSocket.ReceiveAsync(wire.AsMemory(), timeout.Token);
+        Ensure(message.MessageType == WebSocketMessageType.Binary &&
+            message.Count == wire.Length &&
+            BinaryPrimitives.ReadUInt32LittleEndian(wire) == 0x31505353 &&
+            BinaryPrimitives.ReadInt64LittleEndian(wire.AsSpan(8, 8)) == 0 &&
+            BinaryPrimitives.ReadUInt32LittleEndian(wire.AsSpan(20, 4)) == 44 &&
+            BinaryPrimitives.ReadSingleLittleEndian(wire.AsSpan(24 + 20 * 4, 4)) == -6.25f,
+            "Real DSP AF SignalBus -> authenticated WSS frame was incorrect");
+    }
+    Console.WriteLine("PASS: authenticated 475-bin AF spectrum WSS preserves epoch and float bins.");
+
     var codeReply = await user.PostAsJsonAsync("/api/v1/auth/login-codes", new { });
     codeReply.EnsureSuccessStatusCode();
     using var codeJson = JsonDocument.Parse(await codeReply.Content.ReadAsStringAsync());
@@ -133,6 +160,11 @@ try
     await authorizedStream.ConnectAsync(
         new Uri($"ws://127.0.0.1:{port}/ws/audio"), CancellationToken.None);
 
+    using var spectrumRevocation = new ClientWebSocket();
+    spectrumRevocation.Options.SetRequestHeader("Authorization", "Bearer " + token);
+    await spectrumRevocation.ConnectAsync(
+        new Uri($"ws://127.0.0.1:{port}/ws/af-spectrum"), CancellationToken.None);
+
     Ensure((await user.DeleteAsync("/api/v1/auth/tokens/" + tokenId)).StatusCode ==
         HttpStatusCode.NoContent, "Token revocation failed.");
     Ensure((await bearer.GetAsync("/api/v1/station")).StatusCode == HttpStatusCode.Unauthorized,
@@ -148,6 +180,14 @@ try
     } while (close.MessageType != WebSocketMessageType.Close);
     Ensure(authorizedStream.CloseStatus == WebSocketCloseStatus.PolicyViolation,
         "Active raw PCM WebSocket remained open after token revocation");
+    using var afDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+    ValueWebSocketReceiveResult afClosed;
+    do
+    {
+        afClosed = await spectrumRevocation.ReceiveAsync(receiveBuffer.AsMemory(), afDeadline.Token);
+    } while (afClosed.MessageType != WebSocketMessageType.Close);
+    Ensure(spectrumRevocation.CloseStatus == WebSocketCloseStatus.PolicyViolation,
+        "Active AF spectrum WSS was not revoked");
     Console.WriteLine("PASS: revoked Access Token terminates ongoing audio WSS.");
 
     Console.WriteLine("PASS: Identity/SQLite, token/code, SignalR MessagePack, binary WebSocket.");
