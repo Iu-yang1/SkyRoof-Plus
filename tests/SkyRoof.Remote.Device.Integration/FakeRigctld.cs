@@ -8,6 +8,8 @@ public sealed class FakeRigctld : IAsyncDisposable
     private readonly TcpListener _server = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _task;
+    private readonly List<Task> _clients = [];
+    private int _positionDelayMs;
     private readonly object _sync = new();
     private readonly List<string> _commands = [];
     private long _rx = 145_900_000;
@@ -36,6 +38,8 @@ public sealed class FakeRigctld : IAsyncDisposable
         lock (_sync) return _commands.Count(x => x.StartsWith(prefix, StringComparison.Ordinal));
     }
 
+    public void DelayPositionReadback(int milliseconds) => Volatile.Write(ref _positionDelayMs, milliseconds);
+
     public void SetExternalPtt(bool value)
     {
         lock (_sync) _ptt = value;
@@ -52,37 +56,45 @@ public sealed class FakeRigctld : IAsyncDisposable
         {
             while (!_stop.IsCancellationRequested)
             {
-                using var client = await _server.AcceptTcpClientAsync(_stop.Token);
-                try
-                {
-                using var stream = client.GetStream();
-                using var reader = new StreamReader(stream, Encoding.ASCII);
-                using var writer = new StreamWriter(stream, Encoding.ASCII) { NewLine = "\n", AutoFlush = true };
-                while (!_stop.IsCancellationRequested)
-                {
-                    var cmd = await reader.ReadLineAsync(_stop.Token);
-                    if (cmd is null) break;
-                    string reply;
-                    lock (_sync)
-                    {
-                        _commands.Add(cmd);
-                        if (_rejectNext == cmd)
-                        {
-                            _rejectNext = null;
-                            reply = "RPRT -1";
-                        }
-                        else
-                            reply = Execute(cmd);
-                    }
-                    await writer.WriteLineAsync(reply.AsMemory(), _stop.Token);
-                }
-                }
-                catch (IOException) { }
-                catch (SocketException) { }
+                var client = await _server.AcceptTcpClientAsync(_stop.Token);
+                var task = HandleClientAsync(client);
+                lock (_sync) _clients.Add(task);
             }
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
         catch (SocketException) when (_stop.IsCancellationRequested) { }
+    }
+
+    private async Task HandleClientAsync(TcpClient client)
+    {
+        using (client)
+        try
+        {
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.ASCII);
+            using var writer = new StreamWriter(stream, Encoding.ASCII)
+                { NewLine = "\n", AutoFlush = true };
+            while (!_stop.IsCancellationRequested)
+            {
+                var cmd = await reader.ReadLineAsync(_stop.Token);
+                if (cmd is null) break;
+                string reply;
+                lock (_sync)
+                {
+                    _commands.Add(cmd);
+                    if (_rejectNext == cmd)
+                    {
+                        _rejectNext = null;
+                        reply = "RPRT -1";
+                    }
+                    else reply = Execute(cmd);
+                }
+                if (cmd == "p" && Volatile.Read(ref _positionDelayMs) > 0)
+                    await Task.Delay(Volatile.Read(ref _positionDelayMs), _stop.Token);
+                await writer.WriteLineAsync(reply.AsMemory(), _stop.Token);
+            }
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
         catch (IOException) { }
         catch (SocketException) { }
     }
@@ -120,6 +132,9 @@ public sealed class FakeRigctld : IAsyncDisposable
         _stop.Cancel();
         _server.Stop();
         await _task;
+        Task[] clients;
+        lock (_sync) clients = _clients.ToArray();
+        await Task.WhenAll(clients);
         _stop.Dispose();
     }
 }
