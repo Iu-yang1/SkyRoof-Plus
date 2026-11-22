@@ -12,7 +12,7 @@ $config = (Resolve-Path -LiteralPath $Configuration).Path
 if (-not $exe.EndsWith('.exe', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Publish with -r win-x64 to obtain a Windows Supervisor executable.'
 }
-$binary = '"' + $exe + '" --config "' + $config + '"'
+$binary = '"' + $exe + '" --config "' + $config + '" --service-name "' + $ServiceName + '"'
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existing) {
     if ($existing.Status -ne 'Stopped') {
