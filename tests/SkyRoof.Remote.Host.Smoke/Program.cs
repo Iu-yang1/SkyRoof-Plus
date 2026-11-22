@@ -41,7 +41,7 @@ try
     {
         try
         {
-            if ((await anon.GetAsync("/health/ready")).IsSuccessStatusCode)
+            if ((await anon.GetAsync("/health/live")).IsSuccessStatusCode)
             {
                 available = true;
                 break;
@@ -51,6 +51,8 @@ try
         await Task.Delay(150);
     }
     Ensure(available, "Remote Host startup failed.");
+    Ensure((await anon.GetAsync("/health/ready")).StatusCode == HttpStatusCode.ServiceUnavailable,
+        "Host claimed station readiness despite missing Device IPC.");
     Ensure((await anon.GetAsync("/api/v1/station")).StatusCode == HttpStatusCode.Unauthorized,
         "Anonymous station access not rejected.");
     using var jar = new HttpClientHandler { CookieContainer = new CookieContainer() };

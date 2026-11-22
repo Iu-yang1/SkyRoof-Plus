@@ -68,7 +68,21 @@ if (webUiAvailable)
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseWebSockets();
-app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }));
+app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
+app.MapGet("/health/ready", async (StationDeviceBridge station, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await station.ReadbackAsync(cancellationToken);
+        return Results.Ok(new { status = "ready", dependencies = "station-device" });
+    }
+    catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException
+        or IOException or OperationCanceledException)
+    {
+        return Results.Problem(title: "Station or Device not ready",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal) =>
     Results.Ok(new { protocol = "skyroof.remote.v1",
         runtimeMode = "foundation-prototype", user = principal.Identity?.Name }))

@@ -30,3 +30,7 @@ Windows x64 需 .NET 10 Runtime 和可访问的本机 SkyCAT/rigctld 服务。�
 ## Windows Service 双模式宿主
 
 管理员 PowerShell：先用 dotnet publish -r win-x64 得到 Supervisor exe，再执行 Install-RemoteService.ps1，传入 -Executable、-Configuration 及可选 -ServiceName、-Startup auto。安装完成后执行 Start-Service SkyRoofRemote。普通后台运行仍使用 SKYROOF_SUPERVISOR_CONFIG；SCM 启动通过 --config 指向同一份 JSON。卸载执行 Remove-RemoteService.ps1，保留 SQLite 及设备持久化数据。Windows Service 的 Session 0 与交互式 WinForms 不同，实机时需核对服务账户对串口、CAT 服务、命名管道和用户数据目录的访问权限。独立 CI 使用真实 SCM 注册/启动/停止和受管子进程退出检查；该模拟不代表已完成真实设备的 Windows Service 访问测试。
+
+## 健康与就绪语义
+
+/health/live 只代表 Host HTTP 服务存活；/health/ready 必须通过 Station → Device 的真实只读 CAT readback，才能返回 HTTP 200。如果命名管道、设备或站内服务不可用，则返回 503；不认为 Host 登录页成功就是整个台站可用。外部探针、负载均衡和 Supervisors 应针对具体目标选择存活或业务就绪检查，不自动重发 RF 变更事务。

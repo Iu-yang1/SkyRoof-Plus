@@ -44,7 +44,7 @@ jobs:
           HOST_PID=$!
           trap 'kill "$HOST_PID" 2>/dev/null || true; cat /tmp/skyroof-browser-host.log | tail -50' EXIT
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8076/health/ready > /dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:8076/health/live > /dev/null; then break; fi
             sleep .25
           done
           cd src/SkyRoof.Remote.Web
