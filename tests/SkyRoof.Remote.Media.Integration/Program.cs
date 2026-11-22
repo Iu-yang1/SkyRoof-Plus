@@ -73,6 +73,21 @@ try
 
     using var older = client.PublishRx(deadline: DateTime.UtcNow.AddSeconds(15));
     await older.RequestStream.WriteAsync(Packet(1000));
+    // Wait until the first writer's frame is actually published. An awaited
+    // client-side WriteAsync alone does not prove the server has processed it.
+    var oldWriterCursor = new SignalCursor();
+    var firstSourceObserved = false;
+    for (var attempt = 0; attempt < 50; attempt++)
+    {
+        if (ring.TryReadNext(oldWriterCursor, out var first) &&
+            first is not null && first.FirstSampleIndex == 1000)
+        {
+            firstSourceObserved = true;
+            break;
+        }
+        await Task.Delay(50);
+    }
+    Check(firstSourceObserved, "Original media source never reached SignalBus.");
     using var newer = client.PublishRx(deadline: DateTime.UtcNow.AddSeconds(15));
     await newer.RequestStream.WriteAsync(Packet(0, 99));
     await newer.RequestStream.CompleteAsync();
