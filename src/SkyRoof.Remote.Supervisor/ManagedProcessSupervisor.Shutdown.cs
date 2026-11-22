@@ -29,6 +29,19 @@ public sealed partial class ManagedProcessSupervisor
                 {
                     logger.LogWarning(ex, "Device PTT release failed during Supervisor shutdown.");
                 }
+                if (child.Spec.Environment.TryGetValue("SKYROOF_ROTATOR_HOST", out var rotatorHost)
+                    && !string.IsNullOrWhiteSpace(rotatorHost))
+                {
+                    try
+                    {
+                        using var motorTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                        await DeviceShutdown.StopRotatorAsync(pipe, motorTimeout.Token);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Rotator STOP could not be confirmed during shutdown.");
+                    }
+                }
             }
             StopChild(child.Process);
         }
