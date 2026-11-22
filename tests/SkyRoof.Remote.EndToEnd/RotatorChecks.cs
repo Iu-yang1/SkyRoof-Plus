@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.SignalR.Client;
 using SkyRoof.Remote.Host.Realtime;
 
@@ -25,6 +26,28 @@ internal static class RotatorChecks
         catch (Microsoft.AspNetCore.SignalR.HubException) { blocked = true; }
         Check(blocked && hardware.CountPrefix("P ") == pointCount + 1,
             "Out-of-range rotation crossed configured mechanical limit.");
+        // One client is waiting for delayed p feedback; STOP must use its own
+        // rotctld session and not queue for the delayed response.
+        var priorQueries = hardware.Count("p");
+        hardware.DelayPositionReadback(2300);
+        var inFlight = operatorHub.InvokeAsync<RemoteRotatorPosition>("PointRotator", 120, 40);
+        var pendingDeadline = Stopwatch.StartNew();
+        while (hardware.Count("p") <= priorQueries &&
+            pendingDeadline.Elapsed < TimeSpan.FromSeconds(3))
+            await Task.Delay(25);
+        Check(hardware.Count("p") > priorQueries, "Simulated position read never began.");
+        var urgentClock = Stopwatch.StartNew();
+        var immediateStop = await operatorHub.InvokeAsync<RemoteRotatorPosition>("StopRotator");
+        urgentClock.Stop();
+        Check(immediateStop.StopTransmitted && !immediateStop.ReadbackFresh &&
+            immediateStop.HasPosition && urgentClock.Elapsed < TimeSpan.FromMilliseconds(1400),
+            $"STOP was blocked by pending feedback: {urgentClock.ElapsedMilliseconds} ms.");
+        var aborted = false;
+        try { await inFlight; }
+        catch (Microsoft.AspNetCore.SignalR.HubException) { aborted = true; }
+        hardware.DelayPositionReadback(0);
+        Check(aborted, "Late stale POINT was allowed to confirm after STOP.");
+        Console.WriteLine("PASS: urgent STOP preempts blocked feedback and rejects superseded move.");
         Console.WriteLine("PASS: authorized rotctld point/position/STOP with physical-limit and Viewer guards.");
     }
 
