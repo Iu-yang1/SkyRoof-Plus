@@ -65,7 +65,7 @@ public static class LiveAfSpectrumWebSocket
                 BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(4, 4), 1);
                 BinaryPrimitives.WriteInt64LittleEndian(frame.AsSpan(8, 8), signal.Sequence);
                 BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(16, 4), 475);
-                BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(20, 4), 48000);
+                BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(20, 4), checked((uint)signal.StreamEpoch));
                 signal.Payload.AsSpan().CopyTo(frame.AsSpan(24));
                 await socket.SendAsync(frame.AsMemory(), WebSocketMessageType.Binary, true,
                     context.RequestAborted);

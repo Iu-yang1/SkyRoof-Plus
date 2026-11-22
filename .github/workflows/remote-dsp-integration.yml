@@ -1,0 +1,25 @@
+name: Remote Independent DSP AF Spectrum Integration
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.SignalBus/**','tests/SkyRoof.Remote.Dsp.Integration/**','src/SkyRoof.Remote.Host/Realtime/LiveAfSpectrumWebSocket.cs','.github/workflows/remote-dsp-integration.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.SignalBus/**','tests/SkyRoof.Remote.Dsp.Integration/**','src/SkyRoof.Remote.Host/Realtime/LiveAfSpectrumWebSocket.cs','.github/workflows/remote-dsp-integration.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  af-spectrum:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish real DSP process
+        run: dotnet publish src/SkyRoof.Remote.Dsp/SkyRoof.Remote.Dsp.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-dsp -warnaserror
+      - name: Build independent AF test harness
+        run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
+      - name: Verify spectral frequencies and stream epochs against deployed DSP
+        run: dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-dsp/SkyRoof.Remote.Dsp.dll

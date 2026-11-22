@@ -34,6 +34,7 @@ export function SpectrumPanel({ audioFrequency = false }: { audioFrequency?: boo
     const buffer = gl.createBuffer();
     const loc = gl.getAttribLocation(program, 'aPoint');
     let latest = -1;
+    let epoch = -1;
     let received = 0;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(proto + '//' + location.host + (audioFrequency ? '/ws/af-spectrum' : '/sim/ws/spectrum'));
@@ -45,6 +46,10 @@ export function SpectrumPanel({ audioFrequency = false }: { audioFrequency?: boo
       const data = new DataView(ev.data);
       if (data.byteLength !== 24 + bins * 4 || data.getUint32(0, true) !== 0x31505353 ||
           data.getInt32(16, true) !== bins) return;
+      if (audioFrequency) {
+        const currentEpoch = data.getUint32(20, true);
+        if (epoch !== currentEpoch) { latest = -1; epoch = currentEpoch; }
+      }
       const sequence = Number(data.getBigInt64(8, true));
       if (sequence <= latest) return;
       latest = sequence;
