@@ -10,7 +10,7 @@
 | P3 | 独立 Device：SkyCAT/rigctld TCP、RX/TX 独立频率、模式/PTT、读回、故障事务日志和心跳过期 RF 释放 | IC-9700 Direct LAN、原旋转器路径规划/反馈策略、SDR/ONVIF 和实机验收 |
 | P4 | Station Core 独立 gRPC 进程，Host→Station→Device 命令链 | RadioLink 转发器模型、Orekit、连续跟踪和调度迁移 |
 | P5 | Shared Memory Ring 多进程读写、慢读者丢帧测试 | FT4、CW、Q65、遥测等 DSP 迁移 |
-| P6 | C++ libopus 48 kHz PCM 编解码、SAP/1、跨进程 PCM16→认证 WSS、WebAudio Worklet 接收 | 真正 Media Service 的 IC-9700 音频 I/O、Opus/PCM 自动切换与 ASRC |
+| P6 | C++ libopus 48 kHz PCM 编解码、SAP/1、跨进程 PCM16→认证 WSS、WebAudio Worklet 接收 | 真实 IC-9700 音频 I/O、Opus/PCM 自动切换、ASRC 和 TX PCM |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
 | P9 | SignalR MessagePack、实 CAT 命令与状态读回、开发频谱、真实 SignalBus PCM16 WSS | 原电台频谱/状态的实际采集、Delta 与多客户端流控 |
@@ -21,7 +21,7 @@
 | P14 | React/Dockview 工作台、实际 CAT 调谐和 PTT、WebGL2 模拟频谱、WSS Audio Worklet、布局持久化 | 原 SkyRoof 全部 Panel、多远端主机、浏览器操作验收 |
 | P15 | UTC/单调时钟预约模型、SHA-256 PCM 封存和恢复 | 外部 WSJT-X CAT/PCM Bridge、真实 Timestamped RF TX 及标定 |
 | P16 | 原生媒体、FRP、SignalBus、E2E 多进程、凭据、断线、崩溃等 CI | 大规模网络故障注入、24h 运行和无线电实机验收 |
-| P17 | Windows x64 四进程+Web 开发包 CI，要求从发布文件启动并重跑 E2E | 正式签名安装包、升级/回滚、Windows Service 实验 |
+| P17 | Windows x64 五进程+Web 开发包 CI，要求从发布文件启动并重跑 E2E | 正式签名安装包、升级/回滚、Windows Service 实验 |
 | P18 | 独立 CI + 原项目 Compile Check、Docs 与 aislop Quality Gate | 所有阻断条件消除，许可证审查，正式 Release |
 
 ## 当前已闭合的模拟链路
@@ -52,3 +52,7 @@ Station 通过独立 BackgroundService 执行单调时钟周期调度，使用�
 Station 原生引用既有 Orekit/IKVM，默认选择 Orekit，使用 SKYROOF_OREKIT_DATA 或发布目录 orekit-data（随包复制原有 tai-utc.dat）。只有显式设置 SKYROOF_ORBIT_BACKEND=sgpnet 才使用对照后端；失败不隐式降级。复用同一 TLE track，单次计算周期只生成一次观测。E2E 在 Orekit 和 SGP.NET 两种实际后端执行，发布目录 E2E 默认 Orekit；尚需核实 CI 和完整 EOP 数据／ISS OEM。
 
 Station Orekit EOP 数据：默认在用户数据目录缓存 IERS `finals2000A.all`，首次启动或文件超过 7 天时按原 SkyRoof 的 USNO/IERS 镜像顺序更新；校验数据行数/长度、SHA-256，先临时文件再原子替换。网络失败保留旧缓存并通过 Orekit DataQuality 显示数据覆盖范围。可以用 `SKYROOF_OREKIT_EOP_SOURCES` 指定镜像或本地文件，设置 `SKYROOF_OREKIT_EOP_AUTO=false` 关闭自动更新；`SKYROOF_OREKIT_DATA` 指向自定义目录。仅在 Orekit 进程初始化前更新，更新 EOP 后需要重新启动 Station 加载新数据。E2E 测试禁用互联网更新，使用发布目录固定 UTC 数据。
+
+## P6 新增独立 Media Service
+
+`SkyRoof.Remote.Media` 使用本机私有 gRPC Named Pipe 接收 48 kHz PCM16 单/双声道流，以共享内存 SignalBus 为站内 RX 音频总线，供 Host 认证 WSS 使用。接收端具备样本索引校验、缺口计数、后连接音源接管和新 StreamEpoch，禁止旧源覆盖新源。Windows CI 新增独立进程下的字节级 RX PCM、缺口、源接管及格式验证；开发包集成 Media 独立进程。该接口实际接收客户端送入的 PCM，但尚未连接 IC-9700 LAN 实机或 TX 音频管线，仍需单独验收。
