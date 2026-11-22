@@ -60,3 +60,7 @@ Station Orekit EOP 数据：默认在用户数据目录缓存 IERS `finals2000A.
 ## P5 音频谱 DSP 新增
 
 建立独立 SkyRoof.Remote.Dsp 进程，读取 Media SignalBus PCM16，执行真实 Hann 4096 FFT，1600-sample hop，输出 475 个 dBFS AF bin，独立 StreamEpoch，在样本中断/代际变动时重建上下文。Host GET /ws/af-spectrum 是经认证的 WebSocket，网页另有 AF Spectrum Dockview 工作区。测试向真实 DSP 子进程注入 1 kHz 与切换后的 2.5 kHz 正弦波，检查峰值频率、电平和 Epoch；仅能声称 AF Spectrum 功能，不代表 IC-9700 RF/IF 频谱或 CW/FT4 解码器完成。
+
+### 旋转器真实远控窗口
+
+Operator 经 SignalR → Station gRPC → Device rotctld P/p/S 发送指向和 STOP；Viewer 仅允许 p 读回。Device 使用配置的 AZ/EL 机械上下限拒绝超范围指令，不干预界面其他功能。Web Rotator Dockview 显示设备读回和独立 STOP。E2E 验证实际模拟 TCP 传输、权限与超限拒绝。该读回不等于机械制动完成，后续仍需原 SkyRoof 完整 Park/路径规划与反馈保护迁移。

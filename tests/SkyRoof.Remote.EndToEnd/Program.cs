@@ -154,6 +154,7 @@ try
     {
         await tracker.StartAsync();
         await TrackingChecks.RunAsync(tracker, radio, rotator);
+        await RotatorChecks.RunAsync(tracker, rotator);
         await tracker.StopAsync();
     }
 
@@ -179,6 +180,12 @@ try
     var viewerPrediction = await viewer.InvokeAsync<RemoteTrackingStatus>("PredictTracking", TrackingChecks.Request());
     Ensure(viewerPrediction.NoradNumber == 5 && !viewerPrediction.CatApplied,
         "Viewer cannot access read-only orbital predictions");
+    var viewerPosition = await viewer.InvokeAsync<RemoteRotatorPosition>("GetRotatorPosition");
+    Ensure(double.IsFinite(viewerPosition.AzimuthDegrees), "Viewer cannot read rotator feedback");
+    var viewerRotatorDenied = false;
+    try { await viewer.InvokeAsync<RemoteRotatorPosition>("PointRotator", 90, 15); }
+    catch (Microsoft.AspNetCore.SignalR.HubException) { viewerRotatorDenied = true; }
+    Ensure(viewerRotatorDenied, "Viewer was allowed to control the rotator");
     var trackingDenied = false;
     try
     {

@@ -5,14 +5,9 @@ import { type HubConnection } from '@microsoft/signalr';
 import { RadioPanel } from './RadioPanel';
 import { AudioPanel } from './AudioPanel';
 import { TrackingPanel } from './TrackingPanel';
+import { RotatorPanel } from './RotatorPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 
-function RotatorPanel() {
-  return <section className="panel"><header>ROTATOR</header>
-    <p>AZ — · EL —</p>
-    <small>尚未连接云台设备，无实际运动指令。</small>
-  </section>;
-}
 function DigitalPanel() {
   return <section className="panel"><header>FT4 / CW CONSOLE</header>
     <p>DSP 解码及 TX 事务等待业务迁移后接入。</p>

@@ -11,7 +11,11 @@
         "SKYROOF_CAT_HOST": "127.0.0.1",
         "SKYROOF_CAT_PORT": "4532",
         "SKYROOF_CAT_DIALECT": "skycat",
-        "SKYROOF_DEVICE_PIPE": "skyroof-station-device"
+        "SKYROOF_DEVICE_PIPE": "skyroof-station-device",
+        "SKYROOF_ROTATOR_AZ_MIN": "0",
+        "SKYROOF_ROTATOR_AZ_MAX": "450",
+        "SKYROOF_ROTATOR_EL_MIN": "0",
+        "SKYROOF_ROTATOR_EL_MAX": "180"
       }
     },
     {
