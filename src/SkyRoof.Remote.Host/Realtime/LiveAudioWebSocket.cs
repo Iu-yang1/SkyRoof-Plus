@@ -94,7 +94,7 @@ public static class LiveAudioWebSocket
             }
         }
     }
-    private static async Task<bool> StillAuthorizedAsync(HttpContext context)
+    internal static async Task<bool> StillAuthorizedAsync(HttpContext context)
     {
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return false;

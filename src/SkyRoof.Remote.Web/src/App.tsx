@@ -18,8 +18,9 @@ function DigitalPanel() {
     <p>DSP 解码及 TX 事务等待业务迁移后接入。</p>
   </section>;
 }
+function AfSpectrumPanel() { return <SpectrumPanel audioFrequency />; }
 const components = {
-  radio: RadioPanel, audio: AudioPanel, scope: SpectrumPanel,
+  radio: RadioPanel, audio: AudioPanel, scope: SpectrumPanel, afscope: AfSpectrumPanel,
   satellites: TrackingPanel, rotator: RotatorPanel, digital: DigitalPanel
 };
 
@@ -36,6 +37,8 @@ function Workbench({ station }: { station: string }) {
     ready.api.addPanel({ id: 'radio', title: 'Radio', component: 'radio' });
     ready.api.addPanel({ id: 'scope', title: 'Spectrum', component: 'scope',
       position: { referencePanel: 'radio', direction: 'below' } });
+    ready.api.addPanel({ id: 'af-scope', title: 'AF Spectrum', component: 'afscope',
+      position: { referencePanel: 'scope', direction: 'below' } });
     ready.api.addPanel({ id: 'sat', title: 'Satellites', component: 'satellites',
       position: { referencePanel: 'radio', direction: 'right' } });
     ready.api.addPanel({ id: 'rot', title: 'Rotator', component: 'rotator',
@@ -113,6 +116,6 @@ export default function App() {
     <DeviceHubContext.Provider value={workspace === "local" ? hub : null}>
       <Workbench key={workspace} station={workspace} />
     </DeviceHubContext.Provider>
-    <footer className="status">{station.runtimeMode} · Device CAT via Station Core · Audio/DSP integration pending</footer>
+    <footer className="status">{station.runtimeMode} · Device CAT via Station Core · AF DSP bridge available; RF/IF and TX integration pending</footer>
   </div>;
 }

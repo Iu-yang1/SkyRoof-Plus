@@ -14,7 +14,7 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
   return shader;
 }
 
-export function SpectrumPanel() {
+export function SpectrumPanel({ audioFrequency = false }: { audioFrequency?: boolean } = {}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState('No source');
@@ -36,9 +36,9 @@ export function SpectrumPanel() {
     let latest = -1;
     let received = 0;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(proto + '//' + location.host + '/sim/ws/spectrum');
+    const ws = new WebSocket(proto + '//' + location.host + (audioFrequency ? '/ws/af-spectrum' : '/sim/ws/spectrum'));
     ws.binaryType = 'arraybuffer';
-    ws.onopen = () => setStatus('SIMULATED spectrum');
+    ws.onopen = () => setStatus(audioFrequency ? 'LIVE AF · 0–24 kHz' : 'SIMULATED spectrum');
     ws.onclose = () => setStatus('Disconnected');
     ws.onerror = () => setStatus('WSS unavailable');
     ws.onmessage = (ev: MessageEvent<ArrayBuffer>) => {
@@ -75,13 +75,13 @@ export function SpectrumPanel() {
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
     };
-  }, [running]);
+  }, [running, audioFrequency]);
   return <section className="panel scope">
-    <header>LAN SPECTRUM · 475 BINS</header>
-    <canvas ref={canvas} aria-label="Simulated frequency spectrum" />
+    <header>{audioFrequency ? 'AF SPECTRUM · 475 BINS' : 'SIMULATED RF SPECTRUM · 475 BINS'}</header>
+    <canvas ref={canvas} aria-label={audioFrequency ? "Audio frequency spectrum" : "Simulated frequency spectrum"} />
     <footer><span>{status} · {count} frames</span>
-      <button onClick={() => setRunning(value => !value)}>{running ? 'STOP' : 'SIMULATE'}</button>
+      <button onClick={() => setRunning(value => !value)}>{running ? 'STOP' : audioFrequency ? 'RUN AF' : 'SIMULATE'}</button>
     </footer>
-    <small>仅用于开发：不表示真实 IC-9700 频谱，当前不提供 RF 控制。</small>
+    <small>{audioFrequency ? '实际 48 kHz PCM 音频 FFT，仅表示 0–24 kHz AF，不代表 RF/IF 频谱。' : '模拟占位频谱，不代表 IC-9700 RF/IF 数据。'}</small>
   </section>;
 }
