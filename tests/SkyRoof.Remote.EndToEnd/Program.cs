@@ -9,6 +9,7 @@ using SkyRoof.Remote.Host.Realtime;
 using SkyRoof.Remote.Ipc;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+await EopChecks.RunAsync();
 if (args.Length != 3) throw new ArgumentException("Device.dll Station.dll Host.dll required");
 var deviceDll = Path.GetFullPath(args[0]);
 var stationDll = Path.GetFullPath(args[1]);

@@ -14,6 +14,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../src/SkyRoof.Remote.Station/StationOrekitEopBootstrap.cs" Link="StationOrekitEopBootstrap.cs" />
     <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.cs"
       Link="FakeRigctld.cs" />
   </ItemGroup>
