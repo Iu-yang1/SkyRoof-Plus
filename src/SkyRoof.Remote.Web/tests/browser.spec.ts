@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test('authenticated SkyRoof Remote Dockview workstation renders and saves layout', async ({ page }) => {
+  await page.route('**/api/v1/media/rx-status', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      epoch: 147, source: 'icom-lan', streamActive: true, state: 'publishing',
+      framesWritten: 22, samplesSkipped: 480, datagramsReceived: 26,
+      datagramsOutOfOrder: 2, datagramsDropped: 1, datagramsMissing: 1
+    })
+  }));
   await page.goto('http://127.0.0.1:8076');
   await expect(page.getByRole('heading', { name: 'SkyRoof Remote' })).toBeVisible();
   await page.getByLabel('USER').fill('browser-admin');
@@ -19,6 +27,8 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   )).toBeVisible();
   await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
   await expect(localSlot.getByText('48,000 samples/s · PCM16 · SAP/1')).toBeVisible();
+  await expect(localSlot.getByText('MEDIA · RX ACTIVE · icom-lan · Epoch 147')).toBeVisible();
+  await expect(localSlot.getByText(/Source frames 22.*Missing samples 480/)).toBeVisible();
   await expect(localSlot.getByText('FT4 / CW CONSOLE')).toBeVisible();
   await expect(page.getByText('SignalR/MessagePack connected')).toBeVisible();
 
