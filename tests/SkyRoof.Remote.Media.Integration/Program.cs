@@ -241,8 +241,9 @@ try
     var reorderedCursor = new SignalCursor();
     foreach (var (index, seed) in new (ulong, byte)[] { (0, 3), (480, 7), (960, 5) })
     {
-        Check(ring.TryReadNext(reorderedCursor, out var frame) && frame is not null &&
-            frame.FirstSampleIndex == index && frame.Payload.All(value => value == seed),
+        Check(ring.TryReadNext(reorderedCursor, out var reorderedFrame) && reorderedFrame is not null &&
+            reorderedFrame.FirstSampleIndex == index &&
+            reorderedFrame.Payload.All(value => value == seed),
             "Icom LAN UDP reorder did not preserve the original PCM sample timeline");
     }
 
