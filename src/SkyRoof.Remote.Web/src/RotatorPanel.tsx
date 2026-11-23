@@ -51,9 +51,12 @@ export function RotatorPanel() {
     setBusy(true);
     try {
       const route = parkRoute.split(';').map(part => {
-        const values = part.trim().split(',').map(Number);
-        if (values.length !== 2 || values.some(value => !Number.isFinite(value)))
+        const fields = part.trim().split(',').map(value => value.trim());
+        if (fields.length !== 2 || fields.some(value => value.length === 0))
           throw new Error('Park route must contain AZ,EL pairs separated by semicolons.');
+        const values = fields.map(Number);
+        if (values.some(value => !Number.isFinite(value)))
+          throw new Error('Park AZ/EL coordinates must be finite numbers.');
         return { AzimuthDegrees: values[0], ElevationDegrees: values[1] };
       });
       setStatus('PARK in progress · position readback is live');
