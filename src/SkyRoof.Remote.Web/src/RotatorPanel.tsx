@@ -48,15 +48,15 @@ export function RotatorPanel() {
 
   const park = async () => {
     if (!hub || busy) return;
-    const route = parkRoute.split(';').map(part => {
-      const values = part.trim().split(',').map(Number);
-      if (values.length !== 2 || values.some(value => !Number.isFinite(value)))
-        throw new Error('Park route must contain AZ,EL pairs separated by semicolons.');
-      return { AzimuthDegrees: values[0], ElevationDegrees: values[1] };
-    });
     setBusy(true);
-    setStatus('PARK in progress · position readback is live');
     try {
+      const route = parkRoute.split(';').map(part => {
+        const values = part.trim().split(',').map(Number);
+        if (values.length !== 2 || values.some(value => !Number.isFinite(value)))
+          throw new Error('Park route must contain AZ,EL pairs separated by semicolons.');
+        return { AzimuthDegrees: values[0], ElevationDegrees: values[1] };
+      });
+      setStatus('PARK in progress · position readback is live');
       const result = await hub.invoke<Position>('ParkRotator', route);
       setPosition(result);
       setStatus('PARK completed at requested final AZ/EL');

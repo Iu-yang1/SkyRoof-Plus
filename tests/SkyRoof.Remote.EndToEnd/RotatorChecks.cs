@@ -58,6 +58,40 @@ internal static class RotatorChecks
         catch (Microsoft.AspNetCore.SignalR.HubException) { aborted = true; }
         hardware.DelayPositionReadback(0);
         Check(aborted, "Late stale POINT was allowed to confirm after STOP.");
+        var invalidParkCount = hardware.CountPrefix("P ");
+        var invalidParkRejected = false;
+        try
+        {
+            await operatorHub.InvokeAsync<RemoteRotatorPosition>("ParkRotator",
+                new[] { new RemoteParkWaypoint(180, 10), new RemoteParkWaypoint(451, 0) });
+        }
+        catch (Microsoft.AspNetCore.SignalR.HubException) { invalidParkRejected = true; }
+        Check(invalidParkRejected && hardware.CountPrefix("P ") == invalidParkCount,
+            "Invalid later PARK waypoint was accepted after earlier movement began.");
+
+        // STOP interrupts a multi-segment PARK before any later waypoint can run.
+        var previousFinalWaypoint = hardware.Count("P 0.000 0.000");
+        var parkQueries = hardware.Count("p");
+        hardware.DelayPositionReadback(2300);
+        var pendingPark = operatorHub.InvokeAsync<RemoteRotatorPosition>("ParkRotator",
+            new[] { new RemoteParkWaypoint(175, 45), new RemoteParkWaypoint(0, 0) });
+        var waitPark = Stopwatch.StartNew();
+        while (hardware.Count("p") <= parkQueries && waitPark.Elapsed < TimeSpan.FromSeconds(3))
+            await Task.Delay(25);
+        Check(hardware.Count("p") > parkQueries, "PARK position read never began.");
+        var stopClock = Stopwatch.StartNew();
+        var stopDuringPark = await operatorHub.InvokeAsync<RemoteRotatorPosition>("StopRotator");
+        stopClock.Stop();
+        Check(stopDuringPark.StopTransmitted &&
+            stopClock.Elapsed < TimeSpan.FromMilliseconds(1400),
+            "PARK STOP waited behind delayed feedback.");
+        var parkAborted = false;
+        try { await pendingPark; }
+        catch (Microsoft.AspNetCore.SignalR.HubException) { parkAborted = true; }
+        hardware.DelayPositionReadback(0);
+        Check(parkAborted && hardware.Count("P 0.000 0.000") == previousFinalWaypoint,
+            "Superseded PARK continued to a later waypoint after STOP.");
+        Console.WriteLine("PASS: multi-segment PARK validation and priority STOP preemption.");
         Console.WriteLine("PASS: multi-waypoint PARK follows actual AZ/EL feedback.");
         Console.WriteLine("PASS: urgent STOP preempts blocked feedback and rejects superseded move.");
         Console.WriteLine("PASS: authorized rotctld point/position/STOP with physical-limit and Viewer guards.");
