@@ -1,4 +1,5 @@
-import { useContext, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type FormEvent, type RefObject, type PointerEvent as ReactPointerEvent } from 'react';
+import type { HubConnection } from '@microsoft/signalr';
 import { DeviceHubContext, WorkspaceActiveContext, type DeviceReadback, DeviceOperation } from './host';
 
 function toHz(mhz: string): number {
@@ -10,6 +11,50 @@ function toHz(mhz: string): number {
 
 function fromHz(hz: number): string {
   return (hz / 1_000_000).toFixed(6);
+}
+
+type PttInputRefs = {
+  active: RefObject<boolean>;
+  transaction: RefObject<string | null>;
+  pointer: RefObject<number | null>;
+  press: RefObject<() => void>;
+  release: RefObject<() => void>;
+};
+
+function usePttInputListeners(hub: HubConnection | null, refs: PttInputRefs) {
+  const { active, transaction, pointer, press, release } = refs;
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!active.current || event.code !== 'Space' || event.repeat ||
+          target?.closest('input, textarea, select, button, [contenteditable]')) return;
+      event.preventDefault();
+      press.current();
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || !transaction.current) return;
+      event.preventDefault();
+      release.current();
+    };
+    const blur = () => release.current();
+    // A hidden but mounted Workspace must retain TX until its original pointer is released.
+    const pointerEnd = (event: PointerEvent) => {
+      if (pointer.current === event.pointerId) release.current();
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('pointerup', pointerEnd);
+    window.addEventListener('pointercancel', pointerEnd);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('pointerup', pointerEnd);
+      window.removeEventListener('pointercancel', pointerEnd);
+      window.removeEventListener('blur', blur);
+      release.current();
+    };
+  }, [hub]);
 }
 
 export function RadioPanel() {
@@ -111,38 +156,8 @@ export function RadioPanel() {
   pressRef.current = pttDown;
   releaseRef.current = pttUp;
 
-  useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!activeRef.current || event.code !== 'Space' || event.repeat ||
-          target?.closest('input, textarea, select, button, [contenteditable]')) return;
-      event.preventDefault();
-      pressRef.current();
-    };
-    const up = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || !heldTx.current) return;
-      event.preventDefault();
-      releaseRef.current();
-    };
-    const blur = () => releaseRef.current();
-    // A hidden but mounted Workspace must retain TX until its original pointer is released.
-    const pointerEnd = (event: PointerEvent) => {
-      if (heldPointer.current === event.pointerId) releaseRef.current();
-    };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    window.addEventListener('pointerup', pointerEnd);
-    window.addEventListener('pointercancel', pointerEnd);
-    window.addEventListener('blur', blur);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-      window.removeEventListener('pointerup', pointerEnd);
-      window.removeEventListener('pointercancel', pointerEnd);
-      window.removeEventListener('blur', blur);
-      releaseRef.current();
-    };
-  }, [hub]);
+  usePttInputListeners(hub, { active: activeRef, transaction: heldTx,
+    pointer: heldPointer, press: pressRef, release: releaseRef });
 
   function tune(event: FormEvent<HTMLFormElement>, target: 'rx' | 'tx') {
     event.preventDefault();
