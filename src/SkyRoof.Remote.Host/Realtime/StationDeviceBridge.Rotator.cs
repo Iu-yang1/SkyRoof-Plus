@@ -7,6 +7,8 @@ namespace SkyRoof.Remote.Host.Realtime;
 public sealed record RemoteRotatorPosition(double AzimuthDegrees, double ElevationDegrees,
     bool ReadbackFresh, bool StopTransmitted, bool HasPosition);
 
+public sealed record RemoteParkWaypoint(double AzimuthDegrees, double ElevationDegrees);
+
 public sealed partial class StationDeviceBridge
 {
     private DeviceRotator.DeviceRotatorClient RotatorClient => new(_channel.Value);
@@ -21,6 +23,23 @@ public sealed partial class StationDeviceBridge
         await RotatorCommandAsync((client, ct) =>
             client.PointAsync(new RotatorPoint { AzimuthDegrees = az, ElevationDegrees = el },
                 deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: ct).ResponseAsync, token);
+
+    public async Task<RemoteRotatorPosition> ParkRotatorAsync(
+        IReadOnlyList<RemoteParkWaypoint> waypoints, CancellationToken token)
+    {
+        var request = new RotatorParkRequest
+        {
+            ToleranceDegrees = 0.8,
+            SegmentTimeoutSeconds = 180
+        };
+        request.Waypoints.AddRange(waypoints.Select(point => new RotatorPoint
+        {
+            AzimuthDegrees = point.AzimuthDegrees,
+            ElevationDegrees = point.ElevationDegrees
+        }));
+        return await RotatorCommandAsync((client, ct) =>
+            client.ParkAsync(request, cancellationToken: ct).ResponseAsync, token);
+    }
 
     public async Task<RemoteRotatorPosition> StopRotatorAsync(CancellationToken token) =>
         await RotatorCommandAsync((client, ct) =>

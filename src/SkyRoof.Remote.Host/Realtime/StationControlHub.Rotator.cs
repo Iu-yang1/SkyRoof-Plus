@@ -14,6 +14,12 @@ public sealed partial class StationControlHub
         return await device.PointRotatorAsync(az, el, Context.ConnectionAborted);
     }
 
+    public async Task<RemoteRotatorPosition> ParkRotator(RemoteParkWaypoint[] waypoints)
+    {
+        await VerifyCurrentSessionAsync(requireOperator: true);
+        return await device.ParkRotatorAsync(waypoints, Context.ConnectionAborted);
+    }
+
     public async Task<RemoteRotatorPosition> StopRotator()
     {
         await VerifyCurrentSessionAsync(requireOperator: true);

@@ -6,10 +6,16 @@ service DeviceRotator {
   rpc Point(RotatorPoint) returns (RotatorPosition);
   rpc Read(RotatorRead) returns (RotatorPosition);
   rpc Stop(RotatorRead) returns (RotatorPosition);
+  rpc Park(RotatorParkRequest) returns (RotatorPosition);
 }
 message RotatorPoint {
   double azimuth_degrees = 1;
   double elevation_degrees = 2;
+}
+message RotatorParkRequest {
+  repeated RotatorPoint waypoints = 1;
+  double tolerance_degrees = 2;
+  int32 segment_timeout_seconds = 3;
 }
 message RotatorRead {}
 message RotatorPosition {

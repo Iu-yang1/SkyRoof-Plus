@@ -9,6 +9,7 @@ export function RotatorPanel() {
   const [position, setPosition] = useState<Position | null>(null);
   const [azimuth, setAzimuth] = useState('90');
   const [elevation, setElevation] = useState('0');
+  const [parkRoute, setParkRoute] = useState('90,0; 0,0');
   const [status, setStatus] = useState('No rotator status');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -45,6 +46,24 @@ export function RotatorPanel() {
     finally { setBusy(false); }
   };
 
+  const park = async () => {
+    if (!hub || busy) return;
+    const route = parkRoute.split(';').map(part => {
+      const values = part.trim().split(',').map(Number);
+      if (values.length !== 2 || values.some(value => !Number.isFinite(value)))
+        throw new Error('Park route must contain AZ,EL pairs separated by semicolons.');
+      return { AzimuthDegrees: values[0], ElevationDegrees: values[1] };
+    });
+    setBusy(true);
+    setStatus('PARK in progress · position readback is live');
+    try {
+      const result = await hub.invoke<Position>('ParkRotator', route);
+      setPosition(result);
+      setStatus('PARK completed at requested final AZ/EL');
+    } catch (error) { setStatus('PARK failed or interrupted: ' + String(error)); }
+    finally { setBusy(false); }
+  };
+
   const stop = async () => {
     if (!hub) return;
     setBusy(true);
@@ -75,6 +94,13 @@ export function RotatorPanel() {
         <button type="button" onClick={() => { void stop(); }} disabled={!hub}>STOP</button>
       </div>
     </form>
-    <small>实际位置取自 rotctld p 命令；POINT 受 Device 机械限位配置约束。STOP 发送后的读回不是机械制动确认。</small>
+    <label>PARK WAYPOINTS · AZ,EL; AZ,EL
+      <input value={parkRoute} onChange={event => setParkRoute(event.target.value)}
+        aria-label="Park waypoints" placeholder="90,0; 0,0" />
+    </label>
+    <div className="audio-buttons">
+      <button type="button" disabled={!hub || busy} onClick={() => { void park(); }}>PARK ROUTE</button>
+    </div>
+    <small>实际位置取自 rotctld p 命令。PARK 按顺序到达各路径点，每段等待真实位置反馈；STOP 可抢占 PARK。STOP 回执不代表机械制动确认。</small>
   </section>;
 }

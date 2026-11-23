@@ -5,7 +5,7 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Device;
 
-public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisposable
+public sealed partial class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisposable
 {
     private readonly RigctldLink? _link;
     private readonly RigctldLink? _stopLink;
@@ -13,7 +13,7 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
     private readonly object _feedbackSync = new();
     private readonly double _minAz, _maxAz, _minEl, _maxEl;
     private RotatorPosition? _lastReadback;
-    private long _stopRevision;
+    private long _motionRevision;
 
     public RotatorService()
     {
@@ -46,26 +46,8 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
 
     public override async Task<RotatorPosition> Stop(RotatorRead request, ServerCallContext context)
     {
-        Interlocked.Increment(ref _stopRevision);
-        var primary = _link ?? throw new RpcException(
-            new Status(StatusCode.FailedPrecondition, "Rotator endpoint not configured."));
-        try
-        {
-            // Independent TCP session preempts blocked primary readback.
-            await (_stopLink ?? primary).WriteAsync("S", context.CancellationToken);
-        }
-        catch (Exception first) when (first is IOException or SocketException or OperationCanceledException
-            && !context.CancellationToken.IsCancellationRequested)
-        {
-            // Some rotctld-compatible implementations admit only one client.
-            // Retain the serial primary STOP fallback rather than locking the user out.
-            try { await primary.WriteAsync("S", context.CancellationToken); }
-            catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
-            {
-                throw new RpcException(new Status(StatusCode.Unavailable,
-                    "Rotator STOP command unconfirmed: " + ex.Message));
-            }
-        }
+        Interlocked.Increment(ref _motionRevision);
+        await SendStopAsync(context.CancellationToken);
         lock (_feedbackSync)
         {
             return new RotatorPosition
@@ -79,7 +61,37 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
         }
     }
 
+    private async Task SendStopAsync(CancellationToken token)
+    {
+        var primary = _link ?? throw new RpcException(
+            new Status(StatusCode.FailedPrecondition, "Rotator endpoint not configured."));
+        try
+        {
+            // Independent TCP session preempts blocked primary readback.
+            await (_stopLink ?? primary).WriteAsync("S", token);
+        }
+        catch (Exception first) when (first is IOException or SocketException or OperationCanceledException
+            && !token.IsCancellationRequested)
+        {
+            // Some rotctld-compatible implementations admit only one client.
+            // Retain the serial primary STOP fallback rather than locking the user out.
+            try { await primary.WriteAsync("S", token); }
+            catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
+            {
+                throw new RpcException(new Status(StatusCode.Unavailable,
+                    "Rotator STOP command unconfirmed: " + ex.Message));
+            }
+        }
+    }
+
     public override Task<RotatorPosition> Point(RotatorPoint request, ServerCallContext context)
+    {
+        ValidatePoint(request);
+        var revision = Interlocked.Increment(ref _motionRevision);
+        return ExecuteAsync(FormatPoint(request), context.CancellationToken, revision);
+    }
+
+    private void ValidatePoint(RotatorPoint request)
     {
         if (!double.IsFinite(request.AzimuthDegrees) ||
             !double.IsFinite(request.ElevationDegrees) ||
@@ -87,11 +99,11 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
             request.ElevationDegrees < _minEl || request.ElevationDegrees > _maxEl)
             throw new RpcException(new Status(StatusCode.InvalidArgument,
                 "Bearing outside configured mechanical travel"));
-        var revision = Volatile.Read(ref _stopRevision);
-        return ExecuteAsync(FormattableString.Invariant(
-            $"P {request.AzimuthDegrees:F3} {request.ElevationDegrees:F3}"),
-            context.CancellationToken, revision);
     }
+
+    private static string FormatPoint(RotatorPoint request) =>
+        FormattableString.Invariant(
+            $"P {request.AzimuthDegrees:F3} {request.ElevationDegrees:F3}");
 
     private async Task<RotatorPosition> ExecuteAsync(string? command, CancellationToken token,
         long? revision = null)
@@ -101,7 +113,7 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
         await _gate.WaitAsync(token);
         try
         {
-            if (revision is not null && revision.Value != Volatile.Read(ref _stopRevision))
+            if (revision is not null && revision.Value != Volatile.Read(ref _motionRevision))
                 throw new RpcException(new Status(StatusCode.Aborted, "Point superseded by STOP."));
             if (command is not null) await link.WriteAsync(command, token);
             var lines = (await link.ReadPositionAsync(token)).Split('\n');
@@ -110,7 +122,7 @@ public sealed class RotatorService : DeviceRotator.DeviceRotatorBase, IAsyncDisp
                 !double.TryParse(lines[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var el) ||
                 !double.IsFinite(az) || !double.IsFinite(el))
                 throw new IOException("Invalid rotctld position reply.");
-            if (revision is not null && revision.Value != Volatile.Read(ref _stopRevision))
+            if (revision is not null && revision.Value != Volatile.Read(ref _motionRevision))
                 throw new RpcException(new Status(StatusCode.Aborted, "Point superseded by STOP."));
             var position = new RotatorPosition
             {

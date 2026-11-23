@@ -26,6 +26,17 @@ internal static class RotatorChecks
         catch (Microsoft.AspNetCore.SignalR.HubException) { blocked = true; }
         Check(blocked && hardware.CountPrefix("P ") == pointCount + 1,
             "Out-of-range rotation crossed configured mechanical limit.");
+        var parkStart = hardware.CountPrefix("P ");
+        var parked = await operatorHub.InvokeAsync<RemoteRotatorPosition>("ParkRotator",
+            new[] { new RemoteParkWaypoint(90, 0), new RemoteParkWaypoint(0, 0) });
+        Check(parked.ReadbackFresh && parked.HasPosition &&
+            Math.Abs(parked.AzimuthDegrees) < .001 &&
+            Math.Abs(parked.ElevationDegrees) < .001 &&
+            hardware.CountPrefix("P ") == parkStart + 2 &&
+            hardware.Count("P 90.000 0.000") >= 1 &&
+            hardware.Count("P 0.000 0.000") >= 1,
+            "Multi-waypoint PARK did not wait for and verify real rotator position.");
+
         // One client is waiting for delayed p feedback; STOP must use its own
         // rotctld session and not queue for the delayed response.
         var priorQueries = hardware.Count("p");
@@ -47,6 +58,7 @@ internal static class RotatorChecks
         catch (Microsoft.AspNetCore.SignalR.HubException) { aborted = true; }
         hardware.DelayPositionReadback(0);
         Check(aborted, "Late stale POINT was allowed to confirm after STOP.");
+        Console.WriteLine("PASS: multi-waypoint PARK follows actual AZ/EL feedback.");
         Console.WriteLine("PASS: urgent STOP preempts blocked feedback and rejects superseded move.");
         Console.WriteLine("PASS: authorized rotctld point/position/STOP with physical-limit and Viewer guards.");
     }

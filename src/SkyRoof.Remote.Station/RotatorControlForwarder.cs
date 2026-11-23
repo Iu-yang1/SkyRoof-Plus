@@ -20,6 +20,10 @@ public sealed class RotatorControlForwarder(DeviceControlForwarder device)
             deadline: DateTime.UtcNow.AddSeconds(8),
             cancellationToken: context.CancellationToken);
 
+    public override async Task<RotatorPosition> Park(RotatorParkRequest request,
+        ServerCallContext context) => await device.Rotator.ParkAsync(request,
+            cancellationToken: context.CancellationToken);
+
     public override async Task<RotatorPosition> Stop(RotatorRead request,
         ServerCallContext context) => await device.Rotator.StopAsync(request,
             deadline: DateTime.UtcNow.AddSeconds(8),
