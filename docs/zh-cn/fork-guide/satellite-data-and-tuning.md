@@ -16,6 +16,12 @@ CelesTrak 官方 CSV 和 JSON 均通过 2026-11-17 在线 Action 实测（各 99
 
 **[完整星历来源、优先级和中国大陆镜像/离线部署说明](../../engineering/orbit-source-mirrors.zh-CN.md)**。
 
+### UNNE-1B / HADES-E2 正式轨道与遥测身份
+
+SatNOGS 可能仍提供临时编号 `98205`（以及旧的 `70002` 占位记录），而 CelesTrak 的正式 NORAD 编号是 `101101`（SO-131）。SkyRoof 在载入旧 `Satellites.json` 和更新 SatNOGS 目录时，将**确认为 UNNE-1B 的记录**合并到具有发射机资料的主卫星对象，保留原 SatNOGS `sat_id` 和已合并的历史 ID，统一使用 `101101` 进行轨道跟踪、发射机和遥测解码。
+
+由于官方 CelesTrak Amateur GP 子集未必及时包含刚发射的目标，轨道更新还会独立获取 `CATNR=101101&FORMAT=CSV` 的单星 OMM，并沿用两小时缓存与自动源优先级。UNNE-1B 的 FM 上行 `145.925 MHz`、下行 `436.888 MHz` 不需要 CTCSS；同一频点的 200 Bd FSK/HADES 遥测可在选择 FM 转发器时自动识别并解码，无需将电台切到专用数据转发器。若已手动添加临时本地转发器，应自行核对重复 UUID/记录。
+
 ### 月球与太阳系天体
 
 当前 **Orekit** 轨道引擎需要统一的 UTC、IERS EOP 和 **Orekit 原生 JPL DE430** 星历数据。默认设置支持 USNO/IERS EOP 双来源、固定 Git Blob SHA-1 校验的 DE430；可选择自建 HTTPS 镜像或本地文件，离线保存有效缓存。旧版所述 DE440s/DE421/Custom BSP 是不同的星历数据/接口，不可直接替换本引擎需要的 `lnxp1990.430`。

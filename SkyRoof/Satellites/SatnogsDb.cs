@@ -95,6 +95,10 @@ namespace SkyRoof
           orbitLayersChanged |= sat.InitializeOrbitLayers(now);
         }
 
+        // Upgrade previously cached temporary SatNOGS records and an existing
+        // CUSTOM-101101 OMM-only entry into one stable satellite identity.
+        bool identityChanged = NormalizeUnne1bRecords(SatelliteList, now);
+
         // The local-transmitter file is authoritative. Satellites.json may already
         // contain serialized local rows from the previous run; remove/rebuild those
         // rows from custom-transmitters.json so refreshes never create duplicates
@@ -120,7 +124,7 @@ namespace SkyRoof
 
         loaded = SatelliteList.Count > 0;
 
-        if (orbitLayersChanged || telemetryLayersChanged)
+        if (orbitLayersChanged || identityChanged || telemetryLayersChanged)
           SaveToFile();
       }
       catch (Exception ex)
@@ -272,10 +276,16 @@ namespace SkyRoof
         existing.RefreshTransmitterDerivedData();
     }
 
-    public SatnogsDbSatellite? GetSatellite(string satId)
+    internal static SatnogsDbSatellite? ResolveSatellite(
+      IDictionary<string, SatnogsDbSatellite> satellites, string satId)
     {
-      return SatelliteList.GetValueOrDefault(satId);
+      if (satellites.TryGetValue(satId, out var current)) return current;
+      return satellites.Values.FirstOrDefault(s => s.MergedSatIds.Contains(
+        satId, StringComparer.OrdinalIgnoreCase));
     }
+
+    public SatnogsDbSatellite? GetSatellite(string satId) =>
+      ResolveSatellite(SatelliteList, satId);
 
 
     //----------------------------------------------------------------------------------------------
@@ -358,6 +368,12 @@ namespace SkyRoof
             "CelesTrak OMM CSV",
             forcedExtension: ".csv",
             cancellationToken: cts.Token);
+        int unne1bCount =
+          await LoadOptionalOrbitSourceAsync(
+            OrbitSourceSettings.Unne1bOmmUrl,
+            "CelesTrak OMM CSV",
+            forcedExtension: ".csv",
+            cancellationToken: cts.Token);
 
         int expiredManual =
           ReleaseExpiredManualOrbitPriority(
@@ -372,6 +388,7 @@ namespace SkyRoof
             autoTleCount > 0 ||
             customCount > 0 ||
             celestrakCount > 0 ||
+            unne1bCount > 0 ||
             expiredManual > 0 ||
             localTransmitterCount > 0)
         {
@@ -382,11 +399,12 @@ namespace SkyRoof
         }
 
         Log.Information(
-          "Orbit refresh complete: SatNOGS={Primary}, AutoTLE={AutoTle}, manual-links={Custom}, CelesTrak={Celestrak}, expired-manual={Expired}",
+          "Orbit refresh complete: SatNOGS={Primary}, AutoTLE={AutoTle}, manual-links={Custom}, CelesTrak={Celestrak}, UNNE-1B={Unne1b}, expired-manual={Expired}",
           primaryCount,
           autoTleCount,
           customCount,
           celestrakCount,
+          unne1bCount,
           expiredManual);
       }
       catch (Exception ex)
@@ -418,6 +436,12 @@ namespace SkyRoof
           "CelesTrak OMM CSV",
           forcedExtension: ".csv",
           cancellationToken: cancellationToken);
+      int unne1bCount =
+        await LoadOptionalOrbitSourceAsync(
+          OrbitSourceSettings.Unne1bOmmUrl,
+          "CelesTrak OMM CSV",
+          forcedExtension: ".csv",
+          cancellationToken: cancellationToken);
 
       ReleaseExpiredManualOrbitPriority(
         DateTime.UtcNow,
@@ -429,10 +453,11 @@ namespace SkyRoof
       if (autoTleCount +
           customCount +
           celestrakCount +
+          unne1bCount +
           localTransmitterCount > 0)
         SaveToFile();
 
-      return autoTleCount + customCount + celestrakCount;
+      return autoTleCount + customCount + celestrakCount + unne1bCount;
     }
 
     private async Task<int> LoadOptionalOrbitSourceAsync(
@@ -662,6 +687,7 @@ namespace SkyRoof
 
         ImportSatnogsSatellites();
         ImportSatnogsTransmitters();
+        NormalizeUnne1bRecords(SatelliteList, DateTime.UtcNow);
 
         if (!string.IsNullOrWhiteSpace(OrbitSources.TleUrl) &&
             File.Exists(Path.Combine(DownloadsFolder, "tle.json")))
@@ -722,6 +748,94 @@ namespace SkyRoof
         Log.Error(ex, "Error importing satellite list");
         throw;
       }
+    }
+
+    // Called both on cached legacy data and on fresh SatNOGS imports.
+    // The radio-rich SatNOGS row keeps its sat_id, while every official orbit
+    // and decoder uses NORAD 101101. Legacy sat_ids remain resolvable.
+    internal static bool NormalizeUnne1bRecords(
+      IDictionary<string, SatnogsDbSatellite> satellites, DateTime utc)
+    {
+      var matches = satellites.Values
+        .Where(Unne1bSatelliteIdentity.IsSatellite)
+        .Distinct()
+        .ToList();
+      if (matches.Count == 0) return false;
+
+      SatnogsDbSatellite primary = matches
+        .OrderByDescending(s => s.Transmitters.Count(t => !t.local_custom))
+        .ThenBy(s => s.sat_id.StartsWith("CUSTOM-", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+        .ThenBy(s => s.norad_cat_id == Unne1bSatelliteIdentity.SatnogsProvisionalId ? 0 : 1)
+        .First();
+      bool changed = matches.Count > 1 ||
+        primary.norad_cat_id != Unne1bSatelliteIdentity.OfficialNoradId;
+
+      SatnogsDbTle? automatic = matches
+        .Select(s => s.AutomaticTle ?? s.Tle)
+        .Where(t => t?.norad_cat_id == Unne1bSatelliteIdentity.OfficialNoradId)
+        .OrderByDescending(t => t!.updated)
+        .FirstOrDefault();
+      var manualSource = matches
+        .Where(s => s.HasActiveManualOrbit(utc) &&
+          s.ManualTle?.norad_cat_id == Unne1bSatelliteIdentity.OfficialNoradId)
+        .OrderByDescending(s => s.ManualTleExpiresUtc)
+        .FirstOrDefault();
+
+      var aliases = new HashSet<string>(
+        primary.MergedSatIds, StringComparer.OrdinalIgnoreCase);
+      var names = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase);
+      foreach (var sat in matches)
+      {
+        if (!string.IsNullOrWhiteSpace(sat.name)) names.Add(sat.name);
+        foreach (string name in (sat.names ?? "").Split(
+          [',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+          names.Add(name);
+        foreach (string oldId in sat.MergedSatIds)
+          if (oldId != primary.sat_id) aliases.Add(oldId);
+        if (sat != primary)
+        {
+          aliases.Add(sat.sat_id);
+          foreach (var tx in sat.Transmitters)
+            if (!primary.Transmitters.Any(existing =>
+              string.Equals(existing.uuid, tx.uuid, StringComparison.OrdinalIgnoreCase)))
+              primary.Transmitters.Add(tx);
+          if (primary.telemetries.Count == 0 && sat.telemetries.Count > 0)
+            primary.telemetries = sat.telemetries;
+          if (primary.launched == null) primary.launched = sat.launched;
+          satellites.Remove(sat.sat_id);
+        }
+      }
+
+      // Retain stable transmitter UUIDs and frequencies, but correct the
+      // object identity on each transmitter for telemetry and CAT routing.
+      primary.norad_cat_id = Unne1bSatelliteIdentity.OfficialNoradId;
+      foreach (var tx in primary.Transmitters)
+      {
+        tx.norad_cat_id = primary.norad_cat_id;
+        tx.sat_id = primary.sat_id;
+        tx.Satellite = primary;
+      }
+      primary.MergedSatIds = aliases.OrderBy(id => id).ToList();
+      names.Add("UNNE-1B");
+      names.Add("HADES-E2");
+      names.Add("SO-131");
+      primary.names = string.Join(", ", names.OrderBy(name => name));
+
+      if (automatic != null) primary.SetAutomaticTle(automatic, utc);
+      else if (primary.AutomaticTle != null &&
+               primary.AutomaticTle.norad_cat_id != Unne1bSatelliteIdentity.OfficialNoradId)
+      {
+        primary.AutomaticTle = null;
+        primary.RefreshOrbitSelection(utc);
+      }
+      if (manualSource?.ManualTle != null &&
+          manualSource.ManualTleExpiresUtc is DateTime expires)
+        primary.SetManualTle(manualSource.ManualTle, expires, utc);
+
+      primary.BuildAllNames();
+      primary.RefreshTransmitterDerivedData();
+      return changed;
     }
 
     private void ImportSatnogsSatellites()
@@ -1272,9 +1386,7 @@ namespace SkyRoof
 
         SatnogsDbSatellite? sat = null;
         if (!string.IsNullOrWhiteSpace(definition.sat_id))
-          SatelliteList.TryGetValue(
-            definition.sat_id,
-            out sat);
+          sat = GetSatellite(definition.sat_id);
 
         // An orbit-only object can later acquire normal SatNOGS metadata and a
         // different sat_id. NORAD is the stable fallback in that case.
@@ -1773,6 +1885,12 @@ namespace SkyRoof
       foreach (SatnogsDbTle record in records)
       {
         if (record.norad_cat_id == null) continue;
+        // A provisional catalogue number is not the orbital identity of
+        // UNNE-1B. Never install its outdated TLE over official 101101 OMM.
+        if (Unne1bSatelliteIdentity.IsProvisionalId(record.norad_cat_id) &&
+            (Unne1bSatelliteIdentity.HasName(record.tle0) ||
+             Unne1bSatelliteIdentity.IsSatellite(GetSatellite(record.sat_id))))
+          continue;
 
         SatnogsDbSatellite? sat = Satellites
           .FirstOrDefault(s => s.norad_cat_id == record.norad_cat_id);

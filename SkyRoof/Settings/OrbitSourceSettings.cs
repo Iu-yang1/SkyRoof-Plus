@@ -112,6 +112,11 @@ namespace SkyRoof
       "https://db.satnogs.org/api/tle/?format=json";
     public const string DefaultCelestrakOmmCsvUrl =
       "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=CSV";
+    // UNNE-1B has a confirmed official six-digit NORAD but is absent from
+    // the current CelesTrak amateur GP subset. Treat its single-object OMM
+    // as an additional feed, not a semicolon-separated mirror candidate.
+    internal const string Unne1bOmmUrl =
+      "https://celestrak.org/NORAD/elements/gp.php?CATNR=101101&FORMAT=CSV";
     public const string LegacyAutoTleUrl =
       "http://autotle.bi4pym.cn/AutoTLE.txt";
     // The old domain responds with HTTP 302 on some client paths.

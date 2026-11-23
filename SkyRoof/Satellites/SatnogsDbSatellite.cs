@@ -35,6 +35,11 @@ namespace SkyRoof
     [Category("SatNOGS Database")]
     public int? norad_follow_id { get; set; }
 
+    // Historical SatNOGS sat_id values remain valid for saved groups and
+    // local transmitter records after provisional catalogue IDs are merged.
+    [Browsable(false)]
+    public List<string> MergedSatIds { get; set; } = new();
+
     [ReadOnly(true)]
     [Category("Names")]
     [DisplayName("SatNOGS")]
@@ -332,7 +337,10 @@ namespace SkyRoof
       AllNames.AddRange(JE9PEL_Callsigns);
 
       AllNames = AllNames.Distinct().Where(n => n != "").ToList();
-      SearchText = $"|{string.Join("|", AllNames.Select(MakeSearchText))}|{norad_cat_id}|";
+      string aliases = string.Join("|", MergedSatIds.Select(MakeSearchText));
+      string formerNorads = Unne1bSatelliteIdentity.IsSatellite(this)
+        ? "|98205|70002" : "";
+      SearchText = $"|{string.Join("|", AllNames.Select(MakeSearchText))}|{norad_cat_id}|{aliases}{formerNorads}|";
     }
 
     internal void SetFlags()
