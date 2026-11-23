@@ -1,14 +1,8 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
+import { useMediaRxStatus } from './useMediaRxStatus';
 
 type Playback = { context: AudioContext; socket: WebSocket; node: AudioWorkletNode };
-type MediaRxStatus = {
-  epoch: number; source: string; streamActive: boolean; state: string;
-  framesWritten: number; samplesSkipped: number;
-  datagramsReceived: number; datagramsOutOfOrder: number;
-  datagramsDropped: number; datagramsMissing: number;
-};
-
 export function AudioPanel() {
   const workspaceActive = useContext(WorkspaceActiveContext);
   const hub = useContext(DeviceHubContext);
@@ -17,39 +11,7 @@ export function AudioPanel() {
   const [frames, setFrames] = useState(0);
   const [bufferedMs, setBufferedMs] = useState(0);
   const [underruns, setUnderruns] = useState(0);
-  const [media, setMedia] = useState<MediaRxStatus | null>(null);
-  const [mediaMessage, setMediaMessage] = useState('MEDIA · CHECKING');
-
-  useEffect(() => {
-    if (!hub) {
-      setMedia(null);
-      setMediaMessage('MEDIA · NO STATION LINK');
-      return;
-    }
-    let closed = false;
-    let pending = false;
-    async function refresh() {
-      if (pending || closed) return;
-      pending = true;
-      try {
-        const response = await fetch('/api/v1/media/rx-status', { credentials: 'include' });
-        if (!response.ok) throw new Error('Media HTTP ' + response.status);
-        const result = await response.json() as MediaRxStatus;
-        if (!closed) {
-          setMedia(result);
-          setMediaMessage(result.streamActive ? 'MEDIA · RX ACTIVE' : 'MEDIA · IDLE');
-        }
-      } catch (error) {
-        if (!closed) {
-          setMedia(null);
-          setMediaMessage(String(error));
-        }
-      } finally { pending = false; }
-    }
-    void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 2000);
-    return () => { closed = true; window.clearInterval(timer); };
-  }, [hub]);
+  const { media, mediaMessage } = useMediaRxStatus(hub);
 
   function stop() {
     const current = playback.current;
