@@ -59,6 +59,12 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
         await audio.ConnectAsync(host, control.RemoteAudioPort, ct);
         logger.LogInformation("Native Icom RX session attached: model {Model}, audio UDP {Port}, {Rate} Hz",
             control.Capabilities?.RadioName, control.RemoteAudioPort, control.NegotiatedRxRate);
-        await RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate, codec, ct);
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
+            codec, lifetime.Token);
+        var finished = await Task.WhenAny(pump,
+            control.MaintenanceTask, civ.MaintenanceTask);
+        lifetime.Cancel();
+        await finished;
     }
 }

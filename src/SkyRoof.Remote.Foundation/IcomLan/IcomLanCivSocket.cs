@@ -9,10 +9,13 @@ namespace SkyRoof.Remote.Foundation.IcomLan;
 /// Full CI-V CAT/Scope routing is added separately; this preserves the
 /// original radio's stream-open/close handshake and local port identity.
 /// </summary>
-public sealed class IcomLanCivSocket : IAsyncDisposable
+public sealed partial class IcomLanCivSocket : IAsyncDisposable
 {
     private readonly UdpClient _socket;
     private bool _opened;
+    private readonly CancellationTokenSource _lifetime = new();
+    private Task? _maintenance;
+    public Task MaintenanceTask => _maintenance ?? Task.CompletedTask;
     private ushort _outerSequence = 1;
 
     private IcomLanCivSocket(UdpClient socket, uint localSid)
@@ -34,6 +37,7 @@ public sealed class IcomLanCivSocket : IAsyncDisposable
         var localIp = ((IPEndPoint)route.LocalEndPoint!).Address;
         var socket = new UdpClient(new IPEndPoint(localIp, 0));
         var local = (IPEndPoint)socket.Client.LocalEndPoint!;
+        socket.Client.ReceiveBufferSize = 1_048_576;
         return new IcomLanCivSocket(socket,
             IcomLanControlCodec.BuildSessionId(local.Address, local.Port));
     }
@@ -55,6 +59,7 @@ public sealed class IcomLanCivSocket : IAsyncDisposable
             p => IcomLanControlCodec.MatchesReady(p, LocalSid, RemoteSid), ct);
         await SendOpenCloseAsync(false, ct);
         _opened = true;
+        _maintenance = MaintainAsync(_lifetime.Token);
     }
 
     private async Task<byte[]> ReceiveMatchingAsync(Func<byte[], bool> matches, CancellationToken ct)
@@ -91,6 +96,14 @@ public sealed class IcomLanCivSocket : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _lifetime.Cancel();
+        if (_maintenance is not null)
+        {
+            try { await _maintenance; }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            catch (SocketException) { }
+        }
         if (_opened)
         {
             try { await SendOpenCloseAsync(true, CancellationToken.None); }
@@ -104,5 +117,6 @@ public sealed class IcomLanCivSocket : IAsyncDisposable
             catch (SocketException) { }
         }
         _socket.Dispose();
+        _lifetime.Dispose();
     }
 }
