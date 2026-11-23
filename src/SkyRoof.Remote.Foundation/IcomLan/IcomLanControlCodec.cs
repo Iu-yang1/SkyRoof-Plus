@@ -5,6 +5,17 @@ using System.Text;
 namespace SkyRoof.Remote.Foundation.IcomLan;
 
 /// <summary>Portable Icom Direct LAN control-plane packet encoding; does not create a radio session.</summary>
+public sealed record IcomLanLoginParameters
+{
+    public required uint LocalSid { get; init; }
+    public required uint RemoteSid { get; init; }
+    public required ushort Sequence { get; init; }
+    public required ushort TokenRequest { get; init; }
+    public required string Username { get; init; }
+    public required string Password { get; init; }
+    public required string ClientName { get; init; }
+}
+
 public static partial class IcomLanControlCodec
 {
     public static byte[] ControlPacket(ushort type, ushort outerSequence,
@@ -29,15 +40,14 @@ public static partial class IcomLanControlCodec
         return ((uint)bytes[2] << 24) | ((uint)bytes[3] << 16) | (uint)localPort;
     }
 
-    public static byte[] BuildLogin(uint localSid, uint remoteSid, ushort sequence,
-        ushort tokenRequest, string username, string password, string clientName)
+    public static byte[] BuildLogin(IcomLanLoginParameters request)
     {
         byte[] packet = new byte[0x80];
-        BuildRequestHeader(packet, localSid, remoteSid, sequence, 0);
-        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(0x1A, 2), tokenRequest);
-        EncodePasscode(username).CopyTo(packet, 0x40);
-        EncodePasscode(password).CopyTo(packet, 0x50);
-        string title = string.IsNullOrWhiteSpace(clientName) ? "icom-pc" : clientName.Trim();
+        BuildRequestHeader(packet, request.LocalSid, request.RemoteSid, request.Sequence, 0);
+        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(0x1A, 2), request.TokenRequest);
+        EncodePasscode(request.Username).CopyTo(packet, 0x40);
+        EncodePasscode(request.Password).CopyTo(packet, 0x50);
+        string title = string.IsNullOrWhiteSpace(request.ClientName) ? "icom-pc" : request.ClientName.Trim();
         WriteAsciiZ(packet.AsSpan(0x60, 16), title);
         return packet;
     }

@@ -25,8 +25,13 @@ public sealed partial class IcomLanControlConnection
 
         ushort tokenRequest = unchecked((ushort)RandomNumberGenerator.GetInt32(1, 65536));
         ushort loginSeq = NextInnerSequence();
-        var login = IcomLanControlCodec.BuildLogin(LocalSid, RemoteSid,
-            loginSeq, tokenRequest, options.Username, options.Password, options.ClientName);
+        var login = IcomLanControlCodec.BuildLogin(new IcomLanLoginParameters
+        {
+            LocalSid = LocalSid, RemoteSid = RemoteSid,
+            Sequence = loginSeq, TokenRequest = tokenRequest,
+            Username = options.Username, Password = options.Password,
+            ClientName = options.ClientName
+        });
         await SendAsync(login, tracked: true, ct);
         var loginReply = await WaitForAsync(packet =>
             IcomLanControlCodec.MatchesLogin(packet, LocalSid, RemoteSid,

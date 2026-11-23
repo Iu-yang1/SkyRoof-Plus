@@ -12,8 +12,13 @@ internal static class IcomLanControlTests
             == 0x0119A02A, "SID must derive from local IPv4 and socket port");
         Check(IcomLanControlCodec.EncodePasscode("abc").Take(3)
             .SequenceEqual(new byte[] { 0x38, 0x2E, 0x40 }), "Icom credential substitution");
-        var login = IcomLanControlCodec.BuildLogin(
-            local, remote, 0x1234, 0x5678, "operator", "secret", "icom-pc");
+        var login = IcomLanControlCodec.BuildLogin(new IcomLanLoginParameters
+        {
+            LocalSid = local, RemoteSid = remote,
+            Sequence = 0x1234, TokenRequest = 0x5678,
+            Username = "operator", Password = "secret",
+            ClientName = "icom-pc"
+        });
         Check(login.Length == 0x80 && login[0x16] == 0x12 && login[0x17] == 0x34 &&
             login[0x1A] == 0x78 && login[0x1B] == 0x56 &&
             BinaryPrimitives.ReadUInt32BigEndian(login.AsSpan(8, 4)) == local,
