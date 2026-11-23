@@ -300,8 +300,16 @@ try
         }
         Check(receivedFirst && receivedAfterGap,
             "Media jitter timeout did not release seq 72 on an open gRPC stream");
-        var liveStatus = await client.GetRxStatusAsync(new RxStatusQuery());
-        Check(liveStatus.StreamActive && liveStatus.Source == "icom-lan" &&
+        RxStreamReceipt? liveStatus = null;
+        for (int probe = 0; probe < 30; probe++)
+        {
+            liveStatus = await client.GetRxStatusAsync(new RxStatusQuery());
+            if (liveStatus.DatagramsReceived == 2 &&
+                liveStatus.DatagramsMissing == 1) break;
+            await Task.Delay(20);
+        }
+        Check(liveStatus is not null && liveStatus.StreamActive &&
+            liveStatus.Source == "icom-lan" &&
             liveStatus.DatagramsReceived == 2 && liveStatus.DatagramsMissing == 1 &&
             liveStatus.SamplesSkipped == 480,
             "Live Icom status did not report active stream and observed UDP loss");
