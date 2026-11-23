@@ -129,6 +129,17 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
             catch (OperationCanceledException) { }
             catch (ObjectDisposedException) { }
         }
+        if (RemoteSid != 0)
+        {
+            byte[] disconnect = IcomLanControlCodec.ControlPacket(
+                5, 0, LocalSid, RemoteSid);
+            try
+            {
+                await _socket.SendAsync(disconnect, CancellationToken.None);
+                await _socket.SendAsync(disconnect, CancellationToken.None);
+            }
+            catch (SocketException) { }
+        }
         _socket.Dispose();
         _sendLock.Dispose();
         _lifetime.Dispose();

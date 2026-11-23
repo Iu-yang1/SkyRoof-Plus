@@ -111,9 +111,19 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
         if (_authenticated)
         {
             _authenticated = false;
+            ushort sequence = NextInnerSequence();
+            byte[] authId = _authId.ToArray();
             var logout = IcomLanControlCodec.BuildAuth(
-                LocalSid, RemoteSid, NextInnerSequence(), 1, _authId);
-            try { await SendAsync(logout, tracked: true, CancellationToken.None); }
+                LocalSid, RemoteSid, sequence, 1, authId);
+            try
+            {
+                await SendAsync(logout, tracked: true, CancellationToken.None);
+                // Logout remains a correlated token mutation, not a blind send.
+                await WaitForAsync(packet => IcomLanControlCodec.MatchesAuth(
+                    packet, LocalSid, RemoteSid, sequence, 1, authId),
+                    TimeSpan.FromMilliseconds(400), CancellationToken.None);
+            }
+            catch (TimeoutException) { }
             catch (SocketException) { }
         }
         try

@@ -72,6 +72,29 @@ internal sealed class FakeIcomLanControlRadio : IDisposable
         BinaryPrimitives.WriteUInt16BigEndian(status.AsSpan(0x42, 2), 50002);
         BinaryPrimitives.WriteUInt16BigEndian(status.AsSpan(0x46, 2), 50003);
         await _socket.SendAsync(status, hello.RemoteEndPoint, ct);
+
+        // Logout must use the currently renewed token. Ignore background
+        // Idle/Ping traffic while waiting for the correlated auth mutation.
+        UdpReceiveResult logout;
+        do
+        {
+            logout = await ReceiveAsync(ct);
+        } while (logout.Buffer.Length != 0x40 || logout.Buffer[0x15] != 1);
+        Check(logout.Buffer.AsSpan(0x1A, 6).SequenceEqual(_renewed));
+        ushort logoutSequence = BinaryPrimitives.ReadUInt16BigEndian(
+            logout.Buffer.AsSpan(0x16, 2));
+        await _socket.SendAsync(
+            Reply(0x40, localSid, logoutSequence, 2, 1, _renewed),
+            hello.RemoteEndPoint, ct);
+        UdpReceiveResult disconnected;
+        do
+        {
+            disconnected = await ReceiveAsync(ct);
+        } while (disconnected.Buffer.Length != 16 ||
+                 BinaryPrimitives.ReadUInt16LittleEndian(
+                     disconnected.Buffer.AsSpan(4, 2)) != 5);
+        Check(BinaryPrimitives.ReadUInt32BigEndian(
+            disconnected.Buffer.AsSpan(8, 4)) == localSid);
     }
 
     private Task<UdpReceiveResult> ReceiveAsync(CancellationToken ct) =>
