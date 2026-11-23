@@ -25,23 +25,32 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
 
     public uint LocalSid { get; }
     public uint RemoteSid { get; private set; }
+    public int LocalPort => ((IPEndPoint)_socket.Client.LocalEndPoint!).Port;
+
+    // Reserve the real socket *before* the authenticated control grant.
+    // Icom's stream request advertises this exact bound UDP port.
+    public static IcomLanAudioSocket Reserve(string address, int controlPort = 50001)
+    {
+        var ip = IPAddress.Parse(address);
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
+            throw new ArgumentException("Icom LAN requires an IPv4 address.");
+        using var route = new Socket(AddressFamily.InterNetwork,
+            SocketType.Dgram, ProtocolType.Udp);
+        route.Connect(new IPEndPoint(ip, controlPort));
+        var localAddress = ((IPEndPoint)route.LocalEndPoint!).Address;
+        var udp = new UdpClient(new IPEndPoint(localAddress, 0));
+        var local = (IPEndPoint)udp.Client.LocalEndPoint!;
+        return new IcomLanAudioSocket(udp,
+            IcomLanControlCodec.BuildSessionId(local.Address, local.Port));
+    }
 
     public static async Task<IcomLanAudioSocket> OpenAsync(
         string address, int remotePort, CancellationToken ct = default)
     {
-        var ip = IPAddress.Parse(address);
-        if (ip.AddressFamily != AddressFamily.InterNetwork ||
-            remotePort is < 1 or > 65535)
-            throw new ArgumentException("Invalid Icom audio UDP endpoint.");
-        var udp = new UdpClient(AddressFamily.InterNetwork);
-        udp.Connect(ip, remotePort);
-        var local = (IPEndPoint)udp.Client.LocalEndPoint!;
-        var session = new IcomLanAudioSocket(udp,
-            IcomLanControlCodec.BuildSessionId(local.Address, local.Port));
+        var session = Reserve(address);
         try
         {
-            await session.HandshakeAsync(ct);
-            session._heartbeat = session.HeartbeatAsync(session._lifetime.Token);
+            await session.ConnectAsync(address, remotePort, ct);
             return session;
         }
         catch
@@ -49,6 +58,14 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
             await session.DisposeAsync();
             throw;
         }
+    }
+
+    public async Task ConnectAsync(string address, int remotePort, CancellationToken ct = default)
+    {
+        if (_heartbeat is not null) throw new InvalidOperationException("Audio UDP already negotiated.");
+        _socket.Connect(IPAddress.Parse(address), remotePort);
+        await HandshakeAsync(ct);
+        _heartbeat = HeartbeatAsync(_lifetime.Token);
     }
 
     private async Task HandshakeAsync(CancellationToken ct)
