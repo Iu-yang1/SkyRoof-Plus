@@ -16,6 +16,14 @@ internal sealed partial class HostMediaStatusProbe : IAsyncDisposable
         _client = client;
     }
 
+    public async Task<JsonElement> ReadAsync()
+    {
+        using var response = await _client.GetAsync("/api/v1/media/rx-status");
+        response.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.Clone();
+    }
+
     public async Task<JsonElement> WaitForActiveLossAsync(ulong expectedEpoch)
     {
         JsonElement last = default;

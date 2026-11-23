@@ -110,6 +110,16 @@ try
     }
     catch (RpcException ex) when (ex.StatusCode == StatusCode.Aborted) { rejected = true; }
     Check(rejected, "Superseded RX audio source was able to alter live SignalBus");
+    if (hostProbe is not null)
+    {
+        var switchedStatus = await hostProbe.ReadAsync();
+        Check(switchedStatus.GetProperty("epoch").GetUInt64() == takeover.Epoch &&
+            switchedStatus.GetProperty("source").GetString() == "pcm16" &&
+            !switchedStatus.GetProperty("streamActive").GetBoolean() &&
+            switchedStatus.GetProperty("framesWritten").GetInt64() == 1 &&
+            switchedStatus.GetProperty("samplesSkipped").GetUInt64() == 0,
+            "Superseded producer mutated the new Media source snapshot");
+    }
 
     var fresh = new SignalCursor();
     Check(ring.TryReadNext(fresh, out var latest) && latest is not null &&
