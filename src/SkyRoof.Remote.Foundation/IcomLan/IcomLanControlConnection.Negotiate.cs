@@ -31,7 +31,7 @@ public sealed partial class IcomLanControlConnection
         var loginReply = await WaitForAsync(packet =>
             IcomLanControlCodec.MatchesLogin(packet, LocalSid, RemoteSid,
                 loginSeq, tokenRequest), TimeSpan.FromSeconds(3), ct);
-        if (loginReply.AsSpan(0x30, 4).SequenceEqual([0xFF, 0xFF, 0xFF, 0xFE]))
+        if (loginReply.AsSpan(0x30, 4).SequenceEqual(new byte[] { 0xFF, 0xFF, 0xFF, 0xFE }))
             throw new UnauthorizedAccessException("Icom LAN rejected the supplied credentials.");
         _authId = loginReply.AsSpan(0x1A, 6).ToArray();
         _authenticated = true;
