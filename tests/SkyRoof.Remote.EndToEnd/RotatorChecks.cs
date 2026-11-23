@@ -27,15 +27,17 @@ internal static class RotatorChecks
         Check(blocked && hardware.CountPrefix("P ") == pointCount + 1,
             "Out-of-range rotation crossed configured mechanical limit.");
         var parkStart = hardware.CountPrefix("P ");
+        var parkReads = hardware.Count("p");
         var parked = await operatorHub.InvokeAsync<RemoteRotatorPosition>("ParkRotator",
             new[] { new RemoteParkWaypoint(90, 0), new RemoteParkWaypoint(0, 0) });
         Check(parked.ReadbackFresh && parked.HasPosition &&
             Math.Abs(parked.AzimuthDegrees) < .001 &&
             Math.Abs(parked.ElevationDegrees) < .001 &&
             hardware.CountPrefix("P ") == parkStart + 2 &&
+            hardware.Count("p") >= parkReads + 4 &&
             hardware.Count("P 90.000 0.000") >= 1 &&
             hardware.Count("P 0.000 0.000") >= 1,
-            "Multi-waypoint PARK did not wait for and verify real rotator position.");
+            "Multi-waypoint PARK did not verify two fresh positions per waypoint.");
 
         // One client is waiting for delayed p feedback; STOP must use its own
         // rotctld session and not queue for the delayed response.

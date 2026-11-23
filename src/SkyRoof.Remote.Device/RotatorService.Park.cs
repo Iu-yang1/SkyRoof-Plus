@@ -14,7 +14,7 @@ public sealed partial class RotatorService
                 "Park requires at least one AZ/EL waypoint."));
         foreach (var point in request.Waypoints) ValidatePoint(point);
 
-        double tolerance = request.ToleranceDegrees == 0 ? 0.8 : request.ToleranceDegrees;
+        double tolerance = request.ToleranceDegrees == 0 ? 1.5 : request.ToleranceDegrees;
         int timeoutSeconds = request.SegmentTimeoutSeconds == 0
             ? 180 : request.SegmentTimeoutSeconds;
         if (!double.IsFinite(tolerance) || tolerance <= 0 || timeoutSeconds <= 0)
@@ -28,10 +28,14 @@ public sealed partial class RotatorService
             foreach (var target in request.Waypoints)
             {
                 var elapsed = Stopwatch.StartNew();
+                int consecutiveArrivals = 0;
                 latest = await ExecuteAsync(FormatPoint(target),
                     context.CancellationToken, revision);
-                while (!AtTarget(latest, target, tolerance))
+                while (true)
                 {
+                    consecutiveArrivals = AtTarget(latest, target, tolerance)
+                        ? consecutiveArrivals + 1 : 0;
+                    if (consecutiveArrivals >= 2) break;
                     if (revision != Volatile.Read(ref _motionRevision))
                         throw new RpcException(new Status(StatusCode.Aborted,
                             "Park superseded by newer movement or STOP."));
