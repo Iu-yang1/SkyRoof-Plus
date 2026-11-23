@@ -63,6 +63,7 @@ builder.Services.AddSignalR(options =>
     options.MaximumParallelInvocationsPerClient = 8;
 }).AddMessagePackProtocol();
 builder.Services.AddSingleton<StationDeviceBridge>();
+builder.Services.AddSingleton<MediaStatusBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
@@ -96,6 +97,7 @@ app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal)
 app.MapStationAuth();
 app.MapStationAdministration();
 app.MapLiveAudioStream();
+app.MapMediaStatus();
 app.MapLiveAfSpectrum();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();

@@ -55,12 +55,18 @@ try
         "Host claimed station readiness despite missing Device IPC.");
     Ensure((await anon.GetAsync("/api/v1/station")).StatusCode == HttpStatusCode.Unauthorized,
         "Anonymous station access not rejected.");
+    Ensure((await anon.GetAsync("/api/v1/media/rx-status")).StatusCode ==
+        HttpStatusCode.Unauthorized,
+        "Anonymous Media diagnostics were exposed.");
     using var jar = new HttpClientHandler { CookieContainer = new CookieContainer() };
     using var user = new HttpClient(jar) { BaseAddress = new Uri(url) };
     var login = await user.PostAsJsonAsync("/api/v1/auth/login",
         new { userName = "station-admin", password = "ExampleStationAdminPassw0rd!" });
     Ensure(login.IsSuccessStatusCode, "Password Cookie login failed.");
     Ensure((await user.GetAsync("/api/v1/station")).IsSuccessStatusCode, "Cookie authorization failed.");
+    Ensure((await user.GetAsync("/api/v1/media/rx-status")).StatusCode ==
+        HttpStatusCode.ServiceUnavailable,
+        "Host hid missing Media IPC instead of reporting it as 503.");
     var created = await user.PostAsJsonAsync("/api/v1/auth/tokens", new { name = "CI test" });
     created.EnsureSuccessStatusCode();
     using var tokenJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());

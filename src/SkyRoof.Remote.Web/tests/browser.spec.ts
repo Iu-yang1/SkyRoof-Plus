@@ -34,6 +34,8 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   await expect(localSlot).toBeHidden();
   await expect(remoteSlot).toBeVisible();
   await expect(remoteSlot.getByText('No Station Hub linked to this Workspace')).toBeVisible();
+  await expect(remoteSlot.getByText('MEDIA · NO STATION LINK')).toBeVisible();
+  await expect(remoteSlot.getByRole('button', { name: 'PLAY RX' })).toBeDisabled();
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
   await page.getByRole('button', { name: 'Local Station' }).click();
   await expect(localSlot).toBeVisible();

@@ -1,15 +1,55 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { WorkspaceActiveContext } from './host';
+import { DeviceHubContext, WorkspaceActiveContext } from './host';
 
 type Playback = { context: AudioContext; socket: WebSocket; node: AudioWorkletNode };
+type MediaRxStatus = {
+  epoch: number; source: string; streamActive: boolean; state: string;
+  framesWritten: number; samplesSkipped: number;
+  datagramsReceived: number; datagramsOutOfOrder: number;
+  datagramsDropped: number; datagramsMissing: number;
+};
 
 export function AudioPanel() {
   const workspaceActive = useContext(WorkspaceActiveContext);
+  const hub = useContext(DeviceHubContext);
   const playback = useRef<Playback | null>(null);
   const [status, setStatus] = useState('RX AUDIO OFF');
   const [frames, setFrames] = useState(0);
   const [bufferedMs, setBufferedMs] = useState(0);
   const [underruns, setUnderruns] = useState(0);
+  const [media, setMedia] = useState<MediaRxStatus | null>(null);
+  const [mediaMessage, setMediaMessage] = useState('MEDIA · CHECKING');
+
+  useEffect(() => {
+    if (!hub) {
+      setMedia(null);
+      setMediaMessage('MEDIA · NO STATION LINK');
+      return;
+    }
+    let closed = false;
+    let pending = false;
+    async function refresh() {
+      if (pending || closed) return;
+      pending = true;
+      try {
+        const response = await fetch('/api/v1/media/rx-status', { credentials: 'include' });
+        if (!response.ok) throw new Error('Media HTTP ' + response.status);
+        const result = await response.json() as MediaRxStatus;
+        if (!closed) {
+          setMedia(result);
+          setMediaMessage(result.streamActive ? 'MEDIA · RX ACTIVE' : 'MEDIA · IDLE');
+        }
+      } catch (error) {
+        if (!closed) {
+          setMedia(null);
+          setMediaMessage(String(error));
+        }
+      } finally { pending = false; }
+    }
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 2000);
+    return () => { closed = true; window.clearInterval(timer); };
+  }, [hub]);
 
   function stop() {
     const current = playback.current;
@@ -23,7 +63,7 @@ export function AudioPanel() {
   }
 
   async function start() {
-    if (playback.current || !workspaceActive) return;
+    if (playback.current || !workspaceActive || !hub) return;
     setStatus('CONNECTING...');
     let context: AudioContext | null = null;
     try {
@@ -107,10 +147,14 @@ export function AudioPanel() {
     <p>{status}</p>
     <div className="readout">48,000 samples/s · PCM16 · SAP/1</div>
     <div className="readout">Received {frames} frames · Buffer {bufferedMs} ms · Underruns {underruns}</div>
+    <div className="readout">{mediaMessage}{media ? ` · ${media.source || 'pcm16'} · Epoch ${media.epoch}` : ''}</div>
+    {media && <div className="readout">Source frames {media.framesWritten} · Missing samples {media.samplesSkipped}
+      · UDP RX {media.datagramsReceived} · Out-of-order {media.datagramsOutOfOrder}
+      · Ignored {media.datagramsDropped} · Missing UDP {media.datagramsMissing}</div>}
     <div className="audio-buttons">
-      <button disabled={!workspaceActive} onClick={() => { void start(); }}>PLAY RX</button>
+      <button disabled={!workspaceActive || !hub} onClick={() => { void start(); }}>PLAY RX</button>
       <button onClick={stop}>STOP RX</button>
     </div>
-    <small>独立 WSS 接收路径。当前无实际 IC-9700 RX PCM 输入；Voice Track/RTC Data 自动切换仍待 Media Service 集成。</small>
+    <small>独立 WSS 接收路径。MEDIA 状态只说明站内接收进程，并非 IC-9700 实机认证或音频链路验收；Voice Track/RTC Data 自动切换仍待集成。</small>
   </section>;
 }
