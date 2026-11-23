@@ -106,13 +106,13 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _lifetime.Cancel();
-        _socket.Dispose();
         if (_heartbeat is not null)
         {
             try { await _heartbeat; }
             catch (OperationCanceledException) { }
             catch (ObjectDisposedException) { }
         }
+        _socket.Dispose();
         _sendLock.Dispose();
         _lifetime.Dispose();
     }
