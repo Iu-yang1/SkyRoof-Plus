@@ -18,8 +18,8 @@ public sealed partial class IcomLanRxFrameClock
             }
             if (_pending.Count == 0) break;
             if (_gapSince == default) _gapSince = utc;
-            if (!force && _pending.Count < 8 &&
-                utc - _gapSince < TimeSpan.FromMilliseconds(100))
+            if (!force && _pending.Count < MaxBufferedPackets &&
+                utc - _gapSince < ReorderTimeout)
                 break;
             ushort next = _pending.Keys.MinBy(key => (ushort)(key - expected));
             SkipSequenceGap((ushort)(next - expected));
