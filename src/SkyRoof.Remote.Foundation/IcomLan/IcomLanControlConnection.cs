@@ -20,6 +20,9 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
     private ushort _outerSequence = 1;
     private byte[] _authId = new byte[6];
     private bool _authenticated;
+    private readonly CancellationTokenSource _lifetime = new();
+    private Task? _maintenance;
+    public Task MaintenanceTask => _maintenance ?? Task.CompletedTask;
 
     private IcomLanControlConnection(UdpClient control, uint localSid)
     {
@@ -51,6 +54,7 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
             try
             {
                 await session.NegotiateAsync(options, cancellationToken);
+                session._maintenance = session.MaintainAsync(session._lifetime.Token);
                 return session;
             }
             catch
@@ -96,6 +100,14 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _lifetime.Cancel();
+        if (_maintenance is not null)
+        {
+            try { await _maintenance; }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            catch (TimeoutException) { }
+        }
         if (_authenticated)
         {
             _authenticated = false;
@@ -112,5 +124,6 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
         }
         catch (SocketException) { }
         _control.Dispose();
+        _lifetime.Dispose();
     }
 }
