@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using Google.Protobuf;
+using SkyRoof.Remote.Foundation.Media;
 using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Media;
