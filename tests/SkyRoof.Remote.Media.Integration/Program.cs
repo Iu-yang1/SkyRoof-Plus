@@ -9,10 +9,11 @@ using SkyRoof.Remote.Ipc;
 using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
-if (args.Length is < 1 or > 2)
-    throw new ArgumentException("Media.dll [Host.dll] required.");
+if (args.Length is < 1 or > 3)
+    throw new ArgumentException("Media.dll [Host.dll] [Device.dll] required.");
 var dll = Path.GetFullPath(args[0]);
-var hostDll = args.Length == 2 ? Path.GetFullPath(args[1]) : null;
+var hostDll = args.Length >= 2 ? Path.GetFullPath(args[1]) : null;
+var deviceDll = args.Length == 3 ? Path.GetFullPath(args[2]) : null;
 var suffix = Guid.NewGuid().ToString("N");
 var pipe = "skyroof-media-test-" + suffix;
 var bus = "skyroof-media-rx-" + suffix;
@@ -360,6 +361,8 @@ try
         completedStatus.Source == "icom-lan",
         "Completed Icom stream continued to report an active producer");
     Console.WriteLine("PASS: Media flushes missing UDP packets while source gRPC remains open.");
+    if (deviceDll is not null)
+        await DeviceIcomAudioProbe.RunAsync(deviceDll, pipe, suffix, ring, client);
     Console.WriteLine("PASS: Icom LAN cross-process reorder, duplicate suppression and missing-sample gap.");
     Console.WriteLine("PASS: continuous 44.1 kHz Icom RX ASRC to 48 kHz SignalBus.");
     Console.WriteLine("PASS: Icom LAN UDP packet -> Media gRPC -> SignalBus PCM16 and SID rejection.");

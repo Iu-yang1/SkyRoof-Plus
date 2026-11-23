@@ -46,7 +46,7 @@ jobs:
       - name: Build Media SignalBus integration harness
         run: dotnet build tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release -warnaserror
       - name: Exercise published Media process and SignalBus RX PCM16
-        run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Media/SkyRoof.Remote.Media.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll
+        run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Media/SkyRoof.Remote.Media.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll artifacts/remote-v1/Device/SkyRoof.Remote.Device.dll
       - name: Build independent DSP AF integration harness
         run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
       - name: Exercise packaged DSP AF FFT on synthetic PCM

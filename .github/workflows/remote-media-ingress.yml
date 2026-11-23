@@ -2,9 +2,9 @@ name: Remote Media Service PCM16 IPC Integration
 on:
   push:
     branches: [feature/remote-v1-multiprocess-foundation]
-    paths: ['src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.SignalBus/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Host/**','protocols/ipc/media.proto','tests/SkyRoof.Remote.Media.Integration/**','.github/workflows/remote-media-ingress.yml']
+    paths: ['src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.SignalBus/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Foundation/IcomLan/**','protocols/ipc/media.proto','tests/SkyRoof.Remote.Media.Integration/**','.github/workflows/remote-media-ingress.yml']
   pull_request:
-    paths: ['src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.SignalBus/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Host/**','protocols/ipc/media.proto','tests/SkyRoof.Remote.Media.Integration/**','.github/workflows/remote-media-ingress.yml']
+    paths: ['src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.SignalBus/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Foundation/IcomLan/**','protocols/ipc/media.proto','tests/SkyRoof.Remote.Media.Integration/**','.github/workflows/remote-media-ingress.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,7 +21,9 @@ jobs:
         run: dotnet publish src/SkyRoof.Remote.Media/SkyRoof.Remote.Media.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-media -warnaserror
       - name: Publish authenticated Host for cross-process status API
         run: dotnet publish src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-host -warnaserror
+      - name: Publish Device native Direct LAN receiver
+        run: dotnet publish src/SkyRoof.Remote.Device/SkyRoof.Remote.Device.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-device -warnaserror
       - name: Build independent Media test client
         run: dotnet build tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release -warnaserror
       - name: Run real Media process with PCM16 producer/takeover and shared memory consumer
-        run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-media/SkyRoof.Remote.Media.dll artifacts/remote-host/SkyRoof.Remote.Host.dll
+        run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-media/SkyRoof.Remote.Media.dll artifacts/remote-host/SkyRoof.Remote.Host.dll artifacts/remote-device/SkyRoof.Remote.Device.dll

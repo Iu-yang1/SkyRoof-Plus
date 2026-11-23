@@ -1,0 +1,68 @@
+using System.Diagnostics;
+using SkyRoof.Remote.Ipc;
+using SkyRoof.Remote.SignalBus;
+
+internal static class DeviceIcomAudioProbe
+{
+    public static async Task RunAsync(string deviceDll, string mediaPipe,
+        string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media)
+    {
+        using var fake = new FakeNativeIcomRadio();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var radioTask = fake.RunAsync(deadline.Token);
+        var startEpoch = ring.StreamEpoch;
+        var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
+        info.ArgumentList.Add(deviceDll);
+        info.Environment["SKYROOF_DEVICE_PIPE"] = "skyroof-native-icom-test-" + suffix;
+        info.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] =
+            Path.Combine(Path.GetTempPath(), "skyroof-native-icom-" + suffix + ".json");
+        info.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
+        info.Environment["SKYROOF_CAT_PORT"] = "4532";
+        info.Environment["SKYROOF_MEDIA_PIPE"] = mediaPipe;
+        info.Environment["SKYROOF_ICOM_LAN_HOST"] = "127.0.0.1";
+        info.Environment["SKYROOF_ICOM_LAN_PORT"] = fake.ControlPort.ToString();
+        info.Environment["SKYROOF_ICOM_LAN_USERNAME"] = "operator";
+        info.Environment["SKYROOF_ICOM_LAN_PASSWORD"] = "fake-session-credential";
+        using var process = Process.Start(info) ??
+            throw new InvalidOperationException("Icom Device worker did not start.");
+
+        try
+        {
+            await radioTask;
+            var observed = new Dictionary<ulong, byte>();
+            var cursor = new SignalCursor();
+            for (int attempt = 0; attempt < 150 && observed.Count < 4; attempt++)
+            {
+                while (ring.TryReadNext(cursor, out var frame) && frame is not null)
+                {
+                    if (frame.StreamEpoch == startEpoch || frame.SampleCount != 480)
+                        continue;
+                    if (!frame.Payload.All(value => value == frame.Payload[0]))
+                        throw new InvalidOperationException("Raw UDP PCM was altered by Device->Media.");
+                    observed[frame.FirstSampleIndex] = frame.Payload[0];
+                }
+                if (observed.Count < 4) await Task.Delay(30);
+            }
+            if (observed.Count != 4 ||
+                !observed.TryGetValue(0, out var a) || a != 0x11 ||
+                !observed.TryGetValue(480, out var b) || b != 0x22 ||
+                !observed.TryGetValue(960, out var c) || c != 0x33 ||
+                !observed.TryGetValue(1920, out var d) || d != 0x44)
+                throw new InvalidOperationException(
+                    "Device did not deliver authentic UDP audio in source order across Media IPC.");
+
+            var receipt = await media.GetRxStatusAsync(new RxStatusQuery());
+            if (receipt.Source != "icom-lan" || !receipt.StreamActive ||
+                receipt.FramesWritten < 4 || receipt.SamplesSkipped != 480 ||
+                receipt.DatagramsMissing != 1)
+                throw new InvalidOperationException(
+                    "Raw UDP Device/Media loss and epoch diagnostics did not agree.");
+            Console.WriteLine("PASS: real UDP fake IC-9700 login/grant/CI-V/audio -> Device IPC -> Media SignalBus.");
+        }
+        finally
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+        }
+    }
+}
