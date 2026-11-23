@@ -803,6 +803,29 @@ namespace SkyRoof
         .OrderByDescending(s => s.ManualTleExpiresUtc)
         .FirstOrDefault();
 
+      MergeUnne1bMetadata(satellites, matches, primary);
+
+      if (automatic != null) primary.SetAutomaticTle(automatic, utc);
+      else if (primary.AutomaticTle != null &&
+               primary.AutomaticTle.norad_cat_id != Unne1bSatelliteIdentity.OfficialNoradId)
+      {
+        primary.AutomaticTle = null;
+        primary.RefreshOrbitSelection(utc);
+      }
+      if (manualSource?.ManualTle != null &&
+          manualSource.ManualTleExpiresUtc is DateTime expires)
+        primary.SetManualTle(manualSource.ManualTle, expires, utc);
+
+      primary.BuildAllNames();
+      primary.RefreshTransmitterDerivedData();
+      return changed;
+    }
+
+    private static void MergeUnne1bMetadata(
+      IDictionary<string, SatnogsDbSatellite> satellites,
+      IReadOnlyList<SatnogsDbSatellite> matches,
+      SatnogsDbSatellite primary)
+    {
       var aliases = new HashSet<string>(
         primary.MergedSatIds, StringComparer.OrdinalIgnoreCase);
       // Earlier releases created an orbit-only synthetic entry with this ID.
@@ -847,21 +870,6 @@ namespace SkyRoof
       names.Add("HADES-E2");
       names.Add("SO-131");
       primary.names = string.Join(", ", names.OrderBy(name => name));
-
-      if (automatic != null) primary.SetAutomaticTle(automatic, utc);
-      else if (primary.AutomaticTle != null &&
-               primary.AutomaticTle.norad_cat_id != Unne1bSatelliteIdentity.OfficialNoradId)
-      {
-        primary.AutomaticTle = null;
-        primary.RefreshOrbitSelection(utc);
-      }
-      if (manualSource?.ManualTle != null &&
-          manualSource.ManualTleExpiresUtc is DateTime expires)
-        primary.SetManualTle(manualSource.ManualTle, expires, utc);
-
-      primary.BuildAllNames();
-      primary.RefreshTransmitterDerivedData();
-      return changed;
     }
 
     private void ImportSatnogsSatellites()
