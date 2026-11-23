@@ -40,6 +40,12 @@ internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong e
         foreach (var item in ready) AcceptOrdered(item);
     }
 
+    public void FlushDue()
+    {
+        foreach (var item in _reorder.Flush(DateTime.UtcNow))
+            AcceptOrdered(item);
+    }
+
     public void Complete()
     {
         foreach (var item in _reorder.Flush(DateTime.UtcNow, force: true))

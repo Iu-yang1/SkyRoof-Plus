@@ -262,6 +262,60 @@ try
         Check(receipt.FramesWritten == 2 && receipt.SamplesSkipped == 480,
             "A missing Icom LAN packet did not preserve the 480-sample gap");
     }
+    // Keep the producer stream open during an actual missing-packet timeout.
+    // The Media worker must flush buffered seq 72 without waiting for seq 71,
+    // a newer packet, or PublishIcomRx completion.
+    using (var live = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(15)))
+    {
+        async Task SendLive(ushort sequence, ulong index, byte value)
+        {
+            var pcm = Enumerable.Repeat(value, 960).ToArray();
+            await live.RequestStream.WriteAsync(new IcomRxDatagram
+            {
+                FirstSampleIndex = index, SampleRate = 48000,
+                SenderSid = icomSender, ReceiverSid = icomReceiver, Codec = 4,
+                Datagram = ByteString.CopyFrom(IcomPacket(
+                    pcm, icomSender, icomReceiver, sequence))
+            });
+        }
+
+        await SendLive(70, 0, 11);
+        await SendLive(72, 960, 22);
+        var liveCursor = new SignalCursor();
+        var receivedFirst = false;
+        var receivedAfterGap = false;
+        for (int attempt = 0; attempt < 100 && !receivedAfterGap; attempt++)
+        {
+            while (ring.TryReadNext(liveCursor, out var liveFrame) &&
+                   liveFrame is not null)
+            {
+                if (liveFrame.FirstSampleIndex == 0 &&
+                    liveFrame.Payload.All(value => value == 11))
+                    receivedFirst = true;
+                if (liveFrame.FirstSampleIndex == 960 &&
+                    liveFrame.Payload.All(value => value == 22))
+                    receivedAfterGap = true;
+            }
+            if (!receivedAfterGap) await Task.Delay(25);
+        }
+        Check(receivedFirst && receivedAfterGap,
+            "Media jitter timeout did not release seq 72 on an open gRPC stream");
+        Check(!live.ResponseAsync.IsCompleted,
+            "Media closed the source stream to flush buffered packets");
+
+        await SendLive(71, 480, 77); // Arrived too late; never overwrite seq 72.
+        await SendLive(73, 1440, 33);
+        await live.RequestStream.CompleteAsync();
+        var result = await live.ResponseAsync;
+        Check(result.FramesWritten == 3 && result.SamplesSkipped == 480,
+            "Timed-out packet gap was not retained after late/duplicate arrivals");
+        Check(ring.TryReadNext(liveCursor, out var postTimeout) &&
+            postTimeout is not null &&
+            postTimeout.FirstSampleIndex == 1440 &&
+            postTimeout.Payload.All(value => value == 33),
+            "Post-timeout source frame missing or late packet incorrectly accepted");
+    }
+    Console.WriteLine("PASS: Media flushes missing UDP packets while source gRPC remains open.");
     Console.WriteLine("PASS: Icom LAN cross-process reorder, duplicate suppression and missing-sample gap.");
     Console.WriteLine("PASS: continuous 44.1 kHz Icom RX ASRC to 48 kHz SignalBus.");
     Console.WriteLine("PASS: Icom LAN UDP packet -> Media gRPC -> SignalBus PCM16 and SID rejection.");

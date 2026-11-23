@@ -24,8 +24,26 @@ public sealed class MediaIngressService(RxAudioPublisher publisher)
     {
         var epoch = publisher.OpenStream();
         var decoder = new IcomLanRxStreamDecoder(publisher, epoch);
-        while (await requestStream.MoveNext(context.CancellationToken))
-            decoder.Accept(requestStream.Current);
+        // An open gRPC source can go idle after a missing UDP packet. Keep one
+        // outstanding MoveNext and retire the reorder deadline independently;
+        // otherwise a buffered packet would wait for the next source packet or EOF.
+        var nextPacket = requestStream.MoveNext(context.CancellationToken);
+        while (true)
+        {
+            var completed = await Task.WhenAny(nextPacket,
+                Task.Delay(25, context.CancellationToken));
+            if (completed == nextPacket)
+            {
+                if (!await nextPacket) break;
+                decoder.Accept(requestStream.Current);
+                nextPacket = requestStream.MoveNext(context.CancellationToken);
+            }
+            else
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+                decoder.FlushDue();
+            }
+        }
         decoder.Complete();
         return publisher.Complete(epoch);
     }
