@@ -55,7 +55,13 @@ builder.Services.ConfigureApplicationCookie(options =>
         ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 });
 builder.Services.AddAuthorization();
-builder.Services.AddSignalR().AddMessagePackProtocol();
+// SignalR defaults to one active invocation per client: a delayed rotator
+// readback would queue an urgent STOP behind POINT on the same operator socket.
+// Device serializes hardware commands and owns the separate STOP TCP session.
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumParallelInvocationsPerClient = 8;
+}).AddMessagePackProtocol();
 builder.Services.AddSingleton<StationDeviceBridge>();
 
 var app = builder.Build();
