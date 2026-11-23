@@ -1,7 +1,7 @@
 namespace SkyRoof.Remote.Foundation.IcomLan;
 
 public readonly record struct IcomLanTimedRxFrame(
-    ushort OuterSequence, ulong FirstSampleIndex, byte[] Pcm16);
+    ushort OuterSequence, ulong FirstSampleIndex, byte[] Pcm16, byte[] Datagram);
 
 /// <summary>
 /// Source-side audio playout clock. Assign indices only when the UDP packet
@@ -9,7 +9,7 @@ public readonly record struct IcomLanTimedRxFrame(
 /// </summary>
 public sealed partial class IcomLanRxFrameClock
 {
-    private readonly Dictionary<ushort, byte[]> _pending = [];
+    private readonly Dictionary<ushort, (byte[] Pcm16, byte[] Datagram)> _pending = [];
     private ushort? _nextSequence;
     private ulong _nextSample;
     private int _lastFrameSamples;
@@ -19,7 +19,7 @@ public sealed partial class IcomLanRxFrameClock
     private static readonly TimeSpan ReorderTimeout = TimeSpan.FromMilliseconds(100);
 
     public IReadOnlyList<IcomLanTimedRxFrame> Push(
-        ushort outerSequence, ReadOnlySpan<byte> pcm16, DateTime utc)
+        ushort outerSequence, ReadOnlySpan<byte> pcm16, DateTime utc, byte[]? datagram = null)
     {
         if (pcm16.Length == 0 || (pcm16.Length & 1) != 0)
             throw new ArgumentException("Icom RX requires aligned PCM16.");
@@ -33,7 +33,7 @@ public sealed partial class IcomLanRxFrameClock
             _nextSequence = outerSequence;
             _gapSince = default;
         }
-        if (!_pending.TryAdd(outerSequence, pcm16.ToArray()))
+        if (!_pending.TryAdd(outerSequence, (pcm16.ToArray(), datagram ?? Array.Empty<byte>())))
             return Array.Empty<IcomLanTimedRxFrame>();
         return Drain(utc, force: false);
     }

@@ -29,6 +29,8 @@ builder.Services.AddSingleton(p => new RadioCatBackend(p.GetRequiredService<Rigc
 builder.Services.AddSingleton<StationDeviceService>();
 builder.Services.AddSingleton<RotatorService>();
 builder.Services.AddHostedService<PttLeaseMonitor>();
+if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_HOST")))
+    builder.Services.AddHostedService<IcomLanReceiveWorker>();
 var app = builder.Build();
 app.MapGrpcService<StationDeviceService>();
 app.MapGrpcService<RotatorService>();

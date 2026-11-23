@@ -7,11 +7,11 @@ public sealed partial class IcomLanRxFrameClock
         var ready = new List<IcomLanTimedRxFrame>();
         while (_nextSequence is ushort expected)
         {
-            if (_pending.Remove(expected, out var pcm))
+            if (_pending.Remove(expected, out var packet))
             {
-                ready.Add(new IcomLanTimedRxFrame(expected, _nextSample, pcm));
-                _nextSample = checked(_nextSample + (ulong)(pcm.Length / 2));
-                _lastFrameSamples = pcm.Length / 2;
+                ready.Add(new IcomLanTimedRxFrame(expected, _nextSample, packet.Pcm16, packet.Datagram));
+                _nextSample = checked(_nextSample + (ulong)(packet.Pcm16.Length / 2));
+                _lastFrameSamples = packet.Pcm16.Length / 2;
                 _nextSequence = unchecked((ushort)(expected + 1));
                 _gapSince = default;
                 continue;
