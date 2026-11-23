@@ -39,6 +39,8 @@ internal sealed class FakeIcomLanControlRadio : IDisposable
         await _socket.SendAsync(badToken, hello.RemoteEndPoint, ct);
         var validLogin = Reply(0x60, localSid, loginSeq, 2, 0, _token);
         BinaryPrimitives.WriteUInt16LittleEndian(validLogin.AsSpan(0x1A, 2), tokenRequest);
+        validLogin.AsSpan(0x1A, 2).CopyTo(_token.AsSpan(0, 2));
+        validLogin.AsSpan(0x1A, 2).CopyTo(_renewed.AsSpan(0, 2));
         await _socket.SendAsync(validLogin, hello.RemoteEndPoint, ct);
 
         var capRequest = await ReceiveAsync(ct);

@@ -20,6 +20,7 @@ internal sealed partial class FakeNativeIcomRadio
         var loginResponse = Reply(0x60, ControlSid, local,
             Sequence(login.Buffer), 2, 0, _auth);
         login.Buffer.AsSpan(0x1A, 2).CopyTo(loginResponse.AsSpan(0x1A, 2));
+        loginResponse.AsSpan(0x1A, 2).CopyTo(_auth.AsSpan(0, 2));
         await _control.SendAsync(loginResponse, peer, ct);
 
         var capabilitiesRequest = await _control.ReceiveAsync(ct);
