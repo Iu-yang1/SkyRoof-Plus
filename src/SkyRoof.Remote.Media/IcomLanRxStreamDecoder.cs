@@ -1,5 +1,3 @@
-using System.Buffers.Binary;
-using Google.Protobuf;
 using Grpc.Core;
 using SkyRoof.Remote.Foundation.Media;
 using SkyRoof.Remote.Ipc;
@@ -13,10 +11,10 @@ namespace SkyRoof.Remote.Media;
 internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong epoch)
 {
     private readonly IcomLanAudioResampler _resampler = new();
+    private readonly IcomLanRxPcmWriter _writer = new(publisher, epoch);
     private readonly IcomLanPacketReorderBuffer _reorder = new();
     private (uint Sender, uint Receiver, int Codec, int Rate)? _identity;
     private ulong? _nextInput;
-    private ulong _nextOutput;
 
     public void Accept(IcomRxDatagram packet)
     {
@@ -56,7 +54,7 @@ internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong e
     {
         AlignTimeline(packet.FirstSampleIndex, packet.Pcm16.Length / 2, packet.SampleRate);
         float[] pcm = _resampler.Process(packet.Pcm16, packet.SampleRate);
-        Publish(pcm);
+        _writer.Publish(pcm);
     }
 
     private void AlignTimeline(ulong firstIndex, int samples, int sourceRate)
@@ -68,35 +66,10 @@ internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong e
                     "Icom LAN RX sample index overlaps a previously published packet."));
             if (firstIndex > expected)
             {
-                _nextOutput = checked(_nextOutput + (ulong)Math.Round(
-                    (double)(firstIndex - expected) * IcomLanAudioResampler.OutputRate / sourceRate));
+                _writer.SkipMissingInputSamples(firstIndex - expected, sourceRate);
                 _resampler.Reset();
             }
         }
         _nextInput = checked(firstIndex + (ulong)samples);
-    }
-
-    private void Publish(ReadOnlySpan<float> pcm)
-    {
-        for (int start = 0; start < pcm.Length; start += 960)
-        {
-            int count = Math.Min(960, pcm.Length - start);
-            var payload = new byte[count * 2];
-            for (int i = 0; i < count; i++)
-            {
-                short sample = (short)Math.Clamp(
-                    (int)Math.Round(pcm[start + i] * 32768.0), -32768, 32767);
-                BinaryPrimitives.WriteInt16LittleEndian(payload.AsSpan(i * 2, 2), sample);
-            }
-            publisher.Publish(epoch, new RxPcmChunk
-            {
-                FirstSampleIndex = _nextOutput,
-                SampleRate = IcomLanAudioResampler.OutputRate,
-                Channels = 1,
-                SamplesPerChannel = count,
-                Pcm16 = ByteString.CopyFrom(payload)
-            });
-            _nextOutput = checked(_nextOutput + (ulong)count);
-        }
     }
 }
