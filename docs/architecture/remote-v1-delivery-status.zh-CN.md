@@ -10,7 +10,7 @@
 | P3 | 独立 Device：SkyCAT/rigctld CAT/PTT、读回和异常恢复；rotctld AZ/EL/STOP、机械限位、STOP 独立连接；增加多路径点 Park（连续两次新鲜反馈后推进，STOP/手动指向抢占） | IC-9700 Direct LAN、自动路径优化、RC-3040S 专用 Park 校验、SDR/ONVIF 和实机验收 |
 | P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 原 RadioLink 转发器数据库/映射、ISS OEM Hybrid、轨道源切换和完整排程迁移 |
 | P5 | 独立 Dsp：SignalBus RX PCM16 + 4096-point Hann FFT 音频频谱、真实 1/2.5 kHz CI | FT4、CW、Q65、遥测等数字解码器迁移，当前仅音频 FFT |
-| P6 | 独立 Media：gRPC PCM16 RX 流接入、源接管、SignalBus；Opus 回环、认证 WSS 与浏览器 WebAudio；Icom LAN 24B UDP 音频帧 SID/PCM16/PCM8/μ-law 转换；有状态窗函数 sinc 8–192 kHz→48 kHz ASRC | 真实 IC-9700 登录/收发音频会话、UDP 重排序/丢包网络验收、Opus/PCM 自动切换和 TX PCM |
+| P6 | 独立 Media：gRPC PCM16 RX 流接入、源接管、SignalBus；Opus 回环、认证 WSS 与浏览器 WebAudio；Icom LAN 24B UDP 帧 SID/PCM16/PCM8/μ-law 转换；有状态窗函数 sinc 8–192 kHz→48 kHz ASRC；UDP 外层序号乱序恢复、空闲超时释放；实时 RxStatus 诊断与认证 Host API/Web 显示 | 真实 IC-9700 登录/收发音频会话、外部 UDP/FRP 丢包实测、Opus/PCM 自动切换和 TX PCM |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
 | P9 | SignalR MessagePack、CAT/旋转器实时控制和读回、认证 RX PCM/AF 频谱 WSS | 原电台频谱/状态的实际采集、Delta 与多客户端流控 |
@@ -75,6 +75,16 @@ Operator 经 SignalR → Station gRPC → Device rotctld P/p/S 发送指向和 S
 - `3eec8dd`：引入 Icom UDP 音频会话 SID/编解码器与 `MediaIngress.PublishIcomRx`，使用原始格式帧验证字节与序列并转入 SignalBus。该提交的 Media 实际多进程测试通过。
 - `9658183`：增加 Icom 音频到 48 kHz 内部 PCM 时钟的窗函数 sinc 有状态 ASRC，跨 UDP 块保持相位，输入采样缺口重置滤波上下文；44.1 kHz 测试音和跨进程模拟验证通过。
 - `a35be11` → `dba52ca` → `6bc9af2`：Remote Rotator 的多路径点 Park、实际读回等待、全路径预校验、手动 STOP/Point 抢占、中途 STOP 不能继续后续路径点；补齐每段连续两次新鲜读回。**这组最新代码须以 `6bc9af2` 的 E2E/打包/aislop 最终结果为准**，先前编译通过不能替代这一轮结果。
+
+### 2026-11-23 Media RX 可靠性与运行期可观测性
+
+- `6be1da0` 全部 GitHub Actions 已成功，包括 E2E、六进程打包、浏览器、主编译与 aislop；这是 P6 初始 RX 格式重排和 P3 Park 修复在当时 HEAD 的验证基线。
+- `31c1f2a`：Icom UDP 包的 100ms 重排等待现在由 Media 独立计时检查，源 gRPC 保持打开也能释放缺包后的缓冲帧；迟到包被忽略并保留采样空洞。对应 Media 跨进程 CI 已通过。
+- `f0f757c`：从 IcomRxStreamDecoder 提取 PCM16 SignalBus 写入模块，移除 aislop 的类长度告警；结果以该 SHA CI 为准。
+- `6ba545d` → `a99ff87`：新增私有 IPC `MediaIngress.GetRxStatus`，返回源类型、StreamEpoch、运行状态、帧数、缺采样数，以及 UDP 接收数、乱序数、忽略数与缺包数。源切换/正常结束更新当前状态；Media 故障不再要求接收流终止才可观测。
+- `cc1a446` → `f61fa2e`：Host 通过受身份认证的 `GET /api/v1/media/rx-status` 显示状态，Media 离线返回 503；React 音频页每两秒刷新可用数据，未连接的 Remote Workspace 不允许误播放本地台站音频。Host Smoke 检查匿名 401/Media 离线 503，浏览器模拟注入 UDP 统计检查呈现。**上述最新 HEAD 的 E2E/打包/aislop 尚需 CI 最终结果，不能替代实机验证。**
+
+这条诊断链路用于识别实际音频故障，不能自行证明 Icom 认证或 UDP 数据来自真实电台。当前 Direct LAN 会话所有者仍在原 SkyRoof 工程，Remote Device 尚未完成全独立的电台认证/连接管理。
 
 ### 尚不允许对外宣称的能力
 
