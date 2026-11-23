@@ -10,7 +10,8 @@
     <!-- v1.78-zh-toolbar-padding-replacement-20261115: user-authorized one-time rebuild of existing v.1.78. -->
     <!-- v1.86-unne-gear-square-buttons-replacement-20261118: user-authorized rebuild of this exact existing release. -->
     <!-- v1.87-continuous-waterfall-replacement-20261119: requested replacement of the exact existing v.1.87 installer for the user-tested continuous waterfall. -->
-    <Version>1.87</Version>
+    <!-- v1.88-unne-catalog-link-20261123: independent release for official NORAD/telemetry identity reconciliation. -->
+    <Version>1.88</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
