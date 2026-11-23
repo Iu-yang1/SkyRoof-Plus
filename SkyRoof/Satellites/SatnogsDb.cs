@@ -683,28 +683,14 @@ namespace SkyRoof
       {
         if (!CheckFilesPresent()) throw new Exception("Satellite download(s) missing");
 
-        // Preserve user group/local-transmitter aliases while the full
-        // SatNOGS catalogue is rebuilt from a new upstream snapshot.
-        string[] previousUnneIds = Satellites
-          .Where(Unne1bSatelliteIdentity.IsSatellite)
-          .SelectMany(s => s.MergedSatIds.Append(s.sat_id))
-          .Distinct(StringComparer.OrdinalIgnoreCase)
-          .ToArray();
+        // Keep old local transmitter / group IDs across catalogue rebuilds.
+        string[] previousUnneIds = CaptureUnne1bIds();
         SatelliteList.Clear();
 
         ImportSatnogsSatellites();
         ImportSatnogsTransmitters();
         NormalizeUnne1bRecords(SatelliteList, DateTime.UtcNow);
-        SatnogsDbSatellite? unne = Satellites.FirstOrDefault(
-          Unne1bSatelliteIdentity.IsSatellite);
-        if (unne != null)
-        {
-          foreach (string oldId in previousUnneIds)
-            if (!string.Equals(oldId, unne.sat_id, StringComparison.OrdinalIgnoreCase) &&
-                !unne.MergedSatIds.Contains(oldId, StringComparer.OrdinalIgnoreCase))
-              unne.MergedSatIds.Add(oldId);
-          unne.BuildAllNames();
-        }
+        RestoreUnne1bIds(previousUnneIds);
 
         if (!string.IsNullOrWhiteSpace(OrbitSources.TleUrl) &&
             File.Exists(Path.Combine(DownloadsFolder, "tle.json")))
@@ -767,6 +753,24 @@ namespace SkyRoof
       }
     }
 
+    private string[] CaptureUnne1bIds() => Satellites
+      .Where(Unne1bSatelliteIdentity.IsSatellite)
+      .SelectMany(s => s.MergedSatIds.Append(s.sat_id))
+      .Distinct(StringComparer.OrdinalIgnoreCase)
+      .ToArray();
+
+    private void RestoreUnne1bIds(IEnumerable<string> previousIds)
+    {
+      SatnogsDbSatellite? unne = Satellites.FirstOrDefault(
+        Unne1bSatelliteIdentity.IsSatellite);
+      if (unne == null) return;
+      foreach (string oldId in previousIds)
+        if (!string.Equals(oldId, unne.sat_id, StringComparison.OrdinalIgnoreCase) &&
+            !unne.MergedSatIds.Contains(oldId, StringComparer.OrdinalIgnoreCase))
+          unne.MergedSatIds.Add(oldId);
+      unne.BuildAllNames();
+    }
+
     // Called both on cached legacy data and on fresh SatNOGS imports.
     // The radio-rich SatNOGS row keeps its sat_id, while every official orbit
     // and decoder uses NORAD 101101. Legacy sat_ids remain resolvable.
@@ -789,8 +793,9 @@ namespace SkyRoof
 
       SatnogsDbTle? automatic = matches
         .Select(s => s.AutomaticTle ?? s.Tle)
-        .Where(t => t?.norad_cat_id == Unne1bSatelliteIdentity.OfficialNoradId)
-        .OrderByDescending(t => t!.updated)
+        .OfType<SatnogsDbTle>()
+        .Where(t => t.norad_cat_id == Unne1bSatelliteIdentity.OfficialNoradId)
+        .OrderByDescending(t => t.updated)
         .FirstOrDefault();
       var manualSource = matches
         .Where(s => s.HasActiveManualOrbit(utc) &&
