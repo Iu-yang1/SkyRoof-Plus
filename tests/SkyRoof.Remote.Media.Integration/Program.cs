@@ -9,7 +9,10 @@ using SkyRoof.Remote.Ipc;
 using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
-var dll = Path.GetFullPath(args.Single());
+if (args.Length is < 1 or > 2)
+    throw new ArgumentException("Media.dll [Host.dll] required.");
+var dll = Path.GetFullPath(args[0]);
+var hostDll = args.Length == 2 ? Path.GetFullPath(args[1]) : null;
 var suffix = Guid.NewGuid().ToString("N");
 var pipe = "skyroof-media-test-" + suffix;
 var bus = "skyroof-media-rx-" + suffix;
@@ -19,6 +22,7 @@ info.Environment["SKYROOF_MEDIA_PIPE"] = pipe;
 info.Environment["SKYROOF_RX_AUDIO_BUS"] = bus;
 
 using var process = Process.Start(info) ?? throw new InvalidOperationException("Media start failed.");
+HostMediaStatusProbe? hostProbe = null;
 try
 {
     NamedSignalRing? signal = null;
@@ -45,6 +49,8 @@ try
     using var channel = GrpcChannel.ForAddress("http://localhost",
         new GrpcChannelOptions { HttpHandler = handler });
     var client = new MediaIngress.MediaIngressClient(channel);
+    if (hostDll is not null)
+        hostProbe = await HostMediaStatusProbe.StartAsync(hostDll, pipe, suffix);
     static RxPcmChunk Packet(ulong index, byte seed = 0) => new()
     {
         FirstSampleIndex = index, SampleRate = 48000, Channels = 1,
@@ -315,6 +321,14 @@ try
             "Live Icom status did not report active stream and observed UDP loss");
         Check(!live.ResponseAsync.IsCompleted,
             "Media closed the source stream to flush buffered packets");
+        if (hostProbe is not null)
+        {
+            var hostStatus = await hostProbe.WaitForActiveLossAsync(ring.StreamEpoch);
+            Check(hostStatus.GetProperty("source").GetString() == "icom-lan" &&
+                hostStatus.GetProperty("datagramsReceived").GetUInt64() == 2 &&
+                hostStatus.GetProperty("samplesSkipped").GetUInt64() == 480,
+                "Authenticated Host proxy disagrees with live Media gRPC diagnostics");
+        }
 
         await SendLive(71, 480, 77); // Arrived too late; never overwrite seq 72.
         await SendLive(73, 1440, 33);
@@ -343,6 +357,7 @@ try
 }
 finally
 {
+    if (hostProbe is not null) await hostProbe.DisposeAsync();
     if (!process.HasExited) process.Kill(entireProcessTree: true);
     await process.WaitForExitAsync();
 }
