@@ -683,11 +683,28 @@ namespace SkyRoof
       {
         if (!CheckFilesPresent()) throw new Exception("Satellite download(s) missing");
 
+        // Preserve user group/local-transmitter aliases while the full
+        // SatNOGS catalogue is rebuilt from a new upstream snapshot.
+        string[] previousUnneIds = Satellites
+          .Where(Unne1bSatelliteIdentity.IsSatellite)
+          .SelectMany(s => s.MergedSatIds.Append(s.sat_id))
+          .Distinct(StringComparer.OrdinalIgnoreCase)
+          .ToArray();
         SatelliteList.Clear();
 
         ImportSatnogsSatellites();
         ImportSatnogsTransmitters();
         NormalizeUnne1bRecords(SatelliteList, DateTime.UtcNow);
+        SatnogsDbSatellite? unne = Satellites.FirstOrDefault(
+          Unne1bSatelliteIdentity.IsSatellite);
+        if (unne != null)
+        {
+          foreach (string oldId in previousUnneIds)
+            if (!string.Equals(oldId, unne.sat_id, StringComparison.OrdinalIgnoreCase) &&
+                !unne.MergedSatIds.Contains(oldId, StringComparer.OrdinalIgnoreCase))
+              unne.MergedSatIds.Add(oldId);
+          unne.BuildAllNames();
+        }
 
         if (!string.IsNullOrWhiteSpace(OrbitSources.TleUrl) &&
             File.Exists(Path.Combine(DownloadsFolder, "tle.json")))
@@ -783,6 +800,10 @@ namespace SkyRoof
 
       var aliases = new HashSet<string>(
         primary.MergedSatIds, StringComparer.OrdinalIgnoreCase);
+      // Earlier releases created an orbit-only synthetic entry with this ID.
+      // A full SatNOGS refresh must still find its local transmitters.
+      if (!string.Equals(primary.sat_id, "CUSTOM-101101", StringComparison.OrdinalIgnoreCase))
+        aliases.Add("CUSTOM-101101");
       var names = new HashSet<string>(
         StringComparer.OrdinalIgnoreCase);
       foreach (var sat in matches)

@@ -77,6 +77,7 @@ public sealed class Unne1bCatalogIdentityTests
         });
         Assert.Same(primary, SatnogsDb.ResolveSatellite(catalog, second.sat_id));
         Assert.Same(primary, SatnogsDb.ResolveSatellite(catalog, official.sat_id));
+        Assert.Contains("CUSTOM-101101", primary.MergedSatIds);
         Assert.Contains("101101", primary.SearchText);
         Assert.Contains("98205", primary.SearchText);
         Assert.Contains("70002", primary.SearchText);
