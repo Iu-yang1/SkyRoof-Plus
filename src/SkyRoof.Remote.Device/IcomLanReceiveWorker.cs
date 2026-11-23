@@ -8,7 +8,7 @@ namespace SkyRoof.Remote.Device;
 /// Opens control grant with the same reserved local CI-V/Audio socket ports,
 /// then forwards validated raw UDP frames to Media's private SignalBus ingress.
 /// </summary>
-internal sealed class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker> logger)
+internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
