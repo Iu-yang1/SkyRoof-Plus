@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using Grpc.Core;
 using SkyRoof.Remote.Ipc;
+using SkyRoof.Remote.Foundation.Media;
 using SkyRoof.Remote.SignalBus;
 
 namespace SkyRoof.Remote.Media;
@@ -18,6 +19,9 @@ public sealed class RxAudioPublisher : IDisposable
     private ulong _nextSample;
     private long _frames;
     private ulong _missingSamples;
+    private string _source = string.Empty;
+    private bool _active;
+    private IcomLanReorderDiagnostics _icomDiagnostics;
 
     public RxAudioPublisher()
     {
@@ -26,7 +30,7 @@ public sealed class RxAudioPublisher : IDisposable
         _ring = new NamedSignalRing(name, 64, 4096, GenerateEpoch());
     }
 
-    internal ulong OpenStream()
+    internal ulong OpenStream(string source = "pcm16")
     {
         lock (_sync)
         {
@@ -35,6 +39,9 @@ public sealed class RxAudioPublisher : IDisposable
             _nextSample = 0;
             _frames = 0;
             _missingSamples = 0;
+            _source = source;
+            _active = true;
+            _icomDiagnostics = default;
             return _generation;
         }
     }
@@ -63,12 +70,34 @@ public sealed class RxAudioPublisher : IDisposable
         }
     }
 
+    internal void NoteIcomDiagnostics(ulong generation, IcomLanReorderDiagnostics diagnostics)
+    {
+        lock (_sync)
+            if (generation == _generation)
+                _icomDiagnostics = diagnostics;
+    }
+
+    internal RxStreamReceipt Status()
+    {
+        lock (_sync) return Receipt(_active ? "publishing" : "idle");
+    }
+
     internal RxStreamReceipt Complete(ulong generation)
     {
         lock (_sync)
-            return generation == _generation
-                ? Receipt("completed")
-                : new RxStreamReceipt { Epoch = generation, State = "superseded" };
+        {
+            if (generation != _generation)
+                return new RxStreamReceipt { Epoch = generation, State = "superseded" };
+            _active = false;
+            return Receipt("completed");
+        }
+    }
+
+    internal void EndStream(ulong generation)
+    {
+        lock (_sync)
+            if (generation == _generation)
+                _active = false;
     }
 
     private RxStreamReceipt Receipt(string state) => new()
@@ -76,7 +105,13 @@ public sealed class RxAudioPublisher : IDisposable
         Epoch = _generation,
         FramesWritten = _frames,
         SamplesSkipped = _missingSamples,
-        State = state
+        State = state,
+        Source = _source,
+        StreamActive = _active,
+        DatagramsReceived = _icomDiagnostics.Received,
+        DatagramsOutOfOrder = _icomDiagnostics.OutOfOrder,
+        DatagramsDropped = _icomDiagnostics.Dropped,
+        DatagramsMissing = _icomDiagnostics.Missing
     };
 
     private static ulong GenerateEpoch() =>

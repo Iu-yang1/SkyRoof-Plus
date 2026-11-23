@@ -85,6 +85,10 @@ internal static class IcomLanPacketTests
         var afterLoss = buffer.Flush(now.AddMilliseconds(160));
         Check(afterLoss.Count == 1 && afterLoss[0].OuterSequence == 14);
         Check(buffer.Push(Part(15, 2400), now.AddMilliseconds(180)).Count == 1);
+        Check(buffer.Diagnostics.Received == 6 &&
+            buffer.Diagnostics.OutOfOrder >= 2 &&
+            buffer.Diagnostics.Dropped == 1 &&
+            buffer.Diagnostics.Missing == 1);
 
         var wrap = new IcomLanPacketReorderBuffer();
         Check(wrap.Push(Part(65535, 0), now).Count == 1);

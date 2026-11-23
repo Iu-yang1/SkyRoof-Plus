@@ -300,6 +300,11 @@ try
         }
         Check(receivedFirst && receivedAfterGap,
             "Media jitter timeout did not release seq 72 on an open gRPC stream");
+        var liveStatus = await client.GetRxStatusAsync(new RxStatusQuery());
+        Check(liveStatus.StreamActive && liveStatus.Source == "icom-lan" &&
+            liveStatus.DatagramsReceived == 2 && liveStatus.DatagramsMissing == 1 &&
+            liveStatus.SamplesSkipped == 480,
+            "Live Icom status did not report active stream and observed UDP loss");
         Check(!live.ResponseAsync.IsCompleted,
             "Media closed the source stream to flush buffered packets");
 
@@ -307,14 +312,21 @@ try
         await SendLive(73, 1440, 33);
         await live.RequestStream.CompleteAsync();
         var result = await live.ResponseAsync;
-        Check(result.FramesWritten == 3 && result.SamplesSkipped == 480,
-            "Timed-out packet gap was not retained after late/duplicate arrivals");
+        Check(result.FramesWritten == 3 && result.SamplesSkipped == 480 &&
+            result.DatagramsReceived == 4 && result.DatagramsDropped == 1 &&
+            result.DatagramsMissing == 1 && !result.StreamActive &&
+            result.Source == "icom-lan",
+            "Timed-out packet gap and transport diagnostics were not retained");
         Check(ring.TryReadNext(liveCursor, out var postTimeout) &&
             postTimeout is not null &&
             postTimeout.FirstSampleIndex == 1440 &&
             postTimeout.Payload.All(value => value == 33),
             "Post-timeout source frame missing or late packet incorrectly accepted");
     }
+    var completedStatus = await client.GetRxStatusAsync(new RxStatusQuery());
+    Check(!completedStatus.StreamActive && completedStatus.DatagramsMissing == 1 &&
+        completedStatus.Source == "icom-lan",
+        "Completed Icom stream continued to report an active producer");
     Console.WriteLine("PASS: Media flushes missing UDP packets while source gRPC remains open.");
     Console.WriteLine("PASS: Icom LAN cross-process reorder, duplicate suppression and missing-sample gap.");
     Console.WriteLine("PASS: continuous 44.1 kHz Icom RX ASRC to 48 kHz SignalBus.");

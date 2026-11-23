@@ -14,37 +14,50 @@ public sealed class MediaIngressService(RxAudioPublisher publisher)
         IAsyncStreamReader<RxPcmChunk> requestStream, ServerCallContext context)
     {
         var epoch = publisher.OpenStream();
-        while (await requestStream.MoveNext(context.CancellationToken))
-            publisher.Publish(epoch, requestStream.Current);
-        return publisher.Complete(epoch);
+        try
+        {
+            while (await requestStream.MoveNext(context.CancellationToken))
+                publisher.Publish(epoch, requestStream.Current);
+            return publisher.Complete(epoch);
+        }
+        finally { publisher.EndStream(epoch); }
     }
+
+    public override Task<RxStreamReceipt> GetRxStatus(
+        RxStatusQuery request, ServerCallContext context) =>
+        Task.FromResult(publisher.Status());
 
     public override async Task<RxStreamReceipt> PublishIcomRx(
         IAsyncStreamReader<IcomRxDatagram> requestStream, ServerCallContext context)
     {
-        var epoch = publisher.OpenStream();
+        var epoch = publisher.OpenStream("icom-lan");
         var decoder = new IcomLanRxStreamDecoder(publisher, epoch);
-        // An open gRPC source can go idle after a missing UDP packet. Keep one
-        // outstanding MoveNext and retire the reorder deadline independently;
-        // otherwise a buffered packet would wait for the next source packet or EOF.
-        var nextPacket = requestStream.MoveNext(context.CancellationToken);
-        while (true)
+        try
         {
-            var completed = await Task.WhenAny(nextPacket,
-                Task.Delay(25, context.CancellationToken));
-            if (completed == nextPacket)
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(25));
+            var next = requestStream.MoveNext(context.CancellationToken);
+            var tick = timer.WaitForNextTickAsync(context.CancellationToken).AsTask();
+            while (true)
             {
-                if (!await nextPacket) break;
-                decoder.Accept(requestStream.Current);
-                nextPacket = requestStream.MoveNext(context.CancellationToken);
+                var completed = await Task.WhenAny(next, tick);
+                if (completed == next)
+                {
+                    if (!await next) break;
+                    decoder.Accept(requestStream.Current);
+                    next = requestStream.MoveNext(context.CancellationToken);
+                }
+                else
+                {
+                    if (!await tick) break;
+                    decoder.FlushDue();
+                    tick = timer.WaitForNextTickAsync(context.CancellationToken).AsTask();
+                }
+                publisher.NoteIcomDiagnostics(epoch, decoder.Diagnostics);
             }
-            else
-            {
-                context.CancellationToken.ThrowIfCancellationRequested();
-                decoder.FlushDue();
-            }
+            decoder.Complete();
+            publisher.NoteIcomDiagnostics(epoch, decoder.Diagnostics);
+            return publisher.Complete(epoch);
         }
-        decoder.Complete();
-        return publisher.Complete(epoch);
+        finally { publisher.EndStream(epoch); }
     }
 }

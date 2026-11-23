@@ -14,6 +14,7 @@ internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong e
     private readonly IcomLanRxPcmWriter _writer = new(publisher, epoch);
     private readonly IcomLanPacketReorderBuffer _reorder = new();
     private (uint Sender, uint Receiver, int Codec, int Rate)? _identity;
+    public IcomLanReorderDiagnostics Diagnostics => _reorder.Diagnostics;
     private ulong? _nextInput;
 
     public void Accept(IcomRxDatagram packet)
