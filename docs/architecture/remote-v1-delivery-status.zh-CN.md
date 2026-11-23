@@ -7,10 +7,10 @@
 | P0 | 核对原 SkyRoof RadioLink、CAT/SkyCAT、Direct LAN、CI，建立独立测试基线 | 全部旧版性能回归基线 |
 | P1 | Protobuf、gRPC Named Pipe、共享内存 SignalBus、流 Epoch/Sequence/SampleIndex | 生产 IPC ACL、协议升级兼容 |
 | P2 | Supervisor 普通后台/Windows Service 双模式、SCM 实际注册启停 CI、崩溃恢复、Device PTT 和已配置旋转器 STOP 退出处理 | 实际硬件在 Session 0 的账户/ACL 和升级迁移验收 |
-| P3 | 独立 Device：SkyCAT/rigctld CAT/PTT、读回和异常恢复；rotctld AZ/EL/STOP、机械限位、STOP 独立连接；增加多路径点 Park（连续两次新鲜反馈后推进，STOP/手动指向抢占） | IC-9700 Direct LAN、自动路径优化、RC-3040S 专用 Park 校验、SDR/ONVIF 和实机验收 |
+| P3 | 独立 Device：SkyCAT/rigctld CAT/PTT、读回和异常恢复；rotctld AZ/EL/STOP、机械限位、STOP 独立连接、多路径点 Park。新增独立 Icom LAN UDP 控制登录、认证 Token、授权流、保活和 CI-V/Audio 端口预绑定的可选接收 Worker | IC-9700 Direct LAN 实机登录/CI-V 完整 CAT、RF/IF 频谱、TX 音频、自动路径优化、RC-3040S 专用 Park 校验、SDR/ONVIF |
 | P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 原 RadioLink 转发器数据库/映射、ISS OEM Hybrid、轨道源切换和完整排程迁移 |
 | P5 | 独立 Dsp：SignalBus RX PCM16 + 4096-point Hann FFT 音频频谱、真实 1/2.5 kHz CI | FT4、CW、Q65、遥测等数字解码器迁移，当前仅音频 FFT |
-| P6 | 独立 Media：gRPC PCM16 RX 流接入、源接管、SignalBus；Opus 回环、认证 WSS 与浏览器 WebAudio；Icom LAN 24B UDP 帧 SID/PCM16/PCM8/μ-law 转换；有状态窗函数 sinc 8–192 kHz→48 kHz ASRC；UDP 外层序号乱序恢复、空闲超时释放；实时 RxStatus 诊断与认证 Host API/Web 显示 | 真实 IC-9700 登录/收发音频会话、外部 UDP/FRP 丢包实测、Opus/PCM 自动切换和 TX PCM |
+| P6 | 独立 Media：PCM16 SignalBus、Opus 本机环回、认证 WSS/WebAudio、Icom UDP PCM16/PCM8/μ-law、8–192 kHz→48 kHz 有状态 ASRC、UDP 乱序/重复/缺包恢复及实时认证诊断；Device RX Worker 已连到 Media 私有 IPC | 当前新增整套真实 UDP 模拟器 E2E CI 待最终确认；IC-9700 实机登录/RX、外部网络压测、WebRTC Audio Track/RTC Data 动态切换、TX PCM 仍未完成 |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
 | P9 | SignalR MessagePack、CAT/旋转器实时控制和读回、认证 RX PCM/AF 频谱 WSS | 原电台频谱/状态的实际采集、Delta 与多客户端流控 |
@@ -91,3 +91,29 @@ Operator 经 SignalR → Station gRPC → Device rotctld P/p/S 发送指向和 S
 此处模拟输入使用正确的 Icom LAN 数据包格式，但**并非**已完成电台认证、UDP 实时接收或 IC-9700/RS-BA1 全链路测试。Remote Media 接口现可接收经过其他模块认证的 Icom 音频帧，仍需迁移独立的 Direct LAN Session 所有权、接通真实 RX/TX 音频及射频频谱。标准 rotctld Park 仿真不等同于 RC-3040S 的机械到位/制动确认。数字 TX、完整 WinForms IPC、WSJT-X Bridge、ISS OEM Hybrid、跨站点工作区及正式安装器亦未完工。
 
 提交代码使用 GitHub API，未证实加密提交签名；实机验证未执行。
+
+## 2026-11-23 P3/P6 Direct LAN 原生会话开发
+
+- 新增 `IcomLanControlCodec`、`IcomLanRadioCapabilities`：迁移原 SkyRoof 的凭据替换、IC-9700 控制帧、Auth/Capability/Stream Grant 字节布局，校验完整的 SID、登录随机请求、事务序号与 6-byte AuthId。
+- `IcomLanControlConnection` 以独立 UDP 进行控制 Hello→Login→Capabilities/Token→流授权，提供 Control Ping/Idle、相关 Token Renewal、故障重登。
+- `IcomLanCivSocket` 与 `IcomLanAudioSocket` 在发起流授权**之前**各自绑定本地实际 UDP 端口，避免媒体授权时端口与最终 socket 不一致。完成各自 Greeting/Ready，CI-V 发送 native Stream Open，音频定期 Ping；控制或 CI-V maintenance 异常触发新控制授权。
+- 可选 `IcomLanReceiveWorker` 在独立 Device 进程中处理远端 Audio UDP、音频 SID/Codec、外层包重排及 `FirstSampleIndex` 计算，将字节原样交给 Media `PublishIcomRx`，最终输出 48kHz PCM 到 SignalBus。不会自动切换原 CAT 源或干预既有 SkyCAT/RS-BA1 会话。
+- Foundation Fake Radio 使用真实 `UdpClient` 执行双向 Login/Grant 和 Audio/CI-V 握手；Media 集成脚本新增模拟 UDP Radio→Device 独立进程→Media Named Pipe→SignalBus 的联动和 3 个 UDP 故障用例。
+- 早期 `cc3d852` Foundation CI 曾因**模拟电台**的随机登录 Token 与后续 AuthId 前两个字节不一致而超时，现于 `d513a3c` 修复测试桩，不放宽真实协议校验。**最新 HEAD 必须以 GitHub Actions 的 Foundation/Media/E2E/aislop 成功结果为准，不得把已提交视作通过。**
+
+### 开发环境参数
+
+仅在需要启用原生 Icom 接收时为 **Device 进程** 设置：
+
+| 环境变量 | 说明 |
+|---|---|
+| `SKYROOF_ICOM_LAN_HOST` | IC-9700 设备 IPv4，未设置即不启动 Direct LAN RX Worker |
+| `SKYROOF_ICOM_LAN_PORT` | Control UDP 端口，默认 50001 |
+| `SKYROOF_ICOM_LAN_USERNAME` | 电台网络登录用户名，不写入代码或仓库 |
+| `SKYROOF_ICOM_LAN_PASSWORD` | 电台网络登录密码，不写入代码或仓库 |
+| `SKYROOF_ICOM_LAN_RX_RATE` | 首选 RX 采样率，默认 48000；仍依据电台能力掩码选择有效值 |
+| `SKYROOF_ICOM_LAN_RX_CODEC` | RX Codec：4=PCM16、2=PCM8、1=μ-law，默认 4 |
+| `SKYROOF_MEDIA_PIPE` | Device 和 Media 进程必须一致，默认 `skyroof-station-media` |
+
+当前为**接收方向的独立开发功能**。只使用已协商的 Audio UDP 接收，未实现 Direct LAN TX 及原 SkyRoof 的完整 CI-V/RF Spectrum 功能，且没有实机验证。真实 IC-9700 的 LAN AF/IF Output Select 由电台本身决定；软件不能据 UDP 内容假定一定是 AF 或 IF。生产部署时避免与独占电台远控会话的 RS-BA1 客户端同时争用设备授权，具体并发兼容性仍需实机确认。
+

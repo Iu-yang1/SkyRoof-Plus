@@ -34,3 +34,12 @@ Windows x64 需 .NET 10 Runtime 和可访问的本机 SkyCAT/rigctld 服务。�
 ## 健康与就绪语义
 
 /health/live 只代表 Host HTTP 服务存活；/health/ready 必须通过 Station → Device 的真实只读 CAT readback，才能返回 HTTP 200。如果命名管道、设备或站内服务不可用，则返回 503；不认为 Host 登录页成功就是整个台站可用。外部探针、负载均衡和 Supervisors 应针对具体目标选择存活或业务就绪检查，不自动重发 RF 变更事务。
+
+## 原生 IC-9700 Direct LAN RX（新增开发功能，未完成实机验收）
+
+Device 可独立于 SkyCAT CAT 连接，使用 `SKYROOF_ICOM_LAN_HOST` 启动 LAN 控制/媒体接收链路。请在本机 Supervisor 的 **Device** 环境配置 `SKYROOF_ICOM_LAN_HOST`、`SKYROOF_ICOM_LAN_PORT`（默认 50001）、`SKYROOF_ICOM_LAN_USERNAME`、`SKYROOF_ICOM_LAN_PASSWORD`、`SKYROOF_ICOM_LAN_RX_RATE`（默认 48000）和 `SKYROOF_ICOM_LAN_RX_CODEC`（4=PCM16、2=PCM8、1=μ-law），并确保 `SKYROOF_MEDIA_PIPE` 同 Media 一致。
+
+接收路径：先绑定 CI-V/Audio UDP 本地端口，再完成 Control 登录/授权及独立 CI-V、Audio 握手，随后通过 `MediaIngress.PublishIcomRx` 写入 48 kHz SignalBus，供 Host WSS/AF FFT 消费。网页 RX Audio 显示 Media 源 Epoch、收到的包、乱序与丢包统计（`/api/v1/media/rx-status` 需要登录）。
+
+上述功能在配置缺失时不启动，不会把模拟 CAT 连接替换成未认证的原生 LAN CAT，不引入新的发射门限。本接收链路还不具备 Direct LAN TX、原生 CAT/频谱全量联动或实机保证；在 IC-9700 设备上需要核对电台 LAN AF/IF 输出选择，确保应用将当前 PCM 按正确源类型处理。模拟器故障注入包含 UDP SID 不匹配、乱序与缺包，但不是物理网络测试。为避免凭据泄露，正式服务账户的环境设置应由本机受限配置管理，不应提交到公开 GitHub 仓库。
+
