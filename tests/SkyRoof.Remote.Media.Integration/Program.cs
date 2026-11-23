@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Principal;
@@ -123,6 +124,59 @@ try
     }
     catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument) { invalidRejected = true; }
     Check(invalidRejected, "Incorrect PCM format was silently published as 48kHz");
+
+    // Authenticated Icom LAN session already negotiated by the source process:
+    // exercise real 24-byte UDP framing -> Media gRPC -> shared RX SignalBus.
+    const uint icomSender = 0x12345678, icomReceiver = 0xA1B2C3D4;
+    byte[] audioBytes = Enumerable.Range(0, 960).Select(i => (byte)(i % 253)).ToArray();
+    using (var icom = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(15)))
+    {
+        await icom.RequestStream.WriteAsync(new IcomRxDatagram
+        {
+            FirstSampleIndex = 0, SampleRate = 48000, SenderSid = icomSender,
+            ReceiverSid = icomReceiver, Codec = 4,
+            Datagram = ByteString.CopyFrom(IcomPacket(audioBytes, icomSender, icomReceiver, 10))
+        });
+        await icom.RequestStream.WriteAsync(new IcomRxDatagram
+        {
+            FirstSampleIndex = 480, SampleRate = 48000, SenderSid = icomSender,
+            ReceiverSid = icomReceiver, Codec = 4,
+            Datagram = ByteString.CopyFrom(IcomPacket(audioBytes, icomSender, icomReceiver, 11))
+        });
+        await icom.RequestStream.CompleteAsync();
+        var receipt = await icom.ResponseAsync;
+        Check(receipt.FramesWritten == 2 && receipt.SamplesSkipped == 0 &&
+            receipt.Epoch == ring.StreamEpoch, "Icom LAN RX packets failed Media ingestion");
+    }
+    var icomCursor = new SignalCursor();
+    Check(ring.TryReadNext(icomCursor, out var icomFirst) && icomFirst is not null &&
+        icomFirst.SampleCount == 480 && icomFirst.FirstSampleIndex == 0 &&
+        icomFirst.Payload.SequenceEqual(audioBytes),
+        "Icom LAN packet bytes were altered before SignalBus");
+    Check(ring.TryReadNext(icomCursor, out var icomSecond) && icomSecond is not null &&
+        icomSecond.FirstSampleIndex == 480 &&
+        icomSecond.Payload.SequenceEqual(audioBytes), "Second Icom LAN packet missing");
+
+    using (var badSid = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(10)))
+    {
+        var spoofed = new IcomRxDatagram
+        {
+            FirstSampleIndex = 0, SampleRate = 48000,
+            SenderSid = icomSender + 1, ReceiverSid = icomReceiver, Codec = 4,
+            Datagram = ByteString.CopyFrom(IcomPacket(audioBytes, icomSender, icomReceiver, 12))
+        };
+        var rejectedSid = false;
+        try
+        {
+            await badSid.RequestStream.WriteAsync(spoofed);
+            await badSid.RequestStream.CompleteAsync();
+            _ = await badSid.ResponseAsync;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
+        { rejectedSid = true; }
+        Check(rejectedSid, "Icom LAN sender SID mismatch was accepted");
+    }
+    Console.WriteLine("PASS: Icom LAN UDP packet -> Media gRPC -> SignalBus PCM16 and SID rejection.");
     Console.WriteLine("PASS: Media process RX PCM16 ingestion, SignalBus bytes/index, loss count, source takeover and format validation.");
 }
 finally
@@ -133,4 +187,17 @@ finally
 static void Check(bool valid, string message)
 {
     if (!valid) throw new InvalidOperationException(message);
+}
+
+static byte[] IcomPacket(byte[] pcm, uint sender, uint receiver, ushort seq)
+{
+    byte[] packet = new byte[24 + pcm.Length];
+    BinaryPrimitives.WriteUInt32LittleEndian(packet, (uint)packet.Length);
+    BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(6, 2), seq);
+    BinaryPrimitives.WriteUInt32BigEndian(packet.AsSpan(8, 4), sender);
+    BinaryPrimitives.WriteUInt32BigEndian(packet.AsSpan(12, 4), receiver);
+    packet[16] = 0x80;
+    BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(18, 2), seq);
+    pcm.CopyTo(packet, 24);
+    return packet;
 }

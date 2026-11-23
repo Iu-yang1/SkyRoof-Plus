@@ -189,4 +189,5 @@ Test("Restart retains future jobs but never replays expired or started jobs", ()
 });
 WorkspaceTests.Run();
 WaveformTests.Run();
+IcomLanPacketTests.Run();
 Console.WriteLine($"PASS: {count} deterministic foundation simulation groups + Workspace.");

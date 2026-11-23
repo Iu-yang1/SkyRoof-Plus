@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
   </ItemGroup>

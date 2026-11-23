@@ -4,6 +4,7 @@ option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service MediaIngress {
   rpc PublishRx(stream RxPcmChunk) returns (RxStreamReceipt);
+  rpc PublishIcomRx(stream IcomRxDatagram) returns (RxStreamReceipt);
 }
 
 message RxPcmChunk {
@@ -12,6 +13,17 @@ message RxPcmChunk {
   int32 samples_per_channel = 3;
   int32 channels = 4;
   bytes pcm16 = 5;
+}
+
+// Negotiated session IDs come from the owning authenticated Icom LAN connection.
+// Media checks every datagram against the stream's immutable first-packet identity.
+message IcomRxDatagram {
+  uint64 first_sample_index = 1;
+  int32 sample_rate = 2;
+  uint32 sender_sid = 3;
+  uint32 receiver_sid = 4;
+  int32 codec = 5;
+  bytes datagram = 6;
 }
 
 message RxStreamReceipt {
