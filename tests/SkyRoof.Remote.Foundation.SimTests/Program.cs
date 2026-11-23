@@ -191,4 +191,5 @@ WorkspaceTests.Run();
 WaveformTests.Run();
 IcomLanPacketTests.Run();
 IcomLanControlTests.Run();
+IcomLanNetworkSessionTests.Run();
 Console.WriteLine($"PASS: {count} deterministic foundation simulation groups + Workspace.");
