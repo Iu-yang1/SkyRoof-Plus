@@ -64,7 +64,33 @@ internal static class IcomLanPacketTests
         resampler.Reset();
         Check(resampler.Process(tone.AsSpan(0, 6000), sourceRate)
             .SequenceEqual(first));
+        CheckReordering();
         Console.WriteLine("PASS: Icom LAN session framing, audio codecs and continuous 44.1 -> 48 kHz sinc ASRC.");
+    }
+
+
+    private static void CheckReordering()
+    {
+        var buffer = new IcomLanPacketReorderBuffer();
+        var now = new DateTime(2026, 11, 23, 0, 0, 0, DateTimeKind.Utc);
+        static IcomLanOrderedRxPacket Part(ushort sequence, ulong index) =>
+            new(sequence, index, 48000, new byte[960]);
+        Check(buffer.Push(Part(10, 0), now).Count == 1);
+        Check(buffer.Push(Part(12, 960), now.AddMilliseconds(20)).Count == 0);
+        var repaired = buffer.Push(Part(11, 480), now.AddMilliseconds(40));
+        Check(repaired.Count == 2 &&
+            repaired[0].OuterSequence == 11 && repaired[1].OuterSequence == 12);
+        Check(buffer.Push(Part(11, 480), now.AddMilliseconds(45)).Count == 0);
+        Check(buffer.Push(Part(14, 1920), now.AddMilliseconds(50)).Count == 0);
+        var afterLoss = buffer.Flush(now.AddMilliseconds(160));
+        Check(afterLoss.Count == 1 && afterLoss[0].OuterSequence == 14);
+        Check(buffer.Push(Part(15, 2400), now.AddMilliseconds(180)).Count == 1);
+
+        var wrap = new IcomLanPacketReorderBuffer();
+        Check(wrap.Push(Part(65535, 0), now).Count == 1);
+        Check(wrap.Push(Part(0, 480), now.AddMilliseconds(20)).Count == 1);
+        Check(wrap.Push(Part(65535, 0), now.AddMilliseconds(40)).Count == 0);
+        Console.WriteLine("PASS: Icom LAN outer-sequence reorder, duplicate, loss timeout and wrap.");
     }
 
     private static byte[] Packet(byte[] samples, uint sender, uint receiver,

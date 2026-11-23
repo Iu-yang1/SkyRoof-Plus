@@ -13,6 +13,7 @@ namespace SkyRoof.Remote.Media;
 internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong epoch)
 {
     private readonly IcomLanAudioResampler _resampler = new();
+    private readonly IcomLanPacketReorderBuffer _reorder = new();
     private (uint Sender, uint Receiver, int Codec, int Rate)? _identity;
     private ulong? _nextInput;
     private ulong _nextOutput;
@@ -32,9 +33,23 @@ internal sealed class IcomLanRxStreamDecoder(RxAudioPublisher publisher, ulong e
             throw new RpcException(new Status(StatusCode.InvalidArgument,
                 "Malformed Icom LAN audio frame or incorrect session ID."));
 
-        AlignTimeline(packet.FirstSampleIndex, frame.Pcm16.Length / 2, packet.SampleRate);
         _identity = identity;
-        float[] pcm = _resampler.Process(frame.Pcm16, packet.SampleRate);
+        var ready = _reorder.Push(new IcomLanOrderedRxPacket(
+            frame.OuterSequence, packet.FirstSampleIndex, packet.SampleRate, frame.Pcm16),
+            DateTime.UtcNow);
+        foreach (var item in ready) AcceptOrdered(item);
+    }
+
+    public void Complete()
+    {
+        foreach (var item in _reorder.Flush(DateTime.UtcNow, force: true))
+            AcceptOrdered(item);
+    }
+
+    private void AcceptOrdered(IcomLanOrderedRxPacket packet)
+    {
+        AlignTimeline(packet.FirstSampleIndex, packet.Pcm16.Length / 2, packet.SampleRate);
+        float[] pcm = _resampler.Process(packet.Pcm16, packet.SampleRate);
         Publish(pcm);
     }
 

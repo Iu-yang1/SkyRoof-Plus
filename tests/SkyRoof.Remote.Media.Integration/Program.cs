@@ -215,6 +215,53 @@ try
     }
     Check(convertedCount >= 5 && nextIndex is > 2700 and < 2900,
         "44.1 kHz Icom samples did not become 48 kHz PCM");
+
+    // UDP outer sequence must determine presentation order, not gRPC arrival order.
+    using (var reordering = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(15)))
+    {
+        foreach (var (sequence, index, seed) in new (ushort, ulong, byte)[]
+        {
+            (50, 0, 3), (52, 960, 5), (51, 480, 7), (51, 480, 7)
+        })
+        {
+            byte[] payload = Enumerable.Repeat(seed, 960).ToArray();
+            await reordering.RequestStream.WriteAsync(new IcomRxDatagram
+            {
+                FirstSampleIndex = index, SampleRate = 48000,
+                SenderSid = icomSender, ReceiverSid = icomReceiver, Codec = 4,
+                Datagram = ByteString.CopyFrom(IcomPacket(
+                    payload, icomSender, icomReceiver, sequence))
+            });
+        }
+        await reordering.RequestStream.CompleteAsync();
+        var receipt = await reordering.ResponseAsync;
+        Check(receipt.FramesWritten == 3 && receipt.SamplesSkipped == 0,
+            "Reordered Icom LAN UDP packets were lost or duplicated");
+    }
+    var reorderedCursor = new SignalCursor();
+    foreach (var (index, seed) in new (ulong, byte)[] { (0, 3), (480, 7), (960, 5) })
+    {
+        Check(ring.TryReadNext(reorderedCursor, out var frame) && frame is not null &&
+            frame.FirstSampleIndex == index && frame.Payload.All(value => value == seed),
+            "Icom LAN UDP reorder did not preserve the original PCM sample timeline");
+    }
+
+    using (var missing = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(15)))
+    {
+        foreach (var (sequence, index) in new (ushort, ulong)[] { (60, 0), (62, 960) })
+            await missing.RequestStream.WriteAsync(new IcomRxDatagram
+            {
+                FirstSampleIndex = index, SampleRate = 48000,
+                SenderSid = icomSender, ReceiverSid = icomReceiver, Codec = 4,
+                Datagram = ByteString.CopyFrom(IcomPacket(
+                    audioBytes, icomSender, icomReceiver, sequence))
+            });
+        await missing.RequestStream.CompleteAsync();
+        var receipt = await missing.ResponseAsync;
+        Check(receipt.FramesWritten == 2 && receipt.SamplesSkipped == 480,
+            "A missing Icom LAN packet did not preserve the 480-sample gap");
+    }
+    Console.WriteLine("PASS: Icom LAN cross-process reorder, duplicate suppression and missing-sample gap.");
     Console.WriteLine("PASS: continuous 44.1 kHz Icom RX ASRC to 48 kHz SignalBus.");
     Console.WriteLine("PASS: Icom LAN UDP packet -> Media gRPC -> SignalBus PCM16 and SID rejection.");
     Console.WriteLine("PASS: Media process RX PCM16 ingestion, SignalBus bytes/index, loss count, source takeover and format validation.");

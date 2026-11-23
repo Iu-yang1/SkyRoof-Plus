@@ -26,6 +26,7 @@ public sealed class MediaIngressService(RxAudioPublisher publisher)
         var decoder = new IcomLanRxStreamDecoder(publisher, epoch);
         while (await requestStream.MoveNext(context.CancellationToken))
             decoder.Accept(requestStream.Current);
+        decoder.Complete();
         return publisher.Complete(epoch);
     }
 }
