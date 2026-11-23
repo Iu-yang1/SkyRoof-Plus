@@ -10,6 +10,13 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   const localSlot = page.locator('.workspace-slot').first();
   const remoteSlot = page.locator('.workspace-slot').nth(1);
   await expect(page.getByText('REMOTE V1 · DEV PROTOTYPE')).toBeVisible();
+  // An omitted EL must not silently become 0° and steer a real rotator.
+  const rotatorPanel = localSlot.locator('.rotator-panel');
+  await rotatorPanel.getByLabel('Park waypoints').fill('90,');
+  await rotatorPanel.getByRole('button', { name: 'PARK ROUTE' }).click();
+  await expect(rotatorPanel.getByText(
+    'PARK failed or interrupted: Error: Park route must contain AZ,EL pairs separated by semicolons.'
+  )).toBeVisible();
   await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
   await expect(localSlot.getByText('48,000 samples/s · PCM16 · SAP/1')).toBeVisible();
   await expect(localSlot.getByText('FT4 / CW CONSOLE')).toBeVisible();
