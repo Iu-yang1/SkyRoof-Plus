@@ -73,6 +73,25 @@ internal static class IcomLanControlTests
         var capabilities = Reply(0x42 + 0x66, local, remote, 0x0300, 2, 2, authId);
         Check(IcomLanControlCodec.MatchesCapabilities(
             capabilities, local, remote, 0x0300, authId), "Capabilities correlation");
+        var capEntry = capabilities.AsSpan(0x42, 0x66);
+        System.Text.Encoding.ASCII.GetBytes("IC-9700").CopyTo(capEntry.Slice(0x10));
+        System.Text.Encoding.ASCII.GetBytes("LAN Audio").CopyTo(capEntry.Slice(0x30));
+        capEntry[0x52] = 0xA2;
+        BinaryPrimitives.WriteUInt16BigEndian(capEntry.Slice(7, 2), 0x8010);
+        BinaryPrimitives.WriteUInt16BigEndian(capEntry.Slice(0x53, 2), 0x018B);
+        BinaryPrimitives.WriteUInt16BigEndian(capEntry.Slice(0x55, 2), 0x000B);
+        BinaryPrimitives.WriteUInt32BigEndian(capEntry.Slice(0x5A, 4), 19200);
+        Check(IcomLanControlCodec.TryParseCapabilities(capabilities, out var parsed) &&
+            parsed.RadioName == "IC-9700" && parsed.AudioName == "LAN Audio" &&
+            parsed.CivAddress == 0xA2 && parsed.CommonCapability == 0x8010 &&
+            parsed.RxSampleMask == 0x018B && parsed.TxSampleMask == 0x000B &&
+            parsed.BaudRate == 19200, "Icom radio capabilities entry offsets differ");
+        capEntry[0x52] = 0;
+        Check(!IcomLanControlCodec.TryParseCapabilities(capabilities, out _),
+            "Capability record without valid CI-V address was accepted");
+        loginReply[0x14] = 0x02; // Some radio login replies are type-variant.
+        Check(IcomLanControlCodec.MatchesLogin(
+            loginReply, local, remote, 0x1234, 0x5678), "Login response compatibility");
         Console.WriteLine("PASS: Icom Direct LAN control login/auth/capabilities/grant framing and wrong-transaction rejection.");
     }
 

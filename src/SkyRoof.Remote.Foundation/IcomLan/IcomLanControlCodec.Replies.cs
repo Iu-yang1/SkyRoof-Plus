@@ -36,7 +36,12 @@ public static partial class IcomLanControlCodec
 
     public static bool MatchesLogin(ReadOnlySpan<byte> frame,
         uint localSid, uint remoteSid, ushort sequence, ushort tokenRequest) =>
-        MatchesReply(frame, 0x60, localSid, remoteSid, sequence, 0, 0) &&
+        frame.Length == 0x60 &&
+        BinaryPrimitives.ReadUInt32LittleEndian(frame[..4]) == 0x60 &&
+        BinaryPrimitives.ReadUInt16LittleEndian(frame.Slice(4, 2)) == 0 &&
+        MatchesEnvelope(frame, localSid, remoteSid) &&
+        frame[0x15] == 0 &&
+        BinaryPrimitives.ReadUInt16BigEndian(frame.Slice(0x16, 2)) == sequence &&
         BinaryPrimitives.ReadUInt16LittleEndian(frame.Slice(0x1A, 2)) == tokenRequest;
 
     public static bool MatchesAuth(ReadOnlySpan<byte> frame,
