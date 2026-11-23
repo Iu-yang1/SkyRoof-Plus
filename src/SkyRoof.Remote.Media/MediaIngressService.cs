@@ -1,6 +1,4 @@
-using Google.Protobuf;
 using Grpc.Core;
-using SkyRoof.Remote.Foundation.Media;
 using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Media;
@@ -25,35 +23,9 @@ public sealed class MediaIngressService(RxAudioPublisher publisher)
         IAsyncStreamReader<IcomRxDatagram> requestStream, ServerCallContext context)
     {
         var epoch = publisher.OpenStream();
-        (uint Sender, uint Receiver, int Codec, int Rate)? session = null;
+        var decoder = new IcomLanRxStreamDecoder(publisher, epoch);
         while (await requestStream.MoveNext(context.CancellationToken))
-        {
-            var packet = requestStream.Current;
-            // The current station SignalBus contract is 48 kHz PCM16. Other
-            // negotiated Icom rates require an explicit streaming ASRC stage.
-            if (packet.SampleRate != 48000)
-                throw new RpcException(new Status(StatusCode.InvalidArgument,
-                    "Icom LAN RX must be negotiated at 48 kHz for the current SignalBus."));
-            var identity = (packet.SenderSid, packet.ReceiverSid,
-                packet.Codec, packet.SampleRate);
-            if (session is not null && session.Value != identity)
-                throw new RpcException(new Status(StatusCode.Aborted,
-                    "Icom LAN audio stream changed its negotiated session."));
-            if (!IcomLanAudioPacketCodec.TryDecode(packet.Datagram.Span,
-                packet.SenderSid, packet.ReceiverSid,
-                (IcomLanAudioCodec)packet.Codec, out var decoded))
-                throw new RpcException(new Status(StatusCode.InvalidArgument,
-                    "Malformed Icom LAN audio frame or incorrect session ID."));
-            session = identity;
-            publisher.Publish(epoch, new RxPcmChunk
-            {
-                FirstSampleIndex = packet.FirstSampleIndex,
-                SampleRate = packet.SampleRate,
-                Channels = 1,
-                SamplesPerChannel = decoded.Pcm16.Length / 2,
-                Pcm16 = ByteString.CopyFrom(decoded.Pcm16)
-            });
-        }
+            decoder.Accept(requestStream.Current);
         return publisher.Complete(epoch);
     }
 }

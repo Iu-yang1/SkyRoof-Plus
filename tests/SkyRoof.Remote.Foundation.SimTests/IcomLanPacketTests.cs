@@ -46,7 +46,25 @@ internal static class IcomLanPacketTests
         var special = IcomLanAudioPacketCodec.EncodeTransmit(new short[80], sender, receiver,
             1, 1, IcomLanAudioCodec.Lpcm16Mono);
         Check(BinaryPrimitives.ReadUInt16LittleEndian(special.AsSpan(16, 2)) == 0x9781);
-        Console.WriteLine("PASS: IC-9700 LAN packet SIDs, sequence, PCM16/PCM8/u-law, TX framing.");
+
+        // Preserve a coherent 1 kHz tone across differently sized 44.1 kHz packets.
+        var resampler = new IcomLanAudioResampler();
+        const int sourceRate = 44100;
+        byte[] tone = new byte[sourceRate / 5 * 2];
+        for (int i = 0; i < tone.Length / 2; i++)
+            BinaryPrimitives.WriteInt16LittleEndian(tone.AsSpan(i * 2, 2),
+                (short)Math.Round(30000 * Math.Sin(2 * Math.PI * 1000 * i / sourceRate)));
+        float[] first = resampler.Process(tone.AsSpan(0, 6000), sourceRate);
+        float[] second = resampler.Process(tone.AsSpan(6000), sourceRate);
+        float[] output = first.Concat(second).ToArray();
+        Check(output.Length is > 9500 and < 9650);
+        double rms = Math.Sqrt(output.Skip(200).Take(output.Length - 300)
+            .Average(x => (double)x * x));
+        Check(rms is > 0.60 and < 0.71);
+        resampler.Reset();
+        Check(resampler.Process(tone.AsSpan(0, 6000), sourceRate)
+            .SequenceEqual(first));
+        Console.WriteLine("PASS: Icom LAN session framing, audio codecs and continuous 44.1 -> 48 kHz sinc ASRC.");
     }
 
     private static byte[] Packet(byte[] samples, uint sender, uint receiver,

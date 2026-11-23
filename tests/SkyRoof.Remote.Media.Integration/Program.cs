@@ -176,6 +176,46 @@ try
         { rejectedSid = true; }
         Check(rejectedSid, "Icom LAN sender SID mismatch was accepted");
     }
+
+    // Negotiated 44.1 kHz Icom audio must be converted to SignalBus 48 kHz,
+    // retaining the continuous output clock across independent UDP datagrams.
+    using (var resampled = client.PublishIcomRx(deadline: DateTime.UtcNow.AddSeconds(15)))
+    {
+        for (var frameIndex = 0; frameIndex < 6; frameIndex++)
+        {
+            byte[] source = new byte[441 * 2];
+            for (int i = 0; i < 441; i++)
+            {
+                short value = (short)Math.Round(12000 * Math.Sin(
+                    2 * Math.PI * 1000 * (frameIndex * 441 + i) / 44100));
+                BinaryPrimitives.WriteInt16LittleEndian(source.AsSpan(i * 2, 2), value);
+            }
+            await resampled.RequestStream.WriteAsync(new IcomRxDatagram
+            {
+                FirstSampleIndex = (ulong)(frameIndex * 441), SampleRate = 44100,
+                SenderSid = icomSender, ReceiverSid = icomReceiver, Codec = 4,
+                Datagram = ByteString.CopyFrom(IcomPacket(source, icomSender,
+                    icomReceiver, (ushort)(20 + frameIndex)))
+            });
+        }
+        await resampled.RequestStream.CompleteAsync();
+        var receipt = await resampled.ResponseAsync;
+        Check(receipt.FramesWritten >= 5 && receipt.SamplesSkipped == 0,
+            "44.1 kHz streaming conversion lost its continuous sample timeline");
+    }
+    var resampledCursor = new SignalCursor();
+    ulong nextIndex = 0;
+    int convertedCount = 0;
+    while (ring.TryReadNext(resampledCursor, out var frame) && frame is not null)
+    {
+        Check(frame.SampleRate == 48000 && frame.FirstSampleIndex == nextIndex,
+            "ASRC output sample clock was discontinuous");
+        nextIndex += (ulong)frame.SampleCount;
+        convertedCount++;
+    }
+    Check(convertedCount >= 5 && nextIndex is > 2700 and < 2900,
+        "44.1 kHz Icom samples did not become 48 kHz PCM");
+    Console.WriteLine("PASS: continuous 44.1 kHz Icom RX ASRC to 48 kHz SignalBus.");
     Console.WriteLine("PASS: Icom LAN UDP packet -> Media gRPC -> SignalBus PCM16 and SID rejection.");
     Console.WriteLine("PASS: Media process RX PCM16 ingestion, SignalBus bytes/index, loss count, source takeover and format validation.");
 }
