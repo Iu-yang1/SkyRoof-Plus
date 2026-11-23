@@ -28,7 +28,7 @@ public sealed partial class StationDeviceBridge
         {
             var result = apply
                 ? await client.ApplyAsync(request, deadline: DateTime.UtcNow.AddSeconds(18), cancellationToken: ct)
-                : await client.PredictAsync(request, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+                : await client.PredictAsync(request, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
             return MapTrackingStatus(result);
         }
         catch (RpcException ex) { throw new HubException("Tracking failed: " + ex.Status.Detail); }
