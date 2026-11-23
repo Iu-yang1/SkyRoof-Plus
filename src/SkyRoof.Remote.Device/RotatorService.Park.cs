@@ -46,7 +46,7 @@ public sealed partial class RotatorService
                     latest = await ExecuteAsync(null, context.CancellationToken, revision);
                 }
             }
-            return latest!;
+            return latest ?? throw new InvalidOperationException("PARK has no position readback.");
         }
         catch (Exception ex) when (ex is RpcException or OperationCanceledException)
         {
