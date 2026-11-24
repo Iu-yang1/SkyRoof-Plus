@@ -20,7 +20,12 @@ public sealed class IcomLanSatelliteCat(IcomLanCivSocket socket, byte radioAddre
     public Task SetModeAsync(bool uplink, string mode, CancellationToken ct) =>
         OnBandAsync(uplink, async token =>
         {
-            await _control.SetSelectedModeAsync(new(IcomCivMode.ParseCode(mode), 1), token);
+            var request = IcomCivModeRequest.Parse(mode);
+            var previous = await _readbacks.ReadSelectedModeAsync(token);
+            byte filter = previous.Filter is >= 1 and <= 3 ? previous.Filter : (byte)1;
+            await _control.SetSelectedModeAsync(new(request.Code, filter), token);
+            if (request.Code is 0 or 1 or 2 or 5)
+                await _control.SetDataModeAsync(request.Data, filter, token);
             return true;
         }, ct);
 

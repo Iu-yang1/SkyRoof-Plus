@@ -21,6 +21,7 @@ internal sealed partial class FakeNativeIcomRadio
             open.Buffer[21] != 5)
             throw new InvalidDataException("Native CI-V stream-open was not transmitted.");
         await ServeCatProbeAsync(peer, local, ct);
+        await ServeNativeCatAsync(peer, local, ct);
     }
 
     private async Task ServeAudioAsync(CancellationToken ct)

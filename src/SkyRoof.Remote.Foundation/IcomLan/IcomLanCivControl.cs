@@ -23,6 +23,16 @@ public sealed class IcomLanCivControl(IcomLanCivSocket socket, byte radioAddress
             throw new IOException("IC-9700 mode/filter readback differs from the requested setting.");
     }
 
+    public async Task SetDataModeAsync(bool enabled, byte filter, CancellationToken ct = default)
+    {
+        if (enabled && filter is < 1 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(filter));
+        byte selectedFilter = enabled ? filter : (byte)0;
+        await WriteAsync([0x1A, 6, enabled ? (byte)1 : (byte)0, selectedFilter], ct);
+        if (await _readbacks.ReadDataModeAsync(ct) != (enabled, selectedFilter))
+            throw new IOException("IC-9700 DATA mode/filter readback differs.");
+    }
+
     // 07 D0/D1 select receiver focus; these are not VFO A/B commands.
     public Task SelectBandAsync(bool sub, CancellationToken ct = default) =>
         WriteAsync([0x07, sub ? (byte)0xD1 : (byte)0xD0], ct);

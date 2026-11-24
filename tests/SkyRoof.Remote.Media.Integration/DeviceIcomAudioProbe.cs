@@ -8,7 +8,7 @@ internal static class DeviceIcomAudioProbe
         string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media)
     {
         using var fake = new FakeNativeIcomRadio();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var radioTask = fake.RunAsync(deadline.Token);
         var startEpoch = ring.StreamEpoch;
         var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
@@ -17,7 +17,8 @@ internal static class DeviceIcomAudioProbe
         info.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] =
             Path.Combine(Path.GetTempPath(), "skyroof-native-icom-" + suffix + ".json");
         info.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
-        info.Environment["SKYROOF_CAT_PORT"] = "4532";
+        info.Environment["SKYROOF_CAT_PORT"] = "1";
+        info.Environment["SKYROOF_CAT_DIALECT"] = "icom-lan-satellite";
         info.Environment["SKYROOF_MEDIA_PIPE"] = mediaPipe;
         info.Environment["SKYROOF_ICOM_LAN_HOST"] = "127.0.0.1";
         info.Environment["SKYROOF_ICOM_LAN_PORT"] = fake.ControlPort.ToString();
@@ -29,6 +30,9 @@ internal static class DeviceIcomAudioProbe
 
         try
         {
+            await NativeDeviceCatProbe.RunAsync(info.Environment["SKYROOF_DEVICE_PIPE"]
+                ?? throw new InvalidOperationException("Device test pipe missing."), deadline.Token);
+            fake.FinishNativeCat();
             await radioTask;
             var observed = new Dictionary<ulong, byte>();
             var cursor = new SignalCursor();

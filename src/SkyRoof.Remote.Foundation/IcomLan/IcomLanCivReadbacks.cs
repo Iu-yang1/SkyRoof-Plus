@@ -16,6 +16,14 @@ public sealed class IcomLanCivReadbacks(IcomLanCivSocket socket, byte radioAddre
         return new IcomCivMode(data[0], data[1]);
     }
 
+    public async Task<(bool Enabled, byte Filter)> ReadDataModeAsync(CancellationToken ct = default)
+    {
+        byte[] data = await socket.QueryAsync(new(radioAddress, 0xE0, [0x1A, 6], 2), ct);
+        if (data[0] > 1 || (data[0] == 0 ? data[1] != 0 : data[1] is < 1 or > 3))
+            throw new InvalidDataException("Invalid CI-V data mode readback.");
+        return (data[0] == 1, data[1]);
+    }
+
     public async Task<bool> ReadPttAsync(CancellationToken ct = default)
     {
         byte[] data = await socket.QueryAsync(new(radioAddress, 0xE0, [0x1C, 0], 1), ct);

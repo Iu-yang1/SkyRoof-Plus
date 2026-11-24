@@ -40,6 +40,8 @@ internal sealed partial class FakeNativeIcomRadio : IDisposable
 
     public void Dispose()
     {
+        _nativeCatDone.Cancel();
         _control.Dispose(); _civ.Dispose(); _audio.Dispose();
+        _nativeCatDone.Dispose();
     }
 }
