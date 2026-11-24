@@ -64,7 +64,10 @@ namespace SkyRoof
       openglControl1.MouseDown += EarthMouseDown;
       openglControl1.MouseMove += EarthMouseMove;
       openglControl1.MouseUp += EarthMouseUp;
-      openglControl1.MouseCaptureChanged += (_, _) => EndEarthDrag();
+      openglControl1.MouseCaptureChanged += (_, _) =>
+      {
+        if (!openglControl1.Capture) EndEarthDrag();
+      };
       openglControl1.MouseDoubleClick += (_, e) =>
       {
         if (e.Button == MouseButtons.Left) ResetView();
@@ -164,6 +167,7 @@ namespace SkyRoof
       else
       {
         satellitePositionValid = false;
+        SatFootprint = Math.PI;
         SatGeoPoint = nextSatGeoPoint = Home;
         camera.Follow(DefaultCenter());
         SchedulePositionUpdate();
