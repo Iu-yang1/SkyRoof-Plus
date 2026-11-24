@@ -1,8 +1,19 @@
 using System.Buffers.Binary;
+using System.Net;
 using SkyRoof.Remote.Foundation.IcomLan;
 
 internal sealed partial class FakeNativeIcomRadio
 {
+    private (IPEndPoint Peer, uint LocalSid)? _controlSession;
+
+    public async Task DisconnectControlAsync(CancellationToken ct)
+    {
+        var session = _controlSession ??
+            throw new InvalidOperationException("Fake radio has no granted control session.");
+        var packet = IcomLanControlCodec.ControlPacket(5, 0, ControlSid, session.LocalSid);
+        await _control.SendAsync(packet, session.Peer, ct);
+    }
+
     private async Task ServeControlAsync(CancellationToken ct)
     {
         var greet = await _control.ReceiveAsync(ct);
@@ -48,5 +59,6 @@ internal sealed partial class FakeNativeIcomRadio
         BinaryPrimitives.WriteUInt16BigEndian(status.AsSpan(0x42, 2), (ushort)CivPort);
         BinaryPrimitives.WriteUInt16BigEndian(status.AsSpan(0x46, 2), (ushort)AudioPort);
         await _control.SendAsync(status, peer, ct);
+        _controlSession = (peer, local);
     }
 }

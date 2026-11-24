@@ -63,9 +63,26 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
             codec, lifetime.Token);
-        var finished = await Task.WhenAny(pump,
+        var finished = await Task.WhenAny(pump, audio.MaintenanceTask,
             control.MaintenanceTask, civ.MaintenanceTask);
-        lifetime.Cancel();
-        await finished;
+        try { await finished; }
+        finally
+        {
+            lifetime.Cancel();
+            if (finished != pump)
+                await StopMediaPumpAsync(pump, lifetime.Token);
+        }
+    }
+    private async Task StopMediaPumpAsync(Task pump, CancellationToken ct)
+    {
+        try { await pump; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            logger.LogDebug("Native Icom media pump stopped with its session.");
+        }
+        catch (Exception error)
+        {
+            logger.LogWarning(error, "Native Icom media pump failed while closing its session.");
+        }
     }
 }

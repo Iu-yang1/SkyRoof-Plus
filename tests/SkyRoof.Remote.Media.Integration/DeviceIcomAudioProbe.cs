@@ -58,11 +58,28 @@ internal static class DeviceIcomAudioProbe
                 throw new InvalidOperationException(
                     "Raw UDP Device/Media loss and epoch diagnostics did not agree.");
             Console.WriteLine("PASS: real UDP fake IC-9700 login/grant/CI-V/audio -> Device IPC -> Media SignalBus.");
+            await fake.DisconnectControlAsync(deadline.Token);
+            await AssertSourceEndedAsync(media, receipt.Epoch, deadline.Token);
         }
         finally
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
         }
+    }
+    private static async Task AssertSourceEndedAsync(
+        MediaIngress.MediaIngressClient media, ulong epoch, CancellationToken ct)
+    {
+        for (int attempt = 0; attempt < 50; attempt++)
+        {
+            var status = await media.GetRxStatusAsync(new RxStatusQuery(), cancellationToken: ct);
+            if (!status.StreamActive && status.Epoch == epoch)
+            {
+                Console.WriteLine("PASS: native control disconnect ends the old Media RX epoch.");
+                return;
+            }
+            await Task.Delay(40, ct);
+        }
+        throw new InvalidOperationException("Control disconnect left the old Media source active.");
     }
 }

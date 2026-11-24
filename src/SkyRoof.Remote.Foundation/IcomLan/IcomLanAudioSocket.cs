@@ -16,6 +16,7 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private Task? _heartbeat;
+    public Task MaintenanceTask => _heartbeat ?? Task.CompletedTask;
     private ushort _pingSequence = 1, _pingInner = 0x8304;
 
     private IcomLanAudioSocket(UdpClient socket, uint localSid)
