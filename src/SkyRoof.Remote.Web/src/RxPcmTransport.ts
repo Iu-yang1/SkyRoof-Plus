@@ -9,29 +9,23 @@ export class RxPcmTransport {
   private fallbackStarted = false;
 
   constructor(private status: (message: string) => void,
-    private disconnected: () => void, private packet: (buffer: ArrayBuffer) => void) {}
+    private disconnected: () => void, private packet: (buffer: ArrayBuffer) => void,
+    private voiceStream?: (stream: MediaStream | null) => void) {}
 
-  start() {
-    this.status('RTC DATA · CONNECTING');
-    void this.connectRtc().catch(() => this.fallback());
+  start(voice = false) {
+    this.status(voice ? 'RTC VOICE · CONNECTING' : 'RTC DATA · CONNECTING');
+    void this.connectRtc(voice).catch(() => this.fallback());
   }
 
   private url(path: string) {
     return (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + path;
   }
 
-  private async connectRtc() {
+  private async connectRtc(voice: boolean) {
     const peer = new RTCPeerConnection();
     this.rtc = peer;
-    const channel = peer.createDataChannel('skyroof-rx-pcm', { ordered: false, maxRetransmits: 0 });
-    channel.binaryType = 'arraybuffer';
-    channel.onmessage = event => {
-      if (this.rtc !== peer || this.stopped || !(event.data instanceof ArrayBuffer)) return;
-      this.status('RTC DATA · PCM16 · 48 kHz');
-      this.arm(3000);
-      this.packet(event.data);
-    };
-    channel.onclose = () => { if (this.rtc === peer) this.fallback(); };
+    if (voice) this.configureVoice(peer);
+    else this.configureData(peer);
     peer.onconnectionstatechange = () => {
       if (this.rtc === peer && ['failed', 'closed', 'disconnected'].includes(peer.connectionState))
         this.fallback();
@@ -42,7 +36,7 @@ export class RxPcmTransport {
     if (this.rtc !== peer || this.stopped) return;
     const offer = peer.localDescription?.sdp;
     if (!offer) throw new Error('RTC offer missing');
-    const signal = new WebSocket(this.url('/ws/rtc-rx'));
+    const signal = new WebSocket(this.url(voice ? '/ws/rtc-voice' : '/ws/rtc-rx'));
     this.signaling = signal;
     signal.onopen = () => signal.send(offer);
     signal.onmessage = event => {
@@ -50,6 +44,35 @@ export class RxPcmTransport {
       void peer.setRemoteDescription({ type: 'answer', sdp: event.data }).catch(() => this.fallback());
     };
     signal.onclose = signal.onerror = () => { if (this.rtc === peer) this.fallback(); };
+  }
+
+  private configureVoice(peer: RTCPeerConnection) {
+    peer.addTransceiver('audio', { direction: 'recvonly' });
+    peer.ontrack = event => {
+      if (this.rtc !== peer || this.stopped) return;
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      event.track.onunmute = () => {
+        if (this.rtc !== peer || this.stopped) return;
+        this.status('RTC VOICE · Opus 48 kHz');
+        if (this.timer !== null) window.clearTimeout(this.timer);
+        this.timer = null;
+      };
+      event.track.onended = () => { if (this.rtc === peer) this.fallback(); };
+      event.track.onmute = () => { if (this.rtc === peer) this.arm(3000); };
+      this.voiceStream?.(stream);
+    };
+  }
+
+  private configureData(peer: RTCPeerConnection) {
+    const channel = peer.createDataChannel('skyroof-rx-pcm', { ordered: false, maxRetransmits: 0 });
+    channel.binaryType = 'arraybuffer';
+    channel.onmessage = event => {
+      if (this.rtc !== peer || this.stopped || !(event.data instanceof ArrayBuffer)) return;
+      this.status('RTC DATA · PCM16 · 48 kHz');
+      this.arm(3000);
+      this.packet(event.data);
+    };
+    channel.onclose = () => { if (this.rtc === peer) this.fallback(); };
   }
 
   private waitForGathering(peer: RTCPeerConnection) {
@@ -77,6 +100,7 @@ export class RxPcmTransport {
     const peer = this.rtc;
     this.rtc = null;
     peer?.close();
+    this.voiceStream?.(null);
     this.signaling?.close();
     this.signaling = null;
   }

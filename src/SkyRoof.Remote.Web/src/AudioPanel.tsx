@@ -4,7 +4,7 @@ import { useMediaRxStatus } from './useMediaRxStatus';
 import { PcmTimeline } from './PcmTimeline';
 import { RxPcmTransport } from './RxPcmTransport';
 
-type Playback = { context: AudioContext; socket: RxPcmTransport; node: AudioWorkletNode };
+type Playback = { context: AudioContext; socket: RxPcmTransport; node: AudioWorkletNode; voice?: MediaStreamAudioSourceNode };
 export function AudioPanel() {
   const workspaceActive = useContext(WorkspaceActiveContext);
   const hub = useContext(DeviceHubContext);
@@ -29,6 +29,7 @@ export function AudioPanel() {
     if (current) {
       current.socket.close();
       current.node.disconnect();
+      current.voice?.disconnect();
       void current.context.close();
     }
   }
@@ -38,7 +39,7 @@ export function AudioPanel() {
     setStatus('RX AUDIO OFF');
   }
 
-  async function start() {
+  async function start(voice = false) {
     if (playback.current || starting.current || !workspaceActive || !hub) return;
     starting.current = true;
     const attempt = ++generation.current;
@@ -74,9 +75,18 @@ export function AudioPanel() {
         node.port.postMessage({ kind: 'samples', ...packet }, [packet.samples.buffer]);
         count++;
         if (count % 15 === 0) setFrames(count);
+      }, stream => {
+        const current = playback.current;
+        if (!current || attempt !== generation.current) return;
+        current.voice?.disconnect();
+        current.voice = undefined;
+        if (stream) {
+          current.voice = current.context.createMediaStreamSource(stream);
+          current.voice.connect(current.context.destination);
+        }
       });
       playback.current = { context, node, socket };
-      socket.start();
+      socket.start(voice);
       if (active.current) await context.resume();
       else await context.suspend();
     } catch (error) {
@@ -117,8 +127,9 @@ export function AudioPanel() {
       · Ignored {media.datagramsDropped} · Missing UDP {media.datagramsMissing}</div>}
     <div className="audio-buttons">
       <button disabled={!workspaceActive || !hub} onClick={() => { void start(); }}>PLAY RX</button>
+      <button disabled={!workspaceActive || !hub} onClick={() => { void start(true); }}>PLAY VOICE</button>
       <button onClick={stop}>STOP RX</button>
     </div>
-    <small>优先 RTC DataChannel，ICE/数据断流时回退 WSS。Voice Track 与公网部署仍需验收。</small>
+    <small>PLAY RX 使用无损 PCM；PLAY VOICE 使用 Opus，失败时回退 PCM WSS。公网 ICE/FRP 仍需验收。</small>
   </section>;
 }

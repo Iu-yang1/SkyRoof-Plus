@@ -6,8 +6,11 @@ namespace SkyRoof.Remote.Host.Realtime;
 
 public static class LiveRtcRxWebSocket
 {
-    public static void MapLiveRtcRx(this WebApplication app) =>
+    public static void MapLiveRtcRx(this WebApplication app)
+    {
         app.MapGet("/ws/rtc-rx", StreamAsync).RequireAuthorization();
+        app.MapGet("/ws/rtc-voice", StreamAsync).RequireAuthorization();
+    }
 
     private static async Task StreamAsync(HttpContext context)
     {
@@ -20,12 +23,13 @@ public static class LiveRtcRxWebSocket
         int channels = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_CHANNELS"),
             out int configured) ? configured : 1;
         if (channels is < 1 or > 2) { context.Response.StatusCode = 400; return; }
+        bool voice = context.Request.Path == "/ws/rtc-voice";
         try
         {
-            using var peer = new NativeRtcRxPeer(Environment.GetEnvironmentVariable("SKYROOF_RTC_ICE_SERVER") ?? "");
+            using var peer = new NativeRtcRxPeer(Environment.GetEnvironmentVariable("SKYROOF_RTC_ICE_SERVER") ?? "", voice);
             using var ring = new NamedSignalRing(name, 64, 4096);
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
-            await NegotiateAndStreamAsync(context, socket, ring, peer, channels);
+            await NegotiateAndStreamAsync(context, socket, ring, peer, channels, voice);
         }
         catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or
             BadImageFormatException or InvalidDataException or IOException or OperationCanceledException)
@@ -36,7 +40,7 @@ public static class LiveRtcRxWebSocket
     }
 
     private static async Task NegotiateAndStreamAsync(HttpContext context, WebSocket socket,
-        NamedSignalRing ring, NativeRtcRxPeer peer, int channels)
+        NamedSignalRing ring, NativeRtcRxPeer peer, int channels, bool voice)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
         using var offerTimeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
@@ -46,7 +50,7 @@ public static class LiveRtcRxWebSocket
         await socket.SendAsync(Encoding.UTF8.GetBytes(answer).AsMemory(), WebSocketMessageType.Text,
             true, lifetime.Token);
         var closed = socket.ReceiveAsync(new byte[1].AsMemory(), lifetime.Token).AsTask();
-        var pump = PumpAsync(context, ring, peer, channels, lifetime.Token);
+        var pump = PumpAsync(context, ring, peer, channels, voice, lifetime.Token);
         try { await await Task.WhenAny(closed, pump); }
         finally
         {
@@ -71,9 +75,10 @@ public static class LiveRtcRxWebSocket
     }
 
     private static async Task PumpAsync(HttpContext context, NamedSignalRing ring,
-        NativeRtcRxPeer peer, int channels, CancellationToken ct)
+        NativeRtcRxPeer peer, int channels, bool voice, CancellationToken ct)
     {
         var cursor = new SignalCursor();
+        var audio = voice ? new VoicePcmAssembler(channels) : null;
         DateTimeOffset nextCheck = DateTimeOffset.MinValue;
         while (!ct.IsCancellationRequested)
         {
@@ -83,7 +88,10 @@ public static class LiveRtcRxWebSocket
                 if (!await LiveAudioWebSocket.StillAuthorizedAsync(context)) return;
             }
             if (ring.TryReadNext(cursor, out var frame) && frame is not null)
-                peer.Send(RxPcmPacket.Encode(frame, channels));
+            {
+                if (audio is null) peer.Send(RxPcmPacket.Encode(frame, channels));
+                else audio.Accept(frame, samples => peer.SendVoice(samples));
+            }
             else await Task.Delay(10, ct);
         }
     }

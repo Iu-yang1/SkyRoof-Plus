@@ -8,9 +8,9 @@ namespace SkyRoof.Remote.Host.Realtime;
 internal sealed partial class NativeRtcRxPeer : IDisposable
 {
     private nint _peer;
-    public NativeRtcRxPeer(string iceServer)
+    public NativeRtcRxPeer(string iceServer, bool voice = false)
     {
-        _peer = Create(iceServer);
+        _peer = voice ? CreateVoice(iceServer) : Create(iceServer);
         if (_peer == 0) throw new IOException("Native RTC peer unavailable.");
     }
 
@@ -30,6 +30,13 @@ internal sealed partial class NativeRtcRxPeer : IDisposable
     }
 
     public bool Send(byte[] packet) => Send(_peer, packet, packet.Length) > 0;
+
+    public bool SendVoice(short[] samples) => SendVoice(_peer, samples, samples.Length) > 0;
+
+    [DllImport("skyroof_rtc", EntryPoint = "skyroof_rtc_create_voice", CallingConvention = CallingConvention.Cdecl)]
+    private static extern nint CreateVoice([MarshalAs(UnmanagedType.LPUTF8Str)] string iceServer);
+    [DllImport("skyroof_rtc", EntryPoint = "skyroof_rtc_send_voice", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SendVoice(nint peer, short[] samples, int frames);
 
     public void Dispose()
     {
