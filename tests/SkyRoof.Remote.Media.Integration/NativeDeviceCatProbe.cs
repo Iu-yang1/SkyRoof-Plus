@@ -6,7 +6,7 @@ using SkyRoof.Remote.Ipc;
 
 internal static class NativeDeviceCatProbe
 {
-    public static async Task RunAsync(string pipe, CancellationToken ct)
+    public static async Task RunAsync(string pipe, FakeNativeIcomRadio fake, CancellationToken ct)
     {
         using var handler = new SocketsHttpHandler
         {
@@ -33,7 +33,7 @@ internal static class NativeDeviceCatProbe
         Check(tx.RxFrequencyHz == 145_920_000 && tx.TxFrequencyHz == 435_550_000,
             "Native uplink tuning changed downlink.");
         await SendAsync(cat, new() { Operation = DeviceOperation.DeviceTxMode, Mode = "USB-D" }, ct);
-        await CheckPttAsync(cat, ct);
+        await CheckPttAsync(cat, fake, ct);
         Console.WriteLine("PASS: independent native satellite CAT via Device IPC; MAIN/SUB and PTT ownership.");
     }
 
@@ -49,7 +49,7 @@ internal static class NativeDeviceCatProbe
         }
     }
 
-    private static async Task CheckPttAsync(StationDevice.StationDeviceClient cat, CancellationToken ct)
+    private static async Task CheckPttAsync(StationDevice.StationDeviceClient cat, FakeNativeIcomRadio fake, CancellationToken ct)
     {
         var begin = new DeviceCommand { Operation = DeviceOperation.DeviceManualBegin,
             TransactionId = "native-test", SessionId = "operator", FrequencyHz = 435_550_000,
@@ -57,10 +57,14 @@ internal static class NativeDeviceCatProbe
         var asserted = await SendAsync(cat, begin, ct);
         Check(asserted.ActualPtt && asserted.ActiveTransactionId == begin.TransactionId,
             "Native PTT assertion not owned.");
+        await NativeTxOwnershipProbe.RunAsync(cat, fake, begin, asserted, ct);
+        begin.TransactionId = "native-takeover";
+        begin.SessionId = "operator-2";
         begin.Operation = DeviceOperation.DeviceManualEnd;
         var released = await SendAsync(cat, begin, ct);
         Check(!released.ActualPtt && released.ActiveTransactionId.Length == 0,
             "Native PTT release not confirmed.");
+        await NativeTxOwnershipProbe.AssertRejectedAsync(cat, begin, released.TransactionEpoch, ct);
     }
 
     private static async Task<DeviceSnapshot> SendAsync(StationDevice.StationDeviceClient cat,

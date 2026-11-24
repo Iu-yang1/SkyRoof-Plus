@@ -45,12 +45,14 @@ internal sealed partial class FakeNativeIcomRadio
         capabilities[0x42 + 0x52] = 0xA2;
         BinaryPrimitives.WriteUInt16BigEndian(capabilities.AsSpan(0x42 + 7, 2), 0x8010);
         BinaryPrimitives.WriteUInt16BigEndian(capabilities.AsSpan(0x42 + 0x53, 2), 0x0008);
+        BinaryPrimitives.WriteUInt16BigEndian(capabilities.AsSpan(0x42 + 0x55, 2), 0x0008);
         await _control.SendAsync(capabilities, peer, ct);
 
         var stream = await _control.ReceiveAsync(ct);
         var data = stream.Buffer;
         if (data.Length != 0x90 || data[0x70] != 1 ||
-            data[0x72] != 4 ||
+            data[0x72] != 4 || data[0x71] != 1 || data[0x73] != 4 ||
+            BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0x78, 4)) != 48000 ||
             BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0x7C, 4)) == 0 ||
             BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0x80, 4)) == 0)
             throw new InvalidDataException("Device grant omitted reserved native media ports.");

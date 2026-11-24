@@ -5,6 +5,7 @@ internal sealed class FakeNativeSatelliteState
     private readonly byte[][] _data = [[0, 0], [0, 0]];
     private int _selected;
     private byte _ptt;
+    private readonly byte[] _modInputs = [0, 0];
 
     public byte[] Apply(byte[] command)
     {
@@ -19,6 +20,8 @@ internal sealed class FakeNativeSatelliteState
             [6, _, _] => Set(_mode, command[1..]),
             [0x1A, 6] => [0x1A, 6, .. _data[_selected]],
             [0x1A, 6, _, _] => Set(_data, command[2..]),
+            [0x1A, 5, 1, 0x15 or 0x16] => [.. command, _modInputs[command[3] - 0x15]],
+            [0x1A, 5, 1, 0x15 or 0x16, _] => SetMod(command),
             [0x1C, 0] => [0x1C, 0, _ptt],
             [0x1C, 0, 0] => SetPtt(0),
             [0x1C, 0, 1] => SetPtt(1),
@@ -39,10 +42,18 @@ internal sealed class FakeNativeSatelliteState
         return [0xFB];
     }
 
+    private byte[] SetMod(byte[] command)
+    {
+        _modInputs[command[3] - 0x15] = command[4];
+        return [0xFB];
+    }
+
     private byte[] SetPtt(byte value)
     {
         if (_selected != 0)
             throw new InvalidOperationException("Native CAT left SUB selected when keying.");
+        if (value == 1 && _modInputs[_data[1][0]] != 5)
+            throw new InvalidOperationException("TX was keyed without verified LAN MOD input.");
         _ptt = value;
         return [0xFB];
     }

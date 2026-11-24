@@ -46,6 +46,7 @@ internal sealed partial class FakeNativeIcomRadio
             await _audio.SendAsync(AudioFrame(local, seq, seed), peer, ct);
             await Task.Delay(30, ct);
         }
+        await ObserveTxAsync(local, ct);
     }
 
     private static byte[] AudioFrame(uint receiverSid, ushort sequence, byte seed)

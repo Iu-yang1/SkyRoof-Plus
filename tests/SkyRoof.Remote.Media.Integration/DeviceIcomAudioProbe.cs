@@ -23,6 +23,7 @@ internal static class DeviceIcomAudioProbe
         info.Environment["SKYROOF_ICOM_LAN_HOST"] = "127.0.0.1";
         info.Environment["SKYROOF_ICOM_LAN_PORT"] = fake.ControlPort.ToString();
         info.Environment["SKYROOF_ICOM_LAN_CAT_PROBE"] = "true";
+        info.Environment["SKYROOF_ICOM_LAN_TX_RATE"] = "48000";
         info.Environment["SKYROOF_ICOM_LAN_USERNAME"] = "operator";
         info.Environment["SKYROOF_ICOM_LAN_PASSWORD"] = "fake-session-credential";
         using var process = Process.Start(info) ??
@@ -31,7 +32,7 @@ internal static class DeviceIcomAudioProbe
         try
         {
             await NativeDeviceCatProbe.RunAsync(info.Environment["SKYROOF_DEVICE_PIPE"]
-                ?? throw new InvalidOperationException("Device test pipe missing."), deadline.Token);
+                ?? throw new InvalidOperationException("Device test pipe missing."), fake, deadline.Token);
             fake.FinishNativeCat();
             await radioTask;
             var observed = new Dictionary<ulong, byte>();
