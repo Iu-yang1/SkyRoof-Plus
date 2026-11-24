@@ -613,8 +613,7 @@
   <data name="SkyView.OrbitNumber" xml:space="preserve"><value>{1} · 第 {0} 圈轨道</value></data>
   <data name="Control.EarthViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>实时</value></data>
   <data name="Control.EarthViewPanel.PassRadioBtn" xml:space="preserve"><value>选定过境</value></data>
-  <data name="Control.EarthViewPanel.ResetViewButton" xml:space="preserve"><value>恢复跟随</value></data>
-  <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>网站</value></data>
+    <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>网站</value></data>
   <data name="Control.SatelliteDetailsPanel.ImageLabel" xml:space="preserve"><value>图片</value></data>
   <data name="SatelliteDetails.Aka" xml:space="preserve"><value>别名：{0}</value></data>
   <data name="Menu.WaterfallPanel.SelectTransmitterMNU" xml:space="preserve"><value>选择转发器或信标</value></data>

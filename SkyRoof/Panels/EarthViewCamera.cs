@@ -65,6 +65,41 @@ namespace SkyRoof
         (float)(north * scale / viewport.Height));
     }
 
+    // Inverse of Project, matching the renderer's AEQD disk and aspect ratio.
+    // Points outside the Earth disk and its singular antipode have no unique target.
+    internal bool TryUnproject(PointF pixel, Size viewport, double zoom, out GeoPoint point)
+    {
+      point = Center;
+      double diameter = Math.Min(viewport.Width, viewport.Height);
+      if (diameter <= 0 || !double.IsFinite(zoom) || zoom <= 0) return false;
+      double east = (2d * pixel.X - viewport.Width) / diameter;
+      double north = (viewport.Height - 2d * pixel.Y) / diameter;
+      double radius = Math.Sqrt(east * east + north * north) * Math.PI / zoom;
+      if (!double.IsFinite(radius) || radius >= Math.PI) return false;
+      if (radius == 0) return true;
+      point = Center.MoveBy(new GeoPath
+      {
+        AzimuthRad = Math.Atan2(east, north),
+        DistanceRad = radius
+      });
+      return true;
+    }
+
+    internal static bool TryGroundAzimuth(GeoPoint station, GeoPoint target, out double azimuth)
+    {
+      double delta = target.LongitudeRad - station.LongitudeRad;
+      double east = Math.Cos(target.LatitudeRad) * Math.Sin(delta);
+      double half = Math.Sin(delta / 2);
+      double north = Math.Sin(target.LatitudeRad - station.LatitudeRad) +
+        2 * Math.Sin(station.LatitudeRad) * Math.Cos(target.LatitudeRad) * half * half;
+      azimuth = 0;
+      // Coincident and antipodal points have no unique initial great-circle bearing.
+      if (!double.IsFinite(east) || !double.IsFinite(north) ||
+          east * east + north * north < 1e-24) return false;
+      azimuth = (Math.Atan2(east, north) * Geo.DinR + 360) % 360;
+      return true;
+    }
+
     internal float Heading(GeoPoint point, GeoPoint next, Size viewport, double zoom)
     {
       PointF a = Project(point, viewport, zoom);

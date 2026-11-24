@@ -33,8 +33,6 @@ namespace SkyRoof
       ModePanel = new FlowLayoutPanel();
       RealTimeRadioBtn = new RadioButton();
       PassRadioBtn = new RadioButton();
-      ResetViewButton = new Button();
-      MapSourceCombo = new ComboBox();
       MapStatusLabel = new Label();
       ((System.ComponentModel.ISupportInitialize)openglControl1).BeginInit();
       ModePanel.SuspendLayout();
@@ -75,8 +73,6 @@ namespace SkyRoof
       ModePanel.AutoSize = true;
       ModePanel.Controls.Add(RealTimeRadioBtn);
       ModePanel.Controls.Add(PassRadioBtn);
-      ModePanel.Controls.Add(ResetViewButton);
-      ModePanel.Controls.Add(MapSourceCombo);
       ModePanel.Dock = DockStyle.Top;
       ModePanel.Location = new Point(0, 0);
       ModePanel.MaximumSize = new Size(0, 100);
@@ -109,20 +105,8 @@ namespace SkyRoof
       PassRadioBtn.UseVisualStyleBackColor = true;
       PassRadioBtn.CheckedChanged += radioButton_CheckedChanged;
       //
-      // ResetViewButton
+      // MapStatusLabel
       //
-      ResetViewButton.AutoSize = true;
-      ResetViewButton.Name = "ResetViewButton";
-      ResetViewButton.Text = "Reset View";
-      ResetViewButton.TabIndex = 2;
-      ResetViewButton.UseVisualStyleBackColor = true;
-      //
-      // MapSourceCombo / MapStatusLabel
-      //
-      MapSourceCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-      MapSourceCombo.Name = "MapSourceCombo";
-      MapSourceCombo.Width = 145;
-      MapSourceCombo.TabIndex = 3;
       MapStatusLabel.Dock = DockStyle.Bottom;
       MapStatusLabel.Name = "MapStatusLabel";
       MapStatusLabel.Height = 22;
@@ -155,8 +139,6 @@ namespace SkyRoof
     private FlowLayoutPanel ModePanel;
     private RadioButton RealTimeRadioBtn;
     private RadioButton PassRadioBtn;
-    private Button ResetViewButton;
-    private ComboBox MapSourceCombo;
     private Label MapStatusLabel;
   }
 }

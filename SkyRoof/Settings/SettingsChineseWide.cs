@@ -68,7 +68,7 @@ namespace SkyRoof
       ["Settings.OrbitSources"] = "轨道和星历数据来源、更新设置及 Orekit 数据质量诊断。",
       ["Settings.EarthMap"] = "配置地球视图的内置或天地图底图、服务密钥、注记与 GPU 瓦片池。",
       ["EarthMapSettings.Source"] = "选择默认地图来源。内置地图无需联网。",
-      ["EarthMapSettings.TiandituKey"] = "输入有桌面 WMTS 服务权限的天地图密钥，以 Windows DPAPI 加密保存。",
+      ["EarthMapSettings.TiandituKey"] = "访问 lbs.tianditu.gov.cn，注册并完成开发者认证；控制台 → 应用管理 → 创建新应用，推荐选择服务端（服务器端）类型，开通地图服务（WMTS），复制应用密钥 tk。SkyRoof 直接发出 HTTPS 请求，不使用浏览器 JS API。若服务要求 IP 白名单，按控制台授权配置实际出口 IP。密钥通过 Windows DPAPI 加密保存。",
       ["EarthMapSettings.Labels"] = "显示天地图对应的透明地名注记图层。",
       ["EarthMapSettings.TileCapacity"] = "底图和注记共享的 256 像素瓦片槽数，256 槽基础纹理约占 64 MiB。",
       ["Settings.OnvifCamera"] = "配置 ONVIF 远端摄像头的地址、身份验证、媒体配置与播放器。",
@@ -182,6 +182,10 @@ namespace SkyRoof
 
     private static readonly Dictionary<string, string> Enums = new(StringComparer.Ordinal)
     {
+      ["EarthMapSourceKind.BuiltIn"] = "内置地图",
+      ["EarthMapSourceKind.TiandituVector"] = "天地图 · 矢量",
+      ["EarthMapSourceKind.TiandituImagery"] = "天地图 · 影像",
+      ["EarthMapSourceKind.TiandituTerrain"] = "天地图 · 地形",
       ["AfcIfSource.WasapiCapture"] = "Windows 声卡采集 IF",
       ["AfcIfSource.PlaybackLoopback"] = "远程播放回环 IF",
       ["AfcSignalLossPolicy.HoldLast"] = "保留最后确认的 AFC 修正",

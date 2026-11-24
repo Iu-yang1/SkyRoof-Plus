@@ -27,7 +27,9 @@ namespace SkyRoof
     private MapSourceManager? mapSources;
     private EarthMapRenderer? onlineRenderer;
     private bool onlineRendererFailed;
-    private bool refreshingMapSelector;
+    private ContextMenuStrip earthMenu;
+    private ToolStripMenuItem restoreFollowItem, pointRotatorItem;
+    private double? mapTargetAzimuth;
     private Point? dragPosition;
     private GeoPoint nextSatGeoPoint;
     private bool satellitePositionValid;
@@ -63,8 +65,8 @@ namespace SkyRoof
 
       mapSources = new MapSourceManager(RequestMapRedraw);
       Disposed += (_, _) => mapSources?.Dispose();
-      MapSourceCombo.SelectedIndexChanged += MapSourceChanged;
-      UiLocalizationService.Bind(this, RefreshMapSourceOptions);
+      InitializeEarthMenu();
+      UiLocalizationService.Bind(this, RefreshMapStatus);
       ApplyMapSettings();
       SetGridSquare();
       SetSatellite();
@@ -81,7 +83,6 @@ namespace SkyRoof
       {
         if (e.Button == MouseButtons.Left) ResetView();
       };
-      ResetViewButton.Click += (_, _) => ResetView();
     }
 
     private void RequestMapRedraw()
@@ -97,39 +98,49 @@ namespace SkyRoof
       catch (InvalidOperationException) { /* Dock handle was recreated. */ }
     }
 
-    private void RefreshMapSourceOptions()
+    private void InitializeEarthMenu()
     {
-      if (ctx == null) return;
-      refreshingMapSelector = true;
-      try
-      {
-        MapSourceCombo.Items.Clear();
-        MapSourceCombo.Items.AddRange(new object[]
-        {
-          SettingsLanguage.Text("内置地图", "Built-in map"),
-          SettingsLanguage.Text("天地图 · 矢量", "Tianditu · Vector"),
-          SettingsLanguage.Text("天地图 · 影像", "Tianditu · Imagery"),
-          SettingsLanguage.Text("天地图 · 地形", "Tianditu · Terrain")
-        });
-        MapSourceCombo.SelectedIndex = Enum.IsDefined(ctx.Settings.EarthMap.Source)
-          ? (int)ctx.Settings.EarthMap.Source : 0;
-        RefreshMapStatus();
-      }
-      finally { refreshingMapSelector = false; }
+      earthMenu = new ContextMenuStrip();
+      restoreFollowItem = new ToolStripMenuItem();
+      pointRotatorItem = new ToolStripMenuItem();
+      restoreFollowItem.Click += (_, _) => ResetView();
+      pointRotatorItem.Click += (_, _) => PointRotatorToMapTarget();
+      earthMenu.Items.AddRange([restoreFollowItem, pointRotatorItem]);
+      Disposed += (_, _) => earthMenu.Dispose();
     }
 
-    private void MapSourceChanged(object? sender, EventArgs e)
+    private void ShowEarthMenu(Point location)
     {
-      if (refreshingMapSelector || MapSourceCombo.SelectedIndex < 0) return;
-      ctx.Settings.EarthMap.Source = (EarthMapSourceKind)MapSourceCombo.SelectedIndex;
-      ApplyMapSettings();
+      mapTargetAzimuth = null;
+      if (camera.TryUnproject(location, openglControl1.ClientSize, Zoom, out var target) &&
+          EarthViewCamera.TryGroundAzimuth(Home, target, out double azimuth))
+        mapTargetAzimuth = azimuth;
+
+      restoreFollowItem.Text = SettingsLanguage.Text("恢复跟随", "Resume follow");
+      pointRotatorItem.Text = mapTargetAzimuth is double angle
+        ? SettingsLanguage.Text($"旋转器指向此处（AZ {angle:F1}° / EL 0°）",
+          $"Point rotator here (AZ {angle:F1}° / EL 0°)")
+        : SettingsLanguage.Text("旋转器指向此处", "Point rotator here");
+      pointRotatorItem.Enabled = mapTargetAzimuth.HasValue &&
+        ctx.RotatorControl?.IsRunning() == true && !ctx.RotatorControl.IsManualControlLocked;
+      earthMenu.Show(openglControl1, location);
+    }
+
+    private void PointRotatorToMapTarget()
+    {
+      // Use the captured click, not the current satellite-follow centre.
+      // The existing manual command owns the mechanical limits and TRACK transition.
+      if (mapTargetAzimuth is double angle &&
+          ctx.RotatorControl?.IsRunning() == true &&
+          !ctx.RotatorControl.IsManualControlLocked)
+        ctx.RotatorControl.ManualMoveToDegrees(angle, 0);
     }
 
     internal void ApplyMapSettings()
     {
       mapSources?.Configure(ctx.Settings.EarthMap);
       onlineRendererFailed = false;
-      RefreshMapSourceOptions();
+      RefreshMapStatus();
       openglControl1.Invalidate();
     }
 
@@ -199,6 +210,7 @@ namespace SkyRoof
     private void EarthMouseUp(object? sender, MouseEventArgs e)
     {
       if (e.Button == MouseButtons.Left) EndEarthDrag();
+      else if (e.Button == MouseButtons.Right) ShowEarthMenu(e.Location);
     }
 
     private void EndEarthDrag()

@@ -613,8 +613,7 @@ Right-click downlink frequency to open AFC controls.</value></data>
   <data name="SkyView.OrbitNumber" xml:space="preserve"><value>Orbit #{0} of {1}</value></data>
   <data name="Control.EarthViewPanel.RealTimeRadioBtn" xml:space="preserve"><value>Real Time</value></data>
   <data name="Control.EarthViewPanel.PassRadioBtn" xml:space="preserve"><value>Selected Pass</value></data>
-  <data name="Control.EarthViewPanel.ResetViewButton" xml:space="preserve"><value>Reset View</value></data>
-  <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>Website</value></data>
+    <data name="Control.SatelliteDetailsPanel.WebsiteLabel" xml:space="preserve"><value>Website</value></data>
   <data name="Control.SatelliteDetailsPanel.ImageLabel" xml:space="preserve"><value>Image</value></data>
   <data name="SatelliteDetails.Aka" xml:space="preserve"><value>a.k.a. {0}</value></data>
   <data name="Menu.WaterfallPanel.SelectTransmitterMNU" xml:space="preserve"><value>Select Transmitter</value></data>

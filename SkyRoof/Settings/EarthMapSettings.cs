@@ -11,7 +11,7 @@ namespace SkyRoof
     public EarthMapSourceKind Source { get; set; } = EarthMapSourceKind.BuiltIn;
 
     [DisplayName("Tianditu API Key")]
-    [Description("Use a Tianditu service key authorized for native desktop WMTS access. Stored using Windows DPAPI.")]
+    [Description("Register and verify your developer account at lbs.tianditu.gov.cn. In Console > Application management > Create application, select Server-side as recommended for native HTTPS requests, authorize Map Service (WMTS), and copy the application key (tk). Configure the public egress IP if required by the service. No browser JS API is used. Stored using Windows DPAPI.")]
     [PasswordPropertyText(true)]
     [JsonIgnore]
     public string TiandituKey { get; set; } = "";

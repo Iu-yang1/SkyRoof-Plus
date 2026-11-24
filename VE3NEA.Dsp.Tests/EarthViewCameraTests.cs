@@ -69,6 +69,57 @@ public sealed class EarthViewCameraTests
     Assert.Equal(0, camera.Heading(satellite, new GeoPoint(1, 31), size, 1), 2);
   }
 
+  [Theory]
+  [InlineData(0, 0, 1)]
+  [InlineData(28, 179.8, 6)]
+  [InlineData(85, -179.8, 20)]
+  [InlineData(-90, 40, 4)]
+  public void MapClickRoundTripsProjection(double lat, double lon, double zoom)
+  {
+    var camera = new EarthViewCamera();
+    camera.Reset(new GeoPoint(lat, lon));
+    var viewport = new Size(840, 480);
+    var pixel = new PointF(530, 180);
+    Assert.True(camera.TryUnproject(pixel, viewport, zoom, out var point));
+    var projected = camera.Project(point, viewport, zoom);
+    Assert.Equal(2 * pixel.X / viewport.Width - 1, projected.X, 5);
+    Assert.Equal(1 - 2 * pixel.Y / viewport.Height, projected.Y, 5);
+  }
+
+  [Fact]
+  public void MapClickRejectsSpaceAndAntipodalBoundary()
+  {
+    var camera = new EarthViewCamera();
+    camera.Reset(new GeoPoint(0, 0));
+    var viewport = new Size(800, 400);
+    Assert.False(camera.TryUnproject(new PointF(1, 1), viewport, 1, out _));
+    Assert.False(camera.TryUnproject(new PointF(600, 200), viewport, 1, out _));
+    Assert.True(camera.TryUnproject(new PointF(400, 200), viewport, 1, out var center));
+    Assert.Equal(camera.Center.Latitude, center.Latitude);
+    Assert.Equal(camera.Center.Longitude, center.Longitude);
+  }
+
+  [Theory]
+  [InlineData(0, 179, 0, -179, 90)]
+  [InlineData(0, -179, 0, 179, 270)]
+  [InlineData(28, 116, 40, 116, 0)]
+  [InlineData(28, 116, 10, 116, 180)]
+  public void GroundPointingUsesStationGreatCircleBearing(double lat, double lon,
+    double targetLat, double targetLon, double expected)
+  {
+    Assert.True(EarthViewCamera.TryGroundAzimuth(new GeoPoint(lat, lon),
+      new GeoPoint(targetLat, targetLon), out double azimuth));
+    Assert.Equal(expected, azimuth, 8);
+  }
+
+  [Fact]
+  public void GroundPointingRejectsUndefinedBearings()
+  {
+    var home = new GeoPoint(28, 116);
+    Assert.False(EarthViewCamera.TryGroundAzimuth(home, home, out _));
+    Assert.False(EarthViewCamera.TryGroundAzimuth(home, new GeoPoint(-28, -64), out _));
+  }
+
   [Fact]
   public void RotatedOffCenterSpriteRetainsGeographicPosition()
   {
