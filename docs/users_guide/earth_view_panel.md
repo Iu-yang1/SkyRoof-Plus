@@ -37,4 +37,4 @@ The map keeps its geographical centre, zoom and satellite overlays when switchin
 
 ### Experimental Amap / Google XYZ sources
 
-高德和 Google 使用用户提供的文章中的非官方 XYZ 地址，不使用天地图 Key，也不要求 Google Cloud 或高德开发者 API Key。高德卫星影像可通过“显示地图注记”叠加 style=8；Google 的街道和带注记地形自带注记。Google 的混合影像 y 和单独 h 不直接叠加，避免 WGS-84 影像与 GCJ-02 注记错位。Google 地址使用原文相同域名的 HTTPS 形式，不发送 API Key；HTTPS 不解决域名解析失败。非公开端点可能变更、返回非图像、受服务条款限制或无法访问；使用前请核对服务商授权与地图显示要求。高德 GCJ-02 使用常见近似正向算法及矩形适用范围，不是法定国界，也不声称达到测绘精度。Web Mercator 覆盖纬度为 ±85.05112878°，极区回退内置地图。卫星轨道、覆盖、台站、右键旋转器方位计算仍为原有地理坐标。
+高德和 Google 使用用户提供的文章中的非官方 XYZ 地址，不使用天地图 Key，也不要求 Google Cloud 或高德开发者 API Key。高德卫星影像可通过“显示地图注记”叠加 style=8；Google 的街道和带注记地形自带注记。Google 的混合影像 y 和单独 h 不直接叠加，避免 WGS-84 影像与 GCJ-02 注记错位。Google 改用 https://mt1.google.com/vt/lyrs=... 的 HTTPS XYZ 地址，不发送 API Key。用户已确认该域名的卫星瓦片可以访问；街道 m 与带注记地形 p 显式请求 gl=cn，沿用 GCJ-02 采样假设，纯影像 s 与地形 t 不附加地区参数。其他图层在线可用性及实际配准仍需实测。非公开端点可能变更、返回非图像、受服务条款限制或无法访问；使用前请核对服务商授权与地图显示要求。高德 GCJ-02 使用常见近似正向算法及矩形适用范围，不是法定国界，也不声称达到测绘精度。Web Mercator 覆盖纬度为 ±85.05112878°，极区回退内置地图。卫星轨道、覆盖、台站、右键旋转器方位计算仍为原有地理坐标。

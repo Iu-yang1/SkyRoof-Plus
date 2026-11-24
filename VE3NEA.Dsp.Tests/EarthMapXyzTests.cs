@@ -11,10 +11,10 @@ public sealed class EarthMapXyzTests
   [InlineData(EarthMapSourceKind.AmapVector, false, "https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x=3&y=2&z=4")]
   [InlineData(EarthMapSourceKind.AmapImagery, false, "https://webst01.is.autonavi.com/appmaptile?style=6&x=3&y=2&z=4")]
   [InlineData(EarthMapSourceKind.AmapImagery, true, "https://webst01.is.autonavi.com/appmaptile?style=8&x=3&y=2&z=4")]
-  [InlineData(EarthMapSourceKind.GoogleRoad, false, "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=m&x=3&y=2&z=4")]
-  [InlineData(EarthMapSourceKind.GoogleSatellite, false, "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=s&x=3&y=2&z=4")]
-  [InlineData(EarthMapSourceKind.GoogleTerrain, false, "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=t&x=3&y=2&z=4")]
-  [InlineData(EarthMapSourceKind.GoogleTerrainLabels, false, "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=p&x=3&y=2&z=4")]
+  [InlineData(EarthMapSourceKind.GoogleRoad, false, "https://mt1.google.com/vt/lyrs=m&gl=cn&x=3&y=2&z=4")]
+  [InlineData(EarthMapSourceKind.GoogleSatellite, false, "https://mt1.google.com/vt/lyrs=s&x=3&y=2&z=4")]
+  [InlineData(EarthMapSourceKind.GoogleTerrain, false, "https://mt1.google.com/vt/lyrs=t&x=3&y=2&z=4")]
+  [InlineData(EarthMapSourceKind.GoogleTerrainLabels, false, "https://mt1.google.com/vt/lyrs=p&gl=cn&x=3&y=2&z=4")]
   public void ArticleUrlsUseNativeXyzWithoutKey(EarthMapSourceKind kind, bool labels, string expected)
   {
     Assert.Equal(expected, XyzMapSource.TileUri(kind, new EarthTileKey(4, 3, 2, labels)).AbsoluteUri);
