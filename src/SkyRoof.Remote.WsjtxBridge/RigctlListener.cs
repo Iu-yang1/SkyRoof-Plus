@@ -6,10 +6,14 @@ namespace SkyRoof.Remote.WsjtxBridge;
 
 public sealed class RigctlListener(IRemoteRig rig, DigitalPttSession ptt, int port)
 {
+    private readonly TaskCompletionSource<int> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task<int> Ready => _ready.Task;
+
     public async Task RunAsync(CancellationToken ct)
     {
         var listener = new TcpListener(IPAddress.Loopback, port);
         listener.Start();
+        _ready.TrySetResult(((IPEndPoint)listener.LocalEndpoint).Port);
         Console.WriteLine("Hamlib NET rigctl listening on " + listener.LocalEndpoint);
         try
         {

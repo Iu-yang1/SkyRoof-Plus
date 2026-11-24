@@ -11,6 +11,8 @@ internal static partial class NativeFt4HttpProbe
         station.Environment["SKYROOF_DEVICE_PIPE"] = fixture.DevicePipe;
         station.Environment["SKYROOF_STATION_PIPE"] = fixture.StationPipe;
         station.Environment["SKYROOF_ORBIT_BACKEND"] = "sgpnet";
+        station.Environment["SKYROOF_CATALOG_AUTO"] = "false";
+        station.Environment["SKYROOF_ISS_OEM_AUTO"] = "false";
         station.Environment["SKYROOF_TRACKING_JOB_FILE"] = Path.Combine(fixture.Root, "tracking.json");
         var dsp = Setup(paths.Dsp);
         dsp.Environment["SKYROOF_DSP_PIPE"] = fixture.DspPipe;

@@ -150,6 +150,20 @@ try
     Check(expired && !File.Exists(journalFile),
         "Timed-out manual PTT lease did not release RF and clear its persistent grant.");
     Console.WriteLine("PASS: heartbeat renews current session; stale owner heartbeat rejected; expired PTT returns RX.");
+    await Send(DeviceOperation.DeviceResumeDigitalTx);
+    var externalDigital = await Send(DeviceOperation.DeviceDigitalBegin, "wsjtx-lease", "wsjtx");
+    Check(externalDigital.ActualPtt, "External digital watchdog fixture failed to key.");
+    var digitalBeat = await Send(DeviceOperation.DeviceDigitalHeartbeat, "wsjtx-lease", "wsjtx");
+    Check(digitalBeat.StatusText == "digital-ptt-lease-renewed", "External digital lease renewal failed.");
+    var digitalExpired = false;
+    for (int attempt = 0; attempt < 45; attempt++)
+    {
+        await Task.Delay(150);
+        if (!(await client.ReadbackAsync(new DeviceReadbackRequest())).ActualPtt)
+        { digitalExpired = true; break; }
+    }
+    Check(digitalExpired && !File.Exists(journalFile), "External digital lease expiration failed.");
+    Console.WriteLine("PASS: external digital PTT heartbeat expires and releases hardware RX.");
 
     rig.RejectNext("T 1");
     try

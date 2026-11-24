@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Net.WebSockets;
+using SkyRoof.Remote.Foundation.Signals;
 
 namespace SkyRoof.Remote.WsjtxBridge;
 
@@ -34,14 +35,14 @@ internal sealed partial class WindowsPcmBridge
 
     private void ReceivePcm(ReadOnlySpan<byte> packet)
     {
-        if (packet.Length < 52 || BinaryPrimitives.ReadUInt32LittleEndian(packet) != 0x31504153 ||
-            BinaryPrimitives.ReadUInt32LittleEndian(packet[40..]) != 48000)
+        if (!AudioFrameHeader.TryRead(packet, out var header) || header.Codec != 2 || header.SampleRate != 48000)
             throw new InvalidDataException("Invalid SAP/1 RX PCM packet.");
-        uint epoch = BinaryPrimitives.ReadUInt32LittleEndian(packet[12..]);
-        ulong first = BinaryPrimitives.ReadUInt64LittleEndian(packet[24..]);
-        int samples = BinaryPrimitives.ReadUInt16LittleEndian(packet[44..]);
-        int channels = packet[46];
-        if (channels is < 1 or > 2 || packet.Length != 52 + samples * channels * 2)
+        uint epoch = header.StreamEpoch;
+        ulong first = header.FirstSampleIndex;
+        int samples = header.SamplesPerChannel;
+        int channels = header.Channels;
+        if (channels is < 1 or > 2 || packet.Length != AudioFrameHeader.Size + samples * channels * 2 ||
+            header.PayloadLength != samples * channels * 2)
             throw new InvalidDataException("Invalid SAP/1 channel or payload size.");
         if (_epoch != epoch || _next != first || _rx.BufferedBytes + samples * 2 > _rx.BufferLength)
             _rx.ClearBuffer();
@@ -50,7 +51,7 @@ internal sealed partial class WindowsPcmBridge
         byte[] pcm = new byte[samples * 2];
         for (int i = 0; i < samples; i++)
         {
-            int offset = 52 + i * channels * 2;
+            int offset = AudioFrameHeader.Size + i * channels * 2;
             int value = BinaryPrimitives.ReadInt16LittleEndian(packet[offset..]);
             if (channels == 2) value = (value + BinaryPrimitives.ReadInt16LittleEndian(packet[(offset + 2)..])) / 2;
             BinaryPrimitives.WriteInt16LittleEndian(pcm.AsSpan(i * 2), (short)value);

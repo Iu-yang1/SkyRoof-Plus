@@ -36,6 +36,7 @@ internal static partial class NativeFt4HttpProbe
                 expected.AsSpan(i * 2, 2))).Any())
             throw new InvalidDataException("Authenticated FT4 TX waveform differs from native DSP encoding.");
         Console.WriteLine("PASS: authenticated Host -> native DSP FT4 encoding -> Station -> Device -> exact UDP waveform.");
+        await WsjtxNativeBridgeProbe.RunAsync(admin, address, fake, ct);
     }
 
     private static async Task<byte[]> ReadWaveformAsync(string pipe, CancellationToken ct)

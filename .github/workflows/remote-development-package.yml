@@ -40,6 +40,8 @@ jobs:
             dotnet publish "src/SkyRoof.Remote.$part/SkyRoof.Remote.$part.csproj" -c Release -r win-x64 --self-contained false -o "artifacts/remote-v1/$part"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+          dotnet publish src/SkyRoof.Remote.WsjtxBridge/SkyRoof.Remote.WsjtxBridge.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-v1/tools/WsjtxBridge
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./scripts/download-orekit-de430.ps1 -DataDirectory artifacts/remote-v1/Station/orekit-data
           if (-not (Test-Path artifacts/remote-v1/Host/wwwroot/index.html)) { throw 'React assets missing' }
           Copy-Item deploy/remote artifacts/remote-v1/configuration-examples -Recurse -Force

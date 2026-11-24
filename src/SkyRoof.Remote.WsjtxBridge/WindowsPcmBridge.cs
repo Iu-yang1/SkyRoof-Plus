@@ -36,7 +36,7 @@ internal sealed partial class WindowsPcmBridge : IAsyncDisposable
     public static void ListDevices()
     {
         for (int i = 0; i < WaveOut.DeviceCount; i++) Console.WriteLine($"RX output {i}: {WaveOut.GetCapabilities(i).ProductName}");
-        for (int i = 0; i < WaveIn.DeviceCount; i++) Console.WriteLine($"TX input {i}: {WaveIn.GetCapabilities(i).ProductName}");
+        for (int i = 0; i < WaveInEvent.DeviceCount; i++) Console.WriteLine($"TX input {i}: {WaveInEvent.GetCapabilities(i).ProductName}");
     }
 
     public async Task RunAsync(Uri station, string token, CancellationToken ct)
