@@ -103,6 +103,7 @@ app.MapMediaStatus();
 app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
 app.MapFt4Results();
+app.MapCwResults();
 app.MapTimedFt4();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();

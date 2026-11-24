@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { CwReceivePanel } from './CwReceivePanel';
 import { Ft4TransmitPanel } from './Ft4TransmitPanel';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 
@@ -39,6 +40,7 @@ export function DigitalPanel() {
       </div>)}
     </div>
     <Ft4TransmitPanel available={Boolean(hub && active)} />
-    <small>FT4 RX · estimated UTC (RX delay {slots.at(-1)?.rxDelayMs ?? 0} ms). CW pending.</small>
+    <CwReceivePanel available={Boolean(hub && active)} />
+    <small>FT4 RX · estimated UTC (RX delay {slots.at(-1)?.rxDelayMs ?? 0} ms).</small>
   </section>;
 }

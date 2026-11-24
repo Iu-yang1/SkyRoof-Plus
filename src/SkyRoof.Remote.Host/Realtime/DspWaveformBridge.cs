@@ -27,6 +27,10 @@ public sealed class DspWaveformBridge : IDisposable
         await new DspWaveform.DspWaveformClient(_channel.Value).EncodeFt4Async(request,
             deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
 
+    public async Task<CwRxConfiguration> ConfigureCwAsync(CwRxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureCwAsync(request,
+            deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+
     public void Dispose()
     {
         if (_channel.IsValueCreated) _channel.Value.Dispose();

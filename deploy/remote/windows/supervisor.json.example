@@ -58,7 +58,10 @@
         "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
         "SKYROOF_RX_AUDIO_CHANNELS": "1",
         "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
-        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary"
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary",
+        "SKYROOF_CW_RESULTS_BUS": "skyroof-cw-results-primary",
+        "SKYROOF_CW_MODEL_DIRECTORY": "C:/SkyRoofRemote/data/cwmodel",
+        "SKYROOF_CW_HISTORY_DIRECTORY": "C:/SkyRoofRemote/data/cw-history"
       }
     },
     {
@@ -78,7 +81,8 @@
         "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
         "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
         "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary",
-        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary"
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary",
+        "SKYROOF_CW_RESULTS_BUS": "skyroof-cw-results-primary"
       }
     }
   ]
