@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState, type FormEvent, type RefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import type { HubConnection } from '@microsoft/signalr';
+import { useTxMicrophone } from './useTxMicrophone';
 import { DeviceHubContext, WorkspaceActiveContext, type DeviceReadback, DeviceOperation } from './host';
 
 function toHz(mhz: string): number {
@@ -68,6 +69,7 @@ export function RadioPanel() {
   const [mode, setMode] = useState('USB');
   const [error, setError] = useState('');
   const [transmitting, setTransmitting] = useState(false);
+  const microphone = useTxMicrophone(hub);
   const pending = useRef<Promise<void>>(Promise.resolve());
   const heldTx = useRef<string | null>(null);
   const heldPointer = useRef<number | null>(null);
@@ -132,13 +134,17 @@ export function RadioPanel() {
         FrequencyHz: toHz(frequency), Mode: txMode, AudioSource: 'LAN'
       });
       setRadio(next);
-      setTransmitting(next.ActualPtt);
+      const owned = next.ActualPtt && next.ActiveTransactionId === id &&
+        next.ActiveSessionId === hub.connectionId && heldTx.current === id;
+      setTransmitting(owned);
+      if (owned) microphone.grant(id, next.Epoch);
     });
   }
 
   function pttUp() {
     const txId = heldTx.current;
     if (!hub || !txId) return;
+    microphone.revoke();
     heldTx.current = null;
     heldPointer.current = null;
     queue(async () => {
@@ -208,7 +214,13 @@ export function RadioPanel() {
       onPointerDown={pointerDown} onPointerUp={pointerUp}
       onPointerCancel={pointerUp}
       type="button">PTT · HOLD / SPACE</button>
+    <div className="audio-buttons">
+      <button disabled={!hub || !workspaceActive} type="button" onClick={microphone.toggle}>
+        {microphone.enabled ? 'DISABLE MIC' : 'ENABLE MIC'}
+      </button>
+      <span>{microphone.status}</span>
+    </div>
     {error && <p role="alert" className="error">{error}</p>}
-    <small>此界面直接调用 Station Core 的 CAT 事务；Device 必须连接实际 SkyCAT/rigctld。没有音频 TX 时仅有 PTT/CAT，不代表可传送话音。</small>
+    <small>TX MIC 使用原生 LAN TX grant，PTT 未确认时不会发送音频。其他 CAT 后端仍可使用独立 PTT/CAT。</small>
   </section>;
 }
