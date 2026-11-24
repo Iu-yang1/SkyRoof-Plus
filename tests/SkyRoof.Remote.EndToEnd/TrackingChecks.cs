@@ -58,6 +58,7 @@ internal static class TrackingChecks
             rotator.Count(FormattableString.Invariant($"P {prediction.AzimuthDegrees:F3} {prediction.ElevationDegrees:F3}")) == 1,
             "Expected actual TCP commands missing");
         Check(radio.Count("T 1") == 1, "Orbital tracking unexpectedly keyed transmitter");
+        await RadioLinkChecks.RunAsync(hub, request, prediction, radio);
         Console.WriteLine(FormattableString.Invariant(
             $"PASS: TLE -> {prediction.OrbitBackend} -> range-rate {prediction.RangeRateMetresPerSecond:F3} m/s -> RX {prediction.RxHz} TX {prediction.TxHz} -> rotctld AZ {prediction.AzimuthDegrees:F3} EL {prediction.ElevationDegrees:F3}"));
     }

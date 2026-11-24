@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, type FormEvent } from 'react';
 import { DeviceHubContext } from './host';
+import { RadioLinkOptions, readRadioLink } from './RadioLinkOptions';
 
 type TrackingStatus = {
   NoradNumber: number; OrbitBackend: string; DataQuality: string;
@@ -78,7 +79,8 @@ export function TrackingPanel() {
         CorrectDownlink: form.has('correctRx'),
         CorrectUplink: form.has('correctTx'),
         PointRotator: form.has('rotator'),
-        ElevationMaskDegrees: numeric(form.get('mask'), 'Elevation mask')
+        ElevationMaskDegrees: numeric(form.get('mask'), 'Elevation mask'),
+        RadioLink: readRadioLink(form)
       };
       if (operation === 'start') {
         const interval = numeric(form.get('interval'), 'Interval');
@@ -111,6 +113,7 @@ export function TrackingPanel() {
         <label>DOWNLINK MHz<input name="rx" type="number" step="any" required /></label>
         <label>UPLINK MHz (0 = RX only)<input name="tx" type="number" step="any" defaultValue="0" required /></label>
       </div>
+      <RadioLinkOptions />
       <label>INTERVAL ms<input name="interval" type="number" min="100" step="100" defaultValue="1000" required /></label>
       <div className="tracking-options">
         <label><input name="correctRx" type="checkbox" defaultChecked /> RX DOPPLER</label>
