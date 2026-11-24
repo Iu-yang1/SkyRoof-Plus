@@ -4,7 +4,6 @@ namespace SkyRoof.Remote.Foundation.Digital;
 
 public static class Ft4NativeContactParser
 {
-    // Match the fixed fields used by the original desktop DecodedItem.
     public static Ft4DecodedContact? Parse(string raw)
     {
         if (raw.Length < 25 || !int.TryParse(raw.AsSpan(7, 3), NumberStyles.Integer,
