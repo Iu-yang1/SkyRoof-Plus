@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CwHistoryPanel } from './CwHistoryPanel';
 
 type Track = { id: number; associationHintId: number; frequencyHz: number; snrDb: number; driftHzPerSecond: number;
   keying: string; active: boolean; confirmed: boolean };
@@ -68,6 +69,7 @@ export function CwReceivePanel({ available }: { available: boolean }) {
           <td>{text?.committedText}<i>{text?.provisionalText}</i></td>
         </tr>;
       })}</tbody></table>
+    <CwHistoryPanel available={available} />
     <small>Original CW tracker · eight lanes · provisional text in italics.</small>
   </section>;
 }

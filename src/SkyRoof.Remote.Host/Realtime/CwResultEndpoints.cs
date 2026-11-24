@@ -12,8 +12,17 @@ public static class CwResultEndpoints
     public static void MapCwResults(this WebApplication app)
     {
         app.MapGet("/api/v1/dsp/cw", Read).RequireAuthorization();
+        app.MapGet("/api/v1/dsp/cw/history", HistoryAsync).RequireAuthorization();
         app.MapPut("/api/v1/dsp/cw", ConfigureAsync)
             .RequireAuthorization(policy => policy.RequireRole("Administrator", "Operator"));
+    }
+
+    private static async Task<IResult> HistoryAsync(HttpContext context, DspWaveformBridge dsp)
+    {
+        if (!await LiveAudioWebSocket.StillAuthorizedAsync(context)) return Results.Forbid();
+        try { return Results.Ok(await dsp.GetCwHistoryAsync(context.RequestAborted)); }
+        catch (RpcException error)
+        { return Results.Problem(title: "CW history unavailable", detail: error.Status.Detail, statusCode: 503); }
     }
 
     private static IResult Read()

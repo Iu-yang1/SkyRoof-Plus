@@ -7,6 +7,9 @@ namespace SkyRoof.Remote.Dsp;
 
 public sealed class DspWaveformService(CwLiveReceiver cw) : DspWaveform.DspWaveformBase
 {
+    public override Task<CwHistoryReply> GetCwHistory(CwHistoryRequest request, ServerCallContext context) =>
+        Task.FromResult(CwHistoryReader.Read(context.CancellationToken));
+
     public override Task<CwRxConfiguration> ConfigureCw(CwRxConfiguration request, ServerCallContext context)
     {
         if (!Enum.TryParse<SkyRoof.CW.CwDecoderMode>(request.Mode, true, out var mode) ||

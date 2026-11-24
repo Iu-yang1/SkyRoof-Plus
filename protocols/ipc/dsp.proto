@@ -3,6 +3,7 @@ package skyroof.remote.ipc.v1;
 option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service DspWaveform {
+  rpc GetCwHistory(CwHistoryRequest) returns (CwHistoryReply);
   rpc ConfigureCw(CwRxConfiguration) returns (CwRxConfiguration);
   rpc EncodeFt4(Ft4EncodeRequest) returns (EncodedWaveform);
 }
@@ -20,4 +21,19 @@ message EncodedWaveform {
 message CwRxConfiguration {
   bool enabled = 1;
   string mode = 2;
+}
+
+message CwHistoryRequest {}
+message CwHistoryEntry {
+  string session_id = 1;
+  int64 timeline_generation = 2;
+  bool uses_association_hint = 3;
+  int32 identity_id = 4;
+  string mode = 5;
+  string committed_text = 6;
+  string last_window_end_utc = 7;
+}
+message CwHistoryReply {
+  repeated CwHistoryEntry entries = 1;
+  string error = 2;
 }

@@ -8,7 +8,7 @@ using SkyRoof.Remote.SignalBus;
 
 internal static partial class CwLiveProbe
 {
-    public static async Task RunAsync(NamedSignalRing input, string resultsName, string pipe)
+    public static async Task RunAsync(NamedSignalRing input, string resultsName, string pipe, string history)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(75));
         var ct = timeout.Token;
@@ -24,6 +24,7 @@ internal static partial class CwLiveProbe
         };
         using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
         var control = new DspWaveform.DspWaveformClient(channel);
+        await CwHistoryProbe.RunAsync(control, history, ct);
         using var output = new NamedSignalRing(resultsName, 16, 32768);
         await control.ConfigureCwAsync(new CwRxConfiguration { Enabled = true, Mode = "NewCW" },
             cancellationToken: ct);
