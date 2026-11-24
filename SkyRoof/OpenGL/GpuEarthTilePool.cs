@@ -40,6 +40,7 @@ namespace SkyRoof
     private readonly Dictionary<EarthTileKey, int> resident = new();
     private readonly Queue<int> free = new();
     private int revision = -1;
+    private int epoch = -1;
 
     internal int Capacity { get; private set; }
 
@@ -84,6 +85,13 @@ namespace SkyRoof
     internal void Sync(MapSourceManager source)
     {
       if (revision == source.Revision) return;
+      if (epoch != source.Epoch)
+      {
+        resident.Clear();
+        free.Clear();
+        for (int i = 0; i < Capacity; i++) free.Enqueue(i);
+        epoch = source.Epoch;
+      }
       var tiles = source.Tiles;
       foreach (var key in resident.Keys.Where(k => !tiles.ContainsKey(k)).ToArray())
       {

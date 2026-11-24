@@ -44,7 +44,7 @@ namespace SkyRoof
       string layer = Layer(labels);
       byte[] bytes = await ReadAsync(BuildUri(layer, "REQUEST=GetCapabilities&VERSION=1.0.0"),
         2 * 1024 * 1024, cancellation).ConfigureAwait(false);
-      return WmtsCapabilities.Parse(Encoding.UTF8.GetString(bytes), layer);
+      return WmtsCapabilities.Parse(Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'), layer);
     }
 
     public async Task<byte[]> GetTileAsync(WmtsCapabilities capabilities,

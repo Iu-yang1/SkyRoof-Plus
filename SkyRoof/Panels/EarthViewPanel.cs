@@ -62,7 +62,7 @@ namespace SkyRoof
       ctx.MainForm.EarthViewMNU.Checked = true;
 
       mapSources = new MapSourceManager(RequestMapRedraw);
-      Disposed += (_, _) => mapSources.Dispose();
+      Disposed += (_, _) => mapSources?.Dispose();
       MapSourceCombo.SelectedIndexChanged += MapSourceChanged;
       UiLocalizationService.Bind(this, RefreshMapSourceOptions);
       ApplyMapSettings();
@@ -111,7 +111,8 @@ namespace SkyRoof
           SettingsLanguage.Text("天地图 · 影像", "Tianditu · Imagery"),
           SettingsLanguage.Text("天地图 · 地形", "Tianditu · Terrain")
         });
-        MapSourceCombo.SelectedIndex = (int)ctx.Settings.EarthMap.Source;
+        MapSourceCombo.SelectedIndex = Enum.IsDefined(ctx.Settings.EarthMap.Source)
+          ? (int)ctx.Settings.EarthMap.Source : 0;
         RefreshMapStatus();
       }
       finally { refreshingMapSelector = false; }
@@ -585,7 +586,11 @@ namespace SkyRoof
       CheckError(false);
       gl.ClearColor(Theme.EarthSpace.R / 255f, Theme.EarthSpace.G / 255f, Theme.EarthSpace.B / 255f, 1);
       gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
-      if (!TryDrawOnlineMap(size)) DrawBuiltInMap();
+      if (!TryDrawOnlineMap(size))
+      {
+        gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+        DrawBuiltInMap();
+      }
       SetSpriteAttributes();
       SpriteRenderer.DrawSprites([SatelliteSprite, HomeSprite, NorthSprite, SouthSprite]);
       CheckError();

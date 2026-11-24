@@ -25,9 +25,12 @@ namespace SkyRoof
       SetInt("worldMapTexture", 0);
       SetInt("tileTexture", 1);
       SetInt("tileIndex", 2);
-      program.AssertValid(gl);
-      program.Unbind(gl);
       pool = new GpuEarthTilePool(gl, capacity);
+      pool.Bind();
+      vao.Bind(gl);
+      program.AssertValid(gl);
+      VertexBufferArray.Unbind(gl);
+      program.Unbind(gl);
     }
 
     internal void SetCapacity(int capacity)

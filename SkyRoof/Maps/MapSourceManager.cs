@@ -5,15 +5,48 @@ namespace SkyRoof
 {
   internal enum EarthMapStatus { Offline, KeyMissing, Loading, Ready, Partial, Unavailable }
 
+  // A cancelled request can still be unwinding its HttpClient operation.
+  // Serialize Cancel and Dispose so the UI never cancels a disposed CTS.
+  internal sealed class EarthTileRequest : IDisposable
+  {
+    private readonly CancellationTokenSource source;
+    private readonly object gate = new();
+    private bool disposed;
+    internal CancellationToken Token { get; }
+
+    internal EarthTileRequest(CancellationToken epoch)
+    {
+      source = CancellationTokenSource.CreateLinkedTokenSource(epoch);
+      Token = source.Token;
+    }
+
+    internal void Cancel()
+    {
+      lock (gate)
+        if (!disposed) source.Cancel();
+    }
+
+    public void Dispose()
+    {
+      lock (gate)
+      {
+        if (disposed) return;
+        disposed = true;
+        source.Dispose();
+      }
+    }
+  }
+
   // All dictionaries and state transitions belong to the WinForms thread.
   // Workers publish immutable results only; cancellation/generations prevent
   // stale results and network requests from changing the selected source.
-  internal sealed class MapSourceManager(Action invalidate) : IDisposable
+  internal sealed class MapSourceManager(Action invalidate,
+    Func<EarthMapSourceKind, string, IMapSource>? factory = null) : IDisposable
   {
     private const int ParallelRequests = 4;
     private readonly ConcurrentQueue<Action> completions = new();
     private readonly Dictionary<EarthTileKey, byte[]> ready = new();
-    private readonly Dictionary<EarthTileKey, CancellationTokenSource> pending = new();
+    private readonly Dictionary<EarthTileKey, EarthTileRequest> pending = new();
     private readonly Dictionary<EarthTileKey, DateTime> retry = new();
     private readonly SemaphoreSlim requestSlots = new(ParallelRequests);
     private readonly HashSet<EarthTileKey> desired = new();
@@ -32,6 +65,7 @@ namespace SkyRoof
     internal EarthMapStatus Status { get; private set; } = EarthMapStatus.Offline;
     internal int Level { get; private set; } = 1;
     internal int Revision { get; private set; }
+    internal int Epoch { get; private set; }
     internal int ReadyCount => ready.Count;
     internal int DesiredCount => desired.Count;
     internal int Capacity => capacity;
@@ -49,7 +83,7 @@ namespace SkyRoof
       labelsEnabled = settings.Labels;
       capacity = settings.EffectiveCapacity;
       source = kind != EarthMapSourceKind.BuiltIn && !string.IsNullOrWhiteSpace(key)
-        ? new TiandituMapSource(kind, key) : null;
+        ? factory?.Invoke(kind, key) ?? new TiandituMapSource(kind, key) : null;
       Status = kind == EarthMapSourceKind.BuiltIn ? EarthMapStatus.Offline :
         source == null ? EarthMapStatus.KeyMissing : EarthMapStatus.Loading;
     }
@@ -68,6 +102,7 @@ namespace SkyRoof
       capabilitiesPending = false;
       labelsFailed = false;
       capabilitiesRetry = DateTime.MinValue;
+      Epoch++;
       Revision++;
     }
 
@@ -107,8 +142,7 @@ namespace SkyRoof
           if (wantLabels)
             labels = await current.GetCapabilitiesAsync(true, token).ConfigureAwait(false);
         }
-        catch (Exception) when (!token.IsCancellationRequested) { }
-        catch (OperationCanceledException) { }
+        catch (Exception) { /* Failure is represented by missing capabilities. */ }
         finally
         {
           Publish(token, () => FinishCapabilities(map, labels, wantLabels));
@@ -162,7 +196,7 @@ namespace SkyRoof
     private void StartTile(IMapSource current, WmtsCapabilities caps, EarthTileKey tile)
     {
       CancellationToken epoch = generation.Token;
-      var request = CancellationTokenSource.CreateLinkedTokenSource(epoch);
+      var request = new EarthTileRequest(epoch);
       pending.Add(tile, request);
       _ = Task.Run(async () =>
       {
@@ -174,24 +208,20 @@ namespace SkyRoof
           acquired = true;
           pixels = await current.GetTileAsync(caps, tile, request.Token).ConfigureAwait(false);
         }
-        catch (Exception) when (!request.IsCancellationRequested) { }
-        catch (OperationCanceledException) { }
+        catch (Exception) { /* Failed tiles retry without logging the key. */ }
         finally
         {
           if (acquired) requestSlots.Release();
           Publish(epoch, () => FinishTile(tile, request, pixels));
-          // The UI may still hold this request in pending. Dispose it in
-          // FinishTile after the UI has removed the corresponding entry.
-          if (epoch.IsCancellationRequested) request.Dispose();
+          request.Dispose();
         }
       });
     }
 
-    private void FinishTile(EarthTileKey tile, CancellationTokenSource request, byte[]? pixels)
+    private void FinishTile(EarthTileKey tile, EarthTileRequest request, byte[]? pixels)
     {
       bool current = pending.TryGetValue(tile, out var active) && ReferenceEquals(active, request);
       if (current) pending.Remove(tile);
-      request.Dispose();
       if (!current || !desired.Contains(tile)) return;
       if (pixels == null)
         retry[tile] = DateTime.UtcNow.AddSeconds(20);
@@ -228,6 +258,7 @@ namespace SkyRoof
       CancelGeneration();
       generation.Cancel();
       generation.Dispose();
+      while (completions.TryDequeue(out _)) { }
       // Workers still unwind their bounded semaphore; never dispose it
       // underneath a pending asynchronous Release.
     }
