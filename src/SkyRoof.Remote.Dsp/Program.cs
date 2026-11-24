@@ -10,6 +10,11 @@ if (args is ["--ft4-self-test"])
     Ft4Command.SelfTest();
     return;
 }
+if (args is ["--ft4-encode", var message, var output])
+{
+    Ft4Command.EncodeFile(message, output);
+    return;
+}
 if (args is ["--ft4-decode", var pcmPath])
 {
     Ft4Command.DecodeFile(pcmPath);

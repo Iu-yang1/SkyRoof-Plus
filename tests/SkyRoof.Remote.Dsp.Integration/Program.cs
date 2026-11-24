@@ -7,12 +7,15 @@ var dll = Path.GetFullPath(args.Single());
 var suffix = Guid.NewGuid().ToString("N");
 var rxName = "skyroof-dsp-rx-" + suffix;
 var spectrumName = "skyroof-dsp-af-" + suffix;
+var ft4Name = "skyroof-dsp-ft4-" + suffix;
 using var rx = new NamedSignalRing(rxName, 64, 4096, initialEpoch: 11);
 var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
 info.ArgumentList.Add(dll);
 info.Environment["SKYROOF_RX_AUDIO_BUS"] = rxName;
 info.Environment["SKYROOF_AF_SPECTRUM_BUS"] = spectrumName;
 info.Environment["SKYROOF_RX_AUDIO_CHANNELS"] = "1";
+info.Environment["SKYROOF_FT4_RESULTS_BUS"] = ft4Name;
+info.Environment["SKYROOF_FT4_RX_DELAY_MS"] = "0";
 using var process = Process.Start(info) ?? throw new InvalidOperationException("DSP process not started");
 try
 {
@@ -92,6 +95,7 @@ try
     Check(Math.Abs(after.Frequency - 2500) < 80 && after.Level is > -15 and < -2,
         $"Expected post-restart 2.5 kHz tone; got {after.Frequency:F1} Hz {after.Level:F1} dBFS.");
     Console.WriteLine($"PASS: DSP true AF FFT 1000 Hz -> {before.Frequency:F1} Hz, 2500 Hz -> {after.Frequency:F1} Hz; independent epochs and dBFS.");
+    await Ft4LiveProbe.RunAsync(dll, rx, ft4Name);
 }
 finally
 {
