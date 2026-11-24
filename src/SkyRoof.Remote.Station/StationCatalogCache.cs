@@ -7,10 +7,8 @@ namespace SkyRoof.Remote.Station;
 public sealed class StationCatalogCache
 {
     private readonly object _gate = new();
-    private readonly string _path = Environment.GetEnvironmentVariable("SKYROOF_SATELLITE_CATALOG") ??
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SkyRoof", "Remote", "Satellites.json");
-    private (DateTime Modified, long Length)? _version;
+    private readonly string[] _paths = [CatalogPaths.Desktop, CatalogPaths.Satnogs, CatalogPaths.Celestrak];
+    private (DateTime Modified, long Length)[]? _version;
     private CatalogCacheSatellite[] _entries = [];
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -41,15 +39,27 @@ public sealed class StationCatalogCache
 
     private void Reload()
     {
-        var info = new FileInfo(_path);
-        var current = (info.LastWriteTimeUtc, info.Length);
-        if (_version == current) return;
-        var entries = JsonSerializer.Deserialize<CatalogCacheSatellite[]>(
-            File.ReadAllBytes(info.FullName), JsonOptions)
-            ?? throw new InvalidDataException("Catalog is empty.");
+        var current = _paths.Select(VersionOf).ToArray();
+        if (_version is not null && current.SequenceEqual(_version)) return;
+        var desktop = Read(_paths[0]);
+        var satnogs = Read(_paths[1]);
+        var celestrak = Read(_paths[2]);
+        var entries = CatalogMerge.Combine(desktop, satnogs, celestrak);
+        if (entries.Length == 0) throw new InvalidDataException("No station catalog available.");
         _entries = entries;
         _version = current;
     }
+
+    private static (DateTime Modified, long Length) VersionOf(string file)
+    {
+        var info = new FileInfo(file);
+        return info.Exists ? (info.LastWriteTimeUtc, info.Length) : (DateTime.MinValue, -1);
+    }
+
+    private static CatalogCacheSatellite[] Read(string file) => File.Exists(file)
+        ? JsonSerializer.Deserialize<CatalogCacheSatellite[]>(File.ReadAllBytes(file), JsonOptions) ??
+            throw new InvalidDataException("Invalid station catalog.")
+        : [];
 
     private static bool Matches(CatalogCacheSatellite entry, string query) =>
         query.Length == 0 || entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||

@@ -28,6 +28,9 @@ internal sealed record CatalogCacheSatellite
 
 internal sealed record CatalogCacheTle
 {
+    [JsonPropertyName("sat_id")] public string? SatelliteId { get; init; }
+    [JsonPropertyName("norad_cat_id")] public int? Norad { get; init; }
+    public DateTimeOffset? Updated { get; init; }
     public string Tle1 { get; init; } = "";
     public string Tle2 { get; init; } = "";
     [JsonPropertyName("tle_source")] public string Source { get; init; } = "";
@@ -57,6 +60,10 @@ internal sealed record CatalogCacheTle
 
 internal sealed record CatalogCacheTransmitter
 {
+    [JsonPropertyName("sat_id")] public string? SatelliteId { get; init; }
+    [JsonPropertyName("norad_cat_id")] public int? Norad { get; init; }
+    [JsonPropertyName("local_custom")] public bool LocalCustom { get; init; }
+    public JsonElement? Manual { get; init; }
     [JsonPropertyName("uuid")] public string Id { get; init; } = "";
     public string Description { get; init; } = "";
     public bool Alive { get; init; }

@@ -40,7 +40,8 @@
         "SKYROOF_OREKIT_EOP_AUTO": "true",
         "SKYROOF_SATELLITE_CATALOG": "C:/SkyRoofRemote/data/Satellites.json",
         "SKYROOF_ISS_OEM_PATH": "C:/SkyRoofRemote/data/ISS.OEM_J2K_EPH.txt",
-        "SKYROOF_ISS_OEM_AUTO": "true"
+        "SKYROOF_ISS_OEM_AUTO": "true",
+        "SKYROOF_CATALOG_AUTO": "true"
       }
     },
     {

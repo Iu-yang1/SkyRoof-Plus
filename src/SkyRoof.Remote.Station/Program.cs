@@ -20,6 +20,7 @@ builder.Services.AddSingleton<TrackingJobStore>();
 builder.Services.AddSingleton<TrackingJobRunner>();
 builder.Services.AddHostedService(p => p.GetRequiredService<TrackingJobRunner>());
 builder.Services.AddHostedService<IssOemRefreshService>();
+builder.Services.AddHostedService<StationCatalogRefreshService>();
 var app = builder.Build();
 if (!string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ORBIT_BACKEND"),
     "sgpnet", StringComparison.OrdinalIgnoreCase))
