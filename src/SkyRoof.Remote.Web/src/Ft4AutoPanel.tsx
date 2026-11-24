@@ -56,6 +56,7 @@ export function Ft4AutoPanel({ available, radio, onRunning }: Props) {
     <button type="submit" disabled={!available || running}>START AUTO QSO</button>
     <button type="button" disabled={!running} onClick={() => current.current?.abort()}>STOP AUTO QSO</button>
     <p role="status">AUTO QSO · {event.state}{event.stage ? ' · ' + event.stage : ''}{event.peer ? ' · ' + event.peer : ''}</p>
+    {event.slotIndex != null && <p>SLOT {new Date(event.slotIndex * 7500).toISOString().slice(11, 23)} UTC</p>}
     {event.message && <p>{event.message}</p>}
     {(event.reportSent != null || event.reportReceived != null) && <p>REPORT TX {event.reportSent ?? '—'} / RX {event.reportReceived ?? '—'}</p>}
     {event.error && <p>{event.error}</p>}

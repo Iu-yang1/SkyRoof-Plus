@@ -8,6 +8,7 @@
     <DefineConstants>$(DefineConstants);SKYROOF_REMOTE_DSP</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

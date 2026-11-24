@@ -1,5 +1,5 @@
 export type Ft4AutoEvent = {
-  state: string; stage?: string; peer?: string; message?: string;
+  state: string; slotIndex?: number; stage?: string; peer?: string; message?: string;
   grid?: string; reportSent?: number; reportReceived?: number; error?: string;
 };
 

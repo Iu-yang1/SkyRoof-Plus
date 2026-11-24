@@ -7,6 +7,8 @@ using SkyRoof.Remote.SignalBus;
 
 internal static partial class NativeFt4HttpProbe
 {
+    private static readonly string[] AutoMessages = ["W1XYZ K1ABC FN42", "W1XYZ K1ABC R-15", "W1XYZ K1ABC 73"];
+
     private static async Task VerifyAutoAsync(HttpClient anonymous, HttpClient admin,
         string dspPipe, FakeNativeIcomRadio radio, CancellationToken ct)
     {
@@ -19,31 +21,32 @@ internal static partial class NativeFt4HttpProbe
         using var ring = new NamedSignalRing("skyroof-ft4-test-results-" + dspPipe, 32, 32768);
         using var post = new HttpRequestMessage(HttpMethod.Post, "/api/v1/dsp/ft4/auto")
             { Content = JsonContent.Create(request) };
+        var expected = new List<byte[]>();
+        foreach (string message in AutoMessages)
+            expected.Add(await ReadWaveformAsync(dspPipe, ct, message));
         radio.BeginWaveformCapture();
         using var response = await admin.SendAsync(post, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(ct));
-        await VerifyAutoExchangeAsync(reader, new AutoFixture(dspPipe, radio, ring), ct);
+        await VerifyAutoExchangeAsync(reader, new AutoFixture(expected, radio, ring), ct);
     }
 
-    private sealed record AutoFixture(string DspPipe, FakeNativeIcomRadio Radio, NamedSignalRing Ring);
+    private sealed record AutoFixture(IReadOnlyList<byte[]> Expected, FakeNativeIcomRadio Radio, NamedSignalRing Ring);
 
     private static async Task VerifyAutoExchangeAsync(StreamReader reader, AutoFixture fixture, CancellationToken ct)
     {
-        string[] messages = ["W1XYZ K1ABC FN42", "W1XYZ K1ABC R-15", "W1XYZ K1ABC 73"];
         string[] replies = ["K1ABC W1XYZ -09", "K1ABC W1XYZ RR73"];
         long previousSlot = -1;
-        for (int i = 0; i < messages.Length; i++)
+        for (int i = 0; i < AutoMessages.Length; i++)
         {
             var transmitting = await ReadAutoStateAsync(reader, "transmitting", ct);
             long slot = transmitting.GetProperty("slotIndex").GetInt64();
-            if (transmitting.GetProperty("message").GetString() != messages[i] ||
+            if (transmitting.GetProperty("message").GetString() != AutoMessages[i] ||
                 (previousSlot >= 0 && slot != previousSlot + 2))
                 throw new InvalidDataException("FT4 sequencer chose the wrong message or UTC slot.");
             previousSlot = slot;
-            byte[] expected = await ReadWaveformAsync(fixture.DspPipe, ct, messages[i]);
             await ReadAutoStateAsync(reader, "sent", ct);
-            VerifyAutoPcm(fixture.Radio.EndWaveformCapture(), expected);
+            VerifyAutoPcm(fixture.Radio.EndWaveformCapture(), fixture.Expected[i]);
             if (i < replies.Length)
             {
                 fixture.Radio.BeginWaveformCapture();
