@@ -20,6 +20,8 @@ var stationPipe = "skyroof-e2e-station-" + suffix;
 var journal = Path.Combine(Path.GetTempPath(), "skyroof-e2e-ptt-" + suffix + ".json");
 var db = Path.Combine(Path.GetTempPath(), "skyroof-e2e-db-" + suffix + ".db");
 var trackingFile = Path.Combine(Path.GetTempPath(), "skyroof-e2e-tracking-" + suffix + ".json");
+var catalogFile = Path.Combine(Path.GetTempPath(), "skyroof-e2e-catalog-" + suffix + ".json");
+CatalogChecks.WriteFixture(catalogFile);
 
 var listener = new TcpListener(IPAddress.Loopback, 0);
 listener.Start();
@@ -47,6 +49,7 @@ var stationInfo = Setup(stationDll);
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
+stationInfo.Environment["SKYROOF_SATELLITE_CATALOG"] = catalogFile;
 stationInfo.Environment["SKYROOF_ORBIT_BACKEND"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") ?? "orekit";
 stationInfo.Environment["SKYROOF_OREKIT_DATA"] = Path.Combine(Path.GetDirectoryName(stationDll)!, "orekit-data");
 stationInfo.Environment["SKYROOF_OREKIT_EOP_AUTO"] = "false";
@@ -88,6 +91,7 @@ try
     (await admin.PostAsJsonAsync("/api/v1/auth/login",
         new { userName = "remote-admin", password = "SimulatedStationP@ssw0rd2026" }))
         .EnsureSuccessStatusCode();
+    await CatalogChecks.RunAsync(anonymous, admin);
     var tokenReply = await admin.PostAsJsonAsync("/api/v1/auth/tokens",
         new { name = "end-to-end" });
     tokenReply.EnsureSuccessStatusCode();
@@ -219,6 +223,7 @@ finally
     await Task.WhenAll(host.WaitForExitAsync(), station.WaitForExitAsync(), device.WaitForExitAsync());
     if (File.Exists(journal)) File.Delete(journal);
     if (File.Exists(trackingFile)) File.Delete(trackingFile);
+    File.Delete(catalogFile);
 }
 static void Ensure(bool valid, string message)
 {

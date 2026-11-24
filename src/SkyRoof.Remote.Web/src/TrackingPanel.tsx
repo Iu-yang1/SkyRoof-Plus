@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, type FormEvent } from 'react';
 import { DeviceHubContext } from './host';
+import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
 import { RadioLinkOptions, readRadioLink } from './RadioLinkOptions';
 
 type TrackingStatus = {
@@ -28,6 +29,20 @@ export function TrackingPanel() {
   const [status, setStatus] = useState<TrackingStatus | null>(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  const [selection, setSelection] = useState<CatalogSelection | null>(null);
+  const [tle1, setTle1] = useState('');
+  const [tle2, setTle2] = useState('');
+  const [rx, setRx] = useState('');
+  const [tx, setTx] = useState('0');
+  const [selectionRevision, setSelectionRevision] = useState(0);
+  function selectCatalog(value: CatalogSelection) {
+    setSelection(value);
+    setTle1(value.satellite.tleLine1);
+    setTle2(value.satellite.tleLine2);
+    setRx(String(value.transmitter.link.downlinkLowHz / 1e6));
+    setTx(String(value.transmitter.link.uplinkLowHz / 1e6));
+    setSelectionRevision(n => n + 1);
+  }
 
   const [job, setJob] = useState<TrackingJob | null>(null);
   const [jobError, setJobError] = useState('');
@@ -99,21 +114,22 @@ export function TrackingPanel() {
   const displayed = job?.Running ? job.Latest : status;
   return <section className="panel tracking-panel">
     <header>SATELLITE TRACKING</header>
+    <SatelliteCatalogPicker available={Boolean(hub)} onSelect={selectCatalog} />
     <form onSubmit={event => {
       const button = (event.nativeEvent as SubmitEvent).submitter;
       void submit(event, button?.getAttribute('value') ?? 'predict');
     }}>
-      <label>TLE LINE 1<input name="tle1" required placeholder="1 …" /></label>
-      <label>TLE LINE 2<input name="tle2" required placeholder="2 …" /></label>
+      <label>TLE LINE 1<input name="tle1" required placeholder="1 …" value={tle1} onChange={e => setTle1(e.target.value)} /></label>
+      <label>TLE LINE 2<input name="tle2" required placeholder="2 …" value={tle2} onChange={e => setTle2(e.target.value)} /></label>
       <div className="tracking-grid">
         <label>LAT °<input name="latitude" type="number" step="any" required /></label>
         <label>LON °<input name="longitude" type="number" step="any" required /></label>
         <label>HEIGHT m<input name="height" type="number" step="any" defaultValue="0" required /></label>
         <label>MASK °<input name="mask" type="number" step="any" defaultValue="0" required /></label>
-        <label>DOWNLINK MHz<input name="rx" type="number" step="any" required /></label>
-        <label>UPLINK MHz (0 = RX only)<input name="tx" type="number" step="any" defaultValue="0" required /></label>
+        <label>DOWNLINK MHz<input name="rx" type="number" step="any" required value={rx} onChange={e => setRx(e.target.value)} /></label>
+        <label>UPLINK MHz (0 = RX only)<input name="tx" type="number" step="any" required value={tx} onChange={e => setTx(e.target.value)} /></label>
       </div>
-      <RadioLinkOptions />
+      <RadioLinkOptions key={selectionRevision} seed={selection?.transmitter.link} />
       <label>INTERVAL ms<input name="interval" type="number" min="100" step="100" defaultValue="1000" required /></label>
       <div className="tracking-options">
         <label><input name="correctRx" type="checkbox" defaultChecked /> RX DOPPLER</label>

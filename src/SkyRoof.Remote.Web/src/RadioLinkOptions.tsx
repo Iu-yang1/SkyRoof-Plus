@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { CatalogLink } from './SatelliteCatalogPicker';
 
 function number(form: FormData, name: string, scale = 1) {
   const text = String(form.get(name) ?? '0').trim();
@@ -25,8 +26,8 @@ export function readRadioLink(form: FormData) {
   };
 }
 
-export function RadioLinkOptions() {
-  const [enabled, setEnabled] = useState(false);
+export function RadioLinkOptions({ seed }: { seed?: CatalogLink }) {
+  const [enabled, setEnabled] = useState(Boolean(seed));
   return <details className="tracking-link">
     <summary>RADIO LINK / TRANSPONDER</summary>
     <label><input type="checkbox" name="radioLink" checked={enabled}
@@ -34,8 +35,8 @@ export function RadioLinkOptions() {
     <fieldset disabled={!enabled}>
       <small>Enter low edges in DOWNLINK / UPLINK above. Use 0 for an absent link.</small>
       <div className="tracking-grid">
-        <label>RX HIGH MHz<input name="rxHigh" type="number" step="any" defaultValue="0" /></label>
-        <label>TX HIGH MHz<input name="txHigh" type="number" step="any" defaultValue="0" /></label>
+        <label>RX HIGH MHz<input name="rxHigh" type="number" step="any" defaultValue={(seed?.downlinkHighHz ?? 0) / 1e6} /></label>
+        <label>TX HIGH MHz<input name="txHigh" type="number" step="any" defaultValue={(seed?.uplinkHighHz ?? 0) / 1e6} /></label>
         <label>RX BASE Δ Hz<input name="rxBase" type="number" step="1" defaultValue="0" /></label>
         <label>TX BASE Δ Hz<input name="txBase" type="number" step="1" defaultValue="0" /></label>
         <label>POSITION Hz<input name="position" type="number" step="any" defaultValue="0" /></label>
@@ -44,7 +45,7 @@ export function RadioLinkOptions() {
         <label>RX MANUAL Hz<input name="rxManual" type="number" step="any" defaultValue="0" /></label>
         <label>TX MANUAL Hz<input name="txManual" type="number" step="any" defaultValue="0" /></label>
       </div>
-      <label><input type="checkbox" name="inverting" /> INVERTING TRANSPONDER</label>
+      <label><input type="checkbox" name="inverting" defaultChecked={seed?.inverting ?? false} /> INVERTING TRANSPONDER</label>
       <small>Position is not clamped to the published database edges.</small>
     </fieldset>
   </details>;
