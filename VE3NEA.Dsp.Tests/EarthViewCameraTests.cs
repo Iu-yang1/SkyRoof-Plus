@@ -74,6 +74,9 @@ public sealed class EarthViewCameraTests
   [InlineData(28, 179.8, 6)]
   [InlineData(85, -179.8, 20)]
   [InlineData(-90, 40, 4)]
+  [InlineData(90, -120, 4)]
+  [InlineData(-89.999999, 179.99, 256)]
+  [InlineData(89.999999, -179.99, 256)]
   public void MapClickRoundTripsProjection(double lat, double lon, double zoom)
   {
     var camera = new EarthViewCamera();

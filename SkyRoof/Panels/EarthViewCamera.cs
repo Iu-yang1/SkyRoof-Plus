@@ -31,18 +31,25 @@ namespace SkyRoof
       double east = -(double)dx, north = dy;
       double length = Math.Sqrt(east * east + north * north);
       double distance = length * Geo.TwoPi / (diameter * zoom);
+      Center = OffsetFromCenter(east / length, north / length, distance);
+      IsManual = true;
+      return true;
+    }
+
+    // Use the Earth-fixed tangent basis shared by the GPU renderer. The
+    // longitude remains well-conditioned even when the centre is a pole.
+    private GeoPoint OffsetFromCenter(double east, double north, double distance)
+    {
       double lat = Center.LatitudeRad, lon = Center.LongitudeRad;
       double sinLat = Math.Sin(lat), cosLat = Math.Cos(lat);
       double sinLon = Math.Sin(lon), cosLon = Math.Cos(lon);
-      double a = Math.Cos(distance), b = Math.Sin(distance) / length;
+      double a = Math.Cos(distance), b = Math.Sin(distance);
       double x = a * cosLat * cosLon + b * (-east * sinLon - north * sinLat * cosLon);
       double y = a * cosLat * sinLon + b * (east * cosLon - north * sinLat * sinLon);
       double z = a * sinLat + b * north * cosLat;
-      Center = new GeoPoint(
+      return new GeoPoint(
         Math.Atan2(z, Math.Sqrt(x * x + y * y)) * Geo.DinR,
         Math.Atan2(y, x) * Geo.DinR);
-      IsManual = true;
-      return true;
     }
 
     internal PointF Project(GeoPoint point, Size viewport, double zoom)
@@ -74,14 +81,11 @@ namespace SkyRoof
       if (diameter <= 0 || !double.IsFinite(zoom) || zoom <= 0) return false;
       double east = (2d * pixel.X - viewport.Width) / diameter;
       double north = (viewport.Height - 2d * pixel.Y) / diameter;
-      double radius = Math.Sqrt(east * east + north * north) * Math.PI / zoom;
+      double length = Math.Sqrt(east * east + north * north);
+      double radius = length * Math.PI / zoom;
       if (!double.IsFinite(radius) || radius >= Math.PI) return false;
-      if (radius == 0) return true;
-      point = Center.MoveBy(new GeoPath
-      {
-        AzimuthRad = Math.Atan2(east, north),
-        DistanceRad = radius
-      });
+      if (length == 0) return true;
+      point = OffsetFromCenter(east / length, north / length, radius);
       return true;
     }
 
