@@ -11,6 +11,7 @@ namespace SkyRoof.CW
     // displayed lanes without ONNX inference.
     public int MaxDecodeLanes { get; init; } = 8;
     public CwDecoderMode DecoderMode {get;init;} = CwDecoderMode.DeepCW;
+    public string? HistoryDirectory { get; init; }
     public double LaneBandwidthHz { get; init; } = 240;
     public double TargetCenterHz { get; init; } = 800;
     public TimeSpan ModelRetryInterval { get; init; } =
@@ -147,7 +148,7 @@ namespace SkyRoof.CW
   /// </summary>
   public sealed class CwReceiveWorker : IDisposable
   {
-    public CwTranscriptArchive History { get; } = new();
+    public CwTranscriptArchive History { get; }
     private readonly object sync = new();
     private readonly CwPcmIngress ingress;
     private readonly CwReceiveWorkerOptions options;
@@ -225,6 +226,7 @@ namespace SkyRoof.CW
           "CW audio history is shorter than the decode window.",
           nameof(options));
 
+      History = new CwTranscriptArchive(this.options.HistoryDirectory);
       this.sessionFactory =
         sessionFactory!=null
           ? _=>sessionFactory()
@@ -365,6 +367,9 @@ namespace SkyRoof.CW
         }
       }
 
+      // The tracker can schedule its final inference after Stop captured the
+      // previous task. Re-read only after tracking has stopped.
+      lock (sync) inference = inferenceTask;
       if (inference != null)
       {
         try
