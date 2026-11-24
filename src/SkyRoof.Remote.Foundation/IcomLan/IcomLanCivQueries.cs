@@ -32,6 +32,11 @@ internal sealed class IcomLanCivQueries
                 await send(query.BuildRequest(), deadline.Token);
                 return await pending.Reply.Task.WaitAsync(deadline.Token);
             }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && deadline.IsCancellationRequested)
+            {
+                Stop();
+                throw new TimeoutException("CI-V readback timed out; renew the LAN session.");
+            }
             catch
             {
                 // A late reply cannot be associated with a new identical

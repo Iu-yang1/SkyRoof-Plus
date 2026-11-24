@@ -60,11 +60,14 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
         await audio.ConnectAsync(host, control.RemoteAudioPort, ct);
         logger.LogInformation("Native Icom RX session attached: model {Model}, audio UDP {Port}, {Rate} Hz",
             control.Capabilities?.RadioName, control.RemoteAudioPort, control.NegotiatedRxRate);
+        if (string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_CAT_PROBE"),
+            "true", StringComparison.OrdinalIgnoreCase))
+            await ProbeNativeCatAsync(civ, control.Capabilities, ct);
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
             codec, lifetime.Token);
         var finished = await Task.WhenAny(pump, audio.MaintenanceTask,
-            control.MaintenanceTask, civ.MaintenanceTask);
+            control.MaintenanceTask, civ.MaintenanceTask, civ.QueryFailureTask);
         try { await finished; }
         finally
         {

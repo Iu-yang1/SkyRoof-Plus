@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Net;
 using SkyRoof.Remote.Foundation.IcomLan;
 
 internal sealed partial class FakeNativeIcomRadio
@@ -19,6 +20,7 @@ internal sealed partial class FakeNativeIcomRadio
         if (open.Buffer.Length != 22 || open.Buffer[16] != 0xC0 ||
             open.Buffer[21] != 5)
             throw new InvalidDataException("Native CI-V stream-open was not transmitted.");
+        await ServeCatProbeAsync(peer, local, ct);
     }
 
     private async Task ServeAudioAsync(CancellationToken ct)

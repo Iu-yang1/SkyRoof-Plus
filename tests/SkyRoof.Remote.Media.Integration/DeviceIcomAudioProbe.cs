@@ -21,6 +21,7 @@ internal static class DeviceIcomAudioProbe
         info.Environment["SKYROOF_MEDIA_PIPE"] = mediaPipe;
         info.Environment["SKYROOF_ICOM_LAN_HOST"] = "127.0.0.1";
         info.Environment["SKYROOF_ICOM_LAN_PORT"] = fake.ControlPort.ToString();
+        info.Environment["SKYROOF_ICOM_LAN_CAT_PROBE"] = "true";
         info.Environment["SKYROOF_ICOM_LAN_USERNAME"] = "operator";
         info.Environment["SKYROOF_ICOM_LAN_PASSWORD"] = "fake-session-credential";
         using var process = Process.Start(info) ??
