@@ -9,14 +9,15 @@ internal sealed class NativeIcomTxAudio(IcomLanAudioSocket socket, int rate, Ico
 {
     private readonly IcomLanTxPacer _pacer = new(socket, rate, codec);
     private readonly IcomLanAudioResampler _resampler = new(rate);
-    private ulong _epoch, _nextSequence;
+    private readonly TxPcmReorder _reorder = new();
+    private ulong _epoch;
     private bool _started;
 
     public void Select(ulong epoch)
     {
         if (epoch == _epoch) return;
         _epoch = epoch;
-        _nextSequence = 0;
+        _reorder.Reset();
         _started = false;
         _resampler.Reset();
         _pacer.Reset();
@@ -24,18 +25,15 @@ internal sealed class NativeIcomTxAudio(IcomLanAudioSocket socket, int rate, Ico
 
     public bool Push(ulong sequence, ReadOnlySpan<byte> pcm)
     {
-        if (_started && sequence < _nextSequence) return false;
-        if (_started && sequence != _nextSequence)
-        {
-            _resampler.Reset();
-            _pacer.Reset();
-        }
-        _nextSequence = sequence + 1;
+        if (!_reorder.Push(sequence, pcm)) return false;
         _started = true;
-        _pacer.Push(_resampler.Process(pcm, 48000));
         return true;
     }
 
-    public Task TickAsync(CancellationToken ct) =>
-        _started ? _pacer.SendTickAsync(ct) : Task.CompletedTask;
+    public async Task TickAsync(CancellationToken ct)
+    {
+        if (!_started) return;
+        _reorder.Drain(block => _pacer.Push(_resampler.Process(block, 48000)));
+        await _pacer.SendTickAsync(ct);
+    }
 }

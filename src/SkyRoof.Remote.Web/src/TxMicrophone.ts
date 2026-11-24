@@ -79,9 +79,9 @@ export class TxMicrophone {
     // PTT release and lease heartbeats on the same SignalR connection.
     if (grant.pending >= 5) return;
     grant.pending++;
-    void this.hub.invoke<boolean>('PushTxPcm', grant.id, grant.epoch, sequence, new Uint8Array(pcm))
-      .then(accepted => {
-        if (!accepted && this.current === grant) {
+    void this.hub.invoke<{ Accepted: boolean; State: string }>('PushTxPcm', grant.id, grant.epoch, sequence, new Uint8Array(pcm))
+      .then(receipt => {
+        if (!receipt.Accepted && receipt.State !== 'duplicate' && this.current === grant) {
           this.revoke();
           this.status('TX MIC · no active native grant');
         }

@@ -38,9 +38,10 @@ internal static class NativeTxOwnershipProbe
     private static async Task FeedAsync(StationDevice.StationDeviceClient cat, TxPcmChunk chunk,
         CancellationToken ct)
     {
-        for (ulong i = 0; i < 5; i++)
+        // Two concurrent browser RPCs can complete in reverse order.
+        foreach (ulong sequence in new ulong[] { 0, 2, 1, 4, 3 })
         {
-            chunk.Sequence = i;
+            chunk.Sequence = sequence;
             if (!(await cat.PushTxPcmAsync(chunk, cancellationToken: ct)).Accepted)
                 throw new InvalidOperationException("Owned TX PCM rejected.");
         }
