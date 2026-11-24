@@ -7,9 +7,12 @@ namespace SkyRoof.Remote.Foundation.IcomLan;
 
 public sealed record IcomLanConnectionOptions(
     string Address, int ControlPort, string Username, string Password,
-    string ClientName, int LocalCivPort, int LocalAudioPort,
-    uint PreferredRxRate = 48000, byte RxCodec = 4)
+    string ClientName)
 {
+    public required int LocalCivPort { get; init; }
+    public required int LocalAudioPort { get; init; }
+    public uint PreferredRxRate { get; init; } = 48000;
+    public byte RxCodec { get; init; } = 4;
     public uint PreferredTxRate { get; init; }
     public byte TxCodec { get; init; } = 4;
     public uint TxBufferMs { get; init; } = 60;

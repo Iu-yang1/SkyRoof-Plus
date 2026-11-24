@@ -11,8 +11,8 @@ internal static class IcomLanNetworkSessionTests
         Task fakeRadio = radio.RunAsync(timeout.Token);
         await using (var session = await IcomLanControlConnection.OpenAsync(
             new IcomLanConnectionOptions("127.0.0.1", radio.Port,
-                "operator", "secret", "SkyRoof", 41002, 41003)
-                { PreferredTxRate = 48000 }, timeout.Token))
+                "operator", "secret", "SkyRoof")
+                { LocalCivPort = 41002, LocalAudioPort = 41003, PreferredTxRate = 48000 }, timeout.Token))
         {
             if (session.LocalSid == 0 || session.RemoteSid != 0xAABBCCDD ||
                 session.Capabilities is not { RadioName: "IC-9700", CivAddress: 0xA2 } ||

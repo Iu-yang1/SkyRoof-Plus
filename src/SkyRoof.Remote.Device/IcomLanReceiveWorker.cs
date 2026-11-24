@@ -55,9 +55,11 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
         uint txRate = uint.TryParse(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_TX_RATE"),
             out uint configuredTxRate) ? configuredTxRate : 0;
         await using var control = await IcomLanControlConnection.OpenAsync(new(
-            host, port, user, password, "SkyRoof Remote",
-            civ.LocalPort, audio.LocalPort, rate, codecValue)
-            { PreferredTxRate = txRate }, ct);
+            host, port, user, password, "SkyRoof Remote")
+            {
+                LocalCivPort = civ.LocalPort, LocalAudioPort = audio.LocalPort,
+                PreferredRxRate = rate, RxCodec = codecValue, PreferredTxRate = txRate
+            }, ct);
         if (control.NegotiatedRxRate == 0)
             throw new InvalidOperationException("Radio capabilities do not offer an RX audio rate.");
         await civ.ConnectAsync(host, control.RemoteCivPort, ct);

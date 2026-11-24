@@ -14,9 +14,8 @@ public sealed class IcomLanTxPacer(IcomLanAudioSocket socket, int sampleRate,
     public async Task SendTickAsync(CancellationToken ct)
     {
         float[] frame = _buffer.NextFrame();
-        var pcm = new short[frame.Length];
-        for (int i = 0; i < pcm.Length; i++)
-            pcm[i] = (short)Math.Clamp(Math.Round(frame[i] * 32768.0), -32768, 32767);
+        var pcm = Array.ConvertAll(frame, sample =>
+            (short)Math.Clamp(Math.Round(sample * 32768.0), -32768, 32767));
         await socket.SendPcmAsync(pcm, codec, ct);
     }
 

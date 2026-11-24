@@ -19,7 +19,7 @@ export function AudioPanel() {
   const [underruns, setUnderruns] = useState(0);
   const { media, mediaMessage } = useMediaRxStatus(hub);
 
-  function stop() {
+  function disposePlayback() {
     generation.current++;
     starting.current = false;
     timeline.current.reset();
@@ -30,6 +30,10 @@ export function AudioPanel() {
       current.node.disconnect();
       void current.context.close();
     }
+  }
+
+  function stop() {
+    disposePlayback();
     setStatus('RX AUDIO OFF');
   }
 
@@ -102,18 +106,7 @@ export function AudioPanel() {
     else void current.context.suspend();
   }, [workspaceActive]);
 
-  useEffect(() => () => {
-    generation.current++;
-    starting.current = false;
-    timeline.current.reset();
-    const current = playback.current;
-    playback.current = null;
-    if (current) {
-      current.socket.close();
-      current.node.disconnect();
-      void current.context.close();
-    }
-  }, []);
+  useEffect(() => () => disposePlayback(), []);
 
   return <section className="panel audio-panel">
     <header>RX AUDIO · RAW PCM16 WSS</header>
