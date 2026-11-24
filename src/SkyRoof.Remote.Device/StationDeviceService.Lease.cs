@@ -9,6 +9,8 @@ public sealed partial class StationDeviceService
         await _commands.WaitAsync(token);
         try
         {
+            if (_owner is null && journal.Exists)
+                await RecoverOrphanedPttAsync(token);
             if (_owner is not { Digital: false } ||
                 _lastManualBeat == 0 ||
                 Stopwatch.GetElapsedTime(_lastManualBeat) <= threshold)

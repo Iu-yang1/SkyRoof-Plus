@@ -13,6 +13,8 @@ internal sealed class NativeIcomTxAudio(IcomLanAudioSocket socket, int rate, Ico
     private ulong _epoch;
     private bool _started;
 
+    internal TimedNativeWaveform PrepareWaveform(byte[] pcm) => new(socket, rate, codec, pcm);
+
     public void Select(ulong epoch)
     {
         if (epoch == _epoch) return;

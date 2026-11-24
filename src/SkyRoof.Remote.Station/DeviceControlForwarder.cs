@@ -63,6 +63,11 @@ public sealed class DeviceControlForwarder : StationDevice.StationDeviceBase, ID
             deadline: DateTime.UtcNow.AddSeconds(5),
             cancellationToken: context.CancellationToken);
 
+    public override async Task<TimedTxReceipt> RunTimedTx(
+        TimedTxRequest request, ServerCallContext context) =>
+        await _device.RunTimedTxAsync(request, deadline: context.Deadline,
+            cancellationToken: context.CancellationToken);
+
     public override async Task<TxPcmReceipt> PushTxPcm(
         TxPcmChunk request, ServerCallContext context) =>
         await _device.PushTxPcmAsync(request,

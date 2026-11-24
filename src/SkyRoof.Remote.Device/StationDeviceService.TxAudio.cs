@@ -16,6 +16,8 @@ public sealed partial class StationDeviceService
                 owner.SessionId != request.SessionId || owner.TransactionId != request.TransactionId ||
                 !owner.AudioSource.Equals("LAN", StringComparison.OrdinalIgnoreCase))
                 return new() { State = "stale-or-not-owner" };
+            if (_timedTransaction == owner.TransactionId)
+                return new() { State = "sealed-waveform-owner" };
             if (cat is not NativeIcomCatBackend native || native.Tx is not { } audio)
                 return new() { State = "no-native-tx-grant" };
             audio.Select(owner.Epoch);
@@ -36,6 +38,7 @@ public sealed partial class StationDeviceService
                 audio.Select(0);
                 return;
             }
+            if (_timedTransaction == owner.TransactionId) return;
             audio.Select(owner.Epoch);
             await audio.TickAsync(ct);
         }

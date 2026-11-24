@@ -5,6 +5,7 @@ option csharp_namespace = "SkyRoof.Remote.Ipc";
 service StationDevice {
   rpc Execute(DeviceCommand) returns (DeviceSnapshot);
   rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
+  rpc RunTimedTx(TimedTxRequest) returns (TimedTxReceipt);
   rpc PushTxPcm(TxPcmChunk) returns (TxPcmReceipt);
   rpc ReleaseSession(DeviceReleaseSessionRequest) returns (DeviceSnapshot);
 }
@@ -63,4 +64,21 @@ message TxPcmChunk {
 message TxPcmReceipt {
   bool accepted = 1;
   string state = 2;
+}
+
+message TimedTxRequest {
+  string job_id = 1;
+  string session_id = 2;
+  string authorized_principal = 3;
+  int64 target_utc_nanoseconds = 4; // first native UDP PCM packet, not measured RF
+  int64 frequency_hz = 5;
+  string mode = 6;
+  bytes pcm16 = 7; // mono 48 kHz LE, preloaded before arming
+  string sha256 = 8;
+}
+message TimedTxReceipt {
+  string job_id = 1;
+  string state = 2;
+  int64 actual_first_packet_utc_nanoseconds = 3;
+  int64 source_samples = 4;
 }
