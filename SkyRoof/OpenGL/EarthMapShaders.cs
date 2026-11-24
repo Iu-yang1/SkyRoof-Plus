@@ -104,11 +104,11 @@ namespace SkyRoof
         if (lon < 72.004 || lon > 137.8347 || lat < 0.8293 || lat > 55.8271)
           return vec2(0.0);
         float x = lon - 105.0, y = lat - 35.0;
-        float common = (20.0*sin(6.0*x*PI)+20.0*sin(2.0*x*PI))*2.0/3.0;
-        float dy = -100.0+2.0*x+3.0*y+0.2*y*y+0.1*x*y+0.2*sqrt(abs(x))+common;
+        float sharedTerm = (20.0*sin(6.0*x*PI)+20.0*sin(2.0*x*PI))*2.0/3.0;
+        float dy = -100.0+2.0*x+3.0*y+0.2*y*y+0.1*x*y+0.2*sqrt(abs(x))+sharedTerm;
         dy += (20.0*sin(y*PI)+40.0*sin(y*PI/3.0))*2.0/3.0;
         dy += (160.0*sin(y*PI/12.0)+320.0*sin(y*PI/30.0))*2.0/3.0;
-        float dx = 300.0+x+2.0*y+0.1*x*x+0.1*x*y+0.1*sqrt(abs(x))+common;
+        float dx = 300.0+x+2.0*y+0.1*x*x+0.1*x*y+0.1*sqrt(abs(x))+sharedTerm;
         dx += (20.0*sin(x*PI)+40.0*sin(x*PI/3.0))*2.0/3.0;
         dx += (150.0*sin(x*PI/12.0)+300.0*sin(x*PI/30.0))*2.0/3.0;
         float phi = radians(lat), s = sin(phi);
