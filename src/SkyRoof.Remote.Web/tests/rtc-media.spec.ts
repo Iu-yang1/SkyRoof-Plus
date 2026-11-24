@@ -92,7 +92,7 @@ test('packaged native RTC sends Opus RTP to a Chromium receive-only track', asyn
       while (performance.now() < end) {
         const stats = await peer.getStats();
         for (const item of stats.values()) {
-          if (item.type !== 'inbound-rtp' || item.kind !== 'audio' || item.packetsReceived < 5)
+          if (item.type !== 'inbound-rtp' || item.kind !== 'audio' || item.packetsReceived < 5 || !(item.totalSamplesReceived > 0))
             continue;
           const codec = stats.get(item.codecId);
           if (codec?.mimeType?.toLowerCase() === 'audio/opus' && item.bytesReceived > 0)

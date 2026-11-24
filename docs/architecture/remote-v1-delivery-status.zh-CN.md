@@ -8,18 +8,18 @@
 | P1 | Protobuf、gRPC Named Pipe、共享内存 SignalBus、流 Epoch/Sequence/SampleIndex | 生产 IPC ACL、协议升级兼容 |
 | P2 | Supervisor 普通后台/Windows Service 双模式、SCM 实际注册启停 CI、崩溃恢复、Device PTT 和已配置旋转器 STOP 退出处理 | 实际硬件在 Session 0 的账户/ACL 和升级迁移验收 |
 | P3 | 独立 Device：SkyCAT/rigctld CAT/PTT、读回和异常恢复；rotctld AZ/EL/STOP、机械限位、STOP 独立连接、多路径点 Park。新增独立 Icom LAN UDP 控制登录、认证 Token、授权流、保活和 CI-V/Audio 端口预绑定的可选接收 Worker | IC-9700 Direct LAN 实机登录/CI-V 完整 CAT、RF/IF 频谱、TX 音频、自动路径优化、RC-3040S 专用 Park 校验、SDR/ONVIF |
-| P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 原 RadioLink 转发器数据库/映射、ISS OEM Hybrid、轨道源切换和完整排程迁移 |
-| P5 | 独立 Dsp：SignalBus RX PCM16 + 4096-point Hann FFT 音频频谱、真实 1/2.5 kHz CI | FT4、CW、Q65、遥测等数字解码器迁移，当前仅音频 FFT |
-| P6 | 独立 Media：PCM16 SignalBus、Opus 本机环回、认证 WSS/WebAudio、Icom UDP PCM16/PCM8/μ-law、8–192 kHz→48 kHz 有状态 ASRC、UDP 乱序/重复/缺包恢复及实时认证诊断；Device RX Worker 已连到 Media 私有 IPC | 当前新增整套真实 UDP 模拟器 E2E CI 待最终确认；IC-9700 实机登录/RX、外部网络压测、WebRTC Audio Track/RTC Data 动态切换、TX PCM 仍未完成 |
+| P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 原 RadioLink 转发器数据库/映射、ISS OEM 自动下载及真实星历验收、完整排程迁移 |
+| P5 | 独立 Dsp：SignalBus RX PCM16、4096-point Hann FFT、实时 FT4 native 解码及结果 ring、FT4 编码 IPC | FT4 QSO sequencer、CW、Q65、遥测和硬件时钟校准 |
+| P6 | 独立 Media：PCM16 SignalBus、Opus 本机环回、认证 WSS/WebAudio、Icom UDP PCM16/PCM8/μ-law、8–192 kHz→48 kHz 有状态 ASRC、UDP 乱序/重复/缺包恢复及实时认证诊断；Device RX Worker 已连到 Media 私有 IPC | IC-9700 实机登录/RX/TX、外部网络压测、新 Opus Voice Track 的浏览器验收和模式自动切换 |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
 | P9 | SignalR MessagePack、CAT/旋转器实时控制和读回、认证 RX PCM/AF 频谱 WSS | 原电台频谱/状态的实际采集、Delta 与多客户端流控 |
-| P10 | 固定 libdatachannel 的双 Peer ICE/SDP/DTLS/SCTP DataChannel 与 Opus RTP Audio Track 本机回环 | 与正式 Media、浏览器和 FRP UDP 的联合公网验证 |
+| P10 | 固定 libdatachannel 双 Peer 环回、Windows 发布包 Chromium PCM DataChannel 实际接收通过；新增 Opus Voice Track 接入 | 最新 Voice Track Windows/Chromium CI、FRP UDP 联合公网验证 |
 | P11 | frps/frpc v0.72.0 TCP/QUIC 控制+UDP Socket 真实本地代理双路径测试，手工部署示例 | 公网/CGNAT 实测、FRP UDP+ICE 以及延迟/丢包验收 |
 | P12 | 两个独立账户的后按优先 PTT、过时释放无效、数字暂停、崩溃/心跳回 RX、实时角色授权 | 真电台 PTT/音源切换、TX 缓冲、旋转器/摄像机仲裁 |
 | P13 | WorkspaceRouter 处理台站切换下的原 PTT 事务绑定 | WinForms 完整多台站连接与凭据存储 |
 | P14 | React Dockview：CAT、PTT、TLE/连续跟踪、旋转器及多路径点 Park、WebAudio、真实 AF FFT 及模拟 RF Scope | 原 SkyRoof 全部 Panel、多远端主机、浏览器操作验收 |
-| P15 | UTC/单调时钟预约模型、SHA-256 PCM 封存和恢复 | 外部 WSJT-X CAT/PCM Bridge、真实 Timestamped RF TX 及标定 |
+| P15 | UTC/单调时钟预约、SHA-256 PCM 封存、设备定时播放与读回 RX（真 UDP 模拟通过）、FT4 单时隙 UI | 最新 Host→DSP→Station→Device FT4 E2E、WSJT-X CAT/PCM Bridge、真实 RF TX 及标定 |
 | P16 | 原生媒体、FRP、SignalBus、E2E 多进程、凭据、断线、崩溃等 CI | 大规模网络故障注入、24h 运行和无线电实机验收 |
 | P17 | 六进程 Windows x64 开发包、从发布目录执行 IPC E2E、SCM 安装/卸载脚本及生命周期 CI | 正式安装器、服务账户真实设备访问、升级/回滚、签名与兼容迁移 |
 | P18 | 独立 CI + 原项目 Compile Check、Docs 与 aislop Quality Gate | 所有阻断条件消除，许可证审查，正式 Release |
@@ -171,3 +171,20 @@ DSP 开发诊断：`dotnet SkyRoof.Remote.Dsp.dll --ft4-self-test` 执行原始 
 - DSP：FT4 实时时间标定、数字发射/QSO sequencer；原 CW/Q65/Telemetry 解码器、ISS OEM/RadioLink、SDR/ONVIF 等剩余模块。
 - WinForms 完整 IPC、真正多台站、生产 ACL/数据库迁移/升级回滚、正式 installer、硬件和长时稳定性仍未闭合。
 - 最新 SHA 的所有必要 CI 及 aislop 通过后才具备软件级发布前验收资格。未获得实机验收不冒称真实射频验证。当前 PR 继续 Draft，不创建正式 Release。
+
+
+## 2026-11-24 — 定时数字 TX、RTC Voice Track、ISS OEM
+
+以下是本轮增量，优先于旧段落中尚未更新的描述。仍是开发分支，不是完整 V1.7 正式交付。
+
+- `517b241` 21 项运行中 20 项通过，原工程 Compile Check [45308339644](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45308339644) 通过，实际独立 DSP FT4 [45308339505](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45308339505) 通过，Windows/Linux 原生 RTC [45308339668](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45308339668) 通过；发布包真实 Chromium SAP/1 [45308339731](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45308339731) 通过。aislop 唯一未通过项由后续重构处理。
+- `dffb1e4`：原 CAT 按职责分成八个 partial 文件，拆 Host TX bridge，修 DSP 释放和 C++ RAII；[aislop 45313509803](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45313509803) 与 [Compile Check 45313509839](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45313509839) 均已通过。无 gate 降级。
+- `ea9c244`、`b475d87`：SHA-256 封存与持久化单次 claim，设备本地单调时钟、800 ms PTT lead、20 ms native PCM、100 ms tail、释放后 PTT 读回；[Media 45313826179](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45313826179) 实际通过 9600 样本逐样本 UDP 对比、首包允许误差 80 ms、任务 ID replay 拒绝、结束 RX 验证。此为软件/模拟 UDP 首包时间，不是 RF 时间标定。
+- `78eb975`、`8babd43`：DSP 私有编码 IPC，Host Operator 鉴权并持续检查 token，Web 单 FT4 时隙控制台、真实发布包 Host/Station/DSP/Device 的样本级测试。78eb975 [Media 45313920119](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45313920119) 及 [aislop 45313920255](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45313920255) 通过；整套新 HTTP FT4 发射测试待最新 package CI。尚非自动 FT4 QSO sequencer。
+- `ab1326d`、`62931dd`、`bff5195`：原生 Opus 48 kHz mono 48 kbps、协商动态 RTP PT、RTCP SR、认证 WS SDP、浏览器 Voice Track 与原 PCM DataChannel 切换、WSS fallback；新增实际 Chromium RTP codec/sample 验收。新 Voice Track CI 尚未确认，公网 ICE/FRP 未测。
+- `f7b8946`：Orekit CCSDS OEM KVN/XML 读取、ISS object ID 校验、按 usable segment 覆盖判定、TEME/ITRF/topocentric、超范围或无效文件显式 TLE fallback；Station 可设 `SKYROOF_ISS_OEM_PATH` 指向本地星历文件，更新文件后重新加载。新增合成 EME2000 PV、分段间隙与距离导数测试。没有使用真实 NASA 星历验证；自动获取及真实星历与独立基准比较尚缺。
+- `9c708e9`：新增实际 gRPC/UDP 模拟定时发射取消及手动 PTT 抢占回归，检查旧任务清理不释放新手动 owner；待 CI。
+
+配置：Host 与 DSP 的 `SKYROOF_DSP_PIPE` 必须一致（默认 `skyroof-station-dsp`）；Device 的 `SKYROOF_TIMED_TX_DIRECTORY` 保存封存任务；`SKYROOF_FT4_TX_DELAY_MS` 为校准项，真实 RF 延迟仍须测量。`SKYROOF_ISS_OEM_PATH` 为 Station 的本地 OEM 路径，仅 Orekit 后端、NORAD 25544 使用。勿在仓库写入实际电台凭据。
+
+剩余主要阻断：完整 RadioLink/转发器数据库，CW/Q65/Telemetry，WSJT-X Bridge，SDR/ONVIF，原 WinForms 全部功能 IPC、多台站与生产身份/ACL/数据迁移，公网 RTC/FRP、设备实机、长时稳定性及正式安装器/升级回滚。所有最新 HEAD 的 CI 必须独立验收，不能继承历史提交的通过结果。不合并、不发布正式 Release，API 提交未证实加密签名。

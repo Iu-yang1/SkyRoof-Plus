@@ -4,6 +4,7 @@ using org.orekit.data;
 using org.orekit.files.ccsds.ndm;
 using org.orekit.files.ccsds.ndm.odm.oem;
 using org.orekit.frames;
+using org.orekit.files.general;
 using org.orekit.propagation;
 using org.orekit.time;
 using org.orekit.utils;
@@ -23,21 +24,21 @@ public sealed class OrekitIssOemTrack : IOrbitTrack
 
     public OrekitIssOemTrack(string path)
     {
-        var oem = new ParserBuilder().withMu(Constants.WGS84_EARTH_MU)
+        var oem = (Oem)new ParserBuilder().withMu(Constants.WGS84_EARTH_MU)
             .buildOemParser().parseMessage(new DataSource(Path.GetFullPath(path)));
         var list = oem.getSegments();
         var spans = new List<Span>();
         for (int i = 0; i < list.size(); i++)
         {
             var segment = (OemSegment)list.get(i);
-            var metadata = segment.getMetadata();
-            if (metadata.getObjectID() != "1998-067A")
+            var metadata = (OemMetadata)segment.getMetadata();
+            if (metadata.getObjectID().Replace("-", "", StringComparison.Ordinal) != "1998067A")
                 continue;
             if (!string.Equals(metadata.getCenter().getName(), "EARTH", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("ISS OEM must be Earth-centred.");
             if (segment.getCoordinates().size() < segment.getInterpolationSamples())
                 throw new InvalidDataException("ISS OEM segment lacks interpolation samples.");
-            spans.Add(new Span(segment.getStart(), segment.getStop(), segment.getPropagator()));
+            spans.Add(new Span(segment.getStart(), segment.getStop(), ((EphemerisFile.EphemerisSegment)segment).getPropagator()));
         }
         if (spans.Count == 0)
             throw new InvalidDataException("OEM does not contain ISS object 1998-067A.");
