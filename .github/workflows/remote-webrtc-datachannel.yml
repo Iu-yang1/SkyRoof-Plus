@@ -6,6 +6,7 @@ on:
   pull_request:
     paths: ['native/SkyRoof.Media.Native/tests/webrtc/**','native/SkyRoof.Media.Native/rtc/**','.github/workflows/remote-webrtc-datachannel.yml']
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -52,6 +53,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force artifacts/rtc-runtime | Out-Null
           Copy-Item artifacts/rtc/Release/skyroof_rtc.dll artifacts/rtc-runtime/
+          Copy-Item "$env:RUNNER_TEMP/libdatachannel/LICENSE" artifacts/rtc-runtime/libdatachannel-LICENSE.txt
+          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/openssl/copyright" artifacts/rtc-runtime/openssl-LICENSE.txt
           Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/libcrypto*.dll" artifacts/rtc-runtime/
           Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/libssl*.dll" artifacts/rtc-runtime/
       - uses: actions/upload-artifact@v4

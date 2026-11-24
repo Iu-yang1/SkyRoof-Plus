@@ -9,7 +9,10 @@ on:
 permissions:
   contents: read
 jobs:
+  rtc-runtime:
+    uses: ./.github/workflows/remote-webrtc-datachannel.yml
   packaged-e2e:
+    needs: rtc-runtime
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -39,6 +42,40 @@ jobs:
           }
           if (-not (Test-Path artifacts/remote-v1/Host/wwwroot/index.html)) { throw 'React assets missing' }
           Copy-Item deploy/remote artifacts/remote-v1/configuration-examples -Recurse -Force
+      - name: Install tested native RTC runtime into Host package
+        uses: actions/download-artifact@v4
+        with:
+          name: SkyRoof-RTC-native-win-x64
+          path: artifacts/remote-v1/Host
+      - name: Run real Chromium RTC media integration from packaged Host
+        shell: pwsh
+        run: |
+          dotnet build tests/SkyRoof.Remote.Rtc.Integration/SkyRoof.Remote.Rtc.Integration.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:SKYROOF_RTC_TEST_URL = 'http://127.0.0.1:8077'
+          $env:ASPNETCORE_ENVIRONMENT = 'Development'
+          $env:ASPNETCORE_URLS = $env:SKYROOF_RTC_TEST_URL
+          $env:SKYROOF_AUTH_DB = Join-Path $env:RUNNER_TEMP 'rtc-browser.sqlite'
+          $env:SKYROOF_BOOTSTRAP_ADMIN_USER = 'rtc-admin'
+          $env:SKYROOF_BOOTSTRAP_ADMIN_PASSWORD = 'RtcFixture-Password!123'
+          $env:SKYROOF_RX_AUDIO_BUS = 'skyroof-rtc-browser-' + [guid]::NewGuid().ToString('N')
+          $hostProcess = Start-Process dotnet -ArgumentList 'artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll' -PassThru -RedirectStandardOutput artifacts/rtc-host.log -RedirectStandardError artifacts/rtc-host.err
+          $sourceProcess = Start-Process dotnet -ArgumentList 'tests/SkyRoof.Remote.Rtc.Integration/bin/Release/net10.0-windows/SkyRoof.Remote.Rtc.Integration.dll' -PassThru
+          try {
+            for ($i = 0; $i -lt 100; $i++) {
+              try { if ((Invoke-WebRequest "$env:SKYROOF_RTC_TEST_URL/health/live" -TimeoutSec 2).StatusCode -eq 200) { break } } catch { Start-Sleep -Milliseconds 100 }
+            }
+            Push-Location src/SkyRoof.Remote.Web
+            npx playwright install chromium
+            if ($LASTEXITCODE -ne 0) { throw 'Chromium install failed' }
+            npx playwright test tests/rtc-media.spec.ts --config playwright.config.ts
+            if ($LASTEXITCODE -ne 0) { throw 'RTC browser test failed' }
+            Pop-Location
+          } finally {
+            if (-not $sourceProcess.HasExited) { Stop-Process -Id $sourceProcess.Id -Force }
+            if (-not $hostProcess.HasExited) { Stop-Process -Id $hostProcess.Id -Force }
+            Get-Content artifacts/rtc-host.err -Tail 50
+          }
       - name: Build end-to-end simulation harness
         run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
       - name: Run CAT transactions against binaries from publish directories
