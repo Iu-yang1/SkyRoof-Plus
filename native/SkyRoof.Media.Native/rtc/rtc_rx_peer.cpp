@@ -1,4 +1,5 @@
 #include "rtc_rx_peer.h"
+#include "rtc_voice_track.h"
 #include <rtc/rtc.h>
 #include <atomic>
 #include <cstring>
@@ -9,6 +10,7 @@ struct Peer {
     int pc = -1;
     std::atomic<int> dc{-1};
     std::atomic<bool> gathered{false};
+    std::unique_ptr<VoiceTrack> voice;
 
     ~Peer() {
         if (pc >= 0) {
@@ -46,10 +48,12 @@ void channel(int, int dc, void* user) {
 }
 }
 
-void* skyroof_rtc_create(const char* ice_server) {
+static void* create_peer(const char* ice_server, bool voice) {
     try {
         auto peer = std::make_unique<Peer>();
         rtcConfiguration config{};
+        config.disableAutoNegotiation = voice;
+        if (voice) peer->voice = std::make_unique<VoiceTrack>();
         const char* servers[] = {ice_server};
         if (ice_server && *ice_server) {
             config.iceServers = servers;
@@ -64,9 +68,18 @@ void* skyroof_rtc_create(const char* ice_server) {
     } catch (...) { return nullptr; }
 }
 
+void* skyroof_rtc_create(const char* ice_server) { return create_peer(ice_server, false); }
+void* skyroof_rtc_create_voice(const char* ice_server) { return create_peer(ice_server, true); }
+
 int skyroof_rtc_offer(void* handle, const char* sdp) {
     if (!handle || !sdp) return -1;
-    return rtcSetRemoteDescription(static_cast<Peer*>(handle)->pc, sdp, "offer");
+    auto* peer = static_cast<Peer*>(handle);
+    try {
+        if (peer->voice && !peer->voice->Configure(peer->pc, sdp)) return -1;
+        int result = rtcSetRemoteDescription(peer->pc, sdp, "offer");
+        if (result < 0 || !peer->voice) return result;
+        return rtcSetLocalDescription(peer->pc, "answer");
+    } catch (...) { return -1; }
 }
 
 int skyroof_rtc_answer(void* handle, char* buffer, int capacity) {
@@ -82,6 +95,12 @@ int skyroof_rtc_send(void* handle, const char* bytes, int size) {
     if (dc < 0 || !rtcIsOpen(dc)) return 0;
     if (rtcGetBufferedAmount(dc) > 24000) return 0;
     return rtcSendMessage(dc, bytes, size) < 0 ? -1 : 1;
+}
+
+int skyroof_rtc_send_voice(void* handle, const int16_t* pcm, int samples) {
+    if (!handle || !pcm || samples != 960) return -1;
+    auto* peer = static_cast<Peer*>(handle);
+    return peer->voice ? peer->voice->Send(pcm, samples) : -1;
 }
 
 void skyroof_rtc_destroy(void* handle) { std::unique_ptr<Peer> peer(static_cast<Peer*>(handle)); }
