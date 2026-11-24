@@ -4,6 +4,8 @@ using SkyRoof.Remote.Foundation.Media;
 internal sealed partial class FakeNativeIcomRadio
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<short, byte> _txSamples = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<short> _timedSamples = new();
+    public short[] TimedSamples => _timedSamples.ToArray();
 
     private async Task ObserveTxAsync(uint local, CancellationToken ct)
     {
@@ -16,7 +18,11 @@ internal sealed partial class FakeNativeIcomRadio
                 if (!IcomLanAudioPacketCodec.TryDecode(packet.Buffer, local, AudioSid,
                     IcomLanAudioCodec.Lpcm16Mono, out var frame)) continue;
                 for (int i = 0; i < frame.Pcm16.Length; i += 2)
-                    _txSamples.TryAdd(BinaryPrimitives.ReadInt16LittleEndian(frame.Pcm16.AsSpan(i, 2)), 0);
+                {
+                    short sample = BinaryPrimitives.ReadInt16LittleEndian(frame.Pcm16.AsSpan(i, 2));
+                    _txSamples.TryAdd(sample, 0);
+                    if (sample is >= 6000 and < 6960) _timedSamples.Enqueue(sample);
+                }
             }
         }
         catch (OperationCanceledException) when (_nativeCatDone.IsCancellationRequested)

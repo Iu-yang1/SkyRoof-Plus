@@ -24,6 +24,8 @@ internal static class DeviceIcomAudioProbe
         info.Environment["SKYROOF_ICOM_LAN_PORT"] = fake.ControlPort.ToString();
         info.Environment["SKYROOF_ICOM_LAN_CAT_PROBE"] = "true";
         info.Environment["SKYROOF_ICOM_LAN_TX_RATE"] = "48000";
+        string timedDir = Path.Combine(Path.GetTempPath(), "skyroof-timed-" + suffix);
+        info.Environment["SKYROOF_TIMED_TX_DIRECTORY"] = timedDir;
         info.Environment["SKYROOF_ICOM_LAN_USERNAME"] = "operator";
         info.Environment["SKYROOF_ICOM_LAN_PASSWORD"] = "fake-session-credential";
         using var process = Process.Start(info) ??
@@ -71,6 +73,7 @@ internal static class DeviceIcomAudioProbe
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
+            if (Directory.Exists(timedDir)) Directory.Delete(timedDir, recursive: true);
         }
     }
     private static async Task AssertSourceEndedAsync(

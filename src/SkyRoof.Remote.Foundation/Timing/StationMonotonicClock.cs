@@ -21,7 +21,7 @@ public static class StationMonotonicClock
             long remaining = target - Now;
             if (remaining <= 0) return;
             // Keep the final wait on the station monotonic clock.
-            await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, remaining / 1e6 - 2)), ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Clamp(remaining / 1e6 - 2, 1, 1000)), ct);
         }
     }
 }

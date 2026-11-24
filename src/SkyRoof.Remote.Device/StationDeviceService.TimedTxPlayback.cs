@@ -39,7 +39,7 @@ public sealed partial class StationDeviceService
                 throw new TimeoutException("Missed timed TX keying deadline.");
             var result = await BeginAsync(tx.Command, true, ct);
             if (result.Changed) ++_revision;
-            if (_owner?.TransactionId != tx.Command.TransactionId || _owner.SessionId != tx.Command.SessionId)
+            if (_owner is not { } owner || owner.TransactionId != tx.Command.TransactionId || owner.SessionId != tx.Command.SessionId)
                 throw new InvalidOperationException("Digital TX busy or paused.");
             _timedTransaction = tx.Command.TransactionId;
         }
@@ -56,7 +56,7 @@ public sealed partial class StationDeviceService
             await _commands.WaitAsync(ct);
             try
             {
-                if (_owner?.TransactionId != tx.Command.TransactionId || _owner.SessionId != tx.Command.SessionId ||
+                if (_owner is not { } owner || owner.TransactionId != tx.Command.TransactionId || owner.SessionId != tx.Command.SessionId ||
                     cat is not NativeIcomCatBackend native || !ReferenceEquals(native.Tx, tx.Audio))
                     throw new InvalidOperationException("Timed TX preempted or native session lost.");
                 if (StationMonotonicClock.Now - due > MaxLatenessNs)
@@ -76,7 +76,7 @@ public sealed partial class StationDeviceService
         await _commands.WaitAsync(timeout.Token);
         try
         {
-            if (_owner?.TransactionId == command.TransactionId && _owner.SessionId == command.SessionId)
+            if (_owner is { } owner && owner.TransactionId == command.TransactionId && owner.SessionId == command.SessionId)
             {
                 try { if ((await EndAsync(command, true, timeout.Token)).Changed) ++_revision; }
                 catch
