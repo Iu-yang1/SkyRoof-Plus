@@ -19,17 +19,17 @@ internal sealed partial class Ft4AutoSession(HttpContext context, Ft4AutoRequest
     {
         long slot = (NowNs + 2_000_000_000 + SlotNs - 1) / SlotNs;
         if ((slot % 2 == 1) != request.Odd) slot++;
-        await PublishAsync(qso, "started");
+        await PublishAsync(qso, "started", slot);
         int misses = 0;
         while (!qso.Finished)
         {
             await EnsureAuthorizedAsync();
-            await PublishAsync(qso, "transmitting");
+            await PublishAsync(qso, "transmitting", slot);
             var receipt = await TransmitAsync(qso, slot);
             if (receipt.State != "completed")
                 throw new InvalidOperationException("Timed FT4 stopped: " + receipt.State);
             qso.Sent();
-            await PublishAsync(qso, "sent");
+            await PublishAsync(qso, "sent", slot);
             if (qso.Finished) break;
             do
             {
@@ -43,12 +43,12 @@ internal sealed partial class Ft4AutoSession(HttpContext context, Ft4AutoRequest
                     break;
                 }
                 misses++;
-                await PublishAsync(qso, "rx-window-missed");
+                await PublishAsync(qso, "rx-window-missed", slot);
                 if (misses >= request.Attempts)
                     throw new InvalidOperationException("No timely complete FT4 RX windows; automatic TX ended.");
             } while (true);
         }
-        await PublishAsync(qso, qso.Stage == Ft4Exchange.Complete ? "completed" : "attempts-exhausted");
+        await PublishAsync(qso, qso.Stage == Ft4Exchange.Complete ? "completed" : "attempts-exhausted", slot);
     }
 
     private async Task<TimedTxReceipt> TransmitAsync(Ft4QsoSequence qso, long slot)
@@ -85,9 +85,9 @@ internal sealed partial class Ft4AutoSession(HttpContext context, Ft4AutoRequest
             throw new InvalidOperationException("FT4 operator authorization revoked.");
     }
 
-    private Task PublishAsync(Ft4QsoSequence qso, string state) => WriteAsync(context, new
+    private Task PublishAsync(Ft4QsoSequence qso, string state, long slotIndex) => WriteAsync(context, new
     {
-        state, stage = qso.Stage.ToString(), peer = qso.Peer, message = qso.Message,
+        state, slotIndex, stage = qso.Stage.ToString(), peer = qso.Peer, message = qso.Message,
         grid = qso.PeerGrid, reportSent = qso.ReportSent, reportReceived = qso.ReportReceived
     });
 

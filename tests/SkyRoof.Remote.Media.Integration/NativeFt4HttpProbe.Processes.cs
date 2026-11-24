@@ -22,6 +22,7 @@ internal static partial class NativeFt4HttpProbe
         var host = Setup(paths.Host);
         host.Environment["SKYROOF_STATION_PIPE"] = fixture.StationPipe;
         host.Environment["SKYROOF_DSP_PIPE"] = fixture.DspPipe;
+        host.Environment["SKYROOF_FT4_RESULTS_BUS"] = "skyroof-ft4-test-results-" + fixture.DspPipe;
         host.Environment["ASPNETCORE_URLS"] = fixture.Address.ToString().TrimEnd('/');
         host.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
         host.Environment["SKYROOF_AUTH_DB"] = Path.Combine(fixture.Root, "auth.db");

@@ -37,9 +37,10 @@ internal static partial class NativeFt4HttpProbe
             throw new InvalidDataException("Authenticated FT4 TX waveform differs from native DSP encoding.");
         Console.WriteLine("PASS: authenticated Host -> native DSP FT4 encoding -> Station -> Device -> exact UDP waveform.");
         await WsjtxNativeBridgeProbe.RunAsync(admin, address, fake, ct);
+        await VerifyAutoAsync(anonymous, admin, dspPipe, fake, ct);
     }
 
-    private static async Task<byte[]> ReadWaveformAsync(string pipe, CancellationToken ct)
+    private static async Task<byte[]> ReadWaveformAsync(string pipe, CancellationToken ct, string message = "CQ K1ABC FN42")
     {
         using var handler = new SocketsHttpHandler
         {
@@ -54,7 +55,7 @@ internal static partial class NativeFt4HttpProbe
         using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
         var waveform = await new DspWaveform.DspWaveformClient(channel).EncodeFt4Async(new Ft4EncodeRequest
         {
-            Message = "CQ K1ABC FN42", AudioHz = 1500, Gain = 0.5f
+            Message = message, AudioHz = 1500, Gain = 0.5f
         }, deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: ct);
         if (waveform.Pcm16.Length != 241920 * 2 || waveform.SampleRate != 48000)
             throw new InvalidDataException("Incorrect FT4 waveform IPC geometry.");

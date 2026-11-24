@@ -8,7 +8,7 @@ internal static class DeviceIcomAudioProbe
         string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media, NativeFt4ProcessPaths? ft4Paths)
     {
         using var fake = new FakeNativeIcomRadio();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(ft4Paths is null ? 90 : 150));
         var radioTask = fake.RunAsync(deadline.Token);
         var startEpoch = ring.StreamEpoch;
         var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
