@@ -61,7 +61,7 @@ public sealed class Ft4QsoSequence
             if (item.To != _call || item.From == _call || (Peer is not null && item.From != Peer)) continue;
             if (!IsStandardCall(item.From)) continue;
             var next = Next(item.Exchange);
-            if (next is null || next.Value < Stage) continue;
+            if (next is null || (int)next.Value < (int)Stage) continue;
             Peer = item.From;
             if (Regex.IsMatch(item.Exchange, "^[A-R]{2}[0-9]{2}$")) PeerGrid = item.Exchange;
             if (TryReport(item.Exchange, out int report)) ReportReceived = report;
@@ -78,9 +78,12 @@ public sealed class Ft4QsoSequence
     private Ft4Exchange? Next(string exchange)
     {
         if (exchange == "73" && Stage == Ft4Exchange.Rr73) return Ft4Exchange.Complete;
-        if (exchange is "RR73" or "RRR" && Stage >= Ft4Exchange.RogerReport) return Ft4Exchange.Final73;
+        if (exchange is "RR73" or "RRR" && (int)Stage >= (int)Ft4Exchange.RogerReport) return Ft4Exchange.Final73;
         if (TryReport(exchange, out _))
-            return exchange.StartsWith('R') ? Ft4Exchange.Rr73 : Ft4Exchange.RogerReport;
+        {
+            if (exchange.StartsWith('R')) return ReportSent.HasValue ? Ft4Exchange.Rr73 : null;
+            return Ft4Exchange.RogerReport;
+        }
         if (Regex.IsMatch(exchange, "^[A-R]{2}[0-9]{2}$")) return Ft4Exchange.Report;
         return null;
     }

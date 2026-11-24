@@ -106,6 +106,7 @@ app.MapFt4Results();
 app.MapCwResults();
 app.MapStationCatalog();
 app.MapTimedFt4();
+app.MapAutoFt4();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
 if (webUiAvailable) app.MapFallbackToFile("index.html");

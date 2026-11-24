@@ -60,12 +60,18 @@ public static class TimedFt4Endpoints
         // Encode and seal before keying; choose next parity with >=2 s lead.
         long index = (now + 2_000_000_000 + slot - 1) / slot;
         if ((index % 2 == 1) != odd) index++;
+        return TargetForSlot(index);
+    }
+
+    internal static long TargetForSlot(long index)
+    {
+        const long slot = 7_500_000_000;
         long delay = long.TryParse(Environment.GetEnvironmentVariable("SKYROOF_FT4_TX_DELAY_MS"),
             out long ms) ? ms : 0;
         return checked(index * slot + 150_000_000 - delay * 1_000_000);
     }
 
-    private static async Task<bool> IsOperatorAsync(HttpContext context)
+    internal static async Task<bool> IsOperatorAsync(HttpContext context)
     {
         if (!await LiveAudioWebSocket.StillAuthorizedAsync(context)) return false;
         var users = context.RequestServices.GetRequiredService<UserManager<StationUser>>();
@@ -75,7 +81,7 @@ public static class TimedFt4Endpoints
         return roles.Contains("Operator") || roles.Contains("Administrator");
     }
 
-    private static async Task<TimedTxReceipt> AwaitAuthorizedAsync(HttpContext context,
+    internal static async Task<TimedTxReceipt> AwaitAuthorizedAsync(HttpContext context,
         Task<TimedTxReceipt> running, CancellationTokenSource lifetime)
     {
         while (!running.IsCompleted)
