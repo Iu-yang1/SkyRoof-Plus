@@ -29,13 +29,13 @@ internal sealed class IssOemRefreshService(IOrbitBackend backend,
     {
         if (backend is not OrekitOrbitBackend || !AutoEnabled) return;
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-        var source = new Uri(Environment.GetEnvironmentVariable("SKYROOF_ISS_OEM_URL") ?? DefaultUrl);
         string path = CachePath;
         while (!stoppingToken.IsCancellationRequested)
         {
             bool success = false;
             try
             {
+                var source = new Uri(Environment.GetEnvironmentVariable("SKYROOF_ISS_OEM_URL") ?? DefaultUrl);
                 await IssOemCacheRefresh.RefreshAsync(client, source, path, DateTimeOffset.UtcNow, stoppingToken);
                 logger.LogInformation("ISS OEM cache refreshed from {Source}", source.Host);
                 success = true;

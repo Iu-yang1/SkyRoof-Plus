@@ -6,9 +6,10 @@ internal static partial class CatalogOnlineFixture
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
-            string body = request.RequestUri!.AbsolutePath switch
+            var uri = request.RequestUri ?? throw new InvalidOperationException("Missing fixture URI.");
+            string body = uri.AbsolutePath switch
             {
-                "/api/satellites/" when request.RequestUri.Query.Contains("page=2", StringComparison.Ordinal) =>
+                "/api/satellites/" when uri.Query.Contains("page=2", StringComparison.Ordinal) =>
                     """[{"sat_id":"satnogs-100002","norad_cat_id":100002,"name":"Online Test","status":"in orbit"}]""",
                 "/api/satellites/" =>
                     """{"results":[{"sat_id":"fixture-100001","norad_cat_id":100001,"name":"OMM Test","status":"in orbit"}],"next":"?page=2"}""",
@@ -17,7 +18,7 @@ internal static partial class CatalogOnlineFixture
                 "/api/tle/" =>
                     """[{"sat_id":"unused","norad_cat_id":5,"tle1":"1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753","tle2":"2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667"}]""",
                 "/gp.csv" => Csv,
-                _ => throw new InvalidOperationException("Unexpected catalog request: " + request.RequestUri)
+                _ => throw new InvalidOperationException("Unexpected catalog request: " + uri)
             };
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) });
         }

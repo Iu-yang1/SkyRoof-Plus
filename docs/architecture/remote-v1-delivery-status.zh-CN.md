@@ -207,3 +207,30 @@ CW：通过 Web 工作台显式启用接收处理，避免在未使用 CW 时持
 Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json（建议 C:/SkyRoofRemote/data/Satellites.json）。该增量只读，不修改桌面缓存，不自动声称死活/轨道数据实时准确。用户可以手工输入或修正频率和 TLE。OMM 自动跟踪、轨道缓存源自动获取、当地自定义记录刷新与模式/CTCSS 联动尚待实施。
 
 质量证据：`ab1326d` 的 [aislop 45314259461](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45314259461) 报告 6 项，其中 rtc_voice_track.cpp OfferedAudio::payloadType 无初始化已在 `488ca57` 修正；另 5 项来自同期 master 的 EarthViewPanel/Designer，当前 Remote 分支未改动该模块，不以降低门禁或回退地图功能处理。上一轮 `8babd43` 的 Media、DSP、aislop 已通过；完整 HTTP FT4 包与 Opus 浏览器测试仍需最终 CI。当前最新提交的 CI 排队，不能用历史成功代替。未执行 IC-9700 实机、真实公网、24h 稳定性验收；不合并 master，不发布正式 Release。
+
+
+## 2026-11-24 — OMM、NASA OEM 与台站在线卫星目录
+
+本节为最新增量，优先于旧段落中“OMM-only 不支持”“OEM 仅本地文件”的描述。仍未达到正式 V1.7 发布标准。
+
+### 本轮提交与证据
+
+| 提交 | 结果 |
+|---|---|
+| `aef061b`、`6f2393b` | Station 按选定 catalog satellite ID 每次跟踪 tick 解析最新 TLE/OMM，OMM 原格式直接 CreateOmmTrack，保留六位 NORAD；Web FOLLOW STATION ORBIT 可关闭以手工输入 TLE；认证 SignalR fixture 对比独立 SGP.NET 几何距离和径向速度。修正 RadioLink 引入的 Tracking DTO 与音频注释 aislop 告警。 |
+| `f80f410`、`739a3d6` | NASA ISS OEM 自动刷新、6 小时周期，失败 15 分钟重试；解析且存在未过期覆盖段后原子更新，旧有效文件保留；新增独立 OEM 非均匀采样、分段间隙、坐标转换、径向速度以及无效/过期/HTTP 失败保持缓存测试；手动 workflow_dispatch 可选真实 NASA 文本 OEM 源矢量验证。 |
+| `33475d4` | 使用 GitHub 已验证两父节点的无冲突 merge preview tree，同步 master `e6a1c3c`（极区地图点击修复及 v1.89 基线）至 Remote 开发分支；不修改 master，不合并 PR #254。 |
+| `37c2fef`、`6a3a590` | Station 独立 SatNOGS 卫星/转发器/TLE 与 CelesTrak OMM CSV 下载，分页处理、两套原子 sidecar 缓存，按真实轨道历元合并、保留本地自定义转发器及手动轨道优先级；模拟 HTTP 多页/CSV、旧轨道竞争、本地记录保留与认证 Station API 测试。 |
+
+实际已验证的旧提交：`b2a4026` 的 [独立 DSP 45315929579](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45315929579) 已通过真 PCM 两载波 CW：日志记录 90 次跟踪周期、5 次 NewCW 推理窗口、0 次跳过，且 Epoch 重置通过；FT4 native round-trip、UTC live window、AF 1/2.5 kHz 也通过。这证明 CW 接收路径和推理调度，尚不代表八路实际文本准确率或全部 ONNX 实测通过。原 `8babd43` 20/21 项 CI 成功、发布包仍排队。
+
+质量：`1e2791f` [Compile Check 45316275587](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45316275587) 主工程成功构建，1825 测试通过，唯一失败为当时 master 南极地图回环；已同步后续修正 master `e6a1c3c`。旧 `2d72de7` 的 [aislop 45316527712](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45316527712) 两项非基线告警（Tracking DTO 多参数、AudioPanel 注释）已在 `aef061b` 修复，未削弱规则或更新 baseline。最新 SHA CI 尚在排队，不得标为通过。
+
+### 数据源配置
+
+- `SKYROOF_ISS_OEM_AUTO=true`：启动后台自动刷新。默认 NASA JSC 公共 KVN 地址 https://nasa-public-data.s3.amazonaws.com/iss-coords/current/ISS_OEM/ISS.OEM_J2K_EPH.txt；可用 `SKYROOF_ISS_OEM_URL` 覆盖。未指定路径时使用 LocalApplicationData/SkyRoof/Remote/orbits；若显式指定手工文件路径而没有设置 AUTO，默认不覆盖它。自动刷新不会外推过期或分段间隙星历。
+- `SKYROOF_CATALOG_AUTO=true`（默认开启）：SatNOGS 24 小时，CelesTrak 6 小时；`SKYROOF_SATNOGS_API` 和 `SKYROOF_CELESTRAK_OMM_URL` 支持配置来源。SatNOGS 公开 API 文档 https://docs.satnogs.org/projects/satnogs-db/en/stable/api.html；CelesTrak OMM 格式/使用政策 https://celestrak.org/NORAD/documentation/gp-data-formats.php。
+- `SKYROOF_SATELLITE_CATALOG` 原桌面缓存为只读；在线 sidecar 分别为该路径加 .satnogs.json 和 .celestrak.json，独立刷新，失败不破坏上一有效文件。远端目录并非卫星实时转发器开关状态保证。
+- 确定性 E2E 禁用真实外部刷新，使用 HTTP fixture 和实际跨进程 Station。真实 NASA 网络测试可在 Remote Authenticated Host Station Device E2E 的手动触发选择 verify_live_nasa；当前工具未成功取得 NASA 文件，不能标记真实源测试通过。
+
+剩余关键缺口：最新 CI、完整线上数据源覆盖（AutoTLE、JE9PEL、satyaml、当地自定义配置实时编辑、全部模式/CTCSS 联动）、ISS 真星历及实机跟踪验证、WSJT-X CAT/PCM Bridge、自动 FT4 sequencer、CW TX/WPM/宏/完整历史、Q65、Telemetry、SDR/ONVIF、WinForms 全量 IPC、多站点和生产 ACL、安装器及升级/回滚、公网和长时测试。仍保持 Draft，不提前正式发布。API 提交未验证密码学签名。
