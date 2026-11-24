@@ -72,12 +72,10 @@ namespace SkyRoof
       using var image = Image.FromStream(stream, false, true);
       if (image.Width != 256 || image.Height != 256)
         throw new InvalidDataException("Unexpected WMTS tile dimensions");
-      using var bitmap = new Bitmap(256, 256, PixelFormat.Format32bppArgb);
-      using (var graphics = Graphics.FromImage(bitmap))
-      {
-        graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-        graphics.DrawImageUnscaled(image, 0, 0);
-      }
+      if (image is not Bitmap bitmap)
+        throw new InvalidDataException("WMTS response is not a raster bitmap");
+      // LockBits requests straight-alpha BGRA directly from the decoder,
+      // avoiding Graphics.DrawImage's premultiply/unpremultiply round trip.
       var data = bitmap.LockBits(new Rectangle(0, 0, 256, 256),
         ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
       try

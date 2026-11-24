@@ -134,6 +134,30 @@ public sealed class EarthMapEngineTests
   }
 
   [Fact]
+  public void TileDecoderAcceptsIndexedPngAndOpaqueJpeg()
+  {
+    using var bitmap = new Bitmap(256, 256, PixelFormat.Format24bppRgb);
+    using (var graphics = Graphics.FromImage(bitmap))
+      graphics.Clear(Color.FromArgb(64, 128, 192));
+    using var jpeg = new MemoryStream();
+    bitmap.Save(jpeg, ImageFormat.Jpeg);
+    byte[] pixels = TiandituMapSource.DecodeTile(jpeg.ToArray());
+    Assert.Equal(255, pixels[3]);
+    Assert.InRange((int)pixels[0], 189, 195);
+    Assert.InRange((int)pixels[1], 125, 131);
+    Assert.InRange((int)pixels[2], 61, 67);
+
+    using var indexed = new Bitmap(256, 256, PixelFormat.Format8bppIndexed);
+    var palette = indexed.Palette;
+    palette.Entries[0] = Color.FromArgb(255, 12, 34, 56);
+    indexed.Palette = palette;
+    using var png = new MemoryStream();
+    indexed.Save(png, ImageFormat.Png);
+    Assert.Equal(new byte[] { 56, 34, 12, 255 },
+      TiandituMapSource.DecodeTile(png.ToArray())[..4]);
+  }
+
+  [Fact]
   public void OfflineDefaultAndDpapiKeySerialization()
   {
     var settings = new EarthMapSettings();
