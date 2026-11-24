@@ -12,7 +12,7 @@ internal static class IssOemSuite
         string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".oem");
         try
         {
-            File.WriteAllText(path, Header + Segment("00:00", "00:02", 0) + Segment("00:04", "00:06", 240));
+            File.WriteAllText(path, Fixture);
             var track = new OrekitIssOemTrack(path);
             var start = new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero);
             var midpoint = start.AddSeconds(60);
@@ -35,10 +35,12 @@ internal static class IssOemSuite
                 track.Observe(ground, midpoint.AddSeconds(-1)).RangeMetres) / 2;
             if (Math.Abs(rangeRate - track.Observe(ground, midpoint).RangeRateMetresPerSecond) > 3)
                 throw new InvalidOperationException("ISS OEM topocentric Doppler sign/range-rate failed.");
-            Console.WriteLine("PASS: synthetic ISS OEM EME2000 PV interpolation, segment gap, frame and range-rate");
+            Console.WriteLine("PASS: synthetic ISS OEM EME2000 PV interpolation, nonuniform segment interpolation, gap, frame and range-rate");
         }
         finally { File.Delete(path); }
     }
+
+    internal static string Fixture => Header + Segment("00:00", "00:02", 0) + Segment("00:04", "00:06", 240);
 
     private const string Header = """
         CCSDS_OEM_VERS = 2.0
@@ -65,7 +67,7 @@ internal static class IssOemSuite
             INTERPOLATION_DEGREE = 2
             META_STOP
             {Row(0)}
-            {Row(60)}
+            {Row(45)}
             {Row(120)}
 
             """ + "\n";

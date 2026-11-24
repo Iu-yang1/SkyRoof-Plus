@@ -6,6 +6,11 @@ on:
   pull_request:
     paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Ipc.Contracts/**','protocols/ipc/device_control.proto','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Device.Integration/FakeRigctld.cs','.github/workflows/remote-end-to-end.yml']
   workflow_dispatch:
+    inputs:
+      verify_live_nasa:
+        description: 'Validate latest NASA ISS OEM against source knots (network required)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -41,6 +46,16 @@ jobs:
           ) | ForEach-Object {
             if (-not (Test-Path $_)) { throw "Expected built process missing: $_" }
           }
+      - name: Verify OEM interpolation and last-good cache independently of desktop tests
+        run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release -- --iss-oem-only SkyRoof.Orbit.Orekit.Smoke/TestData
+      - name: Verify NASA live OEM source vectors
+        if: github.event_name == 'workflow_dispatch' && inputs.verify_live_nasa
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'ISS.OEM_J2K_EPH.txt'
+          Invoke-WebRequest 'https://nasa-public-data.s3.amazonaws.com/iss-coords/current/ISS_OEM/ISS.OEM_J2K_EPH.txt' -OutFile $path
+          dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release -- --iss-oem-live SkyRoof.Orbit.Orekit.Smoke/TestData $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Execute real three-process authorized CAT transaction test (Orekit)
         env:
           SKYROOF_TEST_ORBIT_BACKEND: orekit
