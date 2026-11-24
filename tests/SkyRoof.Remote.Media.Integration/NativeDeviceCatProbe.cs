@@ -35,6 +35,7 @@ internal static class NativeDeviceCatProbe
         await SendAsync(cat, new() { Operation = DeviceOperation.DeviceTxMode, Mode = "USB-D" }, ct);
         await CheckPttAsync(cat, fake, ct);
         await NativeTimedTxProbe.RunAsync(cat, fake, ct);
+        await NativeTimedTxInterruptionProbe.RunAsync(cat, ct);
         Console.WriteLine("PASS: independent native satellite CAT via Device IPC; MAIN/SUB and PTT ownership.");
     }
 
