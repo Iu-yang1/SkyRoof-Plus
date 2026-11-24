@@ -5,8 +5,17 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Dsp;
 
-public sealed class DspWaveformService : DspWaveform.DspWaveformBase
+public sealed class DspWaveformService(CwLiveReceiver cw) : DspWaveform.DspWaveformBase
 {
+    public override Task<CwRxConfiguration> ConfigureCw(CwRxConfiguration request, ServerCallContext context)
+    {
+        if (!Enum.TryParse<SkyRoof.CW.CwDecoderMode>(request.Mode, true, out var mode) ||
+            !Enum.IsDefined(mode))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown CW decoder mode."));
+        cw.Configure(request.Enabled, mode);
+        return Task.FromResult(request);
+    }
+
     public override Task<EncodedWaveform> EncodeFt4(Ft4EncodeRequest request, ServerCallContext context)
     {
         try

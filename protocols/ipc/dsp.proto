@@ -3,6 +3,7 @@ package skyroof.remote.ipc.v1;
 option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service DspWaveform {
+  rpc ConfigureCw(CwRxConfiguration) returns (CwRxConfiguration);
   rpc EncodeFt4(Ft4EncodeRequest) returns (EncodedWaveform);
 }
 message Ft4EncodeRequest {
@@ -14,4 +15,9 @@ message EncodedWaveform {
   bytes pcm16 = 1;
   int32 sample_rate = 2;
   string sha256 = 3;
+}
+
+message CwRxConfiguration {
+  bool enabled = 1;
+  string mode = 2;
 }

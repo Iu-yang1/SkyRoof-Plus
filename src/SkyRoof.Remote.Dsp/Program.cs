@@ -20,13 +20,14 @@ if (args is ["--ft4-decode", var pcmPath])
     Ft4Command.DecodeFile(pcmPath);
     return;
 }
-await using var ipc = await DspIpcHost.StartAsync();
 var inputName = Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_BUS") ?? "skyroof-rx-audio";
 var outputName = Environment.GetEnvironmentVariable("SKYROOF_AF_SPECTRUM_BUS") ?? "skyroof-af-spectrum";
 var channels = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_CHANNELS"),
     out var requested) ? requested : 1;
 if (channels is < 1 or > 2) throw new ArgumentException("Invalid RX channel count.");
 
+await using var cw = new CwLiveReceiver(channels);
+await using var ipc = await DspIpcHost.StartAsync(cw);
 using var spectrum = new NamedSignalRing(outputName, slots: 64, payloadCapacity: 4096,
     initialEpoch: (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
 var analyzer = new AudioSpectrumTransform();
@@ -54,6 +55,7 @@ while (true)
                 spectrum.ResetEpoch((ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
             }
             ft4.Accept(frame);
+            cw.Accept(frame);
             var oldDiscontinuities = analyzer.Discontinuities;
             analyzer.Accept(frame, channels, (firstSample, db) =>
                 {
