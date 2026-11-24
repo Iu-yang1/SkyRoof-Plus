@@ -13,8 +13,7 @@ internal sealed class StationCatalogRefreshService(ILogger<StationCatalogRefresh
         http.DefaultRequestHeaders.UserAgent.ParseAdd("SkyRoof-Remote/1.7");
         await Task.WhenAll(
             RunSourceAsync("SatNOGS", CatalogPaths.Satnogs, TimeSpan.FromHours(24),
-                ct => CatalogOnlineFetcher.FetchSatnogsAsync(http, new Uri(
-                    Environment.GetEnvironmentVariable("SKYROOF_SATNOGS_API") ?? SatnogsApi), ct), stoppingToken),
+                ct => CatalogOnlineFetcher.FetchSatnogsAsync(http, new Uri((Environment.GetEnvironmentVariable("SKYROOF_SATNOGS_API") ?? SatnogsApi).TrimEnd('/') + "/"), ct), stoppingToken),
             RunSourceAsync("CelesTrak", CatalogPaths.Celestrak, TimeSpan.FromHours(6),
                 ct => CatalogOnlineFetcher.FetchCelestrakAsync(http, new Uri(
                     Environment.GetEnvironmentVariable("SKYROOF_CELESTRAK_OMM_URL") ?? CelestrakApi), ct), stoppingToken));

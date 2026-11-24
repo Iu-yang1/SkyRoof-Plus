@@ -29,7 +29,7 @@ internal static class CatalogChecks
                 status = "in orbit",
                 AutomaticTle = new { tle1 = "", tle2 = "", tle_source = "OMM fixture", omm = OmmFixture.Data() },
                 Transmitters = new[] { new { uuid = "omm-tx", description = "Beacon",
-                    alive = true, downlink_low = 145900000L, mode = "USB" } }
+                    alive = true, downlink_low = 145900000L, mode = "USB", local_custom = true } }
             }
         }));
     }

@@ -22,6 +22,7 @@ var db = Path.Combine(Path.GetTempPath(), "skyroof-e2e-db-" + suffix + ".db");
 var trackingFile = Path.Combine(Path.GetTempPath(), "skyroof-e2e-tracking-" + suffix + ".json");
 var catalogFile = Path.Combine(Path.GetTempPath(), "skyroof-e2e-catalog-" + suffix + ".json");
 CatalogChecks.WriteFixture(catalogFile);
+await CatalogOnlineFixture.WriteSnapshotsAsync(catalogFile);
 
 var listener = new TcpListener(IPAddress.Loopback, 0);
 listener.Start();
@@ -94,6 +95,7 @@ try
         new { userName = "remote-admin", password = "SimulatedStationP@ssw0rd2026" }))
         .EnsureSuccessStatusCode();
     await CatalogChecks.RunAsync(anonymous, admin);
+    await CatalogOnlineFixture.VerifyStationAsync(admin);
     var tokenReply = await admin.PostAsJsonAsync("/api/v1/auth/tokens",
         new { name = "end-to-end" });
     tokenReply.EnsureSuccessStatusCode();
@@ -227,6 +229,8 @@ finally
     if (File.Exists(journal)) File.Delete(journal);
     if (File.Exists(trackingFile)) File.Delete(trackingFile);
     File.Delete(catalogFile);
+    File.Delete(catalogFile + ".satnogs.json");
+    File.Delete(catalogFile + ".celestrak.json");
 }
 static void Ensure(bool valid, string message)
 {

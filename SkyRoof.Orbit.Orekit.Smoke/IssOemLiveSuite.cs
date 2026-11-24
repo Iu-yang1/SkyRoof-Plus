@@ -17,9 +17,10 @@ internal static class IssOemLiveSuite
             var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (fields.Length != 7 || !DateTimeOffset.TryParse(fields[0], CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal, out var utc) || !track.Covers(utc)) continue;
+            utc = utc.ToUniversalTime();
             var values = fields.Skip(1).Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
             var date = new AbsoluteDate(utc.UtcDateTime.Year, utc.UtcDateTime.Month, utc.UtcDateTime.Day,
-                utc.Hour, utc.Minute, utc.Second + utc.Millisecond / 1000.0, TimeScalesFactory.getUTC());
+                utc.Hour, utc.Minute, utc.Second + (utc.Ticks % TimeSpan.TicksPerSecond) / (double)TimeSpan.TicksPerSecond, TimeScalesFactory.getUTC());
             var expected = FramesFactory.getEME2000().getTransformTo(FramesFactory.getTEME(), date)
                 .transformPosition(new Vector3D(values[0] * 1000, values[1] * 1000, values[2] * 1000));
             var actual = track.PredictTeme(utc);

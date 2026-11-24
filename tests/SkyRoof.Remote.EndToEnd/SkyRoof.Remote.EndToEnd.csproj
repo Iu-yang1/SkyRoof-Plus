@@ -15,6 +15,11 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogCacheModels.cs" Link="CatalogCacheModels.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.cs" Link="CatalogOnlineFetcher.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.Pagination.cs" Link="CatalogOnlineFetcher.Pagination.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogMerge.cs" Link="CatalogMerge.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogMerge.Epoch.cs" Link="CatalogMerge.Epoch.cs" />
     <Compile Include="../../src/SkyRoof.Remote.Station/StationOrekitEopBootstrap.cs" Link="StationOrekitEopBootstrap.cs" />
     <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.cs"
       Link="FakeRigctld.cs" />

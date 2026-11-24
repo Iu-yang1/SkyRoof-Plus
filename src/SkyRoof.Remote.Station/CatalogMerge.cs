@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace SkyRoof.Remote.Station;
 
 internal static partial class CatalogMerge

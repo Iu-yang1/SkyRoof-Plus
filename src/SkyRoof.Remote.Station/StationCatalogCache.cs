@@ -62,7 +62,7 @@ public sealed class StationCatalogCache
         : [];
 
     private static bool Matches(CatalogCacheSatellite entry, string query) =>
-        query.Length == 0 || entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+        query.Length == 0 || (entry.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
         (entry.Names?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
         (entry.AllNames?.Any(n => n.Contains(query, StringComparison.OrdinalIgnoreCase)) ?? false) ||
         entry.Norad?.ToString(CultureInfo.InvariantCulture) == query;
@@ -73,7 +73,7 @@ public sealed class StationCatalogCache
         var result = new CatalogSatellite
         {
             SatelliteId = entry.SatelliteId, Norad = entry.Norad ?? 0,
-            Name = entry.Name, Status = entry.Status,
+            Name = entry.Name ?? entry.SatelliteId, Status = entry.Status ?? "",
             TleLine1 = orbit?.HasTle == true ? orbit.Tle1 : "",
             TleLine2 = orbit?.HasTle == true ? orbit.Tle2 : "",
             OrbitSource = orbit?.Source ?? "",
@@ -85,7 +85,7 @@ public sealed class StationCatalogCache
 
     private static CatalogTransmitter MapTransmitter(CatalogCacheTransmitter tx) => new()
     {
-        Id = tx.Id, Description = tx.Description, Alive = tx.Alive, Status = tx.Status ?? "",
+        Id = tx.Id, Description = tx.Description ?? "", Alive = tx.Alive, Status = tx.Status ?? "",
         Mode = tx.DownlinkMode ?? tx.Mode ?? "", UplinkMode = tx.UplinkMode ?? "",
         Link = new RadioLinkProfile
         {
