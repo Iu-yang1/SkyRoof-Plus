@@ -1,12 +1,18 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { useMediaRxStatus } from './useMediaRxStatus';
+import { PcmTimeline } from './PcmTimeline';
 
 type Playback = { context: AudioContext; socket: WebSocket; node: AudioWorkletNode };
 export function AudioPanel() {
   const workspaceActive = useContext(WorkspaceActiveContext);
   const hub = useContext(DeviceHubContext);
   const playback = useRef<Playback | null>(null);
+  const starting = useRef(false);
+  const generation = useRef(0);
+  const active = useRef(workspaceActive);
+  active.current = workspaceActive;
+  const timeline = useRef(new PcmTimeline());
   const [status, setStatus] = useState('RX AUDIO OFF');
   const [frames, setFrames] = useState(0);
   const [bufferedMs, setBufferedMs] = useState(0);
@@ -14,6 +20,9 @@ export function AudioPanel() {
   const { media, mediaMessage } = useMediaRxStatus(hub);
 
   function stop() {
+    generation.current++;
+    starting.current = false;
+    timeline.current.reset();
     const current = playback.current;
     playback.current = null;
     if (current) {
@@ -25,12 +34,15 @@ export function AudioPanel() {
   }
 
   async function start() {
-    if (playback.current || !workspaceActive || !hub) return;
+    if (playback.current || starting.current || !workspaceActive || !hub) return;
+    starting.current = true;
+    const attempt = ++generation.current;
     setStatus('CONNECTING...');
     let context: AudioContext | null = null;
     try {
       context = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
       await context.audioWorklet.addModule('/pcm-player.worklet.js');
+      if (attempt !== generation.current) { await context.close(); return; }
       const node = new AudioWorkletNode(context, 'skyroof-pcm-player', {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2]
       });
@@ -40,48 +52,36 @@ export function AudioPanel() {
       socket.binaryType = 'arraybuffer';
       playback.current = { context, node, socket };
       let count = 0;
-      let lastSequence = -1n;
-      let lastEpoch = -1;
+      timeline.current.reset();
       node.port.onmessage = (event: MessageEvent<{ kind: string;
         underruns: number; bufferedMilliseconds: number }>) => {
         if (event.data.kind !== 'statistics') return;
         setUnderruns(event.data.underruns);
         setBufferedMs(event.data.bufferedMilliseconds);
       };
-      socket.onopen = () => setStatus('WSS PCM16 · 48 kHz');
-      socket.onclose = () => setStatus('WSS DISCONNECTED');
-      socket.onerror = () => setStatus('WSS ERROR');
+      socket.onopen = () => { if (attempt === generation.current) setStatus('WSS PCM16 · 48 kHz'); };
+      socket.onclose = () => {
+        if (attempt !== generation.current) return;
+        stop();
+        setStatus('WSS DISCONNECTED · PLAY RX to reconnect');
+      };
+      socket.onerror = () => { if (attempt === generation.current) setStatus('WSS ERROR'); };
       socket.onmessage = (event: MessageEvent<ArrayBuffer>) => {
-        const view = new DataView(event.data);
-        if (view.byteLength < 52 || view.getUint32(0, true) !== 0x31504153 ||
-            view.getUint8(4) !== 1 || view.getUint8(5) !== 2) return;
-        const epoch = view.getUint32(12, true);
-        const sequence = view.getBigUint64(16, true);
-        const rate = view.getUint32(40, true);
-        const sampleFrames = view.getUint16(44, true);
-        const channels = view.getUint8(46);
-        const length = view.getUint32(48, true);
-        if (rate !== 48000 || (channels !== 1 && channels !== 2) ||
-            length !== sampleFrames * channels * 2 ||
-            view.byteLength !== 52 + length) return;
-        if (lastEpoch === epoch && sequence <= lastSequence) return;
-        if (lastEpoch !== epoch) lastSequence = -1n;
-        lastEpoch = epoch;
-        lastSequence = sequence;
-        const pcm = new Float32Array(sampleFrames * channels);
-        for (let i = 0; i < pcm.length; ++i)
-          pcm[i] = view.getInt16(52 + 2 * i, true) / 32768;
-        node.port.postMessage({ kind: 'samples', samples: pcm,
-          channels, epoch }, [pcm.buffer]);
+        if (attempt !== generation.current || !active.current) return;
+        const packet = timeline.current.accept(event.data);
+        if (!packet) return;
+        if (packet.discontinuity) node.port.postMessage({ kind: 'reset' });
+        node.port.postMessage({ kind: 'samples', ...packet }, [packet.samples.buffer]);
         count++;
         if (count % 15 === 0) setFrames(count);
       };
-      if (workspaceActive) await context.resume();
+      if (active.current) await context.resume();
+      else await context.suspend();
     } catch (error) {
-      if (context) await context.close();
-      playback.current?.socket.close();
-      playback.current = null;
-      setStatus(String(error));
+      if (attempt === generation.current) { stop(); setStatus(String(error)); }
+      if (context && context.state !== 'closed') await context.close();
+    } finally {
+      if (attempt === generation.current) starting.current = false;
     }
   }
 
@@ -90,6 +90,8 @@ export function AudioPanel() {
   useEffect(() => {
     const current = playback.current;
     if (!current) return;
+    timeline.current.reset();
+    current.node.port.postMessage({ kind: 'reset' });
     if (workspaceActive) void current.context.resume();
     else void current.context.suspend();
   }, [workspaceActive]);

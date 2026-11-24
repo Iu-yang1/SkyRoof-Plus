@@ -11,13 +11,10 @@ class SkyRoofPcmPlayer extends globalThis.AudioWorkletProcessor {
     this.callbacks = 0;
     this.port.onmessage = event => {
       const packet = event.data;
+      if (packet.kind === 'reset') { this.reset(); return; }
       if (packet.kind !== 'samples') return;
       if (this.epoch !== packet.epoch) {
-        this.queue.length = 0;
-        this.current = null;
-        this.offset = 0;
-        this.queuedFrames = 0;
-        this.started = false;
+        this.reset();
         this.epoch = packet.epoch;
       }
       const frame = { samples: packet.samples, channels: packet.channels };
@@ -30,6 +27,15 @@ class SkyRoofPcmPlayer extends globalThis.AudioWorkletProcessor {
       }
       if (!this.started && this.queuedFrames >= 2880) this.started = true;
     };
+  }
+
+  reset() {
+    this.queue.length = 0;
+    this.current = null;
+    this.offset = 0;
+    this.queuedFrames = 0;
+    this.started = false;
+    this.epoch = -1;
   }
 
   process(_inputs, outputs) {
