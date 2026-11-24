@@ -38,6 +38,8 @@ public sealed partial class IcomLanCivSocket
         ushort type = BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(4, 2));
         if (packet.Length == 16 && type == 5)
             throw new IOException("Authenticated Icom CI-V UDP stream disconnected.");
+        if (type == 0)
+            _queries.Observe(packet, LocalSid, RemoteSid);
         if (packet.Length == 21 && type == 7 && packet[16] == 0 && packet[20] == 6)
         {
             var reply = packet.ToArray();
@@ -54,8 +56,8 @@ public sealed partial class IcomLanCivSocket
         if (now - _lastIdle >= TimeSpan.FromSeconds(1))
         {
             var idle = IcomLanControlCodec.ControlPacket(
-                0, unchecked(_outerSequence++), LocalSid, RemoteSid);
-            await _socket.SendAsync(idle, ct);
+                0, 0, LocalSid, RemoteSid);
+            await SendTrackedAsync(idle, ct);
             _lastIdle = now;
         }
         if (now - _lastPing >= TimeSpan.FromSeconds(3))
@@ -63,15 +65,13 @@ public sealed partial class IcomLanCivSocket
             byte[] ping = new byte[21];
             BinaryPrimitives.WriteUInt32LittleEndian(ping, 21);
             BinaryPrimitives.WriteUInt16LittleEndian(ping.AsSpan(4, 2), 7);
-            BinaryPrimitives.WriteUInt16LittleEndian(ping.AsSpan(6, 2),
-                unchecked(_outerSequence++));
             BinaryPrimitives.WriteUInt32BigEndian(ping.AsSpan(8, 4), LocalSid);
             BinaryPrimitives.WriteUInt32BigEndian(ping.AsSpan(12, 4), RemoteSid);
             ping[17] = RandomNumberGenerator.GetBytes(1)[0];
             BinaryPrimitives.WriteUInt16LittleEndian(ping.AsSpan(18, 2),
                 unchecked(_innerPingSequence++));
             ping[20] = 6;
-            await _socket.SendAsync(ping, ct);
+            await SendTrackedAsync(ping, ct);
             _lastPing = now;
         }
     }

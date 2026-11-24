@@ -17,7 +17,10 @@ public sealed partial class IcomLanCivSocket : IAsyncDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private Task? _maintenance;
     public Task MaintenanceTask => _maintenance ?? Task.CompletedTask;
-    private ushort _outerSequence = 1;
+    private int _outerSequence;
+    private readonly SemaphoreSlim _trackedSend = new(1, 1);
+    private readonly IcomLanCivQueries _queries = new();
+    public Task QueryFailureTask => _queries.FailureTask;
 
     private IcomLanCivSocket(UdpClient socket, uint localSid)
     {
@@ -88,19 +91,18 @@ public sealed partial class IcomLanCivSocket : IAsyncDisposable
     {
         byte[] packet = new byte[22];
         packet[0] = 22;
-        BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(6, 2),
-            unchecked(_outerSequence++));
         BinaryPrimitives.WriteUInt32BigEndian(packet.AsSpan(8, 4), LocalSid);
         BinaryPrimitives.WriteUInt32BigEndian(packet.AsSpan(12, 4), RemoteSid);
         packet[16] = 0xC0;
         packet[17] = 1;
         packet[21] = close ? (byte)0 : (byte)5;
-        return _socket.SendAsync(packet, ct).AsTask();
+        return SendTrackedAsync(packet, ct);
     }
 
     public async ValueTask DisposeAsync()
     {
         _lifetime.Cancel();
+        _queries.Stop();
         if (_maintenance is not null)
         {
             try { await _maintenance; }
