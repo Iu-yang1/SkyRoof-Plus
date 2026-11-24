@@ -30,8 +30,9 @@ public sealed partial class CwLiveReceiver
                         generation = item.Generation;
                         long session = ++_sessionId;
                         _results.ResetEpoch(NewEpoch());
+                        PublishState("waiting-for-audio");
                         active = new CwRemoteSession(_channels, item.Mode, frame,
-                            data => PublishSession(generation: item.Generation, session, data));
+                            data => PublishSession(item.Generation, session, data));
                     }
                 }
                 active.Accept(frame);

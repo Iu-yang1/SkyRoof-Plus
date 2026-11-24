@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Track = { id: number; frequencyHz: number; snrDb: number; driftHzPerSecond: number;
+type Track = { id: number; associationHintId: number; frequencyHz: number; snrDb: number; driftHzPerSecond: number;
   keying: string; active: boolean; confirmed: boolean };
 type Transcript = { trackId: number; associationHintId: number; committedText: string;
   provisionalText: string; lastWindowEndUtc: string };
@@ -61,7 +61,7 @@ export function CwReceivePanel({ available }: { available: boolean }) {
     <div className="readout">Decoded windows {state.completedInferenceWindows ?? 0} · skipped {state.skippedInferenceWindows ?? 0}</div>
     <table><thead><tr><th>AF Hz</th><th>Peak dB</th><th>State</th><th>Transcript</th></tr></thead>
       <tbody>{(state.tracks ?? []).map(track => {
-        const text = state.transcripts?.find(t => t.trackId === track.id);
+        const text = state.transcripts?.find(t => track.associationHintId ? t.associationHintId === track.associationHintId : t.trackId === track.id);
         return <tr key={track.id}>
           <td>{track.frequencyHz.toFixed(1)}</td><td>{track.snrDb.toFixed(1)}</td>
           <td>{track.keying}{track.active ? ' · RX' : ''}</td>
