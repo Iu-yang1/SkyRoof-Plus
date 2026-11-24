@@ -53,6 +53,7 @@ static void* create_peer(const char* ice_server, bool voice) {
         auto peer = std::make_unique<Peer>();
         rtcConfiguration config{};
         config.disableAutoNegotiation = voice;
+        config.forceMediaTransport = voice;
         if (voice) peer->voice = std::make_unique<VoiceTrack>();
         const char* servers[] = {ice_server};
         if (ice_server && *ice_server) {

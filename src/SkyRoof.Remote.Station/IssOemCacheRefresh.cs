@@ -10,7 +10,7 @@ internal static class IssOemCacheRefresh
         if (source.Scheme is not ("http" or "https"))
             throw new ArgumentException("ISS OEM source must be HTTP(S).");
         string path = Path.GetFullPath(target);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new ArgumentException("Cache path requires a parent directory."));
         string temp = path + "." + Guid.NewGuid().ToString("N") + ".part";
         try
         {

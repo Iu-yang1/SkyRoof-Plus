@@ -39,9 +39,8 @@ namespace SkyRoof.CW
       Context ctx,
       CwPcmIngress? ingress = null)
     {
-      this.ctx =
-        ctx ??
-        throw new ArgumentNullException(nameof(ctx));
+      ArgumentNullException.ThrowIfNull(ctx);
+      this.ctx = ctx;
       Ingress =
         ingress ??
         new CwPcmIngress(

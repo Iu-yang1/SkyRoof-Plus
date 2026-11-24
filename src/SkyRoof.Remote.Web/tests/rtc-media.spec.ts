@@ -65,6 +65,13 @@ test('packaged native RTC sends Opus RTP to a Chromium receive-only track', asyn
   const result = await page.evaluate(async () => {
     const peer = new RTCPeerConnection();
     peer.addTransceiver('audio', { direction: 'recvonly' });
+    const audio = document.createElement('audio');
+    audio.autoplay = true;
+    document.body.append(audio);
+    peer.ontrack = event => {
+      audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+      void audio.play().catch(() => undefined);
+    };
     const signal = new WebSocket('ws://' + location.host + '/ws/rtc-voice');
     try {
       await peer.setLocalDescription(await peer.createOffer());
@@ -89,8 +96,12 @@ test('packaged native RTC sends Opus RTP to a Chromium receive-only track', asyn
       signal.send(peer.localDescription?.sdp ?? '');
       await peer.setRemoteDescription({ type: 'answer', sdp: await answer });
       const end = performance.now() + 12000;
+      let diagnostic = '';
       while (performance.now() < end) {
         const stats = await peer.getStats();
+        diagnostic = JSON.stringify({ connection: peer.connectionState, ice: peer.iceConnectionState,
+          tracks: peer.getReceivers().map(r => ({ muted: r.track.muted, state: r.track.readyState })),
+          stats: Array.from(stats.values()).filter(s => ['inbound-rtp', 'codec', 'transport'].includes(s.type)) });
         for (const item of stats.values()) {
           if (item.type !== 'inbound-rtp' || item.kind !== 'audio' || item.packetsReceived < 5 || !(item.totalSamplesReceived > 0))
             continue;
@@ -101,8 +112,8 @@ test('packaged native RTC sends Opus RTP to a Chromium receive-only track', asyn
         }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      throw new Error('No decoded Opus RTP in Chromium');
-    } finally { signal.close(); peer.close(); }
+      throw new Error('No decoded Opus RTP in Chromium: ' + diagnostic);
+    } finally { audio.remove(); signal.close(); peer.close(); }
   });
   expect(result).toEqual({ codec: 'audio/opus', clock: 48000, decoded: true });
 });

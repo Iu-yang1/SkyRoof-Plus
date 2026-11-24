@@ -40,6 +40,7 @@ jobs:
             dotnet publish "src/SkyRoof.Remote.$part/SkyRoof.Remote.$part.csproj" -c Release -r win-x64 --self-contained false -o "artifacts/remote-v1/$part"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+          ./scripts/download-orekit-de430.ps1 -DataDirectory artifacts/remote-v1/Station/orekit-data
           if (-not (Test-Path artifacts/remote-v1/Host/wwwroot/index.html)) { throw 'React assets missing' }
           Copy-Item deploy/remote artifacts/remote-v1/configuration-examples -Recurse -Force
       - name: Install tested native RTC runtime into Host package
@@ -69,11 +70,13 @@ jobs:
             npx playwright install chromium
             if ($LASTEXITCODE -ne 0) { throw 'Chromium install failed' }
             npx playwright test tests/rtc-media.spec.ts --config playwright.config.ts
-            if ($LASTEXITCODE -ne 0) { throw 'RTC browser test failed' }
+            $rtcExit = $LASTEXITCODE
             Pop-Location
+            if ($rtcExit -ne 0) { throw 'RTC browser test failed' }
           } finally {
             if (-not $sourceProcess.HasExited) { Stop-Process -Id $sourceProcess.Id -Force }
             if (-not $hostProcess.HasExited) { Stop-Process -Id $hostProcess.Id -Force }
+            Get-Content artifacts/rtc-host.log -Tail 100
             Get-Content artifacts/rtc-host.err -Tail 50
           }
       - name: Build end-to-end simulation harness

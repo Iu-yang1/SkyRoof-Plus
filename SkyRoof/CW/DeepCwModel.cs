@@ -31,8 +31,8 @@ namespace SkyRoof.CW
 
     public static DeepCwModelMetadata Parse(string json)
     {
-      DeepCwModelMetadata value =
-        JsonSerializer.Deserialize<DeepCwModelMetadata>(json) ??
+      var value = JsonSerializer.Deserialize<DeepCwModelMetadata>(json);
+      if (value is null)
         throw new InvalidDataException("DeepCW metadata is empty.");
       value.Validate();
       return value;

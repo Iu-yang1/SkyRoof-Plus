@@ -33,6 +33,10 @@
     <Compile Include="../../SkyRoof/CW/CwPileupTrackManager.cs" Link="Legacy/CW/CwPileupTrackManager.cs" />
     <Compile Include="../../SkyRoof/CW/CwRealFft.cs" Link="Legacy/CW/CwRealFft.cs" />
     <Compile Include="../../SkyRoof/CW/CwReceiveWorker.cs" Link="Legacy/CW/CwReceiveWorker.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorkerTypes.cs" Link="Legacy/CW/CwReceiveWorkerTypes.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Tracking.cs" Link="Legacy/CW/CwReceiveWorker.Tracking.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Inference.cs" Link="Legacy/CW/CwReceiveWorker.Inference.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Status.cs" Link="Legacy/CW/CwReceiveWorker.Status.cs" />
     <Compile Include="../../SkyRoof/CW/CwStationHypothesisManager.cs" Link="Legacy/CW/CwStationHypothesisManager.cs" />
     <Compile Include="../../SkyRoof/CW/CwStftMagnitudeCache.cs" Link="Legacy/CW/CwStftMagnitudeCache.cs" />
     <Compile Include="../../SkyRoof/CW/CwTrackIdentityResolver.cs" Link="Legacy/CW/CwTrackIdentityResolver.cs" />

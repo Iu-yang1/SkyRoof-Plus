@@ -55,7 +55,7 @@ internal static partial class CatalogOnlineFetcher
     internal static async Task SaveAsync(string path, CatalogCacheSatellite[] records, CancellationToken ct)
     {
         if (records.Length == 0) throw new InvalidDataException("An empty online catalog cannot replace a valid snapshot.");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new ArgumentException("Cache path requires a parent directory."));
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".part";
         try
         {

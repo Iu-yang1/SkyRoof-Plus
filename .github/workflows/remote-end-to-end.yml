@@ -46,6 +46,11 @@ jobs:
           ) | ForEach-Object {
             if (-not (Test-Path $_)) { throw "Expected built process missing: $_" }
           }
+      - name: Stage verified DE430 for OEM Earth body resolution
+        shell: pwsh
+        run: |
+          ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
+          Copy-Item SkyRoof.Orbit.Orekit.Smoke/TestData/lnxp1990.430 src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/orekit-data/
       - name: Verify OEM interpolation and last-good cache independently of desktop tests
         run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release -- --iss-oem-only SkyRoof.Orbit.Orekit.Smoke/TestData
       - name: Verify NASA live OEM source vectors
