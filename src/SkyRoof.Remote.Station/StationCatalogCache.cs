@@ -27,6 +27,18 @@ public sealed class StationCatalogCache
         }
     }
 
+    internal CatalogCacheTle ResolveOrbit(string satelliteId, DateTimeOffset utc)
+    {
+        lock (_gate)
+        {
+            Reload();
+            var satellite = _entries.FirstOrDefault(s => s.SatelliteId == satelliteId)
+                ?? throw new ArgumentException("Satellite is no longer present in the station catalog.");
+            return satellite.OrbitAt(utc) ??
+                throw new ArgumentException("Selected satellite has no usable orbit.");
+        }
+    }
+
     private void Reload()
     {
         var info = new FileInfo(_path);

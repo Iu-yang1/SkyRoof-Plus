@@ -44,6 +44,7 @@ message TrackingRequest {
   bool point_rotator = 11;
   double elevation_mask_degrees = 12;
   RadioLinkProfile radio_link = 13;
+  string catalog_satellite_id = 14; // resolved by Station on each tracking tick
 }
 message TrackingSnapshot {
   int32 norad_number = 1;

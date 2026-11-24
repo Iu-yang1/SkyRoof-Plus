@@ -59,7 +59,7 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
     internal TrackingSnapshot Calculate(TrackingRequest request)
     {
         try { return calculator.Predict(request); }
-        catch (Exception e) when (e is ArgumentException or FormatException or OverflowException)
+        catch (Exception e) when (e is ArgumentException or FormatException or OverflowException or IOException or Newtonsoft.Json.JsonException or System.Text.Json.JsonException)
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, e.Message));
         }

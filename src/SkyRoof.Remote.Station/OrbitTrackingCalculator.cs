@@ -3,10 +3,20 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Station;
 
-public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
+public sealed partial class OrbitTrackingCalculator
 {
+    private readonly IOrbitBackend backend;
+    private readonly StationCatalogCache catalog;
+
+    public OrbitTrackingCalculator(IOrbitBackend backend, StationCatalogCache catalog)
+    {
+        this.backend = backend;
+        this.catalog = catalog;
+    }
+
     private readonly object _sync = new();
     private string? _line1, _line2;
+    private OrbitMeanElements? _meanElements;
     private IOrbitTrack? _track;
     private readonly IssOemSource _issOem = new();
 
@@ -27,16 +37,11 @@ public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
         string orbitBackend, qualityPrefix;
         lock (_sync)
         {
-            if (_track is null || _line1 != request.TleLine1 || _line2 != request.TleLine2)
-            {
-                _track = backend.CreateTleTrack(request.TleLine1, request.TleLine2);
-                _line1 = request.TleLine1;
-                _line2 = request.TleLine2;
-            }
-            noradNumber = _track.NoradNumber;
-            var selected = _issOem.Select(backend, _track, utc);
+            var (track, source) = ResolveTrack(request, utc);
+            noradNumber = track.NoradNumber;
+            var selected = _issOem.Select(backend, track, utc);
             orbitBackend = selected.Backend;
-            qualityPrefix = selected.QualityPrefix;
+            qualityPrefix = source + selected.QualityPrefix;
             observed = selected.Track.Observe(new GroundStationSpec(request.LatitudeDegrees,
                 request.LongitudeDegrees, request.HeightMetres), utc);
         }

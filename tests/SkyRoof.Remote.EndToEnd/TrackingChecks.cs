@@ -15,10 +15,14 @@ internal static class TrackingChecks
         // physically meaningful, nondegenerate values at the known TLE epoch.
         var subpoint = new SgpNetOrbitBackend().CreateTleTrack(Tle1, Tle2)
             .PredictGeodetic(epoch);
-        return new RemoteTrackingRequest(Tle1, Tle2, subpoint.LatitudeDegrees,
-            ((subpoint.LongitudeDegrees + 185) % 360 + 360) % 360 - 180, 40,
-            epoch.ToUnixTimeMilliseconds(), 145_900_000, 435_650_000,
-            true, true, true, 0);
+        return new RemoteTrackingRequest
+        {
+            TleLine1 = Tle1, TleLine2 = Tle2, LatitudeDegrees = subpoint.LatitudeDegrees,
+            LongitudeDegrees = ((subpoint.LongitudeDegrees + 185) % 360 + 360) % 360 - 180,
+            HeightMetres = 40, UtcUnixMilliseconds = epoch.ToUnixTimeMilliseconds(),
+            DownlinkHz = 145_900_000, UplinkHz = 435_650_000,
+            CorrectDownlink = true, CorrectUplink = true, PointRotator = true
+        };
     }
 
     internal static async Task RunAsync(HubConnection hub, FakeRigctld radio, FakeRigctld rotator)

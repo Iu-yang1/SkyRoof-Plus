@@ -41,8 +41,6 @@ export function AudioPanel() {
 
   async function start(voice = false) {
     if (!workspaceActive || !hub) return;
-    // A new transport choice replaces the previous receiver, including a
-    // still-negotiating peer, rather than requiring a separate STOP click.
     if (playback.current || starting.current) disposePlayback();
     starting.current = true;
     const attempt = ++generation.current;

@@ -59,11 +59,11 @@ export function SatelliteCatalogPicker({ available, onSelect }: {
         {(satellite?.transmitters ?? []).map(item => <option key={item.id} value={item.id}>
           {item.description} · {item.mode} · {item.alive ? 'ALIVE' : item.status || 'INACTIVE'}
         </option>)}</select></label>
-      <button type="button" disabled={!available || !satellite || !transmitter || satellite.orbitState !== 'tle'}
+      <button type="button" disabled={!available || !satellite || !transmitter || !['tle', 'omm-only'].includes(satellite.orbitState)}
         onClick={() => { if (satellite && transmitter) onSelect({ satellite, transmitter }); }}>
         LOAD RADIO LINK
       </button>
-      <small>Source: {satellite?.orbitSource || 'unavailable'}. OMM-only entries require OMM tracking support.</small>
+      <small>Source: {satellite?.orbitSource || 'unavailable'}. Orbit is resolved by Station on every tracking tick.</small>
     </>}
   </section>;
 }

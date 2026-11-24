@@ -1,4 +1,6 @@
 using System.Text.Json;
+using SGPdotNET.Parsers;
+using SkyRoof.Orbit.Contracts;
 using System.Text.Json.Serialization;
 
 namespace SkyRoof.Remote.Station;
@@ -33,6 +35,24 @@ internal sealed record CatalogCacheTle
 
     internal bool HasTle => Tle1.StartsWith("1 ", StringComparison.Ordinal) &&
         Tle2.StartsWith("2 ", StringComparison.Ordinal);
+
+    internal OrbitMeanElements? ReadOmm()
+    {
+        if (Omm is not { ValueKind: JsonValueKind.Object } json) return null;
+        // Match the original desktop's Newtonsoft serialization of OmmData.
+        var omm = Newtonsoft.Json.JsonConvert.DeserializeObject<OmmData>(json.GetRawText())
+            ?? throw new InvalidDataException("Invalid cached OMM.");
+        if (omm.NoradCatID == 0 || omm.MeanMotion <= 0 || omm.Eccentricity is < 0 or >= 1 ||
+            omm.Epoch == default)
+            throw new InvalidDataException("Incomplete cached OMM mean elements.");
+        return new OrbitMeanElements(checked((int)omm.NoradCatID), omm.ObjectID ?? "",
+            string.IsNullOrWhiteSpace(omm.ClassificationType) ? 'U' : omm.ClassificationType[0],
+            new DateTimeOffset(DateTime.SpecifyKind(omm.Epoch, DateTimeKind.Utc)),
+            omm.MeanMotion, omm.MeanMotionDot, omm.MeanMotionDDot, omm.Eccentricity,
+            omm.Inclination, omm.RAOfAscNode, omm.ArgOfPericenter, omm.MeanAnomaly,
+            omm.BStar, omm.EphemerisType, checked((int)omm.ElementSetNo),
+            checked((int)omm.RevAtEpoch));
+    }
 }
 
 internal sealed record CatalogCacheTransmitter

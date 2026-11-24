@@ -4,15 +4,6 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Host.Realtime;
 
-public sealed record RemoteTrackingRequest(string TleLine1, string TleLine2,
-    double LatitudeDegrees, double LongitudeDegrees, double HeightMetres,
-    long UtcUnixMilliseconds, long DownlinkHz, long UplinkHz,
-    bool CorrectDownlink, bool CorrectUplink, bool PointRotator,
-    double ElevationMaskDegrees)
-{
-    public RemoteRadioLink? RadioLink { get; init; }
-}
-
 public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseconds,
     double AzimuthDegrees, double ElevationDegrees, double RangeMetres,
     double RangeRateMetresPerSecond, long RxHz, long TxHz,
@@ -50,7 +41,8 @@ public sealed partial class StationDeviceBridge
             CorrectUplink = input.CorrectUplink,
             PointRotator = input.PointRotator,
             ElevationMaskDegrees = input.ElevationMaskDegrees,
-            RadioLink = input.RadioLink?.ToIpc()
+            RadioLink = input.RadioLink?.ToIpc(),
+            CatalogSatelliteId = input.CatalogSatelliteId ?? ""
         };
 
     private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,

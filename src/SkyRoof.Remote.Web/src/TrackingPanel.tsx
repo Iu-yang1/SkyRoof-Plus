@@ -35,8 +35,10 @@ export function TrackingPanel() {
   const [rx, setRx] = useState('');
   const [tx, setTx] = useState('0');
   const [selectionRevision, setSelectionRevision] = useState(0);
+  const [useCatalogOrbit, setUseCatalogOrbit] = useState(false);
   function selectCatalog(value: CatalogSelection) {
     setSelection(value);
+    setUseCatalogOrbit(true);
     setTle1(value.satellite.tleLine1);
     setTle2(value.satellite.tleLine2);
     setRx(String(value.transmitter.link.downlinkLowHz / 1e6));
@@ -95,7 +97,8 @@ export function TrackingPanel() {
         CorrectUplink: form.has('correctTx'),
         PointRotator: form.has('rotator'),
         ElevationMaskDegrees: numeric(form.get('mask'), 'Elevation mask'),
-        RadioLink: readRadioLink(form)
+        RadioLink: readRadioLink(form),
+        CatalogSatelliteId: useCatalogOrbit ? selection?.satellite.satelliteId ?? '' : ''
       };
       if (operation === 'start') {
         const interval = numeric(form.get('interval'), 'Interval');
@@ -119,8 +122,9 @@ export function TrackingPanel() {
       const button = (event.nativeEvent as SubmitEvent).submitter;
       void submit(event, button?.getAttribute('value') ?? 'predict');
     }}>
-      <label>TLE LINE 1<input name="tle1" required placeholder="1 …" value={tle1} onChange={e => setTle1(e.target.value)} /></label>
-      <label>TLE LINE 2<input name="tle2" required placeholder="2 …" value={tle2} onChange={e => setTle2(e.target.value)} /></label>
+      {selection && <label><input type="checkbox" checked={useCatalogOrbit} onChange={e => setUseCatalogOrbit(e.target.checked)} /> FOLLOW STATION ORBIT · {selection.satellite.name}</label>}
+      <label>TLE LINE 1<input name="tle1" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="1 …" value={tle1} onChange={e => setTle1(e.target.value)} /></label>
+      <label>TLE LINE 2<input name="tle2" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="2 …" value={tle2} onChange={e => setTle2(e.target.value)} /></label>
       <div className="tracking-grid">
         <label>LAT °<input name="latitude" type="number" step="any" required /></label>
         <label>LON °<input name="longitude" type="number" step="any" required /></label>
