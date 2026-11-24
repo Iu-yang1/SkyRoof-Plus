@@ -10,6 +10,12 @@ public sealed class IcomLanCivReadbacks(IcomLanCivSocket socket, byte radioAddre
         return hz;
     }
 
+    public async Task<IcomCivMode> ReadSelectedModeAsync(CancellationToken ct = default)
+    {
+        byte[] data = await socket.QueryAsync(new(radioAddress, 0xE0, [0x04], 2), ct);
+        return new IcomCivMode(data[0], data[1]);
+    }
+
     public async Task<bool> ReadPttAsync(CancellationToken ct = default)
     {
         byte[] data = await socket.QueryAsync(new(radioAddress, 0xE0, [0x1C, 0], 1), ct);

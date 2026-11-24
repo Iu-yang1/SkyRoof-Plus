@@ -195,4 +195,5 @@ IcomLanNetworkSessionTests.Run();
 IcomLanAudioSocketTests.Run();
 IcomLanFrameClockTests.Run();
 IcomLanCivQueryTests.Run();
+IcomLanCivWriteTests.Run();
 Console.WriteLine($"PASS: {count} deterministic foundation simulation groups + Workspace.");
