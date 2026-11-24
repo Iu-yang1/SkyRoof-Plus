@@ -36,7 +36,24 @@ internal static partial class NativeFt4HttpProbe
                 await process.WaitForExitAsync();
                 process.Dispose();
             }
-            Directory.Delete(root, recursive: true);
+            await DeleteFixtureAsync(root);
+        }
+    }
+
+    private static async Task DeleteFixtureAsync(string root)
+    {
+        // Windows can briefly retain a SQLite handle after the Host process exits.
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(root, recursive: true);
+                return;
+            }
+            catch (IOException ex) when (attempt < 20 && (ex.HResult & 0xffff) is 32 or 33)
+            {
+                await Task.Delay(100);
+            }
         }
     }
 

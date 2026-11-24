@@ -8,7 +8,7 @@ namespace SkyRoof.Remote.Device;
 /// Exclusive CAT TCP owner for one rigctld/SkyCAT endpoint. One in-flight command
 /// and one response at a time; a failed write is never automatically replayed.
 /// </summary>
-public sealed class RigctldLink(string host, int port) : IAsyncDisposable
+public sealed partial class RigctldLink(string host, int port) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private TcpClient? _client;
@@ -81,22 +81,5 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
         if (reply.StartsWith("RPRT ", StringComparison.Ordinal))
             throw new IOException("CAT mode readback failed: " + reply);
         return reply.Split('\n')[0].Trim();
-    }
-
-    private void Reset()
-    {
-        _reader?.Dispose();
-        _writer?.Dispose();
-        _client?.Dispose();
-        _reader = null;
-        _writer = null;
-        _client = null;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _gate.WaitAsync();
-        try { Reset(); }
-        finally { _gate.Release(); _gate.Dispose(); }
     }
 }
