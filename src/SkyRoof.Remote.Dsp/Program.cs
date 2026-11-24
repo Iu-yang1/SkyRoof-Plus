@@ -5,6 +5,16 @@ using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows())
     throw new PlatformNotSupportedException("DSP SignalBus uses Windows shared memory.");
+if (args is ["--ft4-self-test"])
+{
+    Ft4Command.SelfTest();
+    return;
+}
+if (args is ["--ft4-decode", var pcmPath])
+{
+    Ft4Command.DecodeFile(pcmPath);
+    return;
+}
 var inputName = Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_BUS") ?? "skyroof-rx-audio";
 var outputName = Environment.GetEnvironmentVariable("SKYROOF_AF_SPECTRUM_BUS") ?? "skyroof-af-spectrum";
 var channels = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_CHANNELS"),

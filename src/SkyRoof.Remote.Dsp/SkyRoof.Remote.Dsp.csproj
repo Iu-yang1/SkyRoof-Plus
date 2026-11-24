@@ -7,5 +7,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <Compile Include="../../SkyRoof/FT4/NativeFT4Coder.cs" Link="Legacy/NativeFT4Coder.cs" />
+    <None Include="../../Vendor/ft4_coder/ft4_coder.dll" Link="ft4_coder.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../Vendor/ft4_coder/LICENSE" Link="licenses/ft4_coder-LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../Vendor/VE3NEA.Dsp/libfftw3f-3.dll;../../Vendor/VE3NEA.Dsp/libgcc_s_sjlj-1.dll;../../Vendor/VE3NEA.Dsp/libquadmath-0.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -19,6 +19,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Publish real DSP process
         run: dotnet publish src/SkyRoof.Remote.Dsp/SkyRoof.Remote.Dsp.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-dsp -warnaserror
+      - name: Verify original native FT4 codec from deployed DSP
+        run: dotnet artifacts/remote-dsp/SkyRoof.Remote.Dsp.dll --ft4-self-test
       - name: Build independent AF test harness
         run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
       - name: Verify spectral frequencies and stream epochs against deployed DSP
