@@ -102,7 +102,27 @@ jobs:
             $replaceV187 = $version -eq '1.87' -and
               "${{ github.event_name }}" -eq 'push' -and
               (Get-Content Directory.Build.props -Raw).Contains('v1.87-continuous-waterfall-replacement-20261119')
-            if ($replaceV173) {
+            $replaceV189 = $version -eq '1.89' -and
+              "${{ github.event_name }}" -eq 'push' -and
+              (Get-Content Directory.Build.props -Raw).Contains('v1.89-earth-context-menu-replacement-20261124')
+            if ($replaceV189) {
+              if ($existingSha -ne 'b1c1134fcb295694b329394c7cc1a7570af2bdb5') {
+                throw 'v.1.89 original tag moved; refusing replacement'
+              }
+              $oldRelease = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or $null -eq $oldRelease -or
+                  $oldRelease.id -ne 456233793 -or $oldRelease.prerelease -ne $false -or $oldRelease.draft) {
+                throw 'v.1.89 existing Release identity or stability differs'
+              }
+              $oldAsset = @($oldRelease.assets | Where-Object { $_.name -eq 'SkyRoofSetup-v.1.89.exe' })
+              if ($oldAsset.Count -ne 1 -or $oldAsset[0].id -ne 785381463 -or
+                  $oldAsset[0].digest -ne 'sha256:a6c6d6ada77b03956f2456f2c7db5d5ffdc483285c4245334d93daa7b6bc9cbf') {
+                throw 'v.1.89 existing installer changed; refusing replacement'
+              }
+              "REPLACE_V189=true" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+              Write-Host "Authorized one-time v.1.89 Earth context-menu installer replacement"
+            }
+            elseif ($replaceV173) {
               if ($existingSha -ne '781cc04c6470eb2343c149f103312eeaf6a2ac91') {
                 throw 'v.1.73 original tag moved; refusing replacement'
               }
@@ -375,7 +395,7 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_TOKEN)) {
             "SIGNPATH_AVAILABLE=false" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-            if ($env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
+            if ($env:REPLACE_V189 -eq 'true' -or $env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
               Write-Host "::warning::Explicitly user-authorized stable v.1.86 UNNE-1B IQ-verified release (or earlier authorized versions) may ship unsigned; clearly disclose Authenticode and verify SHA-256."
             } else {
               Write-Host "::warning::No SignPath token configured; release will be an unsigned pre-release."
@@ -429,7 +449,7 @@ jobs:
             throw "SignPath is configured but installer signature is not valid: $($signature.Status)"
           }
           if ($env:SIGNPATH_AVAILABLE -ne 'true') {
-            if ($env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
+            if ($env:REPLACE_V189 -eq 'true' -or $env:REPLACE_V187 -eq 'true' -or "${{ steps.get_version.outputs.version }}" -in @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')) {
               Write-Host "::warning::Publishing user-authorized unsigned stable release; Authenticode status is clearly disclosed."
             } else {
               Write-Host "::warning::No SignPath signing capability: publishing an unsigned prerelease"
@@ -451,6 +471,7 @@ jobs:
           Write-Host "Release notes match v.$version"
 
       - name: Create GitHub Release
+        if: env.REPLACE_V189 != 'true'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: SkyRoof Fork v.${{ steps.get_version.outputs.version }}
@@ -628,6 +649,55 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.87 release target commit' }
           Write-Host "v.1.87 rebuilt in place: $newCommit sha256:$localHash"
 
+      # Replace only the explicitly authorized asset. Preserve the existing
+      # release title, description and publication status.
+      - name: Replace v.1.89 Earth context-menu installer in place
+        if: env.REPLACE_V189 == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v.1.89'
+          $newCommit = "${{ github.sha }}"
+          $oldCommit = 'b1c1134fcb295694b329394c7cc1a7570af2bdb5'
+          $name = 'SkyRoofSetup-v.1.89.exe'
+          $local = "install/$name"
+          $localHash = (Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash.ToLowerInvariant()
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0 -or (@($remoteTag)[0] -split '\s+')[0] -ne $oldCommit) {
+            throw 'v.1.89 tag changed before upload; refusing replacement'
+          }
+          $release = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $release -or
+              $release.id -ne 456233793 -or $release.prerelease -ne $false -or $release.draft) {
+            throw 'v.1.89 release changed before upload'
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $name })
+          if ($asset.Count -ne 1 -or $asset[0].id -ne 785381463 -or
+              $asset[0].digest -ne 'sha256:a6c6d6ada77b03956f2456f2c7db5d5ffdc483285c4245334d93daa7b6bc9cbf') {
+            throw 'v.1.89 installer changed before upload'
+          }
+          gh release upload $tag $local --clobber --repo ${{ github.repository }}
+          if ($LASTEXITCODE -ne 0) { throw 'v.1.89 installer replacement failed' }
+          $updated = gh api "repos/${{ github.repository }}/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $updated.id -ne $release.id -or
+              $updated.body -cne $release.body -or $updated.name -cne $release.name -or
+              $updated.prerelease -ne $release.prerelease -or $updated.draft -ne $release.draft) {
+            throw 'v.1.89 release metadata unexpectedly changed'
+          }
+          $uploaded = @($updated.assets | Where-Object { $_.name -eq $name })
+          if ($uploaded.Count -ne 1 -or $uploaded[0].digest -ne "sha256:$localHash") {
+            throw 'v.1.89 uploaded installer SHA-256 mismatch'
+          }
+          git tag -f $tag $newCommit
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update local v.1.89 tag' }
+          git push origin "--force-with-lease=refs/tags/${tag}:$oldCommit" "refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget verified v.1.89 release tag' }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$($release.id)" -f target_commitish="$newCommit" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update v.1.89 release target commit' }
+          Write-Host "v.1.89 rebuilt in place: $newCommit sha256:$localHash"
+
       - name: Verify published tag, asset hash and Authenticode
         shell: pwsh
         env:
@@ -653,7 +723,7 @@ jobs:
           }
           $asset = @($release.assets | Where-Object { $_.name -eq $name })
           if ($asset.Count -ne 1) { throw "Release asset $name missing or duplicated" }
-          $expectedPrerelease = $env:REPLACE_V187 -ne 'true' -and $env:REPLACE_V169 -ne 'true' -and
+          $expectedPrerelease = $env:REPLACE_V189 -ne 'true' -and $env:REPLACE_V187 -ne 'true' -and $env:REPLACE_V169 -ne 'true' -and
              $env:SIGNPATH_AVAILABLE -ne 'true' -and
              "${{ steps.get_version.outputs.version }}" -notin @('1.71', '1.72', '1.73', '1.76', '1.77', '1.78', '1.82', '1.86')
           if ($release.isPrerelease -ne $expectedPrerelease) {

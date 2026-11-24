@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using SkyRoof.IF;
@@ -925,6 +925,9 @@ namespace SkyRoof
         else
           ctx.IcomLanSpectrumPanel?.ApplyDisplaySettings();
       }
+
+      if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.EarthMapSettings.")))
+        ctx.EarthViewPanel?.ApplyMapSettings();
 
       if (ChangedFields.Exists(s => s.StartsWith("SkyRoof.OrbitSourceSettings.")))
         ctx.SatnogsDb.ConfigureSources(ctx.Settings.OrbitSources);

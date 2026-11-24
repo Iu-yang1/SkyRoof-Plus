@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using SharpGL.VertexBuffers;
 using SharpGL;
 using WeifenLuo.WinFormsUI.Docking;
@@ -22,11 +22,20 @@ namespace SkyRoof
     private SpriteRenderer SpriteRenderer;
     private Sprite SatelliteSprite, HomeSprite, NorthSprite, SouthSprite;
     private PolylineRenderer PolylineRenderer;
-    private double DimmingRadius;
     private double SatFootprint;
-    private double Azimuth;
+    private readonly EarthViewCamera camera = new();
+    private MapSourceManager? mapSources;
+    private EarthMapRenderer? onlineRenderer;
+    private bool onlineRendererFailed;
+    private ContextMenuStrip earthMenu;
+    private ToolStripMenuItem restoreFollowItem, pointRotatorItem;
+    private double? mapTargetAzimuth;
+    private Point? dragPosition;
+    private GeoPoint nextSatGeoPoint;
+    private bool satellitePositionValid;
 
-    public GeoPoint Home, Center, SatGeoPoint;
+    public GeoPoint Home, SatGeoPoint;
+    public GeoPoint Center => camera.Center;
     public double Zoom = 1;
     public float Brightness = Theme.EarthMapBrightness; // the fragment shader scales the map by this
     public SatnogsDbSatellite Satellite;
@@ -54,15 +63,109 @@ namespace SkyRoof
       ctx.EarthViewPanel = this;
       ctx.MainForm.EarthViewMNU.Checked = true;
 
+      mapSources = new MapSourceManager(RequestMapRedraw);
+      Disposed += (_, _) => mapSources?.Dispose();
+      InitializeEarthMenu();
+      UiLocalizationService.Bind(this, RefreshMapStatus);
+      ApplyMapSettings();
       SetGridSquare();
       SetSatellite();
 
       openglControl1.MouseWheel += OpenglControl1_MouseWheel;
+      openglControl1.MouseDown += EarthMouseDown;
+      openglControl1.MouseMove += EarthMouseMove;
+      openglControl1.MouseUp += EarthMouseUp;
+      openglControl1.MouseCaptureChanged += (_, _) =>
+      {
+        if (!openglControl1.Capture) EndEarthDrag();
+      };
+      openglControl1.MouseDoubleClick += (_, e) =>
+      {
+        if (e.Button == MouseButtons.Left) ResetView();
+      };
+    }
+
+    private void RequestMapRedraw()
+    {
+      if (IsDisposed || Disposing || !IsHandleCreated) return;
+      try
+      {
+        BeginInvoke((Action)(() =>
+        {
+          if (!IsDisposed && !Disposing) openglControl1.Invalidate();
+        }));
+      }
+      catch (InvalidOperationException) { /* Dock handle was recreated. */ }
+    }
+
+    private void InitializeEarthMenu()
+    {
+      earthMenu = new ContextMenuStrip();
+      restoreFollowItem = new ToolStripMenuItem();
+      pointRotatorItem = new ToolStripMenuItem();
+      restoreFollowItem.Click += (_, _) => ResetView();
+      pointRotatorItem.Click += (_, _) => PointRotatorToMapTarget();
+      earthMenu.Items.AddRange([restoreFollowItem, pointRotatorItem]);
+      Disposed += (_, _) => earthMenu.Dispose();
+    }
+
+    private void ShowEarthMenu(Point location)
+    {
+      mapTargetAzimuth = null;
+      if (camera.TryUnproject(location, openglControl1.ClientSize, Zoom, out var target) &&
+          EarthViewCamera.TryGroundAzimuth(Home, target, out double azimuth))
+        mapTargetAzimuth = azimuth;
+
+      restoreFollowItem.Text = SettingsLanguage.Text("恢复跟随", "Resume follow");
+      pointRotatorItem.Text = mapTargetAzimuth is double angle
+        ? SettingsLanguage.Text($"旋转器指向此处（AZ {angle:F1}° / EL 0°）",
+          $"Point rotator here (AZ {angle:F1}° / EL 0°)")
+        : SettingsLanguage.Text("旋转器指向此处", "Point rotator here");
+      pointRotatorItem.Enabled = mapTargetAzimuth.HasValue &&
+        ctx.RotatorControl?.IsRunning() == true && !ctx.RotatorControl.IsManualControlLocked;
+      earthMenu.Show(openglControl1, location);
+    }
+
+    private void PointRotatorToMapTarget()
+    {
+      // Use the captured click, not the current satellite-follow centre.
+      // The existing manual command owns the mechanical limits and TRACK transition.
+      if (mapTargetAzimuth is double angle &&
+          ctx.RotatorControl?.IsRunning() == true &&
+          !ctx.RotatorControl.IsManualControlLocked)
+        ctx.RotatorControl.ManualMoveToDegrees(angle, 0);
+    }
+
+    internal void ApplyMapSettings()
+    {
+      mapSources?.Configure(ctx.Settings.EarthMap);
+      onlineRendererFailed = false;
+      RefreshMapStatus();
+      openglControl1.Invalidate();
+    }
+
+    private void RefreshMapStatus()
+    {
+      if (mapSources == null) return;
+      string status = onlineRendererFailed ? SettingsLanguage.Text("GPU 瓦片渲染不可用，内置地图", "GPU tiles unavailable; built-in map") :
+        mapSources.Status switch
+        {
+          EarthMapStatus.Offline => SettingsLanguage.Text("内置地图", "Built-in map"),
+          EarthMapStatus.KeyMissing => SettingsLanguage.Text("请在设置中填写天地图 API Key", "Configure Tianditu API Key in Settings"),
+          EarthMapStatus.Unavailable => SettingsLanguage.Text("天地图不可用，内置地图回退", "Tianditu unavailable; built-in fallback"),
+          EarthMapStatus.Ready => SettingsLanguage.Text("天地图", "Tianditu") + $" · L{mapSources.Level}",
+          EarthMapStatus.Partial => SettingsLanguage.Text("天地图 · 部分瓦片", "Tianditu · partial tiles"),
+          _ => SettingsLanguage.Text("天地图 · 加载中", "Tianditu · loading")
+        };
+      if (ctx.Settings.EarthMap.Source != EarthMapSourceKind.BuiltIn)
+        status += " | © 天地图 / Tianditu";
+      if (MapStatusLabel.Text != status) MapStatusLabel.Text = status;
     }
 
     public void SetGridSquare()
     {
       Home = GridSquare.ToGeoPoint(ctx.Settings.User.Square);
+      camera.Follow(DefaultCenter());
     }
 
     private void EarthViewPanel_FormClosing(object sender, FormClosingEventArgs e)
@@ -80,14 +183,62 @@ namespace SkyRoof
 
     private void OpenglControl1_MouseWheel(object? sender, MouseEventArgs e)
     {
-      Zoom *= 1 + e.Delta / 1200f;
+      Zoom *= Math.Pow(1.1, e.Delta / 120.0);
+      zoomAfterSatelliteSwitch = false;
       ValidateZoom();
+      openglControl1.Invalidate();
+    }
+
+    private void EarthMouseDown(object? sender, MouseEventArgs e)
+    {
+      if (e.Button != MouseButtons.Left) return;
+      dragPosition = e.Location;
+      openglControl1.Capture = true;
+      openglControl1.Cursor = Cursors.SizeAll;
+    }
+
+    private void EarthMouseMove(object? sender, MouseEventArgs e)
+    {
+      if (dragPosition is not Point previous) return;
+      dragPosition = e.Location;
+      if (!camera.Pan(e.X - previous.X, e.Y - previous.Y,
+          openglControl1.ClientSize, Zoom)) return;
+      zoomAfterSatelliteSwitch = false;
+      openglControl1.Invalidate();
+    }
+
+    private void EarthMouseUp(object? sender, MouseEventArgs e)
+    {
+      if (e.Button == MouseButtons.Left) EndEarthDrag();
+      else if (e.Button == MouseButtons.Right) ShowEarthMenu(e.Location);
+    }
+
+    private void EndEarthDrag()
+    {
+      dragPosition = null;
+      openglControl1.Cursor = Cursors.Default;
+      if (openglControl1.Capture) openglControl1.Capture = false;
+    }
+
+    private GeoPoint DefaultCenter() => Mode == EarthViewMode.RealTime &&
+      satellitePositionValid ? SatGeoPoint : Home;
+
+    private void ResetView()
+    {
+      EndEarthDrag();
+      camera.Reset(DefaultCenter());
+      openglControl1.Invalidate();
     }
 
     private void ValidateZoom()
     {
       var diam = Math.Min(openglControl1.ClientSize.Width, openglControl1.ClientSize.Height);
-      if (diam > 0) Zoom = Math.Max(1f, Math.Min(25000 / diam, Zoom));
+      if (diam > 0)
+      {
+        int level = mapSources?.MaxLevel ?? 18;
+        double maximum = EarthTileVisibility.MaximumZoom(openglControl1.ClientSize, level);
+        Zoom = Math.Clamp(Zoom, 1, maximum);
+      }
     }
 
     internal void SetSatellite(SatnogsDbSatellite? satellite = null)
@@ -95,20 +246,23 @@ namespace SkyRoof
       Satellite = satellite ?? ctx.SatelliteSelector.SelectedSatellite;
       label1.Text = Satellite.name;
       ++positionRevision;
-      zoomAfterSatelliteSwitch = true;
+      zoomAfterSatelliteSwitch = !camera.IsManual;
       // The constructor may call this before WinForms has a synchronization
       // context. Use the existing synchronous path only before the handle
       // exists, then keep every later selection free of Orekit propagation.
       if (!IsHandleCreated)
       {
         ComputeSatLocation();
-        Zoom = 0.9 * Math.PI / SatFootprint;
+        if (zoomAfterSatelliteSwitch) Zoom = 0.9 * Math.PI / SatFootprint;
+        ValidateZoom();
         zoomAfterSatelliteSwitch = false;
       }
       else
       {
-        SatelliteSprite.Enabled = false;
-        SatGeoPoint = Center = Home;
+        satellitePositionValid = false;
+        SatFootprint = Math.PI;
+        SatGeoPoint = nextSatGeoPoint = Home;
+        camera.Follow(DefaultCenter());
         SchedulePositionUpdate();
       }
       openglControl1.Invalidate();
@@ -185,7 +339,7 @@ namespace SkyRoof
     // x and y extents independently against the [-1, 1] clip space.
     private void ZoomToFitPolygon()
     {
-      if (CoveragePolygon == null || CoveragePolygon.Count == 0) return;
+      if (camera.IsManual || CoveragePolygon == null || CoveragePolygon.Count == 0) return;
 
       var size = openglControl1.ClientSize;
       if (size.Width == 0 || size.Height == 0) return;
@@ -205,6 +359,7 @@ namespace SkyRoof
 
       double maxXY = Math.Max(maxX, maxY);
       if (maxXY > 1e-6) Zoom = 0.9 / maxXY;
+      ValidateZoom();
     }
 
     private void radioButton_CheckedChanged(object sender, EventArgs e)
@@ -213,6 +368,7 @@ namespace SkyRoof
       if (!radioBtn.Checked) return;
 
       Mode = PassRadioBtn.Checked ? EarthViewMode.Pass : EarthViewMode.RealTime;
+      camera.Follow(DefaultCenter());
 
       SchedulePositionUpdate();
       openglControl1.Invalidate();
@@ -258,7 +414,8 @@ namespace SkyRoof
           position.NextLatitude, position.NextLongitude, position.Footprint);
         if (zoomAfterSatelliteSwitch)
         {
-          Zoom = 0.9 * Math.PI / SatFootprint;
+          if (!camera.IsManual) Zoom = 0.9 * Math.PI / SatFootprint;
+          ValidateZoom();
           zoomAfterSatelliteSwitch = false;
         }
         openglControl1.Invalidate();
@@ -290,33 +447,11 @@ namespace SkyRoof
       bool valid, double latitude, double longitude,
       double nextLatitude, double nextLongitude, double footprint)
     {
-      if (!valid)
-      {
-        SatGeoPoint = Home;
-        SatFootprint = Math.PI;
-        Azimuth = 0;
-        SatelliteSprite.Enabled = false;
-      }
-      else
-      {
-        SatGeoPoint = new(latitude, longitude);
-        var nextCenter = new GeoPoint(nextLatitude, nextLongitude);
-        SatFootprint = footprint;
-        Azimuth = (nextCenter - SatGeoPoint).AzimuthRad;
-        SatelliteSprite.Enabled = true;
-      }
-
-      if (Mode == EarthViewMode.Pass)
-      {
-        Center = Home;
-        DimmingRadius = Math.PI;
-        SatelliteSprite.Enabled = false;
-      }
-      else
-      {
-        Center = valid ? SatGeoPoint : Home;
-        DimmingRadius = SatFootprint;
-      }
+      satellitePositionValid = valid;
+      SatGeoPoint = valid ? new GeoPoint(latitude, longitude) : Home;
+      nextSatGeoPoint = valid ? new GeoPoint(nextLatitude, nextLongitude) : Home;
+      SatFootprint = valid ? footprint : Math.PI;
+      camera.Follow(DefaultCenter());
     }
     
 
@@ -329,6 +464,10 @@ namespace SkyRoof
     private void openglControl1_OpenGLInitialized(object sender, EventArgs e)
     {
       gl = openglControl1.OpenGL;
+      // The docking library may recreate the native GL context. CPU tiles
+      // remain available; new texture names and the index are rebuilt lazily.
+      onlineRenderer = null;
+      onlineRendererFailed = false;
       CheckError(false);
 
       SpriteRenderer = new(gl);
@@ -453,9 +592,54 @@ namespace SkyRoof
     //----------------------------------------------------------------------------------------------
     private void openglControl1_OpenGLDraw(object sender, SharpGL.RenderEventArgs args)
     {
+      var size = openglControl1.ClientSize;
+      if (size.Width <= 0 || size.Height <= 0) return;
       var gl = openglControl1.OpenGL;
       CheckError(false);
+      gl.ClearColor(Theme.EarthSpace.R / 255f, Theme.EarthSpace.G / 255f, Theme.EarthSpace.B / 255f, 1);
+      gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+      if (!TryDrawOnlineMap(size))
+      {
+        gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+        DrawBuiltInMap();
+      }
+      SetSpriteAttributes();
+      SpriteRenderer.DrawSprites([SatelliteSprite, HomeSprite, NorthSprite, SouthSprite]);
+      CheckError();
+      DrawCoveragePolygon();
+    }
 
+    private bool TryDrawOnlineMap(Size size)
+    {
+      if (mapSources == null || ctx.Settings.EarthMap.Source == EarthMapSourceKind.BuiltIn ||
+          onlineRendererFailed || string.IsNullOrWhiteSpace(ctx.Settings.EarthMap.TiandituKey))
+      {
+        RefreshMapStatus();
+        return false;
+      }
+      try
+      {
+        onlineRenderer ??= new EarthMapRenderer(gl, TextureIds[0], mapSources.Capacity);
+        onlineRenderer.SetCapacity(mapSources.Capacity);
+        mapSources.Update(Center, size, Zoom, onlineRenderer.Capacity);
+        RefreshMapStatus();
+        if (mapSources.ReadyCount == 0) return false;
+        onlineRenderer.Draw(mapSources, new EarthMapFrame(Center, SatGeoPoint,
+          Mode == EarthViewMode.RealTime ? SatFootprint : Math.PI, size, Zoom, Brightness));
+        return true;
+      }
+      catch (Exception ex)
+      {
+        onlineRendererFailed = true;
+        Log.Warning("Earth map GPU renderer unavailable ({Type}); using built-in map.", ex.GetType().Name);
+        gl.ActiveTexture(OpenGL.GL_TEXTURE0);
+        RefreshMapStatus();
+        return false;
+      }
+    }
+
+    private void DrawBuiltInMap()
+    {
       ShaderProgram.Bind(gl);
       CheckError();
 
@@ -471,7 +655,12 @@ namespace SkyRoof
       CheckError();
       ShaderProgram.SetUniform1(gl, "in_homeLon", (float)Center.LongitudeRad);
       CheckError();
-      ShaderProgram.SetUniform1(gl, "in_footprint", (float)DimmingRadius);
+      ShaderProgram.SetUniform1(gl, "in_satLat", (float)SatGeoPoint.LatitudeRad);
+      CheckError();
+      ShaderProgram.SetUniform1(gl, "in_satLon", (float)SatGeoPoint.LongitudeRad);
+      CheckError();
+      ShaderProgram.SetUniform1(gl, "in_footprint",
+        (float)(Mode == EarthViewMode.RealTime ? SatFootprint : Math.PI));
       CheckError();
       ShaderProgram.SetUniform1(gl, "in_aspect", openglControl1.ClientSize.Width / (float)openglControl1.ClientSize.Height);
       CheckError();
@@ -480,10 +669,6 @@ namespace SkyRoof
       ShaderProgram.SetUniform1(gl, "in_brightness", Brightness);
       CheckError();
 
-      gl.ClearColor(Theme.EarthSpace.R / 255f, Theme.EarthSpace.G / 255f, Theme.EarthSpace.B / 255f, 1);
-      CheckError();
-      gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
-      CheckError();
       gl.DrawArrays(OpenGL.GL_TRIANGLE_STRIP, 0, VertexCount);
       CheckError();
 
@@ -491,12 +676,6 @@ namespace SkyRoof
       CheckError();
       ShaderProgram.Unbind(gl);
       CheckError();
-
-      SetSpriteAttributes();
-      SpriteRenderer.DrawSprites([SatelliteSprite, HomeSprite, NorthSprite, SouthSprite]);
-      CheckError();
-
-      DrawCoveragePolygon();
     }
 
     private void DrawCoveragePolygon()
@@ -506,15 +685,21 @@ namespace SkyRoof
       // in real time mode, only show the polygon while the pass is in progress
       if (Mode == EarthViewMode.RealTime && (Pass == null || !Pass.IsActive())) return;
 
-      // skip if any vertex is too close to the antipode, where the projection becomes singular
+      // Break the contour at the azimuthal projection's antipodal seam.
+      // Keep all remaining visible sections instead of hiding the whole pass.
+      var segment = new List<PointF>();
+      void Flush()
+      {
+        if (segment.Count >= 2)
+          PolylineRenderer.DrawPolyline(segment.ToArray(), PolygonColor, 3f);
+        segment.Clear();
+      }
       foreach (var g in CoveragePolygon)
-        if ((g - Center).DistanceRad > 0.9 * Math.PI) return;
-
-      var points = new PointF[CoveragePolygon.Count];
-      for (int i = 0; i < CoveragePolygon.Count; i++)
-        points[i] = ComputeLocation(CoveragePolygon[i]);
-
-      PolylineRenderer.DrawPolyline(points, PolygonColor, 3f);
+      {
+        if ((g - Center).DistanceRad > 0.9 * Math.PI) Flush();
+        else segment.Add(ComputeLocation(g));
+      }
+      Flush();
       CheckError();
     }
 
@@ -532,10 +717,10 @@ namespace SkyRoof
       NorthSprite.Scale = 0.4f * scale;
       SouthSprite.Scale = 0.4f * scale;
 
-      // satellite points in the direction of the next position
-      SatelliteSprite.Angle = (float)(-Azimuth + Math.PI / 4);
-
-      // satellite location (at the center in real-time mode, elsewhere in pass mode)
+      // The satellite may be off-centre after panning. Use its projected
+      // heading rather than the bearing at the projection centre.
+      SatelliteSprite.Enabled = Mode == EarthViewMode.RealTime && satellitePositionValid;
+      SatelliteSprite.Angle = camera.Heading(SatGeoPoint, nextSatGeoPoint, size, Zoom);
       SatelliteSprite.Location = ComputeLocation(SatGeoPoint);
 
       // home location in the azimuthal projection
@@ -546,18 +731,8 @@ namespace SkyRoof
       SouthSprite.Location = ComputeLocation(GeoPoint.SouthPole);
     }
 
-    private PointF ComputeLocation(GeoPoint point)
-    {
-      var path = point - Center;
-      var ro = path.DistanceRad / Math.PI * Zoom;
-      var phi = Geo.HalfPi - path.AzimuthRad;
-      var size = openglControl1.ClientSize;
-      var diam = Math.Min(size.Width, size.Height);
-
-      return new PointF(
-        (float)(ro * Math.Cos(phi) * diam / size.Width),
-        (float)(ro * Math.Sin(phi) * diam / size.Height));
-    }
+    private PointF ComputeLocation(GeoPoint point) =>
+      camera.Project(point, openglControl1.ClientSize, Zoom);
 
 
 

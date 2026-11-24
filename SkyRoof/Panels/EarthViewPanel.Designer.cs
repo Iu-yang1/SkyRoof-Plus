@@ -1,4 +1,4 @@
-﻿namespace SkyRoof
+namespace SkyRoof
 {
   partial class EarthViewPanel
   {
@@ -33,6 +33,7 @@
       ModePanel = new FlowLayoutPanel();
       RealTimeRadioBtn = new RadioButton();
       PassRadioBtn = new RadioButton();
+      MapStatusLabel = new Label();
       ((System.ComponentModel.ISupportInitialize)openglControl1).BeginInit();
       ModePanel.SuspendLayout();
       SuspendLayout();
@@ -60,6 +61,7 @@
       //
       label1.AutoSize = true;
       label1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+      label1.Dock = DockStyle.Top;
       label1.Location = new Point(4, 30);
       label1.Name = "label1";
       label1.Size = new Size(27, 19);
@@ -103,13 +105,22 @@
       PassRadioBtn.UseVisualStyleBackColor = true;
       PassRadioBtn.CheckedChanged += radioButton_CheckedChanged;
       //
+      // MapStatusLabel
+      //
+      MapStatusLabel.Dock = DockStyle.Bottom;
+      MapStatusLabel.Name = "MapStatusLabel";
+      MapStatusLabel.Height = 22;
+      MapStatusLabel.AutoEllipsis = true;
+      MapStatusLabel.TextAlign = ContentAlignment.MiddleLeft;
+      //
       // EarthViewPanel
       //
       AutoScaleDimensions = new SizeF(7F, 15F);
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(400, 379);
-      Controls.Add(label1);
       Controls.Add(openglControl1);
+      Controls.Add(label1);
+      Controls.Add(MapStatusLabel);
       Controls.Add(ModePanel);
       Name = "EarthViewPanel";
       Text = "Earth View";
@@ -128,5 +139,6 @@
     private FlowLayoutPanel ModePanel;
     private RadioButton RealTimeRadioBtn;
     private RadioButton PassRadioBtn;
+    private Label MapStatusLabel;
   }
 }

@@ -1,3 +1,59 @@
+# SkyRoof-Plus v.1.89
+
+## 2026-11-24 — SkyRoof Earth Map Engine V1
+
+独立迭代版本，保留 v.1.88 及更早的 Release 和安装包。
+
+### 自由地图视角与地图源
+- 地球视图支持鼠标左键拖动、滚轮缩放、双击或恢复跟随按钮返回当前模式默认中心。手动视角不被卫星位置更新强制覆盖。
+- 新增内置 DXCC、天地图矢量、影像、地形四种底图选择，可选对应注记。统一采用 AEQD 投影，地图源切换与卫星星下点、台站和覆盖区计算解耦。
+- 设置页新增天地图服务 Key（本机 Windows DPAPI 保护）、地图注记和 GPU 瓦片池容量。默认内置地图，未配置密钥、网络故障或 GPU 在线渲染失败时仍可使用内置地图。
+
+### 渲染与网络
+- 按 WMTS Capabilities 解析 CGCS2000 瓦片矩阵，以矩阵宽度确定内部 LOD；处理经度环绕与极点的可见瓦片范围。
+- OpenGL 3.3 Texture Array 与稀疏瓦片索引，异步请求/解码、父级回退、增量 GPU 上传、地图源代数隔离。默认 256 槽，基础纹理 64 MiB；不进行持久化瓦片缓存或批量离线下载。
+- 改进高倍率投影数值精度、偏心卫星图标位置及航向，保留原轨道引擎与卫星控制链路。
+- 修复 Windows 透明 PNG 解码过程中 GDI+ 绘制引入的 RGB 舍入问题，并补全地图设置中文帮助。增加索引色 PNG 与 JPEG 回归。
+
+### 验证与使用说明
+- 发布流水线执行 pinned aislop、Windows x64 Release 编译、完整 xUnit、Orekit 冒烟、安装包依赖及发布资产 SHA-256 / Authenticode 检查；只有发布前门禁全部通过才上传安装包。最终结果以 GitHub Actions 为准。
+- 天地图需要用户自行申请适用于桌面 WMTS 的服务 Key；未内置公共 Key。真实在线服务、服务授权及审图信息、Windows 实机 GPU 性能与 60 FPS 目标尚未完成实机验收。合成瓦片验证不能替代实际服务验证。
+- 若 SignPath 不可用，按现有流水线策略发布未签名的 Prerelease。
+
+工程文档：docs/engineering/earth-map-engine-v1.zh-CN.md
+
+**English summary:** Earth Map Engine V1 introduces free camera panning and follow reset, offline DXCC and Tianditu vector/imagery/terrain geographic WMTS layers, optional annotations, DPAPI-protected service keys, asynchronous tile scheduling, GPU texture arrays with a sparse index, parent fallback, and improved deep-zoom precision. Existing satellite tracking and AEQD coverage calculations remain independent of the map provider. Windows alpha decoding and Chinese settings help are corrected. Publication is gated by the existing release CI. Actual authorized Tianditu service access and Windows hardware performance remain unverified.
+
+---
+
+# SkyRoof-Plus v.1.88
+
+## 2026-11-23 — UNNE-1B（HADES-E2 / SO-131）目录关联与自动遥测识别修复
+
+此版本在 **v.1.87** 基础上新增 UNNE-1B 卫星目录、正式轨道号与发射机/遥测识别的完整关联修复；创建**独立的 v.1.88 标签和安装包**，不替换任何历史 Release。
+
+### 轨道及卫星数据关联
+
+- 识别 UNNE-1B / HADES-E2 / SO-131 名称与别名，将 SatNOGS 中已确认属于同一卫星的临时目录编号 **98205**、**70002** 与正式 NORAD **101101** 归并，避免同时显示“无轨道的卫星”和“无转发器的卫星”。
+- 优先保留具有发射机数据的 SatNOGS 主对象及稳定的发射机 UUID；归并时继承正式 OMM 轨道，并同步 NORAD 与收发机引用。旧卫星 sat_id、此前本地建立的 \`CUSTOM-101101\` 标识作为别名保留，以兼容已有分组和本地转发器配置。与 UNNE-1B 无关的 70002 记录不受影响。
+- 新增 CelesTrak 官方 **\`CATNR=101101&FORMAT=CSV\`** 单星 OMM 自动补充源，以解决当前 Amateur GP 列表没有该正式卫星编号的情况，沿用已有数据源缓存与刷新策略。保留手动文件覆盖优先级及 Orekit 引擎。
+
+### FM 转发器与 FSK/HADES 遥测
+
+- 在已有 **145.925 MHz FM 上行 / 436.888 MHz FM 下行** 的转发器配置下，重新关联同频 **200 Bd FSK / HADES** 遥测记录；兼容历史卫星名称中带有 \`(HADES-E2)\` 的情况。
+- 保留用户选中的 FM CAT/收发机模式，由遥测面板复用同频遥测 sibling 或既有专用回退参数。**不改动已经通过真实 IQ/CRC 回归的 UNNE-1B 解调、同步和解帧算法**，默认 820 Hz 峰值频偏保持不变。
+- 改进旧 \`Satellites.json\` 缓存和完整 SatNOGS 重新下载后的身份迁移，保留自定义转发器关联。
+
+### 构建、测试与安装说明
+
+- 源码修复对应 master 提交 \`6408941\`、\`ed79970\`、\`ffa488f\` 与 \`c176445\`。新增针对重复目录、正式轨道/发射机合并、名称别名、FM 遥测 sibling、无关卫星隔离的 xUnit 回归。
+- 本次 v.1.88 **Build and Release** 应独立通过 pinned aislop、Windows x64 Release 全套单元测试、Orekit 冒烟、Inno Setup 安装/依赖检查、SHA-256 与签名状态校验；真实结果以对应 GitHub Actions 与 Release 页面为准，不把先前的 CI 通过等同于本次发布成功。
+- **实机限制：** 此次没有在 IC-9700 上完成新的整次过境遥测、旋转器/多普勒以及 UI 压力实测。若 SignPath 无可用凭据，现有流水线将发布**未签名的 Prerelease**，不是已签名的稳定版；用户可核对 GitHub Release 的安装包和 SHA-256。
+
+**English summary:** Independent v.1.88 release. Reconcile UNNE-1B/HADES-E2/SO-131 SatNOGS provisional catalog records (98205/70002) with official NORAD 101101 while preserving transmitter metadata, local IDs and user configuration. Fetch a dedicated 101101 CelesTrak OMM feed in addition to the amateur group. Restore automatic 436.888 MHz FSK/HADES 200 Bd telemetry selection when the co-channel FM repeater is active, without changing the already IQ-tested demodulator. The release pipeline performs its own quality/build/test/package checks; real-radio reception remains unverified. Without SignPath, the workflow publishes an unsigned prerelease.
+
+---
+
 # SkyRoof-Plus v.1.87
 
 ## 连续瀑布图呈现 / Continuous waterfall presentation

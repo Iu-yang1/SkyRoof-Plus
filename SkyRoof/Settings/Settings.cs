@@ -1,4 +1,4 @@
-﻿using VE3NEA;
+using VE3NEA;
 using Newtonsoft.Json;
 using SkyRoof.IF;
 using Serilog;
@@ -20,6 +20,10 @@ namespace SkyRoof
     [DisplayName("Orbit / Ephemeris Sources")]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public OrbitSourceSettings OrbitSources { get; set; } = new();
+
+    [DisplayName("Earth map / Tianditu")]
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public EarthMapSettings EarthMap { get; set; } = new();
 
     // Explicit browsable root sections: do not rely on implicit metadata
     // when the PropertyGrid's language provider decorates descriptors.

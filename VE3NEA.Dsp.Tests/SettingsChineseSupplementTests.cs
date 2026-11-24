@@ -55,6 +55,30 @@ public sealed class SettingsChineseSupplementTests
   }
 
   [Fact]
+  public void EarthMapSourceValuesRoundTripInChineseAndEnglish()
+  {
+    UiLanguage old = SettingsLanguage.Current;
+    try
+    {
+      var settings = new EarthMapSettings();
+      SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
+      var names = new[] { "内置地图", "天地图 · 矢量", "天地图 · 影像", "天地图 · 地形" };
+      foreach (EarthMapSourceKind source in Enum.GetValues<EarthMapSourceKind>())
+      {
+        var converter = Property(settings, nameof(settings.Source)).Converter;
+        Assert.Equal(names[(int)source], converter.ConvertToString(source));
+        Assert.Equal(source, converter.ConvertFrom(names[(int)source]));
+      }
+      Assert.Contains("服务器端", Property(settings, nameof(settings.TiandituKey)).Description);
+      Assert.Contains("WMTS", Property(settings, nameof(settings.TiandituKey)).Description);
+      SettingsLanguage.Set(UiLanguage.English);
+      Assert.Equal("TiandituVector", Property(settings, nameof(settings.Source))
+        .Converter.ConvertToString(EarthMapSourceKind.TiandituVector));
+    }
+    finally { SettingsLanguage.Set(old); }
+  }
+
+  [Fact]
   public void CompleteShownAudioTelemetryAndAnnouncementsHaveChineseHelp()
   {
     UiLanguage old = SettingsLanguage.Current;

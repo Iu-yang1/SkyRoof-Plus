@@ -8,22 +8,16 @@ namespace SkyRoof.Satellites
     // Decoder identity is independent of the catalog number assigned to
     // a recently launched satellite. Keep the real DB identity for orbit,
     // archives and uploads; only select the protocol with this predicate.
-    private static bool IsUnneName(string? name) =>
-      !string.IsNullOrWhiteSpace(name) &&
-      Regex.IsMatch(name.Trim(), @"^UNNE[-_ ]?1B$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
     private static bool IsUnneSatellite(SatnogsDbSatellite? sat) =>
-      sat != null && (sat.norad_cat_id == Unne1bDeframer.NoradId ||
-        IsUnneName(sat.name) || IsUnneName(sat.sat_id) ||
-        Regex.Split(sat.names ?? "", @"[,;|\r\n]+").Any(IsUnneName) ||
-        sat.AllNames.Any(IsUnneName));
+      Unne1bSatelliteIdentity.IsSatellite(sat);
 
     internal static bool IsUnne1bDownlink(SatnogsDbTransmitter? tx,
       SatnogsDbSatellite? satellite = null) =>
       tx?.downlink_low == 436888000L &&
-      (tx.norad_cat_id == Unne1bDeframer.NoradId ||
-       IsUnneName(tx.sat_id) || IsUnneSatellite(tx.Satellite) ||
-       IsUnneSatellite(satellite));
+      (tx.norad_cat_id is Unne1bSatelliteIdentity.OfficialNoradId
+         or Unne1bSatelliteIdentity.SatnogsProvisionalId ||
+       Unne1bSatelliteIdentity.HasName(tx.sat_id) ||
+       IsUnneSatellite(tx.Satellite) || IsUnneSatellite(satellite));
 
     // Canonical protocol key for the existing native/fallback DSP dispatch,
     // not a replacement catalog ID for SatNOGS or orbit tracking.

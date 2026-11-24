@@ -11,6 +11,11 @@ namespace SkyRoof
   {
     private static readonly Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase)
     {
+      ["Earth map / Tianditu"] = "地球视图与天地图",
+      ["Default map source"] = "默认地图源",
+      ["Tianditu API Key"] = "天地图 API Key",
+      ["Show map labels"] = "显示地图注记",
+      ["GPU tile pool capacity"] = "GPU 瓦片池容量",
       ["Microwave Tuning Step (Hz)"] = "微波段 CAT 调谐步进 (Hz)",
       ["Microwave CAT Cycle (ms)"] = "微波段 CAT 控制周期 (ms)",
       ["Brightness"] = "亮度",
@@ -61,6 +66,11 @@ namespace SkyRoof
       ["Settings.Transverter"] = "为 SDR 与收发信机 CAT 控制定义射频变频器本振频率偏移与支持频段。",
       ["Settings.Amsat"] = "自动下载 AMSAT 卫星工作状态资讯。",
       ["Settings.OrbitSources"] = "轨道和星历数据来源、更新设置及 Orekit 数据质量诊断。",
+      ["Settings.EarthMap"] = "配置地球视图的内置或天地图底图、服务密钥、注记与 GPU 瓦片池。",
+      ["EarthMapSettings.Source"] = "选择默认地图来源。内置地图无需联网。",
+      ["EarthMapSettings.TiandituKey"] = "访问 lbs.tianditu.gov.cn，注册并完成开发者认证；控制台 → 应用管理 → 创建新应用，推荐选择服务端（服务器端）类型，开通地图服务（WMTS），复制应用密钥 tk。SkyRoof 直接发出 HTTPS 请求，不使用浏览器 JS API。若服务要求 IP 白名单，按控制台授权配置实际出口 IP。密钥通过 Windows DPAPI 加密保存。",
+      ["EarthMapSettings.Labels"] = "显示天地图对应的透明地名注记图层。",
+      ["EarthMapSettings.TileCapacity"] = "底图和注记共享的 256 像素瓦片槽数，256 槽基础纹理约占 64 MiB。",
       ["Settings.OnvifCamera"] = "配置 ONVIF 远端摄像头的地址、身份验证、媒体配置与播放器。",
       ["UserSettings.Call"] = "业余无线电呼号，例如 BG5JSU；用于通联日志和需要标记地面站身份的服务。",
       ["UserSettings.Square"] = "梅登黑德网格定位（Maidenhead Grid Square），用于卫星可见性和地面站位置。",
@@ -172,6 +182,10 @@ namespace SkyRoof
 
     private static readonly Dictionary<string, string> Enums = new(StringComparer.Ordinal)
     {
+      ["EarthMapSourceKind.BuiltIn"] = "内置地图",
+      ["EarthMapSourceKind.TiandituVector"] = "天地图 · 矢量",
+      ["EarthMapSourceKind.TiandituImagery"] = "天地图 · 影像",
+      ["EarthMapSourceKind.TiandituTerrain"] = "天地图 · 地形",
       ["AfcIfSource.WasapiCapture"] = "Windows 声卡采集 IF",
       ["AfcIfSource.PlaybackLoopback"] = "远程播放回环 IF",
       ["AfcSignalLossPolicy.HoldLast"] = "保留最后确认的 AFC 修正",
