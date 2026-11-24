@@ -53,13 +53,13 @@ namespace SkyRoof
         EarthMapSourceKind.AmapImagery =>
           "https://webst01.is.autonavi.com/appmaptile?style=6&",
         EarthMapSourceKind.GoogleRoad when !tile.Labels =>
-          "http://gac-geo.googlecnapps.cn/maps/vt?lyrs=m&",
+          "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=m&",
         EarthMapSourceKind.GoogleSatellite when !tile.Labels =>
-          "http://gac-geo.googlecnapps.cn/maps/vt?lyrs=s&",
+          "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=s&",
         EarthMapSourceKind.GoogleTerrain when !tile.Labels =>
-          "http://gac-geo.googlecnapps.cn/maps/vt?lyrs=t&",
+          "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=t&",
         EarthMapSourceKind.GoogleTerrainLabels when !tile.Labels =>
-          "http://gac-geo.googlecnapps.cn/maps/vt?lyrs=p&",
+          "https://gac-geo.googlecnapps.cn/maps/vt?lyrs=p&",
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
       };
       return new Uri(prefix + xyz);

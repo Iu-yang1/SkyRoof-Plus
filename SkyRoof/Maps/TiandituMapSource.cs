@@ -97,9 +97,10 @@ namespace SkyRoof
         timeout.Token).ConfigureAwait(false);
       if (response.StatusCode == HttpStatusCode.TooManyRequests)
         throw new InvalidDataException("WMTS request quota exceeded");
-      if (!response.IsSuccessStatusCode ||
-          response.Content.Headers.ContentLength > limit)
-        throw new InvalidDataException("WMTS response unavailable");
+      if (!response.IsSuccessStatusCode)
+        throw new HttpRequestException("Map tile HTTP response unavailable", null, response.StatusCode);
+      if (response.Content.Headers.ContentLength > limit)
+        throw new InvalidDataException("Map response too large");
       using var input = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
       using var output = new MemoryStream();
       var buffer = new byte[16384];

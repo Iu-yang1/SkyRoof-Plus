@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http;
+using Serilog;
 using VE3NEA;
 
 namespace SkyRoof
@@ -70,6 +72,7 @@ namespace SkyRoof
     private string key = "";
     private int capacity = 256;
     private bool disposed;
+    private string? lastTileFailure;
 
     internal EarthMapStatus Status { get; private set; } = EarthMapStatus.Offline;
     internal int Level { get; private set; } = 1;
@@ -122,6 +125,7 @@ namespace SkyRoof
       baseMap = labelMap = null;
       capabilitiesPending = false;
       labelsFailed = false;
+      lastTileFailure = null;
       capabilitiesRetry = DateTime.MinValue;
       Epoch++;
       Revision++;
@@ -222,6 +226,7 @@ namespace SkyRoof
       _ = Task.Run(async () =>
       {
         byte[]? pixels = null;
+        string? failure = null;
         bool acquired = false;
         try
         {
@@ -229,23 +234,41 @@ namespace SkyRoof
           acquired = true;
           pixels = await current.GetTileAsync(caps, tile, request.Token).ConfigureAwait(false);
         }
-        catch (Exception) { /* Failed tiles retry without logging the key. */ }
+        catch (OperationCanceledException) when (request.Token.IsCancellationRequested) { }
+        catch (Exception ex) { failure = DescribeTileFailure(ex); }
         finally
         {
           if (acquired) requestSlots.Release();
-          Publish(epoch, () => FinishTile(tile, request, pixels));
+          Publish(epoch, () => FinishTile(tile, request, pixels, failure));
           request.Dispose();
         }
       });
     }
 
-    private void FinishTile(EarthTileKey tile, EarthTileRequest request, byte[]? pixels)
+    internal static string DescribeTileFailure(Exception error) => error switch
+    {
+      HttpRequestException http when http.StatusCode.HasValue => $"HTTP {(int)http.StatusCode.Value}",
+      HttpRequestException http => http.HttpRequestError.ToString(),
+      OperationCanceledException => "Timeout",
+      _ => error.GetType().Name
+    };
+
+    private void FinishTile(EarthTileKey tile, EarthTileRequest request, byte[]? pixels, string? failure)
     {
       bool current = pending.TryGetValue(tile, out var active) && ReferenceEquals(active, request);
       if (current) pending.Remove(tile);
       if (!current || !desired.Contains(tile)) return;
       if (pixels == null)
+      {
         retry[tile] = DateTime.UtcNow.AddSeconds(20);
+        // Deduplicate failures and never record the request URI or exception
+        // message: the Tianditu request includes a protected API key.
+        if (failure != null && failure != lastTileFailure)
+        {
+          lastTileFailure = failure;
+          Log.Warning("Earth map {Source} tile request failed: {Reason}", kind, failure);
+        }
+      }
       else
       {
         ready[tile] = pixels;
