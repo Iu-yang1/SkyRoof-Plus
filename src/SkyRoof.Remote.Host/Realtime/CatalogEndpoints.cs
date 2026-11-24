@@ -20,7 +20,8 @@ public static class CatalogEndpoints
                 transmitters = s.Transmitters.Select(t => new
                 {
                     t.Id, t.Description, t.Alive, t.Status, t.Mode, t.UplinkMode,
-                    link = t.Link
+                    link = new { t.Link.DownlinkLowHz, t.Link.DownlinkHighHz,
+                        t.Link.UplinkLowHz, t.Link.UplinkHighHz, t.Link.Inverting }
                 })
             }));
         }

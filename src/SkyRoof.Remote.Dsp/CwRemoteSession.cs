@@ -68,7 +68,6 @@ internal sealed class CwRemoteSession : IAsyncDisposable
             sourceEpoch = _epoch, status.InferenceBusy, status.TrackingCycles,
             status.CompletedInferenceWindows, status.SkippedInferenceWindows, status.LastError,
             // Preserve lane identity when a tracker receives a new local ID.
-            
             tracks = _worker.LatestTracks.OrderByDescending(t => t.SnrDb).Take(8)
                 .Select(t => new { t.Id, t.FrequencyHz, t.DriftHzPerSecond,
                     t.SnrDb, t.Active, t.Confirmed, t.AssociationHintId, keying = t.KeyingStatus.ToString() }).ToArray(),

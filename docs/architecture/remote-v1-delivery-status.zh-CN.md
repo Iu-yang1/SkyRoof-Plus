@@ -8,8 +8,8 @@
 | P1 | Protobuf、gRPC Named Pipe、共享内存 SignalBus、流 Epoch/Sequence/SampleIndex | 生产 IPC ACL、协议升级兼容 |
 | P2 | Supervisor 普通后台/Windows Service 双模式、SCM 实际注册启停 CI、崩溃恢复、Device PTT 和已配置旋转器 STOP 退出处理 | 实际硬件在 Session 0 的账户/ACL 和升级迁移验收 |
 | P3 | 独立 Device：SkyCAT/rigctld CAT/PTT、读回和异常恢复；rotctld AZ/EL/STOP、机械限位、STOP 独立连接、多路径点 Park。新增独立 Icom LAN UDP 控制登录、认证 Token、授权流、保活和 CI-V/Audio 端口预绑定的可选接收 Worker | IC-9700 Direct LAN 实机登录/CI-V 完整 CAT、RF/IF 频谱、TX 音频、自动路径优化、RC-3040S 专用 Park 校验、SDR/ONVIF |
-| P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 原 RadioLink 转发器数据库/映射、ISS OEM 自动下载及真实星历验收、完整排程迁移 |
-| P5 | 独立 Dsp：SignalBus RX PCM16、4096-point Hann FFT、实时 FT4 native 解码及结果 ring、FT4 编码 IPC | FT4 QSO sequencer、CW、Q65、遥测和硬件时钟校准 |
+| P4 | Station gRPC + Orekit/SGP.NET 实轨道传播、EOP 缓存、连续跟踪与 Doppler、重启恢复 | 共享 RadioLink 频率映射、Station 原格式缓存查询及网页选择已提交；仍缺在线数据库更新、OMM、ISS OEM 自动下载及真实星历验收、完整排程迁移 |
+| P5 | 独立 Dsp：SignalBus RX PCM16、4096-point Hann FFT、实时 FT4 native 解码及结果 ring、FT4 编码 IPC | FT4 QSO sequencer、CW 最新跨进程测试、Q65、遥测和硬件时钟校准 |
 | P6 | 独立 Media：PCM16 SignalBus、Opus 本机环回、认证 WSS/WebAudio、Icom UDP PCM16/PCM8/μ-law、8–192 kHz→48 kHz 有状态 ASRC、UDP 乱序/重复/缺包恢复及实时认证诊断；Device RX Worker 已连到 Media 私有 IPC | IC-9700 实机登录/RX/TX、外部网络压测、新 Opus Voice Track 的浏览器验收和模式自动切换 |
 | P7 | 共用跨进程命令契约 | 原 WinForms 生命周期解耦及 IPC 功能整体替换 |
 | P8 | Identity + EF SQLite、Cookie/Token/一次性码、站点管理员账号/角色管理与实时撤权测试 | 生产 EF Migrations、Windows 本机 SID/IPC 身份及多台站凭据管理 |
@@ -188,3 +188,22 @@ DSP 开发诊断：`dotnet SkyRoof.Remote.Dsp.dll --ft4-self-test` 执行原始 
 配置：Host 与 DSP 的 `SKYROOF_DSP_PIPE` 必须一致（默认 `skyroof-station-dsp`）；Device 的 `SKYROOF_TIMED_TX_DIRECTORY` 保存封存任务；`SKYROOF_FT4_TX_DELAY_MS` 为校准项，真实 RF 延迟仍须测量。`SKYROOF_ISS_OEM_PATH` 为 Station 的本地 OEM 路径，仅 Orekit 后端、NORAD 25544 使用。勿在仓库写入实际电台凭据。
 
 剩余主要阻断：完整 RadioLink/转发器数据库，CW/Q65/Telemetry，WSJT-X Bridge，SDR/ONVIF，原 WinForms 全部功能 IPC、多台站与生产身份/ACL/数据迁移，公网 RTC/FRP、设备实机、长时稳定性及正式安装器/升级回滚。所有最新 HEAD 的 CI 必须独立验收，不能继承历史提交的通过结果。不合并、不发布正式 Release，API 提交未证实加密签名。
+
+
+## 2026-11-24 — 原 CW 双解码器 / RadioLink / 台站缓存接入
+
+本节为最新实施增量，尚不是完整 V1.7 的发布验收。
+
+| 提交 | 实施结果 | 验收范围 |
+|---|---|---|
+| `af708c6` | 从原 WinForms 声卡控制器分离纯 PCM ingress 与音源枚举；独立 DSP 直接链接原 26 个 CW 源码文件和 FFTW、MathNet、ONNX Runtime，复用八路 Kalman/固定滞后关联、DeepCW、NewCW、增量文本；修复 worker 停止时漏等最后一个推理任务的竞态 | 最新主项目与 DSP CI 待确认 |
+| `217c845` | SignalBus → 有界独立 CW 输入队列 → 原 CwReceiveWorker → 结果 ring；样本索引及源代际变化重建会话，丢弃旧推理结果；私有 IPC 支持启停及 DeepCW/NewCW 切换 | 未进行硬件音频验证 |
+| `c2894d0`、`b2a4026` | 认证 CW 结果 API 与 Operator/Admin 配置，Web 八路频率/峰值/键控/文本面板；发布目录实际 DSP 注入双载波 CW 测试及 epoch 清除、停止测试 | 新 CI 排队；尚未证实实际 CW 双路解码、真实 ONNX 模型效果 |
+| `488ca57`、`1e2791f` | 原 RadioLink 与 Station 共享频率计算，反向/同向映射、基准偏移、RIT/XIT、手工修正；不钳制数据库边缘。Device 支持仅上行调谐而不写 0 Hz 到 RX。Web 通带设置、主项目回归及认证 CAT E2E 新用例 | 最新 CI 待确认；未迁移 CTCSS/自动模式、完整实时调谐、排程与数据库在线更新 |
+| `2c7059b`、`2d72de7` | Station 读取原格式 Satellites.json，按名称/别名/NORAD 检索及缓存更新，手工 TLE 过期后选择 AutomaticTle；返回精确通带、模式和状态，Web 选择卫星及转发器填入追踪表单；认证 E2E fixture | 仅本地缓存导入，不是完整 SatNOGS/CelesTrak 在线数据源；当前 OMM-only 可识别但不可直接启动 TLE 跟踪 |
+
+CW：通过 Web 工作台显式启用接收处理，避免在未使用 CW 时持续占用 DSP 资源。Host 与 DSP 的 SKYROOF_CW_RESULTS_BUS 必须相同；DSP 可设置 SKYROOF_CW_MODEL_DIRECTORY（原 DeepCW model.onnx、model.onnx.json）、SKYROOF_CW_HISTORY_DIRECTORY。NewCW 不需要 ONNX 模型；DeepCW 依赖模型实际安装。现阶段 UI 返回最近八路的有限长度文本；完整历史浏览、CW TX/WPM/宏、全功能 Skimmer UI 仍需实现。
+
+Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json（建议 C:/SkyRoofRemote/data/Satellites.json）。该增量只读，不修改桌面缓存，不自动声称死活/轨道数据实时准确。用户可以手工输入或修正频率和 TLE。OMM 自动跟踪、轨道缓存源自动获取、当地自定义记录刷新与模式/CTCSS 联动尚待实施。
+
+质量证据：`ab1326d` 的 [aislop 45314259461](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45314259461) 报告 6 项，其中 rtc_voice_track.cpp OfferedAudio::payloadType 无初始化已在 `488ca57` 修正；另 5 项来自同期 master 的 EarthViewPanel/Designer，当前 Remote 分支未改动该模块，不以降低门禁或回退地图功能处理。上一轮 `8babd43` 的 Media、DSP、aislop 已通过；完整 HTTP FT4 包与 Opus 浏览器测试仍需最终 CI。当前最新提交的 CI 排队，不能用历史成功代替。未执行 IC-9700 实机、真实公网、24h 稳定性验收；不合并 master，不发布正式 Release。

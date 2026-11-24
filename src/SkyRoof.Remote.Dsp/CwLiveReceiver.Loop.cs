@@ -24,16 +24,19 @@ public sealed partial class CwLiveReceiver
                 if (item.Frame is not { } frame) continue;
                 if (active is null)
                 {
+                    long session;
                     lock (_gate)
                     {
                         if (item.Generation != _generation || !_enabled) continue;
                         generation = item.Generation;
-                        long session = ++_sessionId;
+                        session = ++_sessionId;
                         _results.ResetEpoch(NewEpoch());
                         PublishState("waiting-for-audio");
-                        active = new CwRemoteSession(_channels, item.Mode, frame,
-                            data => PublishSession(item.Generation, session, data));
                     }
+                    // Archive loading and worker construction do not hold the
+                    // PCM ingress lock or block the FT4/AF spectrum pipeline.
+                    active = new CwRemoteSession(_channels, item.Mode, frame,
+                        data => PublishSession(item.Generation, session, data));
                 }
                 active.Accept(frame);
             }
