@@ -18,3 +18,10 @@
 - SkyRoof/OpenGL/GpuEarthTilePool.cs、EarthMapRenderer.cs、EarthMapShaders.cs
 - SkyRoof/Settings/EarthMapSettings.cs
 - VE3NEA.Dsp.Tests/EarthMapEngineTests.cs
+
+## V2：实验性 XYZ 图源扩展
+
+- 参考用户提供的 https://zhuanlan.zhihu.com/p/641436984 ，采用高德 style=7、6、8 和 Google lyrs=m、s、t、p 的原文瓦片模板。无第三方 Key、无模拟浏览器鉴权头、无持久化缓存、无批量下载；Google 地址沿用原文 HTTP。
+- 高德及 Google m/p 使用 GCJ-02 → Web Mercator 瓦片坐标（GCJ-02 为从 WGS-84 正向偏移的近似算法），Google s/t 使用 WGS-84 → Web Mercator；CPU 使用 double 瓦片原点，GLSL 使用相对经纬度与 Mercator 局部差分，避免高倍率绝对浮点坐标相减。根层 z=0，方形矩阵；天地图仍为原 WMTS 地理矩阵。
+- 图层切换复用代数、异步请求、稀疏索引及父瓦片回退；高德影像/注记同坐标体系，Google y/h 混合坐标系未接入。超出 Mercator 极限的地球区域显示内置地图，轨道、方位、相机不改变。
+- 新增 URI 模板、坐标、规划、无 Key 初始化及源切换测试。原文端点可用性、实际地图坐标配准、地图版权/审图要求及 Windows 实际 GPU 表现必须独立核对；非官方接口没有稳定性保证。

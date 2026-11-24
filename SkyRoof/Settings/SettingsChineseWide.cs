@@ -11,7 +11,7 @@ namespace SkyRoof
   {
     private static readonly Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase)
     {
-      ["Earth map / Tianditu"] = "地球视图与天地图",
+      ["Earth view / Map sources"] = "地球视图与地图源",
       ["Default map source"] = "默认地图源",
       ["Tianditu API Key"] = "天地图 API Key",
       ["Show map labels"] = "显示地图注记",
