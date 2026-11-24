@@ -1,6 +1,8 @@
 #pragma once
-#ifdef _WIN32
+#if defined(_WIN32) && defined(SKYROOF_RTC_BUILD)
 #define SKYROOF_RTC_EXPORT __declspec(dllexport)
+#elif defined(_WIN32)
+#define SKYROOF_RTC_EXPORT __declspec(dllimport)
 #else
 #define SKYROOF_RTC_EXPORT __attribute__((visibility("default")))
 #endif

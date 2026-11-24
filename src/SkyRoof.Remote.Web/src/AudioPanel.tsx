@@ -2,8 +2,9 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { useMediaRxStatus } from './useMediaRxStatus';
 import { PcmTimeline } from './PcmTimeline';
+import { RxPcmTransport } from './RxPcmTransport';
 
-type Playback = { context: AudioContext; socket: WebSocket; node: AudioWorkletNode };
+type Playback = { context: AudioContext; socket: RxPcmTransport; node: AudioWorkletNode };
 export function AudioPanel() {
   const workspaceActive = useContext(WorkspaceActiveContext);
   const hub = useContext(DeviceHubContext);
@@ -51,10 +52,6 @@ export function AudioPanel() {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2]
       });
       node.connect(context.destination);
-      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(protocol + '//' + location.host + '/ws/audio');
-      socket.binaryType = 'arraybuffer';
-      playback.current = { context, node, socket };
       let count = 0;
       timeline.current.reset();
       node.port.onmessage = (event: MessageEvent<{ kind: string;
@@ -63,22 +60,23 @@ export function AudioPanel() {
         setUnderruns(event.data.underruns);
         setBufferedMs(event.data.bufferedMilliseconds);
       };
-      socket.onopen = () => { if (attempt === generation.current) setStatus('WSS PCM16 · 48 kHz'); };
-      socket.onclose = () => {
+      const socket = new RxPcmTransport(message => {
+        if (attempt === generation.current) setStatus(message);
+      }, () => {
         if (attempt !== generation.current) return;
         stop();
-        setStatus('WSS DISCONNECTED · PLAY RX to reconnect');
-      };
-      socket.onerror = () => { if (attempt === generation.current) setStatus('WSS ERROR'); };
-      socket.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+        setStatus('RX DISCONNECTED · PLAY RX to reconnect');
+      }, buffer => {
         if (attempt !== generation.current || !active.current) return;
-        const packet = timeline.current.accept(event.data);
+        const packet = timeline.current.accept(buffer);
         if (!packet) return;
         if (packet.discontinuity) node.port.postMessage({ kind: 'reset' });
         node.port.postMessage({ kind: 'samples', ...packet }, [packet.samples.buffer]);
         count++;
         if (count % 15 === 0) setFrames(count);
-      };
+      });
+      playback.current = { context, node, socket };
+      socket.start();
       if (active.current) await context.resume();
       else await context.suspend();
     } catch (error) {
@@ -109,7 +107,7 @@ export function AudioPanel() {
   useEffect(() => () => disposePlayback(), []);
 
   return <section className="panel audio-panel">
-    <header>RX AUDIO · RAW PCM16 WSS</header>
+    <header>RX AUDIO · RAW PCM16</header>
     <p>{status}</p>
     <div className="readout">48,000 samples/s · PCM16 · SAP/1</div>
     <div className="readout">Received {frames} frames · Buffer {bufferedMs} ms · Underruns {underruns}</div>
@@ -121,6 +119,6 @@ export function AudioPanel() {
       <button disabled={!workspaceActive || !hub} onClick={() => { void start(); }}>PLAY RX</button>
       <button onClick={stop}>STOP RX</button>
     </div>
-    <small>独立 WSS 接收路径。MEDIA 状态只说明站内接收进程，并非 IC-9700 实机认证或音频链路验收；Voice Track/RTC Data 自动切换仍待集成。</small>
+    <small>优先 RTC DataChannel，ICE/数据断流时回退 WSS。Voice Track 与公网部署仍需验收。</small>
   </section>;
 }
