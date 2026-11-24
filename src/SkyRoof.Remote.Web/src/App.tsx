@@ -9,11 +9,7 @@ import { RotatorPanel } from './RotatorPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 import { RfScopePanel } from './RfScopePanel';
 
-function DigitalPanel() {
-  return <section className="panel"><header>FT4 / CW CONSOLE</header>
-    <p>DSP 解码及 TX 事务等待业务迁移后接入。</p>
-  </section>;
-}
+import { DigitalPanel } from './DigitalPanel';
 function RfSpectrumPanel() { return <RfScopePanel />; }
 function AfSpectrumPanel() { return <SpectrumPanel audioFrequency />; }
 const components = {
@@ -155,6 +151,6 @@ export default function App() {
         </WorkspaceActiveContext.Provider>
       </DeviceHubContext.Provider>
     </div>
-    <footer className="status">{station.runtimeMode} · Device CAT via Station Core · AF DSP bridge available; RF/IF and TX integration pending</footer>
+    <footer className="status">{station.runtimeMode} · Device CAT via Station Core · AF/RF DSP · Native CAT/PCM · Development</footer>
   </div>;
 }

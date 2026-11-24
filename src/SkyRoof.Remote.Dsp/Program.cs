@@ -24,6 +24,7 @@ if (channels is < 1 or > 2) throw new ArgumentException("Invalid RX channel coun
 using var spectrum = new NamedSignalRing(outputName, slots: 64, payloadCapacity: 4096,
     initialEpoch: (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
 var analyzer = new AudioSpectrumTransform();
+using var ft4 = new Ft4LiveReceiver(channels);
 ulong inputEpoch = 0;
 Console.WriteLine($"SkyRoof DSP: input={inputName}, AF spectrum={outputName}, channels={channels}");
 
@@ -46,6 +47,7 @@ while (true)
                 analyzer.Reset(inputEpoch);
                 spectrum.ResetEpoch((ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
             }
+            ft4.Accept(frame);
             var oldDiscontinuities = analyzer.Discontinuities;
             analyzer.Accept(frame, channels, (firstSample, db) =>
                 {

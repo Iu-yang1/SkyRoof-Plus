@@ -29,5 +29,6 @@ internal static class Ft4Command
                                m.Contains("FN42", StringComparison.Ordinal)))
             throw new InvalidDataException("Native FT4 encode/decode round-trip did not recover the test message.");
         Console.WriteLine("PASS: original FT4 native codec round-trip, no RF transmission.");
+        Ft4WindowSelfTest.Run(encoded);
     }
 }
