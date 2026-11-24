@@ -115,7 +115,7 @@ namespace SkyRoof
     internal static bool SupportsAuthenticatedScope(
       string? detectedModel, IcomRadioProfile configuredProfile) =>
       TryGetByModel(detectedModel, out IcomRadioProfile? detected) &&
-      ReferenceEquals(detected, configuredProfile) &&
+      detected is not null && ReferenceEquals(detected, configuredProfile) &&
       detected.Scope != IcomCapabilityStatus.Unavailable &&
       (detected.Transports &
         (IcomRadioTransport.Ethernet | IcomRadioTransport.Wlan)) != 0;

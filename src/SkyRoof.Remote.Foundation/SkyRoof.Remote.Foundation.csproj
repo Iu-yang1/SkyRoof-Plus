@@ -8,5 +8,10 @@
   <ItemGroup>
     <Compile Include="../../SkyRoof/IcomLan/IcomCivFrequencyCodec.cs" Link="IcomLan/IcomCivFrequencyCodec.cs" />
     <Compile Include="../../SkyRoof/IcomLan/IcomLanTxAudioPacerBuffer.cs" Link="IcomLan/IcomLanTxAudioPacerBuffer.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomRadioProfile.cs" Link="IcomLan/IcomRadioProfile.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomScopeAssembler.cs" Link="IcomLan/IcomScopeAssembler.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomScopeWaveInfoCodec.cs" Link="IcomLan/IcomScopeWaveInfoCodec.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomScopeFrame.cs" Link="IcomLan/IcomScopeFrame.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomScopeGeometry.cs" Link="IcomLan/IcomScopeGeometry.cs" />
   </ItemGroup>
 </Project>

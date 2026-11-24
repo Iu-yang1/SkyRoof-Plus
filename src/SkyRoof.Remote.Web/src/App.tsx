@@ -7,13 +7,14 @@ import { AudioPanel } from './AudioPanel';
 import { TrackingPanel } from './TrackingPanel';
 import { RotatorPanel } from './RotatorPanel';
 import { SpectrumPanel } from './SpectrumPanel';
+import { RfScopePanel } from './RfScopePanel';
 
 function DigitalPanel() {
   return <section className="panel"><header>FT4 / CW CONSOLE</header>
     <p>DSP 解码及 TX 事务等待业务迁移后接入。</p>
   </section>;
 }
-function RfSpectrumPanel() { return <SpectrumPanel />; }
+function RfSpectrumPanel() { return <RfScopePanel />; }
 function AfSpectrumPanel() { return <SpectrumPanel audioFrequency />; }
 const components = {
   radio: RadioPanel, audio: AudioPanel, scope: RfSpectrumPanel, afscope: AfSpectrumPanel,

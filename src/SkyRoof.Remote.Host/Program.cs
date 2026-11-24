@@ -99,6 +99,7 @@ app.MapStationAdministration();
 app.MapLiveAudioStream();
 app.MapMediaStatus();
 app.MapLiveAfSpectrum();
+app.MapLiveRfScope();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
 if (webUiAvailable) app.MapFallbackToFile("index.html");

@@ -39,7 +39,7 @@ public sealed partial class IcomLanCivSocket
         if (packet.Length == 16 && type == 5)
             throw new IOException("Authenticated Icom CI-V UDP stream disconnected.");
         if (type == 0)
-            _queries.Observe(packet, LocalSid, RemoteSid);
+            ObserveScopePayload(_queries.Observe(packet, LocalSid, RemoteSid));
         if (packet.Length == 21 && type == 7 && packet[16] == 0 && packet[20] == 6)
         {
             var reply = packet.ToArray();

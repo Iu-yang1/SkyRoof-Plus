@@ -81,6 +81,9 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
                 catSession.Attach(new IcomLanSatelliteCat(civ, radio.CivAddress));
                 await device.RecoverAfterRestartAsync(ct);
             }
+            if (string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_RF_SCOPE"),
+                "true", StringComparison.OrdinalIgnoreCase))
+                await civ.EnableRfScopeAsync(control.Capabilities, ct);
             await SuperviseMediaAsync(civ, audio, control, codec, lifetime);
         }
         finally
@@ -98,7 +101,8 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
     {
         var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
             codec, lifetime.Token);
-        var finished = await Task.WhenAny(pump, audio.MaintenanceTask,
+        var scope = RunScopeToBusAsync(civ, lifetime.Token);
+        var finished = await Task.WhenAny(pump, scope, audio.MaintenanceTask,
             control.MaintenanceTask, civ.MaintenanceTask, civ.QueryFailureTask);
         try { await finished; }
         finally
@@ -106,6 +110,8 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
             lifetime.Cancel();
             if (finished != pump)
                 await StopMediaPumpAsync(pump, lifetime.Token);
+            if (finished != scope)
+                await StopMediaPumpAsync(scope, lifetime.Token);
         }
     }
     private async Task StopMediaPumpAsync(Task pump, CancellationToken ct)

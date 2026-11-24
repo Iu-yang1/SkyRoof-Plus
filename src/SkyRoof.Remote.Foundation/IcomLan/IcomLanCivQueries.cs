@@ -52,19 +52,22 @@ internal sealed class IcomLanCivQueries
         }
     }
 
-    public void Observe(byte[] packet, uint local, uint remote)
+    public ReadOnlyMemory<byte> Observe(byte[] packet, uint local, uint remote)
     {
         if (!IcomLanControlCodec.MatchesEnvelope(packet, local, remote) ||
             BinaryPrimitives.ReadUInt32LittleEndian(packet) != packet.Length)
-            return;
+            return default;
         lock (_sync)
         {
-            if (!_sequences.Accept(BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(6)))) return;
-            if (_pending is not { } pending ||
+            if (!_sequences.Accept(BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(6))) ||
                 !IcomLanCivPacketCodec.TryRead(packet, local, remote, out var payload))
-                return;
-            var matched = pending.Query.Match(payload.Span);
-            if (matched is not null) pending.Reply.TrySetResult(matched);
+                return default;
+            if (_pending is { } pending)
+            {
+                var matched = pending.Query.Match(payload.Span);
+                if (matched is not null) pending.Reply.TrySetResult(matched);
+            }
+            return payload;
         }
     }
 
