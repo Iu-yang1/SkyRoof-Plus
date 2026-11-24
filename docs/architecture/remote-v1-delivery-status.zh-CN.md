@@ -117,3 +117,29 @@ Operator 经 SignalR → Station gRPC → Device rotctld P/p/S 发送指向和 S
 
 当前为**接收方向的独立开发功能**。只使用已协商的 Audio UDP 接收，未实现 Direct LAN TX 及原 SkyRoof 的完整 CI-V/RF Spectrum 功能，且没有实机验证。真实 IC-9700 的 LAN AF/IF Output Select 由电台本身决定；软件不能据 UDP 内容假定一定是 AF 或 IF。生产部署时避免与独占电台远控会话的 RS-BA1 客户端同时争用设备授权，具体并发兼容性仍需实机确认。
 
+
+
+## 2026-11-24 Remote V1.7 续开发优先级 P0–P5
+
+这里的 P0–P5 是本轮工作顺序，不替代上文 P0–P18 的总验收矩阵。完整 V1.7 目标不变。
+
+| 本轮 | 提交与实现 | 尚需验收/实现 |
+|---|---|---|
+| P0 | `510d50c` 原生 CI-V 写入 ACK/NAK、频率/模式读回、PTT、MAIN/SUB 选择、仪表原始 BCD 数据 | 实机 CI-V、完整 VFO 与 split 模式行为 |
+| P1 | `b63d51d`、`40818dc` 原生卫星 CAT 后端、同一会话复用、DATA 模式、PTT 恢复与真实 UDP 模拟跨进程测试 | 断电及实机故障恢复；完整非 SAT CAT |
+| P2 | `9414dc9` TX Grant、20 ms PCM 节拍、1364 字节最大 UDP 载荷、MOD Input 读写确认 | Device TX IPC、持有者与 PCM 代际绑定、浏览器麦克风、数字 TX、实际 RF |
+| P3 | `bf9f432` 复用原 RF Scope 解析，MAIN/SUB SignalBus 和认证 WSS、浏览器 RF 绘图 | 完整 Device→Host→浏览器 RF 实测、频谱配置与瀑布图、独立 IF、仪表 UI |
+| P4 | `00d21cf` SAP/1 按 sample index 处理短缺口、长缺口重新预充，Epoch 重置、Workspace 媒体隔离及断开后重新连接 | 正式 WebRTC Audio Track/RTC Data、ICE/FRP、麦克风 TX |
+| P5 | `81ff758` 独立 DSP 复用原始 FT4 DLL/ABI，48 kHz PCM 文件解码与原生波形闭环 CI | 实时 UTC 对齐的 FT4 时隙接收/发射、CW/Q65/遥测、ISS OEM/RadioLink、ONVIF、QSO/WSJT-X 等模块 |
+
+### 配置与边界
+
+Device: `SKYROOF_CAT_DIALECT=icom-lan-satellite` 选用原生卫星 CAT；`SKYROOF_ICOM_LAN_RF_SCOPE=true` 显式开启原生 Scope。仍需前述 Icom LAN 登录参数。现有 SkyCAT、rigctld 路径保持。TX 底层组件尚未连接完整 PTT 音频事务；不能宣称原生 LAN TX 已端到端可用。RF Scope 使用 0–160 原始幅度，不是校准 dBm，也不是 IF IQ。
+
+DSP 开发诊断：`dotnet SkyRoof.Remote.Dsp.dll --ft4-self-test` 执行原始 native encode/decode 回环（无电台发射）；`--ft4-decode path.pcm` 输入单声道 48 kHz PCM16 LE、290304 样本。当前不是实时 FT4 工作台。
+
+### 已取得的 CI 证据
+
+- `510d50c` Foundation 45304756833、Media 45304756487、aislop 45304756493 成功。
+- `40818dc` Foundation 45305057656、Media 45305057818、浏览器 45305057793、Web build 45305057928 成功。主 Compile Check 45305057622 在合并测试版本的 EarthMapRenderer.cs 发生 CS0120；该文件在当前 master 已采用实例 vao.Unbind(gl)。aislop 45305057761 报告 score 99、10 个未基线化告警，涉及同期地图代码以及 IcomLanReceiveWorker 类长度；本轮进一步拆分 Worker。未修改 quality gate 或 baseline。
+- 所有后续 SHA 必须独立核对 CI，不能继承前一提交的成功结论。当前无真实 IC-9700、旋转器、远端公网或实机 RF 测试。PR 保持 Draft，不发布正式 Release。

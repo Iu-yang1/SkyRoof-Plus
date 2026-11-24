@@ -78,8 +78,14 @@ export function AudioPanel() {
       if (active.current) await context.resume();
       else await context.suspend();
     } catch (error) {
-      if (attempt === generation.current) { stop(); setStatus(String(error)); }
-      if (context && context.state !== 'closed') await context.close();
+      if (attempt === generation.current) {
+        const installed = playback.current?.context === context;
+        stop();
+        setStatus(String(error));
+        if (!installed && context && context.state !== 'closed') await context.close();
+      } else if (context && context.state !== 'closed') {
+        await context.close().catch(() => undefined);
+      }
     } finally {
       if (attempt === generation.current) starting.current = false;
     }
@@ -97,6 +103,9 @@ export function AudioPanel() {
   }, [workspaceActive]);
 
   useEffect(() => () => {
+    generation.current++;
+    starting.current = false;
+    timeline.current.reset();
     const current = playback.current;
     playback.current = null;
     if (current) {
