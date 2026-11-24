@@ -6,7 +6,7 @@ namespace SkyRoof.Remote.Station;
 /// <summary>Reloads an operator-provided ISS OEM on replacement; preserves TLE as explicit fallback.</summary>
 internal sealed class IssOemSource
 {
-    private readonly string? path = Environment.GetEnvironmentVariable("SKYROOF_ISS_OEM_PATH");
+    private readonly string path = IssOemRefreshService.CachePath;
     private (DateTime Modified, long Length)? version;
     private OrekitIssOemTrack? track;
     private string state = "ISS_OEM_NOT_CONFIGURED";
@@ -16,14 +16,11 @@ internal sealed class IssOemSource
     {
         if (tle.NoradNumber != 25544 || backend is not OrekitOrbitBackend)
             return (tle, backend.BackendId, "");
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            Reload(path);
-            if (track is not null && track.Covers(utc))
-                return (track, "orekit-ikvm-oem", "");
-            if (track is not null)
-                return (tle, backend.BackendId, "ISS_OEM_OUTSIDE_COVERAGE;TLE_FALLBACK;");
-        }
+        Reload(path);
+        if (track is not null && track.Covers(utc))
+            return (track, "orekit-ikvm-oem", state == "ISS_OEM_READY" ? "" : state + ";");
+        if (track is not null)
+            return (tle, backend.BackendId, "ISS_OEM_OUTSIDE_COVERAGE;TLE_FALLBACK;");
         return (tle, backend.BackendId, state + ";TLE_FALLBACK;");
     }
 
@@ -42,14 +39,13 @@ internal sealed class IssOemSource
             var current = (info.LastWriteTimeUtc, info.Length);
             if (version == current) return;
             version = current;
-            track = null;
-            track = new OrekitIssOemTrack(info.FullName);
+            var candidate = new OrekitIssOemTrack(info.FullName);
+            track = candidate;
             state = "ISS_OEM_READY";
         }
         catch (Exception ex)
         {
-            track = null;
-            state = "ISS_OEM_INVALID";
+            state = track is null ? "ISS_OEM_INVALID" : "ISS_OEM_RETAINED_AFTER_INVALID_UPDATE";
             // Do not leak the configured station file path to remote clients.
             System.Diagnostics.Trace.TraceWarning("ISS OEM reload failed: {0}", ex.GetType().Name);
         }

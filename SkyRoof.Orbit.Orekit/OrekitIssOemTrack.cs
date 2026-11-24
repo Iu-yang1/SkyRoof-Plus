@@ -55,6 +55,12 @@ public sealed class OrekitIssOemTrack : IOrbitTrack
         return segments.Any(segment => Contains(segment, date));
     }
 
+    public bool HasFutureCoverage(DateTimeOffset instant)
+    {
+        var date = ToDate(instant);
+        return segments.Any(segment => segment.Stop.durationFrom(date) >= 0);
+    }
+
     private static bool Contains(Span segment, AbsoluteDate date) =>
         date.durationFrom(segment.Start) >= 0 && date.durationFrom(segment.Stop) <= 0;
 

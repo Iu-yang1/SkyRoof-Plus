@@ -53,6 +53,7 @@ stationInfo.Environment["SKYROOF_SATELLITE_CATALOG"] = catalogFile;
 stationInfo.Environment["SKYROOF_ORBIT_BACKEND"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") ?? "orekit";
 stationInfo.Environment["SKYROOF_OREKIT_DATA"] = Path.Combine(Path.GetDirectoryName(stationDll)!, "orekit-data");
 stationInfo.Environment["SKYROOF_OREKIT_EOP_AUTO"] = "false";
+stationInfo.Environment["SKYROOF_ISS_OEM_AUTO"] = "false";
 var hostInfo = Setup(hostDll);
 hostInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 hostInfo.Environment["ASPNETCORE_URLS"] = baseUrl;
