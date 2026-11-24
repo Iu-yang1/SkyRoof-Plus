@@ -17,6 +17,7 @@ try
     var timer = Stopwatch.StartNew();
     var dataDirectory = OrekitDataContext.Initialize(args[0]);
     var initializedMs = timer.Elapsed.TotalMilliseconds;
+    IssOemSuite.Run();
 
     var utc = TimeScalesFactory.getUTC();
     var t2020 = new AbsoluteDate(2020, 1, 1, 0, 0, 0.0, utc);
