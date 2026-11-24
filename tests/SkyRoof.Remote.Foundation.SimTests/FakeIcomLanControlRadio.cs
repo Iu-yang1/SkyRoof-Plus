@@ -57,11 +57,15 @@ internal sealed class FakeIcomLanControlRadio : IDisposable
         caps[0x42 + 0x52] = 0xA2;
         BinaryPrimitives.WriteUInt16BigEndian(caps.AsSpan(0x42 + 7, 2), 0x8010);
         BinaryPrimitives.WriteUInt16BigEndian(caps.AsSpan(0x42 + 0x53, 2), 0x018B);
+        BinaryPrimitives.WriteUInt16BigEndian(caps.AsSpan(0x42 + 0x55, 2), 0x0008);
         await _socket.SendAsync(caps, hello.RemoteEndPoint, ct);
 
         var stream = await ReceiveAsync(ct);
         Check(stream.Buffer.Length == 0x90 && stream.Buffer[0x15] == 3 &&
             stream.Buffer.AsSpan(0x1A, 6).SequenceEqual(_renewed) &&
+            stream.Buffer[0x71] == 1 && stream.Buffer[0x73] == 4 &&
+            BinaryPrimitives.ReadUInt32BigEndian(stream.Buffer.AsSpan(0x78, 4)) == 48000 &&
+            BinaryPrimitives.ReadUInt32BigEndian(stream.Buffer.AsSpan(0x84, 4)) == 60 &&
             BinaryPrimitives.ReadUInt32BigEndian(stream.Buffer.AsSpan(0x74, 4)) == 48000 &&
             BinaryPrimitives.ReadUInt32BigEndian(stream.Buffer.AsSpan(0x7C, 4)) == 41002 &&
             BinaryPrimitives.ReadUInt32BigEndian(stream.Buffer.AsSpan(0x80, 4)) == 41003);

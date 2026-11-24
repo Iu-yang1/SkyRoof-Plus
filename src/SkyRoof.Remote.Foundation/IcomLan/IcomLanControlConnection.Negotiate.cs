@@ -52,26 +52,26 @@ public sealed partial class IcomLanControlConnection
         var capability = await WaitForCapabilitiesAsync(capabilitySeq,
             tokenSeq, requestedAuthId, ct);
         Capabilities = capability;
-        uint negotiated = IcomLanControlCodec.SelectReceiveSampleRate(capability.RxSampleMask);
-        if (options.PreferredRxRate != 0)
-        {
-            ushort selectedBit = options.PreferredRxRate switch
-            {
-                48000 => 0x0008, 32000 => 0x0004, 16000 => 0x0002,
-                12000 => 0x0080, 44100 => 0x0040, 22050 => 0x0020,
-                11025 => 0x0010, 8000 => 0x0001, _ => (ushort)0
-            };
-            if ((capability.RxSampleMask & selectedBit) != 0)
-                negotiated = options.PreferredRxRate;
-        }
+        uint negotiated = IcomLanControlCodec.SelectSampleRate(capability.RxSampleMask, options.PreferredRxRate);
         NegotiatedRxRate = negotiated;
+        if (options.PreferredTxRate > 0)
+        {
+            NegotiatedTxRate = IcomLanControlCodec.SelectSampleRate(capability.TxSampleMask,
+                options.PreferredTxRate);
+            if (NegotiatedTxRate == 0 || !Enum.IsDefined(
+                (SkyRoof.Remote.Foundation.Media.IcomLanAudioCodec)options.TxCodec))
+                throw new IOException("Radio does not advertise a compatible TX audio format.");
+            NegotiatedTxCodec = options.TxCodec;
+        }
         ushort streamSeq = NextInnerSequence();
         await SendAsync(IcomLanControlCodec.BuildStreamRequest(new(
             LocalSid, RemoteSid, streamSeq, _authId, capability.RadioName,
             options.Username, capability.CommonCapability, capability.Guid,
             capability.Mac, capability.RxSampleMask,
             options.LocalCivPort, options.LocalAudioPort,
-            RxCodec: options.RxCodec, RxSampleRate: negotiated)), true, ct);
+            RxCodec: options.RxCodec, RxSampleRate: negotiated,
+            TxCodec: NegotiatedTxCodec, TxSampleRate: NegotiatedTxRate,
+            TxBufferMs: NegotiatedTxRate == 0 ? 0 : options.TxBufferMs)), true, ct);
         await AwaitStreamGrantAsync(streamSeq, ct);
     }
 

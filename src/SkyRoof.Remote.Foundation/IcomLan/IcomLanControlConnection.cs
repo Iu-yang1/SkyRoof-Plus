@@ -8,7 +8,12 @@ namespace SkyRoof.Remote.Foundation.IcomLan;
 public sealed record IcomLanConnectionOptions(
     string Address, int ControlPort, string Username, string Password,
     string ClientName, int LocalCivPort, int LocalAudioPort,
-    uint PreferredRxRate = 48000, byte RxCodec = 4);
+    uint PreferredRxRate = 48000, byte RxCodec = 4)
+{
+    public uint PreferredTxRate { get; init; }
+    public byte TxCodec { get; init; } = 4;
+    public uint TxBufferMs { get; init; } = 60;
+}
 
 /// <summary>
 /// Owns the Icom control UDP login, correlated token and media grant.
@@ -35,6 +40,8 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
     public uint RemoteSid { get; private set; }
     public IcomLanRadioCapabilities? Capabilities { get; private set; }
     public uint NegotiatedRxRate { get; private set; }
+    public uint NegotiatedTxRate { get; private set; }
+    public byte NegotiatedTxCodec { get; private set; }
     public int RemoteCivPort { get; private set; } = 50002;
     public int RemoteAudioPort { get; private set; } = 50003;
 

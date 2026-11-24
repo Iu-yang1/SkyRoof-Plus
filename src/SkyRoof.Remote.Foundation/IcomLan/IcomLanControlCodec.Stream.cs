@@ -54,8 +54,16 @@ public static partial class IcomLanControlCodec
         return packet;
     }
 
-    public static uint SelectReceiveSampleRate(ushort capabilities)
+    public static uint SelectReceiveSampleRate(ushort capabilities) => SelectSampleRate(capabilities, 0);
+
+    public static uint SelectSampleRate(ushort capabilities, uint preferred)
     {
+        ushort preferredBit = preferred switch
+        {
+            48000 => 8, 32000 => 4, 16000 => 2, 12000 => 0x80,
+            44100 => 0x40, 22050 => 0x20, 11025 => 0x10, 8000 => 1, _ => 0
+        };
+        if ((capabilities & preferredBit) != 0) return preferred;
         foreach (var (bit, rate) in new (ushort, uint)[]
         {
             (0x0008, 48000), (0x0004, 32000), (0x0002, 16000),

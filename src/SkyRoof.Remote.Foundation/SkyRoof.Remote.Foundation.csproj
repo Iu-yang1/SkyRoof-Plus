@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../SkyRoof/IcomLan/IcomCivFrequencyCodec.cs" Link="IcomLan/IcomCivFrequencyCodec.cs" />
+    <Compile Include="../../SkyRoof/IcomLan/IcomLanTxAudioPacerBuffer.cs" Link="IcomLan/IcomLanTxAudioPacerBuffer.cs" />
   </ItemGroup>
 </Project>
