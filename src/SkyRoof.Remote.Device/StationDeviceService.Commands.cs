@@ -36,7 +36,7 @@ public sealed partial class StationDeviceService
         catch (ArgumentException e) { throw new RpcException(new Status(StatusCode.InvalidArgument, e.Message)); }
         catch (InvalidOperationException e)
         { throw new RpcException(new Status(StatusCode.FailedPrecondition, e.Message)); }
-        catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
+        catch (Exception e) when (e is IOException or SocketException or TimeoutException or OperationCanceledException)
         { throw FailedCat(e); }
         finally { _commands.Release(); }
     }

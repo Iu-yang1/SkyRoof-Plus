@@ -2,9 +2,9 @@ using System.Globalization;
 
 namespace SkyRoof.Remote.Device;
 
-public enum CatDialect { SkyCat, Rigctld }
+public enum CatDialect { SkyCat, Rigctld, IcomLanSatellite }
 
-public sealed class RadioCatBackend(RigctldLink link, CatDialect dialect)
+public sealed class RadioCatBackend(RigctldLink link, CatDialect dialect) : IStationRadioCat
 {
     public bool SupportsDuplexFrequencies => dialect == CatDialect.SkyCat;
     public Task<long> ReadRxFrequencyAsync(CancellationToken ct) => link.ReadLongAsync("f", ct);

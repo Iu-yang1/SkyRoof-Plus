@@ -8,7 +8,8 @@ namespace SkyRoof.Remote.Device;
 /// Opens control grant with the same reserved local CI-V/Audio socket ports,
 /// then forwards validated raw UDP frames to Media's private SignalBus ingress.
 /// </summary>
-internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker> logger)
+internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker> logger,
+    NativeIcomCatSession catSession, StationDeviceService device)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -63,7 +64,38 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
         if (string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_CAT_PROBE"),
             "true", StringComparison.OrdinalIgnoreCase))
             await ProbeNativeCatAsync(civ, control.Capabilities, ct);
+        await RunAttachedSessionAsync(civ, audio, control, codec, ct);
+    }
+
+    private async Task RunAttachedSessionAsync(IcomLanCivSocket civ, IcomLanAudioSocket audio,
+        IcomLanControlConnection control, IcomLanAudioCodec codec, CancellationToken ct)
+    {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        bool native = string.Equals(Environment.GetEnvironmentVariable("SKYROOF_CAT_DIALECT"),
+            "icom-lan-satellite", StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            if (native)
+            {
+                var radio = control.Capabilities ?? throw new IOException("Missing radio capabilities.");
+                catSession.Attach(new IcomLanSatelliteCat(civ, radio.CivAddress));
+                await device.RecoverAfterRestartAsync(ct);
+            }
+            await SuperviseMediaAsync(civ, audio, control, codec, lifetime);
+        }
+        finally
+        {
+            if (native)
+            {
+                catSession.Detach();
+                await device.InvalidateNativeSessionAsync();
+            }
+        }
+    }
+
+    private async Task SuperviseMediaAsync(IcomLanCivSocket civ, IcomLanAudioSocket audio,
+        IcomLanControlConnection control, IcomLanAudioCodec codec, CancellationTokenSource lifetime)
+    {
         var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
             codec, lifetime.Token);
         var finished = await Task.WhenAny(pump, audio.MaintenanceTask,

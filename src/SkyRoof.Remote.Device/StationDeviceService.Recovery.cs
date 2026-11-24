@@ -13,6 +13,22 @@ public sealed partial class StationDeviceService
         finally { _commands.Release(); }
     }
 
+    // A fresh authenticated session must never inherit an old TX owner.
+    // The durable journal is kept until RX is confirmed on the new session.
+    internal async Task InvalidateNativeSessionAsync()
+    {
+        await _commands.WaitAsync();
+        try
+        {
+            if (_owner is null && !journal.Exists) return;
+            _owner = null;
+            _digitalPaused = true;
+            ++_epoch;
+            ++_revision;
+        }
+        finally { _commands.Release(); }
+    }
+
     private async Task RecoverOrphanedPttAsync(CancellationToken token)
     {
         if (_owner is not null || journal.Read() is null) return;

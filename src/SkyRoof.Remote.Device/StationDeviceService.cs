@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace SkyRoof.Remote.Device;
 
-public sealed partial class StationDeviceService(RadioCatBackend cat, PttLeaseJournal journal,
+public sealed partial class StationDeviceService(IStationRadioCat cat, PttLeaseJournal journal,
     ILogger<StationDeviceService> logger)
     : StationDevice.StationDeviceBase
 {
@@ -32,7 +32,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, PttLeaseJo
             await RecoverOrphanedPttAsync(context.CancellationToken);
             return await ReadSnapshotAsync("readback", context.CancellationToken);
         }
-        catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
+        catch (Exception e) when (e is IOException or SocketException or TimeoutException or OperationCanceledException)
         { throw FailedCat(e); }
         finally { _commands.Release(); }
     }
@@ -48,7 +48,7 @@ public sealed partial class StationDeviceService(RadioCatBackend cat, PttLeaseJo
             if (result.Changed) _revision++;
             return await ReadSnapshotAsync(result.Description, context.CancellationToken);
         }
-        catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
+        catch (Exception e) when (e is IOException or SocketException or TimeoutException or OperationCanceledException)
         { throw FailedCat(e); }
         finally { _commands.Release(); }
     }
