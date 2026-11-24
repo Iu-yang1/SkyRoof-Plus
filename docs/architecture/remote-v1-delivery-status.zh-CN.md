@@ -143,3 +143,31 @@ DSP 开发诊断：`dotnet SkyRoof.Remote.Dsp.dll --ft4-self-test` 执行原始 
 - `510d50c` Foundation 45304756833、Media 45304756487、aislop 45304756493 成功。
 - `40818dc` Foundation 45305057656、Media 45305057818、浏览器 45305057793、Web build 45305057928 成功。主 Compile Check 45305057622 在合并测试版本的 EarthMapRenderer.cs 发生 CS0120；该文件在当前 master 已采用实例 vao.Unbind(gl)。aislop 45305057761 报告 score 99、10 个未基线化告警，涉及同期地图代码以及 IcomLanReceiveWorker 类长度；本轮进一步拆分 Worker。未修改 quality gate 或 baseline。
 - 所有后续 SHA 必须独立核对 CI，不能继承前一提交的成功结论。当前无真实 IC-9700、旋转器、远端公网或实机 RF 测试。PR 保持 Draft，不发布正式 Release。
+
+
+## 2026-11-24 继续实施：TX、实时 FT4、RTC 与主项目回归
+
+本节是后续增量；上述较早描述以本节最新状态为准。
+
+| 提交 | 已实现 | 验收边界 |
+|---|---|---|
+| `f7799a4` | 原生 Icom TX grant、PTT owner/epoch 绑定 PCM、Station/Device IPC、MOD input 读回、20 ms 发送和 ASRC | 仍需实际电台 RF/音频 |
+| `4257cb0` | 真 UDP 模拟电台验证 TX PCM、PTT 抢占、重复/旧 owner/RX 拒绝 | Windows Media Integration 45307141101 和六进程包 45307140689 已成功 |
+| `9fd272b` | 浏览器 AudioWorklet MIC 和 SignalR 20 ms PCM 上传，仅在确认 PTT 事务后发送 | Web build 45307205040、Media 45307205076 成功；尚未真实麦克风/RF 验收 |
+| `3a0d61a` | 修复旧 HEAD 62224da 的 3 个 aislop 告警（连接参数、重复清理、转换循环） | 最新 gate 必须重新通过 |
+| `603280f` | 实时 FT4 sample-clock UTC 时隙、epoch/gap 处理、后台原生解码、结果 ring 和 Web 面板 | Web build 45307421420 成功；实时解码新 CI 尚待完成 |
+| `a724ab6`、`8f65506` | libdatachannel C ABI 原生 RX peer、认证 SDP signaling、SAP/1 DataChannel、浏览器 WSS 自动回退 | 新原生桥与实际 Chromium 待验收，Audio Track 未迁移 |
+| `3e1dbab` | 原生 RTC Windows 运行库构建及打包、真正 Chromium/SignalBus 数据验收 | 不是既有双原生 peer 回环的同一测试；新 CI 尚未完成 |
+| `e0c7dbb` | 20 ms TX PCM 有限重排及缺帧处理、重复与失去 owner 区分 | 新增顺序 0,2,1,4,3 测试，待 CI |
+| `46e0247` | FT4 encode PCM CLI 和真实独立 DSP SignalBus→FT4→结果 ring 测试 | 尚未完成数字定时发射 |
+| `eeb6d15` | 原 CAT Cycle 在真实写入锁内校验 ON 准备状态，禁止检查后新到 ON 绕过准备，同时保持 OFF 优先 | 最新 Compile Check 待完成 |
+
+已核对 62224da 全部 21 项 CI 中 19 成功。主 Compile Check 当时 1811/1813 通过，失败为同期地图像素与中文覆盖；在 4257cb0 的后续合并测试中地图两项不再失败，1813/1814 通过，但 `IcomMicrowaveVirtualPttTests.TenGigahertzDopplerMayUpdateTxWhileKeyedAndReturnToRx` 的 `KeyedBeforeTuned` 断言失败。分析 `Cycle` 发现准备检查与实际 PTT 请求读取之间存在竞态，已修复，不能预先宣布通过。旧 HEAD 的 aislop 报告 3 项已针对性修正，没有改变 gate 或 baseline。
+
+### 正式交付尚缺
+
+- Native TX：实机 PTT/音频源切换与标定、浏览器实际麦克风和网络压力，定时数字 PCM。
+- RTC：新原生 Windows bridge 与实际 Chromium 端到端结果、Voice/Opus Audio Track、FRP UDP/公网 ICE、断线与撤权/负载验收。
+- DSP：FT4 实时时间标定、数字发射/QSO sequencer；原 CW/Q65/Telemetry 解码器、ISS OEM/RadioLink、SDR/ONVIF 等剩余模块。
+- WinForms 完整 IPC、真正多台站、生产 ACL/数据库迁移/升级回滚、正式 installer、硬件和长时稳定性仍未闭合。
+- 最新 SHA 的所有必要 CI 及 aislop 通过后才具备软件级发布前验收资格。未获得实机验收不冒称真实射频验证。当前 PR 继续 Draft，不创建正式 Release。

@@ -15,7 +15,9 @@
         "SKYROOF_ROTATOR_AZ_MIN": "0",
         "SKYROOF_ROTATOR_AZ_MAX": "450",
         "SKYROOF_ROTATOR_EL_MIN": "0",
-        "SKYROOF_ROTATOR_EL_MAX": "180"
+        "SKYROOF_ROTATOR_EL_MAX": "180",
+        "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
+        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary"
       }
     },
     {
@@ -54,7 +56,8 @@
       "Environment": {
         "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
         "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
-        "SKYROOF_RX_AUDIO_CHANNELS": "1"
+        "SKYROOF_RX_AUDIO_CHANNELS": "1",
+        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary"
       }
     },
     {
@@ -70,7 +73,10 @@
         "SKYROOF_AUTH_DB": "C:/SkyRoofRemote/data/station-users.db",
         "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
         "SKYROOF_RX_AUDIO_CHANNELS": "1",
-        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary"
+        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
+        "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
+        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
+        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary"
       }
     }
   ]

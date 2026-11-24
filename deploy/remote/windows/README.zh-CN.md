@@ -43,3 +43,15 @@ Device 可独立于 SkyCAT CAT 连接，使用 `SKYROOF_ICOM_LAN_HOST` 启动 LA
 
 上述功能在配置缺失时不启动，不会把模拟 CAT 连接替换成未认证的原生 LAN CAT，不引入新的发射门限。本接收链路还不具备 Direct LAN TX、原生 CAT/频谱全量联动或实机保证；在 IC-9700 设备上需要核对电台 LAN AF/IF 输出选择，确保应用将当前 PCM 按正确源类型处理。模拟器故障注入包含 UDP SID 不匹配、乱序与缺包，但不是物理网络测试。为避免凭据泄露，正式服务账户的环境设置应由本机受限配置管理，不应提交到公开 GitHub 仓库。
 
+
+
+## IC-9700 Native LAN 开发配置
+
+`supervisor.icom9700.json.example` 保留六进程结构，并选用 `icom-lan-satellite` CAT 后端。请复制到实际配置路径并在本机替换电台 IPv4 和网络账号；不要提交包含真实密码的文件。示例 192.0.2.10 是文档保留地址。
+
+- 目前原生 CAT 适配 IC-9700 SATELLITE 模式，MAIN 下行、SUB 上行。非卫星模式继续使用现有 SkyCAT/rigctld 等已支持后端。
+- `SKYROOF_ICOM_LAN_TX_RATE=48000` 请求 TX Audio Grant，0 或省略表示仅协商 RX Audio。设备能力决定实际协商速率。原生 CAT 与 TX 音频仍须真实设备验证。
+- 浏览器 ENABLE MIC 授权麦克风；只有 Device 确认 PTT owner / transaction / epoch 后才发送 20 ms PCM。实际公网部署必须 HTTPS 才能使用浏览器麦克风，localhost 是开发例外。
+- Device 与 Media 的 `SKYROOF_MEDIA_PIPE` 必须一致，Host 的状态接口也使用同名管道。Host/Device 的 RF scope bus、Host/Dsp 的 FT4 result bus 必须一致。
+- `SKYROOF_FT4_RX_DELAY_MS`（Dsp）是接收路径的校准偏移，默认 0。该时刻使用 Media 的本机 PCM 发布时间推定，不是硬件 ADC 时间戳。
+- RTC 原生运行库 `skyroof_rtc.dll` 与依赖必须在 Host 发布目录。开发打包 CI 构建并测试固定 libdatachannel v0.24.7，再复制 Windows 运行库；未通过该测试不能视为 RTC 已交付。可选 Host `SKYROOF_RTC_ICE_SERVER` 设定 STUN/TURN URL；浏览器当前使用默认 ICE 配置，公网 FRP/ICE 尚未验收。RTC Data 不可用时自动回退认证 WSS。
