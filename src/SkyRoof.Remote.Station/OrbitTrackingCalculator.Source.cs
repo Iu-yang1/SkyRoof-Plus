@@ -5,7 +5,7 @@ namespace SkyRoof.Remote.Station;
 
 public sealed partial class OrbitTrackingCalculator
 {
-    private (IOrbitTrack Track, string Source) ResolveTrack(TrackingRequest request, DateTimeOffset utc)
+    private (IOrbitTrack Track, string Source) ResolveTrack(TrackingRequest request)
     {
         CatalogCacheTle? orbit = request.CatalogSatelliteId.Length == 0 ? null :
             catalog.ResolveOrbit(request.CatalogSatelliteId, DateTimeOffset.UtcNow);

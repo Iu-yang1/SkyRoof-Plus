@@ -158,6 +158,7 @@ try
     {
         await tracker.StartAsync();
         await TrackingChecks.RunAsync(tracker, radio, rotator);
+        await OmmFixture.RunAsync(tracker);
         await RotatorChecks.RunAsync(tracker, rotator);
         await tracker.StopAsync();
     }

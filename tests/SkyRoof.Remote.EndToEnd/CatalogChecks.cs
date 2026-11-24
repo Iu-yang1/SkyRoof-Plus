@@ -6,7 +6,7 @@ internal static class CatalogChecks
     internal static void WriteFixture(string path)
     {
         var tle = TrackingChecks.Request();
-        File.WriteAllText(path, JsonSerializer.Serialize(new[]
+        File.WriteAllText(path, Newtonsoft.Json.JsonConvert.SerializeObject(new object[]
         {
             new
             {
@@ -22,6 +22,14 @@ internal static class CatalogChecks
                         downlink_low = 145900000L, downlink_high = 145920000L,
                         uplink_low = 435630000L, uplink_high = 435650000L, invert = true }
                 }
+            },
+            new
+            {
+                sat_id = "fixture-100001", norad_cat_id = 100001, name = "OMM Test",
+                status = "in orbit",
+                AutomaticTle = new { tle1 = "", tle2 = "", tle_source = "OMM fixture", omm = OmmFixture.Data() },
+                Transmitters = new[] { new { uuid = "omm-tx", description = "Beacon",
+                    alive = true, downlink_low = 145900000L, mode = "USB" } }
             }
         }));
     }

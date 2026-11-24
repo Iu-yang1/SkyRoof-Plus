@@ -37,7 +37,7 @@ public sealed partial class OrbitTrackingCalculator
         string orbitBackend, qualityPrefix;
         lock (_sync)
         {
-            var (track, source) = ResolveTrack(request, utc);
+            var (track, source) = ResolveTrack(request);
             noradNumber = track.NoradNumber;
             var selected = _issOem.Select(backend, track, utc);
             orbitBackend = selected.Backend;
