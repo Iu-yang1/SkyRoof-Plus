@@ -6,7 +6,7 @@ using SkyRoof.Remote.SignalBus;
 
 namespace SkyRoof.Remote.Dsp;
 
-internal sealed class Ft4LiveReceiver : IDisposable
+internal sealed class Ft4LiveReceiver : IAsyncDisposable
 {
     private readonly int _channels;
     private readonly double _delayMs;
@@ -71,10 +71,10 @@ internal sealed class Ft4LiveReceiver : IDisposable
 
     private static ulong NewEpoch() => (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue);
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _pending.Writer.TryComplete();
-        _decoder.GetAwaiter().GetResult();
-        _results.Dispose();
+        try { await _decoder; }
+        finally { _results.Dispose(); }
     }
 }

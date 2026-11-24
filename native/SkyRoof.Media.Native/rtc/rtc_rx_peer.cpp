@@ -84,4 +84,4 @@ int skyroof_rtc_send(void* handle, const char* bytes, int size) {
     return rtcSendMessage(dc, bytes, size) < 0 ? -1 : 1;
 }
 
-void skyroof_rtc_destroy(void* handle) { delete static_cast<Peer*>(handle); }
+void skyroof_rtc_destroy(void* handle) { std::unique_ptr<Peer> peer(static_cast<Peer*>(handle)); }
