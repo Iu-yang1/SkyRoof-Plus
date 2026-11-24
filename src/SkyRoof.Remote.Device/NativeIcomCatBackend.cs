@@ -2,6 +2,9 @@ namespace SkyRoof.Remote.Device;
 
 internal sealed class NativeIcomCatBackend(NativeIcomCatSession session) : IStationRadioCat
 {
+    internal NativeIcomTxAudio? Tx => session.Tx;
+    internal Task PrepareLanModulationAsync(CancellationToken ct) =>
+        session.Current.PrepareLanModulationAsync(ct);
     public bool SupportsDuplexFrequencies => true;
     public Task<long> ReadRxFrequencyAsync(CancellationToken ct) =>
         session.Current.ReadFrequencyAsync(false, ct);

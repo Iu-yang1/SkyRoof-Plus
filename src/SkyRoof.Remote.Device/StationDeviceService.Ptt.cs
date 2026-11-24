@@ -55,6 +55,9 @@ public sealed partial class StationDeviceService
             await cat.SetTxModeAsync(requestedMode, token);
             _txMode = requestedMode;
         }
+        if (cat is NativeIcomCatBackend native && native.Tx is not null &&
+            requestedSource.Equals("LAN", StringComparison.OrdinalIgnoreCase))
+            await native.PrepareLanModulationAsync(token);
         journal.Save(command.TransactionId, command.SessionId);
         await cat.SetPttAsync(true, token);
         if (!await cat.ReadPttAsync(token))

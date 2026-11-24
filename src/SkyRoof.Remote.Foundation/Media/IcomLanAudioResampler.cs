@@ -6,7 +6,7 @@ namespace SkyRoof.Remote.Foundation.Media;
 /// Stateful windowed-sinc conversion of negotiated Icom mono audio to 48 kHz.
 /// Carries filter phase across UDP packets; the owner resets it on sample gaps.
 /// </summary>
-public sealed class IcomLanAudioResampler
+public sealed class IcomLanAudioResampler(int outputRate = 48_000)
 {
     public const int OutputRate = 48_000;
     private const int Radius = 12;
@@ -32,12 +32,12 @@ public sealed class IcomLanAudioResampler
         for (int i = 0; i < input.Length; i++)
             input[i] = BinaryPrimitives.ReadInt16LittleEndian(
                 pcm16.Slice(i * 2, 2)) / 32768f;
-        if (sourceRate == OutputRate) return input;
+        if (sourceRate == outputRate) return input;
 
         _samples.AddRange(input);
         _total += input.Length;
-        double ratio = (double)sourceRate / OutputRate;
-        double cutoff = Math.Min(1, (double)OutputRate / sourceRate);
+        double ratio = (double)sourceRate / outputRate;
+        double cutoff = Math.Min(1, (double)outputRate / sourceRate);
         var output = new List<float>((int)Math.Ceiling(input.Length / ratio) + 1);
         while (_nextPosition + Radius < _total)
         {

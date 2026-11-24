@@ -6,9 +6,12 @@ namespace SkyRoof.Remote.Device;
 // login or independently owned CI-V socket is opened by the CAT backend.
 internal sealed class NativeIcomCatSession
 {
-    private IcomLanSatelliteCat? _session;
-    public IcomLanSatelliteCat Current => Volatile.Read(ref _session)
+    private Attached? _session;
+    private sealed record Attached(IcomLanSatelliteCat Cat, NativeIcomTxAudio? Audio);
+    public IcomLanSatelliteCat Current => Volatile.Read(ref _session)?.Cat
         ?? throw new IOException("Native Icom LAN CAT session is reconnecting.");
-    public void Attach(IcomLanSatelliteCat session) => Volatile.Write(ref _session, session);
+    public NativeIcomTxAudio? Tx => Volatile.Read(ref _session)?.Audio;
+    public void Attach(IcomLanSatelliteCat session, NativeIcomTxAudio? audio) =>
+        Volatile.Write(ref _session, new Attached(session, audio));
     public void Detach() => Volatile.Write(ref _session, null);
 }

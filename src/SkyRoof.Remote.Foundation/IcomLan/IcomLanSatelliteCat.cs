@@ -29,6 +29,18 @@ public sealed class IcomLanSatelliteCat(IcomLanCivSocket socket, byte radioAddre
             return true;
         }, ct);
 
+    public Task PrepareLanModulationAsync(CancellationToken ct) =>
+        OnBandAsync(true, async token =>
+        {
+            var mode = await _readbacks.ReadSelectedModeAsync(token);
+            bool data = mode.Code is 0 or 1 or 2 or 5 &&
+                (await _readbacks.ReadDataModeAsync(token)).Enabled;
+            var mod = new IcomLanModulationControl(socket, radioAddress);
+            if (await mod.ReadAsync(data, token) != IcomLanModulationInput.Lan)
+                await mod.SetAsync(data, IcomLanModulationInput.Lan, token);
+            return true;
+        }, ct);
+
     public Task<bool> ReadPttAsync(CancellationToken ct) => _readbacks.ReadPttAsync(ct);
 
     public Task SetPttAsync(bool on, CancellationToken ct) => on

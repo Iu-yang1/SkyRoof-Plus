@@ -5,6 +5,7 @@ option csharp_namespace = "SkyRoof.Remote.Ipc";
 service StationDevice {
   rpc Execute(DeviceCommand) returns (DeviceSnapshot);
   rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
+  rpc PushTxPcm(TxPcmChunk) returns (TxPcmReceipt);
   rpc ReleaseSession(DeviceReleaseSessionRequest) returns (DeviceSnapshot);
 }
 
@@ -50,4 +51,16 @@ message DeviceSnapshot {
   bool digital_automation_paused = 10;
   string status_text = 11;
   int32 device_process_id = 12;
+}
+
+message TxPcmChunk {
+  string transaction_id = 1;
+  string session_id = 2;
+  uint64 epoch = 3;
+  uint64 sequence = 4;
+  bytes pcm16 = 5; // exactly 20 ms, mono 48 kHz, little endian
+}
+message TxPcmReceipt {
+  bool accepted = 1;
+  string state = 2;
 }

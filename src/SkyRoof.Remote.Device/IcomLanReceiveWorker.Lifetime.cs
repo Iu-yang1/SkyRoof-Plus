@@ -16,7 +16,11 @@ internal sealed partial class IcomLanReceiveWorker
             if (native)
             {
                 var radio = control.Capabilities ?? throw new IOException("Missing radio capabilities.");
-                catSession.Attach(new IcomLanSatelliteCat(civ, radio.CivAddress));
+                if (!string.Equals(radio.RadioName, "IC-9700", StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Native satellite CAT requires an authenticated IC-9700 profile.");
+                var tx = control.NegotiatedTxRate == 0 ? null : new NativeIcomTxAudio(audio,
+                    checked((int)control.NegotiatedTxRate), (IcomLanAudioCodec)control.NegotiatedTxCodec);
+                catSession.Attach(new IcomLanSatelliteCat(civ, radio.CivAddress), tx);
                 await device.RecoverAfterRestartAsync(ct);
             }
             if (string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_RF_SCOPE"),
@@ -40,7 +44,8 @@ internal sealed partial class IcomLanReceiveWorker
         var pump = RunAudioToMediaAsync(audio, (int)control.NegotiatedRxRate,
             codec, lifetime.Token);
         var scope = RunScopeToBusAsync(civ, lifetime.Token);
-        var finished = await Task.WhenAny(pump, scope, audio.MaintenanceTask,
+        var txPump = RunTxPumpAsync(lifetime.Token);
+        var finished = await Task.WhenAny(pump, scope, txPump, audio.MaintenanceTask,
             control.MaintenanceTask, civ.MaintenanceTask, civ.QueryFailureTask);
         try { await finished; }
         finally
@@ -50,6 +55,8 @@ internal sealed partial class IcomLanReceiveWorker
                 await StopMediaPumpAsync(pump, lifetime.Token);
             if (finished != scope)
                 await StopMediaPumpAsync(scope, lifetime.Token);
+            if (finished != txPump)
+                await StopMediaPumpAsync(txPump, lifetime.Token);
         }
     }
     private async Task StopMediaPumpAsync(Task pump, CancellationToken ct)
