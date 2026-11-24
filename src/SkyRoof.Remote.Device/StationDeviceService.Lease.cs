@@ -11,7 +11,7 @@ public sealed partial class StationDeviceService
         {
             if (_owner is null && journal.Exists)
                 await RecoverOrphanedPttAsync(token);
-            if (_owner is not { Digital: false } ||
+            if (_owner is not { } active || _timedTransaction == active.TransactionId ||
                 _lastManualBeat == 0 ||
                 Stopwatch.GetElapsedTime(_lastManualBeat) <= threshold)
                 return false;
@@ -19,7 +19,7 @@ public sealed partial class StationDeviceService
             {
                 await cat.SetPttAsync(false, token);
                 if (await cat.ReadPttAsync(token))
-                    throw new IOException("PTT remained ON after manual session lease expired.");
+                    throw new IOException("PTT remained ON after external session lease expired.");
             }
             journal.Clear();
             _owner = null;

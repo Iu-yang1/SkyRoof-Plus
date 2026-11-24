@@ -24,7 +24,9 @@ public sealed partial class StationDeviceService
             Revision = _revision,
             DigitalAutomationPaused = _digitalPaused,
             StatusText = status,
-            DeviceProcessId = Environment.ProcessId
+            DeviceProcessId = Environment.ProcessId,
+            SupportsDuplexFrequencies = cat.SupportsDuplexFrequencies,
+            NativeTxAvailable = cat is NativeIcomCatBackend native && native.Tx is not null
         };
     }
 

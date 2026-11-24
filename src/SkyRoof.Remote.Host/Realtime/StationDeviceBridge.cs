@@ -15,7 +15,11 @@ public sealed record RemoteCatCommand(string TransactionId, DeviceOperation Oper
 public sealed record RemoteCatStatus(
     long RxFrequencyHz, long TxFrequencyHz, string RxMode, string TxMode,
     bool ActualPtt, string ActiveTransactionId, string ActiveSessionId,
-    ulong Epoch, ulong Revision, bool DigitalAutomationPaused, string Outcome);
+    ulong Epoch, ulong Revision, bool DigitalAutomationPaused, string Outcome)
+{
+    public bool SupportsDuplexFrequencies { get; init; }
+    public bool NativeTxAvailable { get; init; }
+}
 
 public sealed partial class StationDeviceBridge(IConfiguration settings) : IDisposable
 {
@@ -93,5 +97,9 @@ public sealed partial class StationDeviceBridge(IConfiguration settings) : IDisp
         result.RxFrequencyHz, result.TxFrequencyHz, result.RxMode, result.TxMode,
         result.ActualPtt, result.ActiveTransactionId, result.ActiveSessionId,
         result.TransactionEpoch, result.Revision, result.DigitalAutomationPaused,
-        result.StatusText);
+        result.StatusText)
+    {
+        SupportsDuplexFrequencies = result.SupportsDuplexFrequencies,
+        NativeTxAvailable = result.NativeTxAvailable
+    };
 }

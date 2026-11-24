@@ -49,10 +49,10 @@ public sealed partial class StationControlHub(
             throw new HubException("Invalid radio operation.");
         var status = await device.ExecuteAsync(command, Context.ConnectionId,
             Context.ConnectionAborted);
-        if (command.Operation == DeviceOperation.DeviceManualBegin && status.ActualPtt
+        if ((command.Operation is DeviceOperation.DeviceManualBegin or DeviceOperation.DeviceDigitalBegin) && status.ActualPtt
             && status.ActiveSessionId == Context.ConnectionId)
             Context.Items[ManualPttHeld] = true;
-        if (command.Operation is DeviceOperation.DeviceManualEnd or DeviceOperation.DeviceEmergencyRx)
+        if (status.ActiveSessionId != Context.ConnectionId)
             Context.Items.Remove(ManualPttHeld);
         return status;
     }

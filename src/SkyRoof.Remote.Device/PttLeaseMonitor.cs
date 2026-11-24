@@ -19,7 +19,7 @@ public sealed class PttLeaseMonitor(
                 try
                 {
                     if (await service.ExpireManualLeaseAsync(threshold, stoppingToken))
-                        logger.LogWarning("Manually keyed CAT PTT released because session heartbeat expired.");
+                        logger.LogWarning("Externally keyed CAT PTT released because session heartbeat expired.");
                 }
                 catch (Exception e) when (e is IOException or TimeoutException or System.Net.Sockets.SocketException)
                 {

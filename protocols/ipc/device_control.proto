@@ -24,6 +24,7 @@ enum DeviceOperation {
   DEVICE_RESUME_DIGITAL_TX = 10;
   DEVICE_MANUAL_HEARTBEAT = 11;
   DEVICE_TRACK_FREQUENCIES = 12;
+  DEVICE_DIGITAL_HEARTBEAT = 13;
 }
 
 message DeviceCommand {
@@ -52,6 +53,8 @@ message DeviceSnapshot {
   bool digital_automation_paused = 10;
   string status_text = 11;
   int32 device_process_id = 12;
+  bool supports_duplex_frequencies = 13;
+  bool native_tx_available = 14;
 }
 
 message TxPcmChunk {

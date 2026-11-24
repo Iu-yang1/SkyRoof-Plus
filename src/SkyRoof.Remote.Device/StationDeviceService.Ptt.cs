@@ -8,10 +8,10 @@ public sealed partial class StationDeviceService
         DeviceCommand command, bool digital, CancellationToken token)
     {
         RequireTransaction(command);
-        if (digital && (_digitalPaused || _owner is not null)) return ("digital-busy", false);
         if (_owner?.TransactionId == command.TransactionId &&
             _owner.SessionId == command.SessionId && _owner.Digital == digital)
             return ("duplicate", false);
+        if (digital && (_digitalPaused || _owner is not null)) return ("digital-busy", false);
 
         var requestedHz = command.FrequencyHz > 0 ? command.FrequencyHz : _txHz;
         var requestedMode = command.Mode.Length > 0 ? command.Mode : _txMode;
@@ -32,7 +32,7 @@ public sealed partial class StationDeviceService
             journal.Save(command.TransactionId, command.SessionId);
             _owner = new DeviceOwner(command.TransactionId, command.SessionId, digital,
                 requestedHz, requestedMode, requestedSource, ++_epoch);
-            if (!digital) _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
+            _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
             return ("source-takeover-no-rf-transition", true);
         }
 
@@ -64,7 +64,7 @@ public sealed partial class StationDeviceService
             throw new IOException("PTT assertion not confirmed by CAT readback.");
         _owner = new DeviceOwner(command.TransactionId, command.SessionId, digital,
             requestedHz, requestedMode, requestedSource, ++_epoch);
-        if (!digital) _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
+        _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
         return (existing is null ? "ptt-asserted" : "rf-reconfigured", true);
     }
 
@@ -88,15 +88,16 @@ public sealed partial class StationDeviceService
         return ("ptt-released", true);
     }
 
-    private (string Description, bool Changed) RenewManualLease(DeviceCommand command)
+    private (string Description, bool Changed) RenewExternalLease(DeviceCommand command, bool digital)
     {
         RequireTransaction(command);
-        if (_owner is { Digital: false } active &&
+        if (_owner is { } active && active.Digital == digital &&
+            _timedTransaction != active.TransactionId &&
             active.TransactionId == command.TransactionId &&
             active.SessionId == command.SessionId)
         {
             _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
-            return ("manual-ptt-lease-renewed", false);
+            return ("ptt-lease-renewed", false);
         }
         return ("stale-ptt-heartbeat-ignored", false);
     }
@@ -113,7 +114,8 @@ public sealed partial class StationDeviceService
     {
         if (string.IsNullOrWhiteSpace(sessionId))
             throw new ArgumentException("Session ID is required.");
-        if (_owner is not { Digital: false } active || active.SessionId != sessionId)
+        if (_owner is not { } active || active.SessionId != sessionId ||
+            _timedTransaction == active.TransactionId)
             return ("session-not-owner", false);
         if (await cat.ReadPttAsync(token))
         {
