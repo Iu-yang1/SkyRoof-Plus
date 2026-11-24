@@ -17,11 +17,8 @@ public sealed partial class StationDeviceService
         await _commands.WaitAsync(ct);
         try
         {
-            if (_cwActive is { } active)
-            {
-                if (wpm.HasValue) throw new InvalidOperationException("CW message is active.");
-                return MapCw(await active.Keyer.GetStatusAsync(ct));
-            }
+            if (_cwActive is not null && wpm.HasValue)
+                throw new InvalidOperationException("CW message is active.");
             await using var keyer = await ConnectCwAsync(ct);
             if (wpm is double speed)
             {

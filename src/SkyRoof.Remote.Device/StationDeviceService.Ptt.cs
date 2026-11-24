@@ -119,6 +119,11 @@ public sealed partial class StationDeviceService
     {
         if (string.IsNullOrWhiteSpace(sessionId))
             throw new ArgumentException("Session ID is required.");
+        if (_cwActive is { } cw && cw.SessionId == sessionId)
+        {
+            await StopCwLockedAsync(cw);
+            return ("cw-session-released", true);
+        }
         if (_owner is not { } active || active.SessionId != sessionId ||
             _timedTransaction == active.TransactionId)
             return ("session-not-owner", false);

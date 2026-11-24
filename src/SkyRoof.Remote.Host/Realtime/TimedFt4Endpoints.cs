@@ -81,8 +81,8 @@ public static class TimedFt4Endpoints
         return roles.Contains("Operator") || roles.Contains("Administrator");
     }
 
-    internal static async Task<TimedTxReceipt> AwaitAuthorizedAsync(HttpContext context,
-        Task<TimedTxReceipt> running, CancellationTokenSource lifetime)
+    internal static async Task<T> AwaitAuthorizedAsync<T>(HttpContext context,
+        Task<T> running, CancellationTokenSource lifetime)
     {
         while (!running.IsCompleted)
         {

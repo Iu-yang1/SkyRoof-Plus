@@ -15,7 +15,7 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> TuneTxAsync(DeviceCommand command, CancellationToken ct)
     {
         if (command.FrequencyHz <= 0) throw new ArgumentException("TX frequency must be positive.");
-        if (_cwActive is not null) throw new InvalidOperationException("Stop the active CW message before changing TX frequency.");
+        if (_cwActive is { } cw) await StopCwLockedAsync(cw);
         await cat.SetTxFrequencyAsync(command.FrequencyHz, ct);
         _txHz = command.FrequencyHz;
         if (_owner is not null) _owner = _owner with { FrequencyHz = command.FrequencyHz };
@@ -31,7 +31,7 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> SetTxModeAsync(DeviceCommand command, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(command.Mode)) throw new ArgumentException("TX mode is required.");
-        if (_cwActive is not null) throw new InvalidOperationException("Stop the active CW message before changing TX mode.");
+        if (_cwActive is { } cw) await StopCwLockedAsync(cw);
         await cat.SetTxModeAsync(command.Mode, ct);
         _txMode = command.Mode;
         if (_owner is not null) _owner = _owner with { Mode = command.Mode };
