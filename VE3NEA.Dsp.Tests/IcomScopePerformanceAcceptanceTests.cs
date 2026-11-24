@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using SkyRoof;
 using Xunit;
@@ -183,7 +184,26 @@ public sealed class IcomScopePerformanceAcceptanceTests
       };
     }
 
+    [DllImport("winmm.dll", ExactSpelling = true)]
+    private static extern uint timeBeginPeriod(uint period);
+
+    [DllImport("winmm.dll", ExactSpelling = true)]
+    private static extern uint timeEndPeriod(uint period);
+
     private void Produce()
+    {
+      // The source is a paced test fixture, not a CPU stress worker.
+      // Request 1 ms Windows timer resolution for the fixture lifetime;
+      // the two independent synthetic loads and all acceptance limits stay.
+      bool highResolution = timeBeginPeriod(1) == 0;
+      try { ProduceFrames(highResolution); }
+      finally
+      {
+        if (highResolution) _ = timeEndPeriod(1);
+      }
+    }
+
+    private void ProduceFrames(bool highResolution)
     {
       long start = Stopwatch.GetTimestamp();
       for (int i = 0; i < Count && !cancel.IsCancellationRequested; i++)
@@ -191,7 +211,9 @@ public sealed class IcomScopePerformanceAcceptanceTests
         long due = start + (long)(i * (Stopwatch.Frequency / (double)hz));
         while (Stopwatch.GetTimestamp() < due && !cancel.IsCancellationRequested)
         {
-          if (due - Stopwatch.GetTimestamp() > Stopwatch.Frequency / 50) Thread.Sleep(1);
+          long remaining = due - Stopwatch.GetTimestamp();
+          long sleepMargin = Stopwatch.Frequency / (highResolution ? 500 : 50);
+          if (remaining > sleepMargin) Thread.Sleep(1);
           else Thread.SpinWait(64);
         }
         if (cancel.IsCancellationRequested) return;

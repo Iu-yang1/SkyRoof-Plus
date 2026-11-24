@@ -8,6 +8,10 @@ using Xunit;
 
 namespace VE3NEA.Dsp.Tests
 {
+  [CollectionDefinition("SkyCAT scope TCP", DisableParallelization = true)]
+  public sealed class SkyCatScopeTcpCollection { }
+
+  [Collection("SkyCAT scope TCP")]
   public sealed class IcomSkyCatScopeClientTests
   {
     [Fact]
@@ -38,24 +42,23 @@ namespace VE3NEA.Dsp.Tests
     }
 
     [Fact]
-    public void ScopeOnlyConnectionCanWriteModeAndSpanWithoutPttOrFrequency()
+    public async Task ScopeOnlyConnectionCanWriteModeAndSpanWithoutPttOrFrequency()
     {
       using var server = new StubSkyCat();
       using var client = new IcomSkyCatScopeClient(server.Port);
       client.Start();
 
-      SpinWait.SpinUntil(() => client.IsReady,
-        TimeSpan.FromSeconds(5)).Should().BeTrue();
+      await WaitForAsync(() => client.IsReady, () => client.LastError ?? "No capability reply");
 
       client.RequestControl(IcomScopeControlRequest.ForMode(
         0, IcomScopeMode.Fixed)).Should().BeTrue();
       client.RequestControl(IcomScopeControlRequest.ForSpan(
         1, 50_000)).Should().BeTrue();
 
-      SpinWait.SpinUntil(
+      await WaitForAsync(
         () => server.Commands.Contains("U SCOPE_MODE MAIN FIXED") &&
               server.Commands.Contains("U SCOPE_SPAN SUB 50000"),
-        TimeSpan.FromSeconds(5)).Should().BeTrue();
+        () => string.Join("; ", server.Commands));
 
       server.Commands.Should().NotContain(c =>
         c.StartsWith("T ", StringComparison.Ordinal) ||
@@ -75,8 +78,7 @@ namespace VE3NEA.Dsp.Tests
       client.ReadbackReceived += state => completed.TrySetResult(state);
       client.Start();
 
-      SpinWait.SpinUntil(() => client.IsReady,
-        TimeSpan.FromSeconds(5)).Should().BeTrue();
+      await WaitForAsync(() => client.IsReady, () => client.LastError ?? "No capability reply");
       client.RequestReadback(restart: true).Should().BeTrue();
       IcomScopeReadbackState readback =
         await completed.Task.WaitAsync(TimeSpan.FromSeconds(8));
@@ -87,6 +89,20 @@ namespace VE3NEA.Dsp.Tests
       readback.HasField("MAIN.SPAN").Should().BeTrue();
       readback.MainSpanHz.Should().Be(25_000);
       client.LastReadbackFieldCount.Should().Be(2);
+    }
+
+    // Poll asynchronously: the client and server both need ThreadPool
+    // continuations. A synchronous SpinUntil on an xUnit worker competes
+    // with these operations when the suite is running on a small CI VM.
+    private static async Task WaitForAsync(Func<bool> predicate, Func<string> diagnostic)
+    {
+      using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+      while (!predicate() && !timeout.IsCancellationRequested)
+      {
+        try { await Task.Delay(10, timeout.Token); }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested) { break; }
+      }
+      predicate().Should().BeTrue("SkyCAT must reply within five seconds; {0}", diagnostic());
     }
 
     private sealed class StubSkyCat : IDisposable
@@ -104,7 +120,9 @@ namespace VE3NEA.Dsp.Tests
       {
         listener.Start();
         Port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        server = Task.Run(RunAsync);
+        // Accept is asynchronous; start it immediately instead of queuing
+        // a second ThreadPool work item before the client can handshake.
+        server = RunAsync();
       }
 
       private async Task RunAsync()
