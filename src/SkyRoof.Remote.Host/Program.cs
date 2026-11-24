@@ -97,6 +97,7 @@ app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal)
 app.MapStationAuth();
 app.MapStationAdministration();
 app.MapLiveAudioStream();
+app.MapLiveRtcRx();
 app.MapMediaStatus();
 app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
