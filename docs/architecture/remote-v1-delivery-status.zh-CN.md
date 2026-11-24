@@ -244,3 +244,12 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `46b7021`：真实 TCP NET rigctl 握手/CAT/PCM 经认证 Host、Station 和模拟原生 Device UDP 的测试，另加数字租约超时回归；打包客户端 companion 到 tools/WsjtxBridge。新 CI 尚待完成。
 - 本次质量补丁按 aislop 报告将 RemoteCatStatus 转为属性 DTO（保留 JSON 字段）并拆 RigctlSession 命令实现，未降低门禁。见 [旧告警 45331620804](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331620804)。最新 SHA 需独立确认。
 - 客户端说明： [WSJT-X Bridge](../../deploy/remote/windows/wsjtx-bridge.zh-CN.md)。真实 WSJT-X 程序和虚拟音频线缆、RF、FRP/ICE、公网、完整 QSO sequencer、CW TX/Q65/Telemetry、SDR/ONVIF、WinForms IPC/多台站及生产安装器仍未完整验收；维持 Draft，不合并、不发布正式 Release。
+
+## 2026-11-24 — FT4 自动 QSO、CW TX 与历史增量
+
+- `214d423`：22/22 CI 全通过，包含 [WSJT-X Media 45341046289](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45341046289)、[开发包 45341046295](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45341046295) 与 [aislop 45341046393](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45341046393)。模拟通过不等于实机或公网验收。
+- FT4 自动 QSO 已接入 Host UTC slot、标准呼号状态机、Web START/STOP、报告、原生 DSP 编解码。见 [FT4 自动 QSO](remote-v1-ft4-auto.zh-CN.md)。`dd46685` 的 [DSP 45342939419](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45342939419) 实际通过原生定向报文 grid/report/RR73/73 与 CW 历史、两载波跟踪及 NewCW 推理。三次发射的自动 QSO 整包 fixture 仍需最终 CI 验证。
+- CW TX 已实现 SkyCAT keyer、WPM 读回、F1–F8 浏览器宏、Host/Station/Device 事务仲裁与 CW 历史 API。`dd46685` 的 [CAT 45342939188](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45342939188) 日志通过真实 TCP 模拟 keyer、取消 STOP、跟踪 TX defer、数字仲裁及手动抢占。
+- `9371f50` 修复 E2E 链接 FakeRigctld.Cw.cs 缺失，拆分 FT4 session；[aislop 45352691633](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45352691633) 已通过，规则未改变。`5f26b6f` 修复断连测试在 CAT T 0 与 journal 清理之间的观察竞态，并增加认证 CW API 测试。
+- `8ca3287`、`7af0e2a`、`05a9537`：Native IC-9700 SAT CW 使用现有 CI-V socket，WPM/BK-IN/Command 17/STOP，持久 journal 恢复、真实 UDP fixture 及启动孤儿恢复。见 [CW keyer 实现](remote-v1-cw-keyer.zh-CN.md)。Native 新测试和最终整包 CI 尚未取得完整结果，真实 IC-9700 SAT Command 17、BK-IN 和重连尚需实机验证。
+- 剩余：FT4 非标准呼号、日志及完整自动化，CW 宏跨设备、TX 历史、Q65/Telemetry、SDR/ONVIF、WinForms IPC、多台站、生产 ACL/安装器/升级迁移/公网及长时实测；继续 Draft。
