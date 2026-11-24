@@ -1,4 +1,4 @@
-internal sealed class FakeNativeSatelliteState
+internal sealed partial class FakeNativeSatelliteState
 {
     private readonly byte[][] _frequency = [[0, 0, 0x90, 0x45, 1], [0, 0, 0x65, 0x35, 4]];
     private readonly byte[][] _mode = [[1, 1], [0, 1]];
@@ -11,6 +11,11 @@ internal sealed class FakeNativeSatelliteState
     {
         return command switch
         {
+            [0x16, 0x47] => [0x16, 0x47, 1],
+            [0x14, 0x0C] => [0x14, 0x0C, .. _cwSpeed],
+            [0x14, 0x0C, _, _] => SetCwSpeed(command[2..]),
+            [0x17, 0xFF] => StopCw(),
+            [0x17, ..] => SendCw(command[1..]),
             [0x16, 0x5A] => [0x16, 0x5A, 1],
             [7, 0xD0] => Select(0),
             [7, 0xD1] => Select(1),

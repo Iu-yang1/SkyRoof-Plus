@@ -7,6 +7,9 @@ internal sealed partial class FakeNativeIcomRadio
     private readonly CancellationTokenSource _nativeCatDone = new();
     private readonly FakeNativeSatelliteState _catState = new();
 
+    public int CwStops => _catState.CwStops;
+    public string LastCw => _catState.LastCw;
+
     public void FinishNativeCat() => _nativeCatDone.Cancel();
 
     private async Task ServeNativeCatAsync(IPEndPoint peer, uint local, CancellationToken ct)

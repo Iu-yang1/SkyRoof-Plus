@@ -6,10 +6,11 @@ namespace SkyRoof.Remote.Device;
 
 public sealed partial class StationDeviceService
 {
-    private sealed class ActiveCw(ICwKeyerSession keyer, string sessionId, TimeSpan duration)
+    private sealed class ActiveCw(ICwKeyerSession keyer, string sessionId, string transactionId, TimeSpan duration)
     {
         public ICwKeyerSession Keyer { get; } = keyer;
         public string SessionId { get; } = sessionId;
+        public string TransactionId { get; } = transactionId;
         public TimeSpan Duration { get; } = duration;
         public TaskCompletionSource Stopped { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
@@ -74,11 +75,13 @@ public sealed partial class StationDeviceService
                 var status = await keyer.GetStatusAsync(ct);
                 if (!status.ReadyToSend) throw new InvalidOperationException(
                     $"CW not ready: {status.Lease}, {status.Mode}, BK-IN {status.BreakIn}, TX {status.Transmitting}.");
-                if (keyer is NativeCwKeyer)
-                    journal.Save("native-cw:" + Guid.NewGuid().ToString("N"), sessionId);
+                string id = (keyer is NativeCwKeyer ? "native-cw:" : "cw:") + Guid.NewGuid().ToString("N");
+                if (keyer is NativeCwKeyer) journal.Save(id, sessionId);
                 await keyer.SendAsync(message, ct);
-                var active = new ActiveCw(keyer, sessionId, CwMessageTiming.ComputeWatchdog(message, status.KeySpeedRaw));
+                var active = new ActiveCw(keyer, sessionId, id, CwMessageTiming.ComputeWatchdog(message, status.KeySpeedRaw));
                 _cwActive = active;
+                ++_epoch;
+                ++_revision;
                 return active;
             }
             catch { await keyer.DisposeAsync(); throw; }
@@ -102,6 +105,8 @@ public sealed partial class StationDeviceService
             finally
             {
                 _cwActive = null;
+                ++_epoch;
+                ++_revision;
                 active.Stopped.TrySetResult();
             }
         }

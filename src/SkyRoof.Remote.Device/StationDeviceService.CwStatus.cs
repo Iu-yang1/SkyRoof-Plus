@@ -17,6 +17,7 @@ public sealed partial class StationDeviceService
         await _commands.WaitAsync(ct);
         try
         {
+            await RecoverOrphanedPttAsync(ct);
             if (_cwActive is not null && wpm.HasValue)
                 throw new InvalidOperationException("CW message is active.");
             await using var keyer = await ConnectCwAsync(ct);
@@ -29,7 +30,8 @@ public sealed partial class StationDeviceService
                     throw new IOException("CW WPM write/readback mismatch.");
                 return MapCw(read);
             }
-            return MapCw(await keyer.GetStatusAsync(ct));
+            var current = await keyer.GetStatusAsync(ct);
+            return MapCw(_cwActive is null ? current : current with { Lease = "BUSY" });
         }
         catch (ArgumentException e) { throw new RpcException(new Status(StatusCode.InvalidArgument, e.Message)); }
         catch (InvalidOperationException e) { throw new RpcException(new Status(StatusCode.FailedPrecondition, e.Message)); }

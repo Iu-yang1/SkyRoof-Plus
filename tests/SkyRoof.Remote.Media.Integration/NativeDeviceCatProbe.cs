@@ -36,6 +36,7 @@ internal static class NativeDeviceCatProbe
         await CheckPttAsync(cat, fake, ct);
         await NativeTimedTxProbe.RunAsync(cat, fake, ct);
         await NativeTimedTxInterruptionProbe.RunAsync(cat, ct);
+        await NativeCwProbe.RunAsync(cat, fake, ct);
         Console.WriteLine("PASS: independent native satellite CAT via Device IPC; MAIN/SUB and PTT ownership.");
     }
 
