@@ -583,7 +583,9 @@ namespace SkyRoof
       bool urgentCatWork = GetRequestedPtt().HasValue ||
         NeedToWriteRxFrequency() || NeedToWriteTxFrequency() ||
         NeedToWriteRxMode() || NeedToWriteTxMode();
-      bool txPrepared = StageTxForPttOn();
+      // A new ON arriving after this snapshot must wait for the next cycle.
+      // Otherwise StageTxForPttOn can return before a concurrently queued ON.
+      bool txPrepared = GetRequestedPtt() == true && StageTxForPttOn();
 
       // If a requested CTCSS update failed, do not key the transmitter with a
       // stale/unknown encoder state. Keep the write pending and retry next cycle.
@@ -591,9 +593,7 @@ namespace SkyRoof
       // CTCSS readiness may block KEYING, but must NEVER block emergency
       // UNKEY. A failed tone write while SSTV is transmitting cannot keep
       // PTT ON merely because the encoder remains in an unknown state.
-      if (CanAttemptPttWithPreparedTx(
-            GetRequestedPtt(), ctcssReady, txPrepared))
-        TryWritePtt();
+      TryWritePtt(ctcssReady, txPrepared);
 
       if (NeedToReadRxFrequency()) TryReadRxFrequency();
       if (NeedToReadTxFrequency()) TryReadTxFrequency();
@@ -823,7 +823,7 @@ namespace SkyRoof
 
     private bool StageTxForPttOn()
     {
-      if (GetRequestedPtt() != true || Ptt || CatMode == OperatingMode.RxOnly)
+      if (Ptt || CatMode == OperatingMode.RxOnly)
         return true;
 
       if (CatMode == OperatingMode.Simplex)
@@ -1003,7 +1003,7 @@ namespace SkyRoof
       LogInfo($"ReadPtt: {Ptt} (changed={PttChanged})");
     }
 
-    private void TryWritePtt()
+    private void TryWritePtt(bool ctcssReady, bool txPrepared)
     {
       if (CatMode == OperatingMode.RxOnly) return;
       bool commandPtt;
@@ -1012,6 +1012,7 @@ namespace SkyRoof
       {
         if (!RequestedPtt.HasValue) return;
         commandPtt = RequestedPtt.Value;
+        if (!CanAttemptPttWithPreparedTx(commandPtt, ctcssReady, txPrepared)) return;
         if (commandPtt == Ptt)
         {
           // Do not claim ownership of an externally asserted PTT just
