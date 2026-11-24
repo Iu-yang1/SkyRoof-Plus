@@ -23,6 +23,11 @@ namespace SkyRoof
     {
       // Settings sections.
       ["Orbit / Ephemeris Sources"] = "轨道与星历来源",
+      ["Earth map / Tianditu"] = "地球视图与天地图",
+      ["Default map source"] = "默认地图源",
+      ["Tianditu API Key"] = "天地图 API Key",
+      ["Show map labels"] = "显示地图注记",
+      ["GPU tile pool capacity"] = "GPU 瓦片池容量",
       ["User"] = "用户信息", ["Audio"] = "音频",
       ["OutputStream"] = "音频输出流", ["Telemetry"] = "卫星遥测",
       ["Announcements"] = "语音播报", ["Waterfall"] = "瀑布图",

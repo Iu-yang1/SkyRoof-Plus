@@ -34,6 +34,8 @@ namespace SkyRoof
       RealTimeRadioBtn = new RadioButton();
       PassRadioBtn = new RadioButton();
       ResetViewButton = new Button();
+      MapSourceCombo = new ComboBox();
+      MapStatusLabel = new Label();
       ((System.ComponentModel.ISupportInitialize)openglControl1).BeginInit();
       ModePanel.SuspendLayout();
       SuspendLayout();
@@ -61,6 +63,7 @@ namespace SkyRoof
       //
       label1.AutoSize = true;
       label1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+      label1.Dock = DockStyle.Top;
       label1.Location = new Point(4, 30);
       label1.Name = "label1";
       label1.Size = new Size(27, 19);
@@ -73,6 +76,7 @@ namespace SkyRoof
       ModePanel.Controls.Add(RealTimeRadioBtn);
       ModePanel.Controls.Add(PassRadioBtn);
       ModePanel.Controls.Add(ResetViewButton);
+      ModePanel.Controls.Add(MapSourceCombo);
       ModePanel.Dock = DockStyle.Top;
       ModePanel.Location = new Point(0, 0);
       ModePanel.MaximumSize = new Size(0, 100);
@@ -113,13 +117,26 @@ namespace SkyRoof
       ResetViewButton.TabIndex = 2;
       ResetViewButton.UseVisualStyleBackColor = true;
       //
+      // MapSourceCombo / MapStatusLabel
+      //
+      MapSourceCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+      MapSourceCombo.Name = "MapSourceCombo";
+      MapSourceCombo.Width = 145;
+      MapSourceCombo.TabIndex = 3;
+      MapStatusLabel.Dock = DockStyle.Bottom;
+      MapStatusLabel.Name = "MapStatusLabel";
+      MapStatusLabel.Height = 22;
+      MapStatusLabel.AutoEllipsis = true;
+      MapStatusLabel.TextAlign = ContentAlignment.MiddleLeft;
+      //
       // EarthViewPanel
       //
       AutoScaleDimensions = new SizeF(7F, 15F);
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(400, 379);
-      Controls.Add(label1);
       Controls.Add(openglControl1);
+      Controls.Add(label1);
+      Controls.Add(MapStatusLabel);
       Controls.Add(ModePanel);
       Name = "EarthViewPanel";
       Text = "Earth View";
@@ -139,5 +156,7 @@ namespace SkyRoof
     private RadioButton RealTimeRadioBtn;
     private RadioButton PassRadioBtn;
     private Button ResetViewButton;
+    private ComboBox MapSourceCombo;
+    private Label MapStatusLabel;
   }
 }

@@ -24,6 +24,10 @@ namespace SkyRoof
     private PolylineRenderer PolylineRenderer;
     private double SatFootprint;
     private readonly EarthViewCamera camera = new();
+    private MapSourceManager? mapSources;
+    private EarthMapRenderer? onlineRenderer;
+    private bool onlineRendererFailed;
+    private bool refreshingMapSelector;
     private Point? dragPosition;
     private GeoPoint nextSatGeoPoint;
     private bool satellitePositionValid;
@@ -57,6 +61,11 @@ namespace SkyRoof
       ctx.EarthViewPanel = this;
       ctx.MainForm.EarthViewMNU.Checked = true;
 
+      mapSources = new MapSourceManager(RequestMapRedraw);
+      Disposed += (_, _) => mapSources.Dispose();
+      MapSourceCombo.SelectedIndexChanged += MapSourceChanged;
+      UiLocalizationService.Bind(this, RefreshMapSourceOptions);
+      ApplyMapSettings();
       SetGridSquare();
       SetSatellite();
 
@@ -73,6 +82,72 @@ namespace SkyRoof
         if (e.Button == MouseButtons.Left) ResetView();
       };
       ResetViewButton.Click += (_, _) => ResetView();
+    }
+
+    private void RequestMapRedraw()
+    {
+      if (IsDisposed || Disposing || !IsHandleCreated) return;
+      try
+      {
+        BeginInvoke((Action)(() =>
+        {
+          if (!IsDisposed && !Disposing) openglControl1.Invalidate();
+        }));
+      }
+      catch (InvalidOperationException) { /* Dock handle was recreated. */ }
+    }
+
+    private void RefreshMapSourceOptions()
+    {
+      if (ctx == null) return;
+      refreshingMapSelector = true;
+      try
+      {
+        MapSourceCombo.Items.Clear();
+        MapSourceCombo.Items.AddRange(new object[]
+        {
+          SettingsLanguage.Text("内置地图", "Built-in map"),
+          SettingsLanguage.Text("天地图 · 矢量", "Tianditu · Vector"),
+          SettingsLanguage.Text("天地图 · 影像", "Tianditu · Imagery"),
+          SettingsLanguage.Text("天地图 · 地形", "Tianditu · Terrain")
+        });
+        MapSourceCombo.SelectedIndex = (int)ctx.Settings.EarthMap.Source;
+        RefreshMapStatus();
+      }
+      finally { refreshingMapSelector = false; }
+    }
+
+    private void MapSourceChanged(object? sender, EventArgs e)
+    {
+      if (refreshingMapSelector || MapSourceCombo.SelectedIndex < 0) return;
+      ctx.Settings.EarthMap.Source = (EarthMapSourceKind)MapSourceCombo.SelectedIndex;
+      ApplyMapSettings();
+    }
+
+    internal void ApplyMapSettings()
+    {
+      mapSources?.Configure(ctx.Settings.EarthMap);
+      onlineRendererFailed = false;
+      RefreshMapSourceOptions();
+      openglControl1.Invalidate();
+    }
+
+    private void RefreshMapStatus()
+    {
+      if (mapSources == null) return;
+      string status = onlineRendererFailed ? SettingsLanguage.Text("GPU 瓦片渲染不可用，内置地图", "GPU tiles unavailable; built-in map") :
+        mapSources.Status switch
+        {
+          EarthMapStatus.Offline => SettingsLanguage.Text("内置地图", "Built-in map"),
+          EarthMapStatus.KeyMissing => SettingsLanguage.Text("请在设置中填写天地图 API Key", "Configure Tianditu API Key in Settings"),
+          EarthMapStatus.Unavailable => SettingsLanguage.Text("天地图不可用，内置地图回退", "Tianditu unavailable; built-in fallback"),
+          EarthMapStatus.Ready => SettingsLanguage.Text("天地图", "Tianditu") + $" · L{mapSources.Level}",
+          EarthMapStatus.Partial => SettingsLanguage.Text("天地图 · 部分瓦片", "Tianditu · partial tiles"),
+          _ => SettingsLanguage.Text("天地图 · 加载中", "Tianditu · loading")
+        };
+      if (ctx.Settings.EarthMap.Source != EarthMapSourceKind.BuiltIn)
+        status += " | © 天地图 / Tianditu";
+      if (MapStatusLabel.Text != status) MapStatusLabel.Text = status;
     }
 
     public void SetGridSquare()
@@ -145,7 +220,12 @@ namespace SkyRoof
     private void ValidateZoom()
     {
       var diam = Math.Min(openglControl1.ClientSize.Width, openglControl1.ClientSize.Height);
-      if (diam > 0) Zoom = Math.Max(1f, Math.Min(25000 / diam, Zoom));
+      if (diam > 0)
+      {
+        int level = mapSources?.MaxLevel ?? 18;
+        double maximum = EarthTileVisibility.MaximumZoom(openglControl1.ClientSize, level);
+        Zoom = Math.Clamp(Zoom, 1, maximum);
+      }
     }
 
     internal void SetSatellite(SatnogsDbSatellite? satellite = null)
@@ -371,6 +451,10 @@ namespace SkyRoof
     private void openglControl1_OpenGLInitialized(object sender, EventArgs e)
     {
       gl = openglControl1.OpenGL;
+      // The docking library may recreate the native GL context. CPU tiles
+      // remain available; new texture names and the index are rebuilt lazily.
+      onlineRenderer = null;
+      onlineRendererFailed = false;
       CheckError(false);
 
       SpriteRenderer = new(gl);
@@ -499,7 +583,46 @@ namespace SkyRoof
       if (size.Width <= 0 || size.Height <= 0) return;
       var gl = openglControl1.OpenGL;
       CheckError(false);
+      gl.ClearColor(Theme.EarthSpace.R / 255f, Theme.EarthSpace.G / 255f, Theme.EarthSpace.B / 255f, 1);
+      gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
+      if (!TryDrawOnlineMap(size)) DrawBuiltInMap();
+      SetSpriteAttributes();
+      SpriteRenderer.DrawSprites([SatelliteSprite, HomeSprite, NorthSprite, SouthSprite]);
+      CheckError();
+      DrawCoveragePolygon();
+    }
 
+    private bool TryDrawOnlineMap(Size size)
+    {
+      if (mapSources == null || ctx.Settings.EarthMap.Source == EarthMapSourceKind.BuiltIn ||
+          onlineRendererFailed || string.IsNullOrWhiteSpace(ctx.Settings.EarthMap.TiandituKey))
+      {
+        RefreshMapStatus();
+        return false;
+      }
+      try
+      {
+        onlineRenderer ??= new EarthMapRenderer(gl, mapSources.Capacity);
+        onlineRenderer.SetCapacity(mapSources.Capacity);
+        mapSources.Update(Center, size, Zoom, onlineRenderer.Capacity);
+        RefreshMapStatus();
+        if (mapSources.ReadyCount == 0) return false;
+        onlineRenderer.Draw(mapSources, TextureIds[0], Center, SatGeoPoint,
+          Mode == EarthViewMode.RealTime ? SatFootprint : Math.PI, size, Zoom, Brightness);
+        return true;
+      }
+      catch (Exception ex)
+      {
+        onlineRendererFailed = true;
+        Log.Warning("Earth map GPU renderer unavailable ({Type}); using built-in map.", ex.GetType().Name);
+        gl.ActiveTexture(OpenGL.GL_TEXTURE0);
+        RefreshMapStatus();
+        return false;
+      }
+    }
+
+    private void DrawBuiltInMap()
+    {
       ShaderProgram.Bind(gl);
       CheckError();
 
@@ -529,10 +652,6 @@ namespace SkyRoof
       ShaderProgram.SetUniform1(gl, "in_brightness", Brightness);
       CheckError();
 
-      gl.ClearColor(Theme.EarthSpace.R / 255f, Theme.EarthSpace.G / 255f, Theme.EarthSpace.B / 255f, 1);
-      CheckError();
-      gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
-      CheckError();
       gl.DrawArrays(OpenGL.GL_TRIANGLE_STRIP, 0, VertexCount);
       CheckError();
 
@@ -540,12 +659,6 @@ namespace SkyRoof
       CheckError();
       ShaderProgram.Unbind(gl);
       CheckError();
-
-      SetSpriteAttributes();
-      SpriteRenderer.DrawSprites([SatelliteSprite, HomeSprite, NorthSprite, SouthSprite]);
-      CheckError();
-
-      DrawCoveragePolygon();
     }
 
     private void DrawCoveragePolygon()

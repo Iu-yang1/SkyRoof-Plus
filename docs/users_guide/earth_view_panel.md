@@ -25,3 +25,12 @@ While the pass is in progress, the panel switches back to Real Time mode so you 
 
 ![Earth View panel](../images/pass_coverage.png)
 
+
+
+## Map sources / 地图源
+
+The map selector switches between the offline built-in DXCC map and Tianditu vector, imagery and terrain WMTS base maps. In Settings → Earth map / Tianditu, enter a service key authorized for desktop WMTS requests, enable/disable labels and set the shared GPU tile capacity. The key is protected by Windows DPAPI and is not included in the installer. Register at https://lbs.tianditu.gov.cn/ and check the service terms, attribution and approved map-display requirements for your intended use. No permanent tile cache or bulk download is implemented.
+
+The map keeps its geographical centre, zoom and satellite overlays when switching sources. The online renderer obtains actual CGCS2000 geographic tile matrix identifiers from capabilities, requests only the visible cap and its ancestors, uploads decoded 256 px tiles incrementally into a shared GPU texture array, and falls back to parents or the built-in texture. Network, credentials, incompatible capabilities and GPU failures do not interrupt satellite tracking. Offline maps become pixelated at high zoom; actual provider coverage and resolution vary. The online attribution/status strip remains visible.
+
+**中文：** 顶部选择内置地图 / 天地图矢量 / 影像 / 地形。设置 → 地球视图与天地图中配置服务端 API Key、注记及 GPU 瓦片容量。默认 256 槽（64 MiB 基础纹理），仅运行时驻留；地图源切换不更改相机、卫星或过境覆盖计算。服务或 GPU 不可用时仍显示内置地图。实机密钥、服务授权、地图审图信息及高倍率 GPU 显示精度仍需实际核验。
