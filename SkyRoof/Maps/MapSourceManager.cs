@@ -79,22 +79,34 @@ namespace SkyRoof
     internal int DesiredCount => desired.Count;
     internal int Capacity => capacity;
     internal int MaxLevel => baseMap?.Matrices.Keys.Max() ?? 18;
+    internal EarthTileProjection Projection => EarthMapProviders.Projection(kind);
+    internal bool HasSource => source != null;
     internal IReadOnlyDictionary<EarthTileKey, byte[]> Tiles => ready;
 
     internal void Configure(EarthMapSettings settings)
     {
-      if (kind == settings.Source && key == settings.TiandituKey &&
-          labelsEnabled == settings.Labels && capacity == settings.EffectiveCapacity)
+      string selectedKey = EarthMapProviders.IsXyz(settings.Source) ? "" : settings.TiandituKey;
+      bool selectedLabels = settings.Labels && EarthMapProviders.HasSeparateLabels(settings.Source);
+      if (kind == settings.Source && key == selectedKey &&
+          labelsEnabled == selectedLabels && capacity == settings.EffectiveCapacity)
         return;
       CancelGeneration();
       kind = settings.Source;
-      key = settings.TiandituKey;
-      labelsEnabled = settings.Labels;
+      key = selectedKey;
+      labelsEnabled = selectedLabels;
       capacity = settings.EffectiveCapacity;
-      source = kind != EarthMapSourceKind.BuiltIn && !string.IsNullOrWhiteSpace(key)
-        ? factory?.Invoke(kind, key) ?? new TiandituMapSource(kind, key) : null;
+      source = CreateSource();
       Status = kind == EarthMapSourceKind.BuiltIn ? EarthMapStatus.Offline :
         source == null ? EarthMapStatus.KeyMissing : EarthMapStatus.Loading;
+    }
+
+    private IMapSource? CreateSource()
+    {
+      if (kind == EarthMapSourceKind.BuiltIn) return null;
+      if (EarthMapProviders.IsXyz(kind))
+        return factory?.Invoke(kind, key) ?? new XyzMapSource(kind);
+      return string.IsNullOrWhiteSpace(key) ? null :
+        factory?.Invoke(kind, key) ?? new TiandituMapSource(kind, key);
     }
 
     private void CancelGeneration()
@@ -130,7 +142,7 @@ namespace SkyRoof
       var labelLevels = labelsEnabled && labelMap != null
         ? labelMap.Matrices.Keys.ToHashSet() : new HashSet<int>();
       var plan = EarthTileVisibility.Plan(center, size, zoom,
-        baseMap.Matrices.Keys.ToArray(), labelLevels, budget);
+        new EarthTilePlanOptions(baseMap.Matrices.Keys.ToArray(), labelLevels, budget, Projection));
       Level = plan.Level;
       Reconcile(plan.Keys);
       StartRequests(plan.Keys);

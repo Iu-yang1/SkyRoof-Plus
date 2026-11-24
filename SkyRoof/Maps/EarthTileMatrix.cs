@@ -38,6 +38,15 @@ namespace SkyRoof
       Matrices = matrices;
     }
 
+    // XYZ has no WMTS capabilities document. These are configured zoom
+    // levels, not a claim that an unofficial endpoint advertises coverage.
+    internal static WmtsCapabilities CreateXyz(string layer, int maximumZoom)
+    {
+      var matrices = Enumerable.Range(0, maximumZoom + 1).ToDictionary(
+        z => z, z => new EarthTileMatrix(z.ToString(CultureInfo.InvariantCulture), z));
+      return new WmtsCapabilities(layer, "", "raster", matrices);
+    }
+
     internal static WmtsCapabilities Parse(string xml, string layerName)
     {
       var document = XDocument.Parse(xml);

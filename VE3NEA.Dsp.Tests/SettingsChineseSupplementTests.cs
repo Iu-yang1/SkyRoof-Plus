@@ -62,7 +62,9 @@ public sealed class SettingsChineseSupplementTests
     {
       var settings = new EarthMapSettings();
       SettingsLanguage.Set(UiLanguage.SimplifiedChinese);
-      var names = new[] { "内置地图", "天地图 · 矢量", "天地图 · 影像", "天地图 · 地形" };
+      var names = new[] { "内置地图", "天地图 · 矢量", "天地图 · 影像", "天地图 · 地形",
+        "高德 · 矢量", "高德 · 卫星影像", "Google · 街道", "Google · 卫星影像",
+        "Google · 地形", "Google · 地形（注记）" };
       foreach (EarthMapSourceKind source in Enum.GetValues<EarthMapSourceKind>())
       {
         var converter = Property(settings, nameof(settings.Source)).Converter;

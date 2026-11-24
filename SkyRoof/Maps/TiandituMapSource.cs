@@ -88,7 +88,7 @@ namespace SkyRoof
       finally { bitmap.UnlockBits(data); }
     }
 
-    private static async Task<byte[]> ReadAsync(Uri uri, int limit, CancellationToken cancellation)
+    internal static async Task<byte[]> ReadAsync(Uri uri, int limit, CancellationToken cancellation)
     {
       // Do not propagate HTTP exceptions containing a URL with the API key.
       using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);

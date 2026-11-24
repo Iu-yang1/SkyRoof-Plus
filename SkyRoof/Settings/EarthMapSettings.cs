@@ -3,11 +3,17 @@ using Newtonsoft.Json;
 
 namespace SkyRoof
 {
-  public enum EarthMapSourceKind { BuiltIn, TiandituVector, TiandituImagery, TiandituTerrain }
+  public enum EarthMapSourceKind
+  {
+    BuiltIn, TiandituVector, TiandituImagery, TiandituTerrain,
+    AmapVector, AmapImagery, GoogleRoad, GoogleSatellite, GoogleTerrain,
+    GoogleTerrainLabels
+  }
 
   public sealed class EarthMapSettings
   {
     [DisplayName("Default map source")]
+    [Description("Select the built-in map, Tianditu WMTS, or experimental Amap/Google XYZ layers. XYZ endpoints are unofficial, require no key, and may change or be unavailable. Check provider terms before use.")]
     public EarthMapSourceKind Source { get; set; } = EarthMapSourceKind.BuiltIn;
 
     [DisplayName("Tianditu API Key")]
@@ -25,6 +31,7 @@ namespace SkyRoof
     }
 
     [DisplayName("Show map labels")]
+    [Description("Overlay compatible separate labels on Tianditu or Amap imagery. Other XYZ layers may already include labels; Google mixed-coordinate hybrid is not used.")]
     [DefaultValue(true)]
     public bool Labels { get; set; } = true;
 
