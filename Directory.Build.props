@@ -11,7 +11,7 @@
     <!-- v1.86-unne-gear-square-buttons-replacement-20261118: user-authorized rebuild of this exact existing release. -->
     <!-- v1.87-continuous-waterfall-replacement-20261119: requested replacement of the exact existing v.1.87 installer for the user-tested continuous waterfall. -->
     <!-- v1.88-unne-catalog-link-20261123: independent release for official NORAD/telemetry identity reconciliation. -->
-    <!-- v1.89-earth-context-menu-replacement-20261124: user-authorized one-time replacement of the exact v.1.89 installer, preserving existing Release metadata; retry with pole-safe inverse projection. -->
+    <!-- v1.89-earth-context-menu-replacement-20261124: user-authorized one-time replacement of the exact v.1.89 installer, preserving existing Release metadata; retry with pole-safe inverse projection; supersede obsolete queued release. -->
     <Version>1.89</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>

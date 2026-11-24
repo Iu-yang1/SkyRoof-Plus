@@ -15,7 +15,9 @@ permissions:
 # Never allow two releases to race on the same tag.
 concurrency:
   group: skyroof-build-and-release
-  cancel-in-progress: false
+  # One explicitly authorized recovery push cancels the obsolete queued
+  # v.1.89 build; normal releases remain serialized and non-cancelling.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.event.head_commit.message == 'Supersede blocked v.1.89 replacement build after polar fix' }}
 
 jobs:
   pinned_quality:
