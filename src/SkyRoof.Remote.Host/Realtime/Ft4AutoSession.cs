@@ -1,7 +1,5 @@
-using System.Security.Claims;
 using System.Text.Json;
 using SkyRoof.Remote.Foundation.Digital;
-using SkyRoof.Remote.Ipc;
 using SkyRoof.Remote.SignalBus;
 
 namespace SkyRoof.Remote.Host.Realtime;
@@ -9,6 +7,11 @@ namespace SkyRoof.Remote.Host.Realtime;
 internal sealed partial class Ft4AutoSession(HttpContext context, Ft4AutoRequest request,
     DspWaveformBridge dsp, StationDeviceBridge station)
 {
+    private HttpContext Context => context;
+    private Ft4AutoRequest Request => request;
+    private DspWaveformBridge Dsp => dsp;
+    private StationDeviceBridge Station => station;
+
     private const long SlotNs = 7_500_000_000;
     private readonly SignalCursor _cursor = new();
     private ulong? _sourceEpoch;
@@ -49,33 +52,6 @@ internal sealed partial class Ft4AutoSession(HttpContext context, Ft4AutoRequest
             } while (true);
         }
         await PublishAsync(qso, qso.Stage == Ft4Exchange.Complete ? "completed" : "attempts-exhausted", slot);
-    }
-
-    private async Task<TimedTxReceipt> TransmitAsync(Ft4QsoSequence qso, long slot)
-    {
-        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Stop);
-        var waveform = await dsp.EncodeFt4Async(new Ft4EncodeRequest
-        {
-            Message = qso.Message ?? throw new InvalidOperationException("No FT4 message."),
-            AudioHz = request.AudioHz, Gain = request.Gain
-        }, lifetime.Token);
-        if (waveform.SampleRate != 48000) throw new InvalidDataException("Invalid FT4 waveform sample rate.");
-        long target = TimedFt4Endpoints.TargetForSlot(slot);
-        if (target - NowNs < 1_000_000_000)
-            throw new InvalidOperationException("FT4 encode or transport missed the target slot; no replay.");
-        var tx = new TimedTxRequest
-        {
-            JobId = Guid.NewGuid().ToString("N"), SessionId = "ft4-auto:" + context.TraceIdentifier,
-            AuthorizedPrincipal = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
-            FrequencyHz = request.FrequencyHz, Mode = "USB-D", TargetUtcNanoseconds = target,
-            Pcm16 = waveform.Pcm16, Sha256 = waveform.Sha256
-        };
-        try
-        {
-            return await TimedFt4Endpoints.AwaitAuthorizedAsync(context,
-                station.RunTimedTxAsync(tx, lifetime.Token), lifetime);
-        }
-        finally { lifetime.Cancel(); }
     }
 
     private async Task EnsureAuthorizedAsync()

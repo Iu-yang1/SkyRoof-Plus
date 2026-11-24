@@ -23,5 +23,6 @@
     <Compile Include="../../src/SkyRoof.Remote.Station/StationOrekitEopBootstrap.cs" Link="StationOrekitEopBootstrap.cs" />
     <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.cs"
       Link="FakeRigctld.cs" />
+    <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.Cw.cs" Link="FakeRigctld.Cw.cs" />
   </ItemGroup>
 </Project>
