@@ -2,6 +2,7 @@ namespace SkyRoof.Remote.Device;
 
 internal sealed class NativeIcomCatBackend(NativeIcomCatSession session) : IStationRadioCat
 {
+    internal NativeCwKeyer CreateCwKeyer() => new(session.Current);
     internal NativeIcomTxAudio? Tx => session.Tx;
     internal Task PrepareLanModulationAsync(CancellationToken ct) =>
         session.Current.PrepareLanModulationAsync(ct);

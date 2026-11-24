@@ -21,8 +21,9 @@ public sealed partial class StationDeviceService
 
     private async Task<ICwKeyerSession> ConnectCwAsync(CancellationToken ct)
     {
+        if (cat is NativeIcomCatBackend native) return native.CreateCwKeyer();
         if (cat is not RadioCatBackend { SupportsCwKeyer: true })
-            throw new InvalidOperationException("CW keyer requires the SkyCAT CAT backend.");
+            throw new InvalidOperationException("CW keyer requires SkyCAT or native IC-9700 LAN.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(3));
         return await new CwKeyerTcpSessionFactory().ConnectAsync(CwPort, timeout.Token);
@@ -73,6 +74,8 @@ public sealed partial class StationDeviceService
                 var status = await keyer.GetStatusAsync(ct);
                 if (!status.ReadyToSend) throw new InvalidOperationException(
                     $"CW not ready: {status.Lease}, {status.Mode}, BK-IN {status.BreakIn}, TX {status.Transmitting}.");
+                if (keyer is NativeCwKeyer)
+                    journal.Save("native-cw:" + Guid.NewGuid().ToString("N"), sessionId);
                 await keyer.SendAsync(message, ct);
                 var active = new ActiveCw(keyer, sessionId, CwMessageTiming.ComputeWatchdog(message, status.KeySpeedRaw));
                 _cwActive = active;
@@ -87,7 +90,12 @@ public sealed partial class StationDeviceService
     {
         if (!ReferenceEquals(_cwActive, active)) return;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
-        try { await active.Keyer.StopAsync(timeout.Token); }
+        try
+        {
+            await active.Keyer.StopAsync(timeout.Token);
+            if (active.Keyer is NativeCwKeyer)
+                await FinishNativeCwAsync(timeout.Token);
+        }
         finally
         {
             try { await active.Keyer.DisposeAsync(); }

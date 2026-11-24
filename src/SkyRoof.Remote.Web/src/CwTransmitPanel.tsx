@@ -75,6 +75,6 @@ export function CwTransmitPanel({ available }: { available: boolean }) {
     {editing !== null && <label>EDIT F{editing + 1} <input maxLength={30} value={macros[editing]}
       onChange={e => edit(editing, e.target.value.toUpperCase())} /><button onClick={() => setEditing(null)}>DONE</button></label>}
     <p role="status">{feedback}</p>
-    <small>SkyCAT hardware keyer · F1–F8 load, Shift sends · presets saved in this browser.</small>
+    <small>Hardware CW keyer · F1–F8 load, Shift sends · presets saved in this browser.</small>
   </section>;
 }

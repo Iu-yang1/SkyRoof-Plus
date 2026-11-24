@@ -1,7 +1,7 @@
 namespace SkyRoof.Remote.Foundation.IcomLan;
 
 /// <summary>IC-9700 SAT mode: MAIN downlink, SUB uplink. Never use 25/26 in SAT mode.</summary>
-public sealed class IcomLanSatelliteCat(IcomLanCivSocket socket, byte radioAddress)
+public sealed partial class IcomLanSatelliteCat(IcomLanCivSocket socket, byte radioAddress)
 {
     private readonly IcomLanCivControl _control = new(socket, radioAddress);
     private readonly IcomLanCivReadbacks _readbacks = new(socket, radioAddress);

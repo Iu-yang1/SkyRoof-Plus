@@ -20,6 +20,11 @@ public sealed partial class StationDeviceService
         await _commands.WaitAsync();
         try
         {
+            if (_cwActive is { Keyer: NativeCwKeyer } cw)
+            {
+                _cwActive = null;
+                cw.Stopped.TrySetResult();
+            }
             if (_owner is null && !journal.Exists) return;
             _owner = null;
             _digitalPaused = true;
@@ -31,7 +36,19 @@ public sealed partial class StationDeviceService
 
     private async Task RecoverOrphanedPttAsync(CancellationToken token)
     {
-        if (_owner is not null || journal.Read() is null) return;
+        if (_owner is not null || _cwActive is not null || journal.Read() is not { } record) return;
+        if (record.TransactionId.StartsWith("native-cw:", StringComparison.Ordinal))
+        {
+            if (cat is not NativeIcomCatBackend native)
+                throw new InvalidOperationException("Native CW recovery requires original backend.");
+            await using var keyer = native.CreateCwKeyer();
+            await keyer.StopAsync(token);
+            await FinishNativeCwAsync(token);
+            _digitalPaused = true;
+            ++_epoch;
+            ++_revision;
+            return;
+        }
         if (await cat.ReadPttAsync(token))
         {
             await cat.SetPttAsync(false, token);
@@ -43,6 +60,21 @@ public sealed partial class StationDeviceService
         ++_revision;
         ++_epoch;
     }
-
-
+    private async Task FinishNativeCwAsync(CancellationToken token)
+    {
+        // Semi break-in can keep TX asserted for a short interval after STOP.
+        for (int i = 0; i < 20; i++)
+        {
+            if (!await cat.ReadPttAsync(token))
+            {
+                journal.Clear();
+                return;
+            }
+            await Task.Delay(100, token);
+        }
+        await cat.SetPttAsync(false, token);
+        if (await cat.ReadPttAsync(token)) throw new IOException("Native CW STOP did not return RX.");
+        journal.Clear();
+    }
 }
+
