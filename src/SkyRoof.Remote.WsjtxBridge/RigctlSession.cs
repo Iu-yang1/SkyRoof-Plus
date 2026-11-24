@@ -2,8 +2,16 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.WsjtxBridge;
 
-public sealed partial class RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
+public sealed partial class RigctlSession
 {
+    private readonly IRemoteRig rig;
+    private readonly DigitalPttSession ptt;
+
+    public RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
+    {
+        this.rig = rig;
+        this.ptt = ptt;
+    }
     private bool _split;
     private string _vfo = "VFOA";
     private string _txVfo = "VFOB";
