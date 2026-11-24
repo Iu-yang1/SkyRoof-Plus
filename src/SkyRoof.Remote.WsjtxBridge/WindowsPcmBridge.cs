@@ -39,23 +39,6 @@ internal sealed partial class WindowsPcmBridge : IAsyncDisposable
         for (int i = 0; i < WaveInEvent.DeviceCount; i++) Console.WriteLine($"TX input {i}: {WaveInEvent.GetCapabilities(i).ProductName}");
     }
 
-    public async Task RunAsync(Uri station, string token, CancellationToken ct)
-    {
-        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _playback.Play();
-        _capture.StartRecording();
-        var tasks = new[] { ReceiveAsync(station, token, lifetime.Token), SendAsync(lifetime.Token) };
-        try { await await Task.WhenAny(tasks); }
-        finally
-        {
-            lifetime.Cancel();
-            _capture.StopRecording();
-            _playback.Stop();
-            try { await Task.WhenAll(tasks); }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        }
-    }
-
     private void SelectGrant(TxGrant? grant)
     {
         lock (_captureGate)

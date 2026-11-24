@@ -9,6 +9,7 @@ using SkyRoof.Remote.Ipc;
 using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+WsjtxRxTimelineProbe.Run();
 if (args.Length is < 1 or > 5 || args.Length == 4)
     throw new ArgumentException("Media.dll [Host.dll] [Device.dll] [Station.dll Dsp.dll] required.");
 var dll = Path.GetFullPath(args[0]);
