@@ -12,11 +12,19 @@ public sealed record RemoteTxPcmReceipt(bool Accepted, string State);
 public sealed record RemoteCatCommand(string TransactionId, DeviceOperation Operation,
     long FrequencyHz = 0, string Mode = "", string AudioSource = "");
 
-public sealed record RemoteCatStatus(
-    long RxFrequencyHz, long TxFrequencyHz, string RxMode, string TxMode,
-    bool ActualPtt, string ActiveTransactionId, string ActiveSessionId,
-    ulong Epoch, ulong Revision, bool DigitalAutomationPaused, string Outcome)
+public sealed record RemoteCatStatus
 {
+    public long RxFrequencyHz { get; init; }
+    public long TxFrequencyHz { get; init; }
+    public string RxMode { get; init; } = "";
+    public string TxMode { get; init; } = "";
+    public bool ActualPtt { get; init; }
+    public string ActiveTransactionId { get; init; } = "";
+    public string ActiveSessionId { get; init; } = "";
+    public ulong Epoch { get; init; }
+    public ulong Revision { get; init; }
+    public bool DigitalAutomationPaused { get; init; }
+    public string Outcome { get; init; } = "";
     public bool SupportsDuplexFrequencies { get; init; }
     public bool NativeTxAvailable { get; init; }
 }
@@ -93,12 +101,19 @@ public sealed partial class StationDeviceBridge(IConfiguration settings) : IDisp
         if (_channel.IsValueCreated) _channel.Value.Dispose();
     }
 
-    private static RemoteCatStatus Map(DeviceSnapshot result) => new(
-        result.RxFrequencyHz, result.TxFrequencyHz, result.RxMode, result.TxMode,
-        result.ActualPtt, result.ActiveTransactionId, result.ActiveSessionId,
-        result.TransactionEpoch, result.Revision, result.DigitalAutomationPaused,
-        result.StatusText)
+    private static RemoteCatStatus Map(DeviceSnapshot result) => new()
     {
+        RxFrequencyHz = result.RxFrequencyHz,
+        TxFrequencyHz = result.TxFrequencyHz,
+        RxMode = result.RxMode,
+        TxMode = result.TxMode,
+        ActualPtt = result.ActualPtt,
+        ActiveTransactionId = result.ActiveTransactionId,
+        ActiveSessionId = result.ActiveSessionId,
+        Epoch = result.TransactionEpoch,
+        Revision = result.Revision,
+        DigitalAutomationPaused = result.DigitalAutomationPaused,
+        Outcome = result.StatusText,
         SupportsDuplexFrequencies = result.SupportsDuplexFrequencies,
         NativeTxAvailable = result.NativeTxAvailable
     };

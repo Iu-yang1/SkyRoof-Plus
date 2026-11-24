@@ -234,3 +234,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - 确定性 E2E 禁用真实外部刷新，使用 HTTP fixture 和实际跨进程 Station。真实 NASA 网络测试可在 Remote Authenticated Host Station Device E2E 的手动触发选择 verify_live_nasa；当前工具未成功取得 NASA 文件，不能标记真实源测试通过。
 
 剩余关键缺口：最新 CI、完整线上数据源覆盖（AutoTLE、JE9PEL、satyaml、当地自定义配置实时编辑、全部模式/CTCSS 联动）、ISS 真星历及实机跟踪验证、WSJT-X CAT/PCM Bridge、自动 FT4 sequencer、CW TX/WPM/宏/完整历史、Q65、Telemetry、SDR/ONVIF、WinForms 全量 IPC、多站点和生产 ACL、安装器及升级/回滚、公网和长时测试。仍保持 Draft，不提前正式发布。API 提交未验证密码学签名。
+
+
+## 2026-11-24 — OMM/OEM 验收闭环、WSJT-X 客户端桥接
+
+- `265ca85`：补齐 Orekit OEM Earth body 初始化需要的已固定校验 DE430 数据，开发包和 CI 共同使用同一数据源；拆 CW worker、RadioLink 及空值处理；浏览器 Opus 明确媒体传输与 SRTP 初始化、增加接收诊断。实际 [Compile Check 45331175463](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331175463)、[DSP 45331177522](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331177522)、[认证 E2E 45331175540](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331175540) 已通过。E2E 日志明确 PASS：合成 ISS OEM EME2000 非均匀插值、分段间隙、坐标/径向速度；HTTP 刷新先验证再原子替换，失败/过期保留缓存；Orekit 与 SGP.NET 两套 OMM、目录分页与自定义记录、RadioLink/rotator。真实 NASA 下载、实机和 Chromium 新 Voice Track 尚未验收。
+- `7b929bc`：新增客户端 Windows WSJT-X Bridge，loopback NET rigctl 默认 4534；认证 SignalR CAT 与 WebSocket RX/SignalR TX PCM，NAudio 虚拟设备。Device 外部数字 TX 独立租约、心跳和断连释放，手动优先；定时内部任务不依赖外部心跳。
+- `8354fec`：恢复手动 heartbeat 原状态兼容（旧 [CAT 45331620996](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331620996) 因该状态断言失败）；新增独立数字状态、Device 显式模式读回和 Hamlib 模式映射，拆 RadioLink 剩余长函数。
+- `46b7021`：真实 TCP NET rigctl 握手/CAT/PCM 经认证 Host、Station 和模拟原生 Device UDP 的测试，另加数字租约超时回归；打包客户端 companion 到 tools/WsjtxBridge。新 CI 尚待完成。
+- 本次质量补丁按 aislop 报告将 RemoteCatStatus 转为属性 DTO（保留 JSON 字段）并拆 RigctlSession 命令实现，未降低门禁。见 [旧告警 45331620804](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45331620804)。最新 SHA 需独立确认。
+- 客户端说明： [WSJT-X Bridge](../../deploy/remote/windows/wsjtx-bridge.zh-CN.md)。真实 WSJT-X 程序和虚拟音频线缆、RF、FRP/ICE、公网、完整 QSO sequencer、CW TX/Q65/Telemetry、SDR/ONVIF、WinForms IPC/多台站及生产安装器仍未完整验收；维持 Draft，不合并、不发布正式 Release。
