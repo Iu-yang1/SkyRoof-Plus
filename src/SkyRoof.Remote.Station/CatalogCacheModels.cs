@@ -1,0 +1,52 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace SkyRoof.Remote.Station;
+
+// The desktop cache contains many UI/enrichment fields. This projection
+// consumes only its documented serialized orbit/radio fields.
+internal sealed record CatalogCacheSatellite
+{
+    [JsonPropertyName("sat_id")] public string SatelliteId { get; init; } = "";
+    [JsonPropertyName("norad_cat_id")] public int? Norad { get; init; }
+    public string Name { get; init; } = "";
+    public string? Names { get; init; }
+    public string Status { get; init; } = "";
+    public string[]? AllNames { get; init; }
+    public CatalogCacheTle? Tle { get; init; }
+    public CatalogCacheTle? AutomaticTle { get; init; }
+    public CatalogCacheTle? ManualTle { get; init; }
+    public DateTimeOffset? ManualTleExpiresUtc { get; init; }
+    public CatalogCacheTransmitter[] Transmitters { get; init; } = [];
+
+    internal CatalogCacheTle? OrbitAt(DateTimeOffset utc) =>
+        ManualTle is not null && ManualTleExpiresUtc > utc ? ManualTle :
+        AutomaticTle ?? (ManualTle is null ? Tle : null);
+}
+
+internal sealed record CatalogCacheTle
+{
+    public string Tle1 { get; init; } = "";
+    public string Tle2 { get; init; } = "";
+    [JsonPropertyName("tle_source")] public string Source { get; init; } = "";
+    public JsonElement? Omm { get; init; }
+
+    internal bool HasTle => Tle1.StartsWith("1 ", StringComparison.Ordinal) &&
+        Tle2.StartsWith("2 ", StringComparison.Ordinal);
+}
+
+internal sealed record CatalogCacheTransmitter
+{
+    [JsonPropertyName("uuid")] public string Id { get; init; } = "";
+    public string Description { get; init; } = "";
+    public bool Alive { get; init; }
+    public string? Mode { get; init; }
+    public string? DownlinkMode { get; init; }
+    [JsonPropertyName("uplink_mode")] public string? UplinkMode { get; init; }
+    public string? Status { get; init; }
+    [JsonPropertyName("downlink_low")] public long? DownlinkLow { get; init; }
+    [JsonPropertyName("downlink_high")] public long? DownlinkHigh { get; init; }
+    [JsonPropertyName("uplink_low")] public long? UplinkLow { get; init; }
+    [JsonPropertyName("uplink_high")] public long? UplinkHigh { get; init; }
+    public bool Invert { get; init; }
+}

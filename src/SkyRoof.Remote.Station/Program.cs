@@ -15,6 +15,7 @@ builder.Services.AddSingleton<DeviceControlForwarder>();
 builder.Services.AddSingleton<IOrbitBackend>(_ => StationOrbitBackend.Create());
 builder.Services.AddSingleton<OrbitTrackingCalculator>();
 builder.Services.AddSingleton<TrackingService>();
+builder.Services.AddSingleton<StationCatalogCache>();
 builder.Services.AddSingleton<TrackingJobStore>();
 builder.Services.AddSingleton<TrackingJobRunner>();
 builder.Services.AddHostedService(p => p.GetRequiredService<TrackingJobRunner>());
@@ -26,6 +27,7 @@ if (!string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ORBIT_BACKEND"),
 app.Logger.LogInformation("Station orbit backend: {Backend}", app.Services.GetRequiredService<IOrbitBackend>().BackendId);
 app.MapGrpcService<DeviceControlForwarder>();
 app.MapGrpcService<TrackingService>();
+app.MapGrpcService<StationCatalogService>();
 app.MapGrpcService<TrackingJobsService>();
 app.MapGrpcService<RotatorControlForwarder>();
 app.Logger.LogInformation("Station Core listening on {Pipe}", stationPipe);

@@ -100,3 +100,34 @@ message RadioLinkProfile {
   double downlink_manual_hz = 11;
   double uplink_manual_hz = 12;
 }
+
+service StationCatalog {
+  rpc Search(CatalogSearchRequest) returns (CatalogSearchResult);
+}
+message CatalogSearchRequest {
+  string query = 1;
+  int32 limit = 2;
+}
+message CatalogSearchResult {
+  repeated CatalogSatellite satellites = 1;
+}
+message CatalogSatellite {
+  string satellite_id = 1;
+  int32 norad = 2;
+  string name = 3;
+  string status = 4;
+  string tle_line1 = 5;
+  string tle_line2 = 6;
+  string orbit_source = 7;
+  repeated CatalogTransmitter transmitters = 8;
+  string orbit_state = 9;
+}
+message CatalogTransmitter {
+  string id = 1;
+  string description = 2;
+  bool alive = 3;
+  string mode = 4;
+  string uplink_mode = 5;
+  string status = 6;
+  RadioLinkProfile link = 7;
+}
