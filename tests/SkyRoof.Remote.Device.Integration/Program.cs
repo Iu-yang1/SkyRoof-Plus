@@ -14,6 +14,7 @@ commandLine.Environment["SKYROOF_DEVICE_PIPE"] = pipe;
 commandLine.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
 commandLine.Environment["SKYROOF_CAT_PORT"] = rig.Port.ToString();
 commandLine.Environment["SKYROOF_CAT_DIALECT"] = "skycat";
+commandLine.Environment["SKYROOF_CW_KEYER_PORT"] = rig.Port.ToString();
 var journalFile = Path.Combine(Path.GetTempPath(), "skyroof-lease-" + Guid.NewGuid().ToString("N") + ".json");
 commandLine.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journalFile;
 commandLine.Environment["SKYROOF_PTT_LEASE_TIMEOUT_MS"] = "3000";
@@ -165,6 +166,7 @@ try
     Check(digitalExpired && !File.Exists(journalFile), "External digital lease expiration failed.");
     Console.WriteLine("PASS: external digital PTT heartbeat expires and releases hardware RX.");
 
+    await CwKeyerProbe.RunAsync(client, rig);
     rig.RejectNext("T 1");
     try
     {

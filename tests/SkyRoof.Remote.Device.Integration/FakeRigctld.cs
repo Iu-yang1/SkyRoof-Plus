@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-public sealed class FakeRigctld : IAsyncDisposable
+public sealed partial class FakeRigctld : IAsyncDisposable
 {
     private readonly TcpListener _server = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _stop = new();
@@ -87,7 +87,7 @@ public sealed class FakeRigctld : IAsyncDisposable
                         _rejectNext = null;
                         reply = "RPRT -1";
                     }
-                    else reply = Execute(cmd);
+                    else reply = ExecuteCw(cmd, client) ?? Execute(cmd);
                 }
                 if (cmd == "p" && Volatile.Read(ref _positionDelayMs) > 0)
                     await Task.Delay(Volatile.Read(ref _positionDelayMs), _stop.Token);
@@ -97,13 +97,14 @@ public sealed class FakeRigctld : IAsyncDisposable
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
         catch (IOException) { }
         catch (SocketException) { }
+        finally { lock (_sync) if (ReferenceEquals(_cwOwner, client)) _cwOwner = null; }
     }
 
     private string Execute(string command)
     {
         if (command == "f") return _rx.ToString(CultureInfo.InvariantCulture);
         if (command == "i") return _tx.ToString(CultureInfo.InvariantCulture);
-        if (command == "t") return _ptt ? "1" : "0";
+        if (command == "t") return _ptt || _cwOwner is not null ? "1" : "0";
         if (command == "m") return _rxMode + "\n2400";
         if (command == "x") return _txMode + "\n2400";
         if (command == "p") return FormattableString.Invariant($"{_azimuth:F3}\n{_elevation:F3}");
