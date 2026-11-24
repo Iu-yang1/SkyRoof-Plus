@@ -5,8 +5,6 @@ namespace SkyRoof.Remote.Station;
 
 public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
 {
-    private const double SpeedOfLight = 299_792_458.0;
-
     private readonly object _sync = new();
     private string? _line1, _line2;
     private IOrbitTrack? _track;
@@ -20,7 +18,7 @@ public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
             request.LongitudeDegrees is < -180 or > 180 ||
             !double.IsFinite(request.HeightMetres) ||
             !double.IsFinite(request.ElevationMaskDegrees) ||
-            request.DownlinkHz <= 0 || request.UplinkHz < 0)
+            (request.RadioLink is null && (request.DownlinkHz <= 0 || request.UplinkHz < 0)))
             throw new ArgumentException("Invalid ground site or tracking frequencies.");
 
         var utc = DateTimeOffset.FromUnixTimeMilliseconds(request.UtcUnixMilliseconds);
@@ -42,7 +40,10 @@ public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
             observed = selected.Track.Observe(new GroundStationSpec(request.LatitudeDegrees,
                 request.LongitudeDegrees, request.HeightMetres), utc);
         }
-        var factor = observed.RangeRateMetresPerSecond / SpeedOfLight;
+        var factor = observed.RangeRateMetresPerSecond / RadioLinkMath.SpeedOfLightMetresPerSecond;
+        var frequencies = TrackingRadioLink.Calculate(request, factor);
+        if (frequencies.Rx == 0 && frequencies.Tx == 0)
+            throw new ArgumentException("RadioLink requires at least one frequency.");
         return new TrackingSnapshot
         {
             NoradNumber = noradNumber,
@@ -51,15 +52,11 @@ public sealed class OrbitTrackingCalculator(IOrbitBackend backend)
             ElevationDegrees = observed.ElevationDegrees,
             RangeMetres = observed.RangeMetres,
             RangeRateMetresPerSecond = observed.RangeRateMetresPerSecond,
-            RxHz = Correct(request.DownlinkHz, request.CorrectDownlink ? -factor : 0),
-            TxHz = Correct(request.UplinkHz, request.CorrectUplink ? factor : 0),
+            RxHz = frequencies.Rx,
+            TxHz = frequencies.Tx,
             OrbitBackend = orbitBackend,
             DataQuality = qualityPrefix + observed.DataQuality
         };
     }
 
-    // Preserve RadioLink's first-order sign convention: positive range rate =
-    // receding, so RX frequency falls and commanded uplink frequency rises.
-    private static long Correct(long frequency, double signedFactor) =>
-        checked((long)Math.Round(frequency * (1 + signedFactor)));
 }

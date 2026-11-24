@@ -10,7 +10,7 @@
 namespace {
 struct OfferedAudio {
     std::string mid;
-    int payloadType;
+    int payloadType = 0;
 };
 
 OfferedAudio FindOpus(const char* sdp) {

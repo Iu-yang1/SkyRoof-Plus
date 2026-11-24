@@ -43,6 +43,7 @@ message TrackingRequest {
   bool correct_uplink = 10;
   bool point_rotator = 11;
   double elevation_mask_degrees = 12;
+  RadioLinkProfile radio_link = 13;
 }
 message TrackingSnapshot {
   int32 norad_number = 1;
@@ -83,4 +84,19 @@ message TrackingJobStatus {
   TrackingSnapshot latest = 5;
   string error = 6;
   bool resume_after_restart = 7;
+}
+
+message RadioLinkProfile {
+  int64 downlink_low_hz = 1; // 0 = absent
+  int64 downlink_high_hz = 2;
+  int64 uplink_low_hz = 3;
+  int64 uplink_high_hz = 4;
+  bool inverting = 5;
+  int64 downlink_base_offset_hz = 6;
+  int64 uplink_base_offset_hz = 7;
+  double transponder_offset_hz = 8;
+  double rit_hz = 9;
+  double xit_hz = 10;
+  double downlink_manual_hz = 11;
+  double uplink_manual_hz = 12;
 }

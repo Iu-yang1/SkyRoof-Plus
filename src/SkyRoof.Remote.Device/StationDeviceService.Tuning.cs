@@ -39,12 +39,14 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> TrackFrequenciesAsync(
         DeviceCommand command, CancellationToken ct)
     {
-        if (command.FrequencyHz <= 0 || command.TxFrequencyHz < 0)
+        if (command.FrequencyHz < 0 || command.TxFrequencyHz < 0 ||
+            (command.FrequencyHz == 0 && command.TxFrequencyHz == 0))
             throw new ArgumentException("Invalid tracking frequencies.");
-        if (!cat.SupportsDuplexFrequencies && command.TxFrequencyHz > 0 &&
+        if (!cat.SupportsDuplexFrequencies && command.FrequencyHz > 0 && command.TxFrequencyHz > 0 &&
             command.TxFrequencyHz != command.FrequencyHz)
             throw new InvalidOperationException("This CAT dialect currently supports only simplex tracking. Use an independent RX/TX SkyCAT endpoint for duplex.");
-        await cat.SetRxFrequencyAsync(command.FrequencyHz, ct);
+        if (command.FrequencyHz > 0)
+            await cat.SetRxFrequencyAsync(command.FrequencyHz, ct);
         if (command.TxFrequencyHz > 0)
         {
             await cat.SetTxFrequencyAsync(command.TxFrequencyHz, ct);

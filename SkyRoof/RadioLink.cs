@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using SkyRoof.Orbit.Contracts;
 
 namespace SkyRoof
 {
@@ -175,6 +176,9 @@ namespace SkyRoof
       DopplerEstimator.Update(DopplerFactor, HasObservation, Sat, now);
     }
 
+    private SatellitePassband Passband => new(
+      Tx?.downlink_low, Tx?.downlink_high, Tx?.uplink_low, Tx?.uplink_high, Tx?.invert == true);
+
     internal void ComputeFrequencies()
     {
       if (IsTerrestrial)
@@ -191,21 +195,12 @@ namespace SkyRoof
         // 0-Hz downlink or disturb RX/SDR state for such a record.
         if (Tx?.downlink_low.HasValue == true)
         {
-          double downlinkLow =
-            Tx.downlink_low.Value +
-            DownlinkBaseOffset;
-          DownlinkFrequency = downlinkLow;
-          if (IsTransponder)
-            DownlinkFrequency += TransponderOffset;
-
-          CorrectedDownlinkFrequency =
-            DownlinkFrequency;
-          if (RitEnabled)
-            CorrectedDownlinkFrequency += RitOffset;
-          if (DownlinkDopplerCorrectionEnabled)
-            CorrectedDownlinkFrequency *= 1 - DopplerFactor;
-          if (DownlinkManualCorrectionEnabled)
-            CorrectedDownlinkFrequency += DownlinkManualCorrection;
+          DownlinkFrequency = Passband.DownlinkNominal(
+            DownlinkBaseOffset, IsTransponder ? TransponderOffset : 0);
+          CorrectedDownlinkFrequency = RadioLinkMath.CorrectDownlink(
+            DownlinkFrequency, DownlinkDopplerCorrectionEnabled ? DopplerFactor : 0,
+            RitEnabled ? RitOffset : 0,
+            DownlinkManualCorrectionEnabled ? DownlinkManualCorrection : 0);
         }
         else
         {
@@ -216,27 +211,15 @@ namespace SkyRoof
         }
 
         // uplink nominal. Apply the same base offset to both passband edges so its width is unchanged.
-        if (IsTransponder)
-        {
-          double uplinkLow = (double)Tx!.uplink_low! + UplinkBaseOffset;
-          double uplinkHigh = (double)Tx.uplink_high! + UplinkBaseOffset;
-          UplinkFrequency = Tx.invert ? uplinkHigh - TransponderOffset : uplinkLow + TransponderOffset;
-        }
-        else if (Tx?.uplink_low.HasValue == true)
-          UplinkFrequency = (double)Tx.uplink_low + UplinkBaseOffset;
-        else
-          UplinkFrequency = 0;
+        UplinkFrequency = Tx?.uplink_low.HasValue == true
+          ? Passband.UplinkNominal(UplinkBaseOffset, IsTransponder ? TransponderOffset : 0)
+          : 0;
 
-        // uplink corrected
-        CorrectedUplinkFrequency = UplinkFrequency;
-        if (UplinkFrequency > 0)
-        {
-          if (UplinkDopplerCorrectionEnabled)
-            CorrectedUplinkFrequency *= 1 + DopplerFactor;
-          if (UplinkManualCorrectionEnabled)
-            CorrectedUplinkFrequency += UplinkManualCorrection;
-          CorrectedUplinkFrequency += XitOffset;
-        }
+        CorrectedUplinkFrequency = UplinkFrequency > 0
+          ? RadioLinkMath.CorrectUplink(UplinkFrequency,
+            UplinkDopplerCorrectionEnabled ? DopplerFactor : 0, XitOffset,
+            UplinkManualCorrectionEnabled ? UplinkManualCorrection : 0)
+          : UplinkFrequency;
       }
     }
 

@@ -8,7 +8,10 @@ public sealed record RemoteTrackingRequest(string TleLine1, string TleLine2,
     double LatitudeDegrees, double LongitudeDegrees, double HeightMetres,
     long UtcUnixMilliseconds, long DownlinkHz, long UplinkHz,
     bool CorrectDownlink, bool CorrectUplink, bool PointRotator,
-    double ElevationMaskDegrees);
+    double ElevationMaskDegrees)
+{
+    public RemoteRadioLink? RadioLink { get; init; }
+}
 
 public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseconds,
     double AzimuthDegrees, double ElevationDegrees, double RangeMetres,
@@ -46,7 +49,8 @@ public sealed partial class StationDeviceBridge
             CorrectDownlink = input.CorrectDownlink,
             CorrectUplink = input.CorrectUplink,
             PointRotator = input.PointRotator,
-            ElevationMaskDegrees = input.ElevationMaskDegrees
+            ElevationMaskDegrees = input.ElevationMaskDegrees,
+            RadioLink = input.RadioLink?.ToIpc()
         };
 
     private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
