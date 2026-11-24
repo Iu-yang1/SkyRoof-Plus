@@ -21,6 +21,45 @@ void Reject(Action work)
     throw new InvalidOperationException("Expected invalid operation.");
 }
 
+Test("FT4 automatic exchange locks peer, rejects unrelated and stale progression, completes after TX", () =>
+{
+    var qso = new SkyRoof.Remote.Foundation.Digital.Ft4QsoSequence("K1ABC", "FN42", "", 3);
+    Check(qso.Message == "CQ K1ABC FN42");
+    qso.Sent();
+    qso.Observe([new("OTHER", "W2XYZ", "FN31", 20), new("K1ABC", "W1XYZ", "FN31", -12)]);
+    Check(qso.Peer == "W1XYZ" && qso.Message == "W1XYZ K1ABC -12");
+    qso.Sent();
+    qso.Observe([new("K1ABC", "W2XYZ", "R-05", 30), new("K1ABC", "W1XYZ", "R-08", -10)]);
+    Check(qso.Message == "W1XYZ K1ABC RR73" && qso.ReportReceived == -8 && qso.ReportSent == -12);
+    qso.Sent();
+    qso.Observe([new("K1ABC", "W1XYZ", "-08", -5)]);
+    Check(qso.Message == "W1XYZ K1ABC RR73");
+    qso.Observe([new("K1ABC", "W1XYZ", "73", -5)]);
+    Check(qso.Finished && qso.Stage == SkyRoof.Remote.Foundation.Digital.Ft4Exchange.Complete);
+});
+Test("FT4 directed exchange confirms final 73 only after completed transmission and honors retries", () =>
+{
+    var qso = new SkyRoof.Remote.Foundation.Digital.Ft4QsoSequence("K1ABC", "FN42", "W1XYZ", 2);
+    qso.Sent();
+    qso.Observe([new("K1ABC", "W1XYZ", "-09", -15)]);
+    Check(qso.Message == "W1XYZ K1ABC R-15");
+    qso.Sent();
+    qso.Observe([new("K1ABC", "W1XYZ", "RR73", -8)]);
+    Check(!qso.Finished && qso.Message == "W1XYZ K1ABC 73");
+    qso.Sent();
+    Check(qso.Finished);
+    var empty = new SkyRoof.Remote.Foundation.Digital.Ft4QsoSequence("K1ABC", "FN42", "", 1);
+    empty.Sent();
+    empty.FinishReceiveWindow();
+    Check(empty.Stage == SkyRoof.Remote.Foundation.Digital.Ft4Exchange.Exhausted);
+});
+Test("FT4 native fixed-width receive record parses calls and SNR", () =>
+{
+    string line = "123456 " + "-12" + "  0.1 1500 +  " + "K1ABC W1XYZ FN31";
+    var parsed = SkyRoof.Remote.Foundation.Digital.Ft4NativeContactParser.Parse(line);
+    Check(parsed is { To: "K1ABC", From: "W1XYZ", Exchange: "FN31", Snr: -12 });
+});
+
 Test("PTT initial assertion, takeover, stale release and final RX", () =>
 {
     var tx = new TransmitCoordinator();
