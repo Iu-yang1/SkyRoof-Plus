@@ -6,6 +6,9 @@ internal sealed partial class FakeNativeIcomRadio
     private readonly System.Collections.Concurrent.ConcurrentDictionary<short, byte> _txSamples = new();
     private readonly System.Collections.Concurrent.ConcurrentQueue<short> _timedSamples = new();
     public short[] TimedSamples => _timedSamples.ToArray();
+    private System.Collections.Concurrent.ConcurrentQueue<short>? _capture;
+    public void BeginWaveformCapture() => Volatile.Write(ref _capture, new());
+    public short[] EndWaveformCapture() => Interlocked.Exchange(ref _capture, null)?.ToArray() ?? [];
 
     private async Task ObserveTxAsync(uint local, CancellationToken ct)
     {
@@ -21,6 +24,7 @@ internal sealed partial class FakeNativeIcomRadio
                 {
                     short sample = BinaryPrimitives.ReadInt16LittleEndian(frame.Pcm16.AsSpan(i, 2));
                     _txSamples.TryAdd(sample, 0);
+                    Volatile.Read(ref _capture)?.Enqueue(sample);
                     if (sample is >= 6000 and < 6960) _timedSamples.Enqueue(sample);
                 }
             }

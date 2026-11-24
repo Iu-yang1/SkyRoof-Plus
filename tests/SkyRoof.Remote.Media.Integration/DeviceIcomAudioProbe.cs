@@ -5,10 +5,10 @@ using SkyRoof.Remote.SignalBus;
 internal static class DeviceIcomAudioProbe
 {
     public static async Task RunAsync(string deviceDll, string mediaPipe,
-        string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media)
+        string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media, NativeFt4ProcessPaths? ft4Paths)
     {
         using var fake = new FakeNativeIcomRadio();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var radioTask = fake.RunAsync(deadline.Token);
         var startEpoch = ring.StreamEpoch;
         var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
@@ -35,6 +35,10 @@ internal static class DeviceIcomAudioProbe
         {
             await NativeDeviceCatProbe.RunAsync(info.Environment["SKYROOF_DEVICE_PIPE"]
                 ?? throw new InvalidOperationException("Device test pipe missing."), fake, deadline.Token);
+            if (ft4Paths is not null)
+                await NativeFt4HttpProbe.RunAsync(ft4Paths,
+                    info.Environment["SKYROOF_DEVICE_PIPE"] ?? throw new InvalidOperationException("Missing Device pipe."),
+                    suffix, fake, deadline.Token);
             fake.FinishNativeCat();
             await radioTask;
             var observed = new Dictionary<ulong, byte>();
