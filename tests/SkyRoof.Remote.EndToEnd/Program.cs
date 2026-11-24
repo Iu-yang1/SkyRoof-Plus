@@ -43,6 +43,7 @@ deviceInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 deviceInfo.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
 deviceInfo.Environment["SKYROOF_CAT_PORT"] = radio.Port.ToString();
 deviceInfo.Environment["SKYROOF_CAT_DIALECT"] = "skycat";
+deviceInfo.Environment["SKYROOF_CW_KEYER_PORT"] = radio.Port.ToString();
 deviceInfo.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journal;
 deviceInfo.Environment["SKYROOF_ROTATOR_HOST"] = "127.0.0.1";
 deviceInfo.Environment["SKYROOF_ROTATOR_PORT"] = rotator.Port.ToString();
@@ -125,6 +126,7 @@ try
         .AddMessagePackProtocol().Build();
 
 
+    await CwHttpChecks.RunAsync(anonymous, admin, radio);
     await using var a = CreateHub(token);
     await using var b = CreateHub(operatorToken);
     await a.StartAsync();
@@ -152,7 +154,7 @@ try
     var off = false;
     for (var i = 0; i < 40; i++)
     {
-        if (radio.Count("T 0") == 1) { off = true; break; }
+        if (radio.Count("T 0") == 1 && !File.Exists(journal)) { off = true; break; }
         await Task.Delay(100);
     }
     Ensure(off && !File.Exists(journal),
