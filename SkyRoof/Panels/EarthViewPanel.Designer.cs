@@ -1,4 +1,4 @@
-﻿namespace SkyRoof
+namespace SkyRoof
 {
   partial class EarthViewPanel
   {
@@ -33,6 +33,7 @@
       ModePanel = new FlowLayoutPanel();
       RealTimeRadioBtn = new RadioButton();
       PassRadioBtn = new RadioButton();
+      ResetViewButton = new Button();
       ((System.ComponentModel.ISupportInitialize)openglControl1).BeginInit();
       ModePanel.SuspendLayout();
       SuspendLayout();
@@ -71,6 +72,7 @@
       ModePanel.AutoSize = true;
       ModePanel.Controls.Add(RealTimeRadioBtn);
       ModePanel.Controls.Add(PassRadioBtn);
+      ModePanel.Controls.Add(ResetViewButton);
       ModePanel.Dock = DockStyle.Top;
       ModePanel.Location = new Point(0, 0);
       ModePanel.MaximumSize = new Size(0, 100);
@@ -103,6 +105,14 @@
       PassRadioBtn.UseVisualStyleBackColor = true;
       PassRadioBtn.CheckedChanged += radioButton_CheckedChanged;
       //
+      // ResetViewButton
+      //
+      ResetViewButton.AutoSize = true;
+      ResetViewButton.Name = "ResetViewButton";
+      ResetViewButton.Text = "Reset View";
+      ResetViewButton.TabIndex = 2;
+      ResetViewButton.UseVisualStyleBackColor = true;
+      //
       // EarthViewPanel
       //
       AutoScaleDimensions = new SizeF(7F, 15F);
@@ -128,5 +138,6 @@
     private FlowLayoutPanel ModePanel;
     private RadioButton RealTimeRadioBtn;
     private RadioButton PassRadioBtn;
+    private Button ResetViewButton;
   }
 }

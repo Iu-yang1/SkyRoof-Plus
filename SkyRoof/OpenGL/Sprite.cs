@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
@@ -73,13 +73,20 @@ namespace SkyRoof
     {      
       gl.GetInteger(OpenGL.GL_VIEWPORT, viewport);
 
-      float scaleX = Scale * ImageSize.Width / viewport[2];
-      float scaleY = Scale * ImageSize.Height / viewport[3];
+      return BuildTransform(Location, Angle, Scale, ImageSize,
+        new Size(viewport[2], viewport[3]));
+    }
 
-      return
-        Matrix4x4.CreateTranslation(Location.X / scaleX, Location.Y / scaleY, 0) *
-        Matrix4x4.CreateRotationZ(Angle) *
-        Matrix4x4.CreateScale(scaleX, scaleY, 1);
+    internal static Matrix4x4 BuildTransform(PointF location, float angle,
+      float scale, Size image, Size viewportSize)
+    {
+      // Rotate in pixel space around the sprite's own centre. Apply the
+      // geographic translation last so rotating an off-centre satellite
+      // never rotates its position around the centre of the Earth view.
+      return Matrix4x4.CreateScale(scale * image.Width, scale * image.Height, 1) *
+        Matrix4x4.CreateRotationZ(angle) *
+        Matrix4x4.CreateScale(1f / viewportSize.Width, 1f / viewportSize.Height, 1) *
+        Matrix4x4.CreateTranslation(location.X, location.Y, 0);
     }
   }
 }

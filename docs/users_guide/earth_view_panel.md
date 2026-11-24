@@ -5,7 +5,7 @@ The Earth View panel shows the view of the Earth from the satellite. Use the rad
 - **Real Time** centers the view on the satellite and highlights the area it can see at this moment.
 - **Selected Pass** centers the view on your station and draws the coverage contour of the currently selected pass.
 
-Use the mouse wheel to zoom the view in and out.
+Use the mouse wheel to zoom the view in and out. Hold the left mouse button and drag to move the geographic view centre, including across the antimeridian. The view stays at the chosen centre while the satellite moves or the selected pass changes; the actual footprint and station markers remain geographically fixed to their own coordinates. Click **Reset View** (恢复跟随), or double-click the map, to resume the current mode's automatic centre without changing the zoom.
 
 ## Real Time
 
