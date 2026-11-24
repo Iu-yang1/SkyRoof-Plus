@@ -45,20 +45,20 @@ public sealed class EarthMapXyzTests
   }
 
   [Theory]
-  [InlineData(EarthMapSourceKind.AmapVector, EarthTileProjection.GcjMercator)]
-  [InlineData(EarthMapSourceKind.AmapImagery, EarthTileProjection.GcjMercator)]
-  [InlineData(EarthMapSourceKind.GoogleRoad, EarthTileProjection.GcjMercator)]
-  [InlineData(EarthMapSourceKind.GoogleSatellite, EarthTileProjection.Mercator)]
-  [InlineData(EarthMapSourceKind.GoogleTerrain, EarthTileProjection.Mercator)]
-  [InlineData(EarthMapSourceKind.GoogleTerrainLabels, EarthTileProjection.GcjMercator)]
-  public async Task XyzSourcesConfigureWithoutTiandituKey(EarthMapSourceKind kind, EarthTileProjection projection)
+  [InlineData(EarthMapSourceKind.AmapVector, 2)]
+  [InlineData(EarthMapSourceKind.AmapImagery, 2)]
+  [InlineData(EarthMapSourceKind.GoogleRoad, 2)]
+  [InlineData(EarthMapSourceKind.GoogleSatellite, 1)]
+  [InlineData(EarthMapSourceKind.GoogleTerrain, 1)]
+  [InlineData(EarthMapSourceKind.GoogleTerrainLabels, 2)]
+  public async Task XyzSourcesConfigureWithoutTiandituKey(EarthMapSourceKind kind, int projection)
   {
     using var manager = new MapSourceManager(() => { });
     var config = new EarthMapSettings { Source = kind };
     manager.Configure(config);
     Assert.True(manager.HasSource);
     Assert.Equal(EarthMapStatus.Loading, manager.Status);
-    Assert.Equal(projection, manager.Projection);
+    Assert.Equal((EarthTileProjection)projection, manager.Projection);
     var source = new XyzMapSource(kind);
     var caps = await source.GetCapabilitiesAsync(false, CancellationToken.None);
     Assert.Equal(1, caps.Matrices[0].Width);
