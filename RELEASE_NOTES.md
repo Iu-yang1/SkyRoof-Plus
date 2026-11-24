@@ -1,3 +1,31 @@
+# SkyRoof-Plus v.1.89
+
+## 2026-11-24 — SkyRoof Earth Map Engine V1
+
+独立迭代版本，保留 v.1.88 及更早的 Release 和安装包。
+
+### 自由地图视角与地图源
+- 地球视图支持鼠标左键拖动、滚轮缩放、双击或恢复跟随按钮返回当前模式默认中心。手动视角不被卫星位置更新强制覆盖。
+- 新增内置 DXCC、天地图矢量、影像、地形四种底图选择，可选对应注记。统一采用 AEQD 投影，地图源切换与卫星星下点、台站和覆盖区计算解耦。
+- 设置页新增天地图服务 Key（本机 Windows DPAPI 保护）、地图注记和 GPU 瓦片池容量。默认内置地图，未配置密钥、网络故障或 GPU 在线渲染失败时仍可使用内置地图。
+
+### 渲染与网络
+- 按 WMTS Capabilities 解析 CGCS2000 瓦片矩阵，以矩阵宽度确定内部 LOD；处理经度环绕与极点的可见瓦片范围。
+- OpenGL 3.3 Texture Array 与稀疏瓦片索引，异步请求/解码、父级回退、增量 GPU 上传、地图源代数隔离。默认 256 槽，基础纹理 64 MiB；不进行持久化瓦片缓存或批量离线下载。
+- 改进高倍率投影数值精度、偏心卫星图标位置及航向，保留原轨道引擎与卫星控制链路。
+- 修复 Windows 透明 PNG 解码过程中 GDI+ 绘制引入的 RGB 舍入问题，并补全地图设置中文帮助。增加索引色 PNG 与 JPEG 回归。
+
+### 验证与使用说明
+- 发布流水线执行 pinned aislop、Windows x64 Release 编译、完整 xUnit、Orekit 冒烟、安装包依赖及发布资产 SHA-256 / Authenticode 检查；只有发布前门禁全部通过才上传安装包。最终结果以 GitHub Actions 为准。
+- 天地图需要用户自行申请适用于桌面 WMTS 的服务 Key；未内置公共 Key。真实在线服务、服务授权及审图信息、Windows 实机 GPU 性能与 60 FPS 目标尚未完成实机验收。合成瓦片验证不能替代实际服务验证。
+- 若 SignPath 不可用，按现有流水线策略发布未签名的 Prerelease。
+
+工程文档：docs/engineering/earth-map-engine-v1.zh-CN.md
+
+**English summary:** Earth Map Engine V1 introduces free camera panning and follow reset, offline DXCC and Tianditu vector/imagery/terrain geographic WMTS layers, optional annotations, DPAPI-protected service keys, asynchronous tile scheduling, GPU texture arrays with a sparse index, parent fallback, and improved deep-zoom precision. Existing satellite tracking and AEQD coverage calculations remain independent of the map provider. Windows alpha decoding and Chinese settings help are corrected. Publication is gated by the existing release CI. Actual authorized Tianditu service access and Windows hardware performance remain unverified.
+
+---
+
 # SkyRoof-Plus v.1.88
 
 ## 2026-11-23 — UNNE-1B（HADES-E2 / SO-131）目录关联与自动遥测识别修复
