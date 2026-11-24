@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
 using VE3NEA;
@@ -16,6 +17,19 @@ internal static class Ft4Codec
         lock (Gate)
             NativeFT4Coder.encode_ft4(AsciiBuffer(message, NativeFT4Coder.ENCODE_MESSAGE_LENGTH), ref audioHz, samples);
         return samples;
+    }
+
+    public static byte[] EncodePcm16(string message, float audioHz, float gain)
+    {
+        if (!float.IsFinite(audioHz) || audioHz <= 0 || audioHz >= 24000 ||
+            !float.IsFinite(gain) || gain is < 0 or > 1 || string.IsNullOrWhiteSpace(message))
+            throw new ArgumentException("Invalid FT4 audio frequency, amplitude or message.");
+        var samples = Encode(message, audioHz);
+        byte[] bytes = new byte[samples.Length * 2];
+        for (int i = 0; i < samples.Length; i++)
+            BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(i * 2),
+                (short)Math.Clamp(Math.Round(samples[i] * gain * 32768.0), -32768, 32767));
+        return bytes;
     }
 
     public static string[] Decode(float[] samples, string myCall = "", string hisCall = "")

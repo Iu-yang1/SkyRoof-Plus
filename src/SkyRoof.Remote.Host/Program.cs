@@ -64,6 +64,7 @@ builder.Services.AddSignalR(options =>
 }).AddMessagePackProtocol();
 builder.Services.AddSingleton<StationDeviceBridge>();
 builder.Services.AddSingleton<MediaStatusBridge>();
+builder.Services.AddSingleton<DspWaveformBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
@@ -102,6 +103,7 @@ app.MapMediaStatus();
 app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
 app.MapFt4Results();
+app.MapTimedFt4();
 app.MapHub<StationControlHub>("/hub/control");
 if (app.Environment.IsDevelopment()) app.MapSimulatedBinaryStreams();
 if (webUiAvailable) app.MapFallbackToFile("index.html");

@@ -18,12 +18,7 @@ internal static class Ft4Command
 
     public static void EncodeFile(string message, string path)
     {
-        var samples = Ft4Codec.Encode(message, 1500);
-        byte[] bytes = new byte[samples.Length * 2];
-        for (int i = 0; i < samples.Length; i++)
-            BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(i * 2),
-                (short)Math.Clamp(Math.Round(samples[i] * 32768.0), -32768, 32767));
-        File.WriteAllBytes(path, bytes);
+        File.WriteAllBytes(path, Ft4Codec.EncodePcm16(message, 1500, 1));
     }
 
     public static void SelfTest()

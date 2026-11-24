@@ -12,6 +12,7 @@
     <Protobuf Include="../../protocols/ipc/device_simulation.proto" GrpcServices="Both" />
     <Protobuf Include="../../protocols/ipc/device_control.proto" GrpcServices="Both" />
       <Protobuf Include="../../protocols/ipc/tracking.proto" GrpcServices="Both" />
+    <Protobuf Include="../../protocols/ipc/dsp.proto" GrpcServices="Both" />
     <Protobuf Include="../../protocols/ipc/media.proto" GrpcServices="Both" />
   </ItemGroup>
 </Project>

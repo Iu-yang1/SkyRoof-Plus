@@ -1,0 +1,17 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service DspWaveform {
+  rpc EncodeFt4(Ft4EncodeRequest) returns (EncodedWaveform);
+}
+message Ft4EncodeRequest {
+  string message = 1;
+  float audio_hz = 2;
+  float gain = 3;
+}
+message EncodedWaveform {
+  bytes pcm16 = 1;
+  int32 sample_rate = 2;
+  string sha256 = 3;
+}

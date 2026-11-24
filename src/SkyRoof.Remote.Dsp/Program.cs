@@ -20,6 +20,7 @@ if (args is ["--ft4-decode", var pcmPath])
     Ft4Command.DecodeFile(pcmPath);
     return;
 }
+await using var ipc = await DspIpcHost.StartAsync();
 var inputName = Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_BUS") ?? "skyroof-rx-audio";
 var outputName = Environment.GetEnvironmentVariable("SKYROOF_AF_SPECTRUM_BUS") ?? "skyroof-af-spectrum";
 var channels = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO_CHANNELS"),

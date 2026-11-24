@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { Ft4TransmitPanel } from './Ft4TransmitPanel';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 
 type Slot = { utc: string; messages: string[]; sourceEpoch: number; rxDelayMs: number; timing: string };
@@ -37,6 +38,7 @@ export function DigitalPanel() {
         {slot.messages.length ? slot.messages.map((message, i) => <div key={i}>{message}</div>) : <div>—</div>}
       </div>)}
     </div>
-    <small>FT4 RX · estimated UTC (RX delay {slots.at(-1)?.rxDelayMs ?? 0} ms). CW and digital TX pending.</small>
+    <Ft4TransmitPanel available={Boolean(hub && active)} />
+    <small>FT4 RX · estimated UTC (RX delay {slots.at(-1)?.rxDelayMs ?? 0} ms). CW pending.</small>
   </section>;
 }

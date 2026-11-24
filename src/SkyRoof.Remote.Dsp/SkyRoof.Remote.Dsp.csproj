@@ -7,6 +7,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
     <Compile Include="../../SkyRoof/FT4/NativeFT4Coder.cs" Link="Legacy/NativeFT4Coder.cs" />
     <None Include="../../Vendor/ft4_coder/ft4_coder.dll" Link="ft4_coder.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../Vendor/ft4_coder/LICENSE" Link="licenses/ft4_coder-LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
