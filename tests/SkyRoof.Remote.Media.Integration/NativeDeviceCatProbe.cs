@@ -24,6 +24,10 @@ internal static class NativeDeviceCatProbe
         var initial = await AwaitReadyAsync(cat, ct);
         Check(initial.RxFrequencyHz == 145_900_000 && initial.TxFrequencyHz == 435_650_000,
             "Native SAT readback did not distinguish MAIN/SUB.");
+        Check(!initial.ActualPtt && initial.DigitalAutomationPaused && fake.CwStops == 1 && fake.LastCw.Length == 0,
+            "Native CW restart recovery did not stop the orphan without replay.");
+        await SendAsync(cat, new() { Operation = DeviceOperation.DeviceResumeDigitalTx }, ct);
+        Console.WriteLine("PASS: native CW durable orphan recovery issues 17 FF, confirms RX and does not replay text.");
         var rx = await SendAsync(cat, new() { Operation = DeviceOperation.DeviceRxFrequency,
             FrequencyHz = 145_920_000 }, ct);
         Check(rx.RxFrequencyHz == 145_920_000 && rx.TxFrequencyHz == 435_650_000,

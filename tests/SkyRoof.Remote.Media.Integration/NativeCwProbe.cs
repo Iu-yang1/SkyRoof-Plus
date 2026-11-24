@@ -5,6 +5,7 @@ internal static class NativeCwProbe
 {
     public static async Task RunAsync(StationDevice.StationDeviceClient cat, FakeNativeIcomRadio radio, CancellationToken ct)
     {
+        int stopsBefore = radio.CwStops;
         await ModeAsync(cat, "CW-R", ct);
         var speed = await cat.SetCwSpeedAsync(new CwSpeedRequest { Wpm = 25 }, cancellationToken: ct);
         if (speed.KeySpeedRaw != 115 || speed.Mode != "CW-R" || speed.BreakIn != 1 ||
@@ -24,7 +25,7 @@ internal static class NativeCwProbe
         try { await call.ResponseAsync; throw new InvalidDataException("Cancelled CW completed."); }
         catch (RpcException e) when (e.StatusCode == StatusCode.Cancelled) { }
         await WaitAsync(cat, state => !state.ActualPtt && state.ActiveSessionId.Length == 0, ct);
-        if (radio.CwStops != 1) throw new InvalidDataException("Native CW STOP not acknowledged once.");
+        if (radio.CwStops != stopsBefore + 1) throw new InvalidDataException("Native CW STOP not acknowledged once.");
         await ModeAsync(cat, "USB-D", ct);
         Console.WriteLine("PASS: real authenticated native UDP CI-V CW-R, WPM BCD, BK-IN, exact Command 17 text, STOP and RX.");
     }

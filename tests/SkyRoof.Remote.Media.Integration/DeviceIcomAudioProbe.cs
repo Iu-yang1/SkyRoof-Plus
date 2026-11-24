@@ -8,14 +8,21 @@ internal static class DeviceIcomAudioProbe
         string suffix, NamedSignalRing ring, MediaIngress.MediaIngressClient media, NativeFt4ProcessPaths? ft4Paths)
     {
         using var fake = new FakeNativeIcomRadio();
+        fake.SeedOrphanedCw();
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(ft4Paths is null ? 90 : 150));
         var radioTask = fake.RunAsync(deadline.Token);
         var startEpoch = ring.StreamEpoch;
         var info = new ProcessStartInfo("dotnet") { UseShellExecute = false };
         info.ArgumentList.Add(deviceDll);
         info.Environment["SKYROOF_DEVICE_PIPE"] = "skyroof-native-icom-test-" + suffix;
-        info.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] =
-            Path.Combine(Path.GetTempPath(), "skyroof-native-icom-" + suffix + ".json");
+        string journal = Path.Combine(Path.GetTempPath(), "skyroof-native-icom-" + suffix + ".json");
+        info.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journal;
+        File.WriteAllText(journal, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            BackendId = $"IcomLanSatellite:127.0.0.1:{fake.ControlPort}",
+            TransactionId = "native-cw:orphan-fixture",
+            SessionId = "previous-process", StartedUtc = DateTimeOffset.UtcNow.AddSeconds(-5)
+        }));
         info.Environment["SKYROOF_CAT_HOST"] = "127.0.0.1";
         info.Environment["SKYROOF_CAT_PORT"] = "1";
         info.Environment["SKYROOF_CAT_DIALECT"] = "icom-lan-satellite";
@@ -35,6 +42,7 @@ internal static class DeviceIcomAudioProbe
         {
             await NativeDeviceCatProbe.RunAsync(info.Environment["SKYROOF_DEVICE_PIPE"]
                 ?? throw new InvalidOperationException("Device test pipe missing."), fake, deadline.Token);
+            if (File.Exists(journal)) throw new InvalidDataException("Native CW journal survived recovery and release.");
             if (ft4Paths is not null)
                 await NativeFt4HttpProbe.RunAsync(ft4Paths,
                     info.Environment["SKYROOF_DEVICE_PIPE"] ?? throw new InvalidOperationException("Missing Device pipe."),
@@ -77,6 +85,7 @@ internal static class DeviceIcomAudioProbe
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
+            if (File.Exists(journal)) File.Delete(journal);
             if (Directory.Exists(timedDir)) Directory.Delete(timedDir, recursive: true);
         }
     }

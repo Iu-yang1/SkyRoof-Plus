@@ -7,6 +7,7 @@ internal sealed partial class FakeNativeIcomRadio
     private readonly CancellationTokenSource _nativeCatDone = new();
     private readonly FakeNativeSatelliteState _catState = new();
 
+    public void SeedOrphanedCw() => _catState.SeedOrphanedCw();
     public int CwStops => _catState.CwStops;
     public string LastCw => _catState.LastCw;
 
