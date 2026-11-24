@@ -12,8 +12,17 @@ namespace SkyRoof
     Task<byte[]> GetTileAsync(WmtsCapabilities capabilities, EarthTileKey tile, CancellationToken cancellation);
   }
 
-  internal sealed class TiandituMapSource(EarthMapSourceKind source, string key) : IMapSource
+  internal sealed class TiandituMapSource : IMapSource
   {
+    private readonly EarthMapSourceKind source;
+    private readonly string key;
+
+    internal TiandituMapSource(EarthMapSourceKind source, string key)
+    {
+      this.source = source;
+      this.key = key;
+    }
+
     private static readonly HttpClient Client = new(new HttpClientHandler
     {
       AllowAutoRedirect = false

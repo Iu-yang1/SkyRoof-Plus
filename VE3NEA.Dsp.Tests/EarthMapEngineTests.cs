@@ -148,6 +148,22 @@ public sealed class EarthMapEngineTests
     Assert.Equal(settings.TiandituKey, restored.TiandituKey);
   }
 
+  [Fact]
+  public void DeepZoomRetainsSubMetreOffsetsInCameraProjection()
+  {
+    var camera = new EarthViewCamera();
+    var center = new GeoPoint(45, 116);
+    camera.Follow(center);
+    var viewport = new Size(1024, 1024);
+    const double zoom = 65536;
+    const double angle = 1e-8;
+    var point = new GeoPoint(45 + angle * Geo.DinR, 116);
+    PointF actual = camera.Project(point, viewport, zoom);
+    double expected = angle * zoom / Math.PI;
+    Assert.InRange(Math.Abs(actual.Y - expected), 0, 1e-10);
+    Assert.InRange(Math.Abs(actual.X), 0, 1e-10);
+  }
+
   private sealed class FakeSource : IMapSource
   {
     private readonly WmtsCapabilities caps = WmtsCapabilities.Parse(Capabilities, "vec");

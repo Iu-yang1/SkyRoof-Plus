@@ -5,9 +5,13 @@ using VE3NEA;
 
 namespace SkyRoof
 {
+  internal readonly record struct EarthMapFrame(GeoPoint Center, GeoPoint Satellite,
+    double Footprint, Size Viewport, double Zoom, float Brightness);
+
   internal sealed class EarthMapRenderer
   {
     private readonly OpenGL gl;
+    private readonly uint builtinTexture;
     private readonly ShaderProgram program = new();
     private readonly VertexBufferArray vao = new();
     private GpuEarthTilePool pool;
@@ -15,9 +19,10 @@ namespace SkyRoof
     internal int Capacity => pool.Capacity;
     internal int RequestedCapacity { get; private set; }
 
-    internal EarthMapRenderer(OpenGL gl, int capacity)
+    internal EarthMapRenderer(OpenGL gl, uint builtinTexture, int capacity)
     {
       this.gl = gl;
+      this.builtinTexture = builtinTexture;
       RequestedCapacity = capacity;
       vao.Create(gl);
       program.Create(gl, EarthMapShaders.Vertex, EarthMapShaders.Fragment, null);
@@ -27,9 +32,10 @@ namespace SkyRoof
       SetInt("tileIndex", 2);
       pool = new GpuEarthTilePool(gl, capacity);
       pool.Bind();
+      gl.BindTexture(OpenGL.GL_TEXTURE_2D, builtinTexture);
       vao.Bind(gl);
       program.AssertValid(gl);
-      VertexBufferArray.Unbind(gl);
+      vao.Unbind(gl);
       program.Unbind(gl);
     }
 
@@ -42,8 +48,7 @@ namespace SkyRoof
       RequestedCapacity = capacity;
     }
 
-    internal void Draw(MapSourceManager source, uint builtinTexture, GeoPoint center,
-      GeoPoint satellite, double footprint, Size viewport, double zoom, float brightness)
+    internal void Draw(MapSourceManager source, EarthMapFrame frame)
     {
       pool.Sync(source);
       program.Bind(gl);
@@ -51,13 +56,13 @@ namespace SkyRoof
       gl.ActiveTexture(OpenGL.GL_TEXTURE0);
       gl.BindTexture(OpenGL.GL_TEXTURE_2D, builtinTexture);
       pool.Bind();
-      SetCamera(source.Level, center, viewport, zoom);
-      SetFloat("satLat", (float)satellite.LatitudeRad);
-      SetFloat("satLon", (float)satellite.LongitudeRad);
-      SetFloat("footprint", (float)footprint);
-      SetFloat("brightness", brightness);
+      SetCamera(source.Level, frame.Center, frame.Viewport, frame.Zoom);
+      SetFloat("satLat", (float)frame.Satellite.LatitudeRad);
+      SetFloat("satLon", (float)frame.Satellite.LongitudeRad);
+      SetFloat("footprint", (float)frame.Footprint);
+      SetFloat("brightness", frame.Brightness);
       gl.DrawArrays(OpenGL.GL_TRIANGLES, 0, 3);
-      VertexBufferArray.Unbind(gl);
+      vao.Unbind(gl);
       program.Unbind(gl);
       gl.ActiveTexture(OpenGL.GL_TEXTURE0);
       if (gl.GetError() != 0) throw new InvalidOperationException("Earth tile shader render failed");
@@ -74,7 +79,8 @@ namespace SkyRoof
       SetInt("originY", y);
       SetFloat("originU", (float)(px - x));
       SetFloat("originV", (float)(py - y));
-      SetFloat("centerLat", (float)center.LatitudeRad);
+      SetFloat("centerSinLat", (float)Math.Sin(center.LatitudeRad));
+      SetFloat("centerCosLat", (float)Math.Cos(center.LatitudeRad));
       SetFloat("centerLon", (float)center.LongitudeRad);
       SetFloat("zoom", (float)zoom);
       SetFloat("aspect", (float)viewport.Width / viewport.Height);

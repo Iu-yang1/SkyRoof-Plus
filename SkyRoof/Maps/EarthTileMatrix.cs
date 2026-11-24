@@ -43,17 +43,13 @@ namespace SkyRoof
       var document = XDocument.Parse(xml);
       XNamespace wmts = "http://www.opengis.net/wmts/1.0";
       XNamespace ows = "http://www.opengis.net/ows/1.1";
-      var contents = document.Root?.Element(wmts + "Contents") ??
-        throw new InvalidDataException("WMTS Contents missing");
-      var layer = contents.Elements(wmts + "Layer")
-        .FirstOrDefault(x => (string?)x.Element(ows + "Identifier") == layerName) ??
-        throw new InvalidDataException("WMTS layer missing");
-      var link = layer.Elements(wmts + "TileMatrixSetLink")
-        .FirstOrDefault(x => (string?)x.Element(wmts + "TileMatrixSet") == "c") ??
-        throw new InvalidDataException("WMTS geographic matrix link missing");
-      var matrixSet = contents.Elements(wmts + "TileMatrixSet")
-        .FirstOrDefault(x => (string?)x.Element(ows + "Identifier") == "c") ??
-        throw new InvalidDataException("WMTS geographic matrix missing");
+      var contents = Require(document.Root?.Element(wmts + "Contents"), "WMTS Contents missing");
+      var layer = Require(contents.Elements(wmts + "Layer")
+        .FirstOrDefault(x => (string?)x.Element(ows + "Identifier") == layerName), "WMTS layer missing");
+      var link = Require(layer.Elements(wmts + "TileMatrixSetLink")
+        .FirstOrDefault(x => (string?)x.Element(wmts + "TileMatrixSet") == "c"), "WMTS geographic matrix link missing");
+      var matrixSet = Require(contents.Elements(wmts + "TileMatrixSet")
+        .FirstOrDefault(x => (string?)x.Element(ows + "Identifier") == "c"), "WMTS geographic matrix missing");
       var crs = (string?)matrixSet.Element(ows + "SupportedCRS") ?? "";
       if (!crs.EndsWith("4490", StringComparison.Ordinal))
         throw new InvalidDataException("WMTS matrix is not CGCS2000");
@@ -64,10 +60,14 @@ namespace SkyRoof
         (string?)x.Attribute("isDefault") is "true" or "1") ??
         styles.FirstOrDefault())?.Element(ows + "Identifier") ?? "default";
       string[] formats = layer.Elements(wmts + "Format").Select(x => x.Value).ToArray();
-      string format = formats.FirstOrDefault(x => x == "tiles") ??
-        formats.FirstOrDefault(x => x == "image/png" || x == "image/jpeg") ??
-        throw new InvalidDataException("WMTS raster format missing");
+      string format = Require(formats.FirstOrDefault(x => x == "tiles") ??
+        formats.FirstOrDefault(x => x == "image/png" || x == "image/jpeg"), "WMTS raster format missing");
       return new WmtsCapabilities(layerName, style, format, matrices);
+    }
+
+    private static T Require<T>(T? value, string error) where T : class
+    {
+      return value ?? throw new InvalidDataException(error);
     }
 
     private static Dictionary<int, EarthTileMatrix> ReadMatrices(

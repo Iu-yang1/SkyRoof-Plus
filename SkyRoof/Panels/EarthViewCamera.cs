@@ -48,12 +48,21 @@ namespace SkyRoof
     internal PointF Project(GeoPoint point, Size viewport, double zoom)
     {
       if (viewport.Width <= 0 || viewport.Height <= 0) return PointF.Empty;
-      var path = point - Center;
-      double radius = path.DistanceRad / Math.PI * zoom;
-      double diameter = Math.Min(viewport.Width, viewport.Height);
-      return new PointF(
-        (float)(radius * Math.Sin(path.AzimuthRad) * diameter / viewport.Width),
-        (float)(radius * Math.Cos(path.AzimuthRad) * diameter / viewport.Height));
+      double deltaLon = point.LongitudeRad - Center.LongitudeRad;
+      double sinHalf = Math.Sin(deltaLon / 2);
+      double sinCenter = Math.Sin(Center.LatitudeRad);
+      double cosPoint = Math.Cos(point.LatitudeRad);
+      double east = cosPoint * Math.Sin(deltaLon);
+      double north = Math.Sin(point.LatitudeRad - Center.LatitudeRad) +
+        2 * sinCenter * cosPoint * sinHalf * sinHalf;
+      double tangent = Math.Sqrt(east * east + north * north);
+      double dot = sinCenter * Math.Sin(point.LatitudeRad) +
+        Math.Cos(Center.LatitudeRad) * cosPoint * Math.Cos(deltaLon);
+      double angular = Math.Atan2(tangent, dot);
+      if (tangent == 0) return PointF.Empty;
+      double scale = angular / tangent * zoom * Math.Min(viewport.Width, viewport.Height) / Math.PI;
+      return new PointF((float)(east * scale / viewport.Width),
+        (float)(north * scale / viewport.Height));
     }
 
     internal float Heading(GeoPoint point, GeoPoint next, Size viewport, double zoom)

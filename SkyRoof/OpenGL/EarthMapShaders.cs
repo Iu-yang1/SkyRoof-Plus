@@ -22,7 +22,7 @@ namespace SkyRoof
       uniform isampler2D tileIndex;
       uniform int level, originX, originY;
       uniform float originU, originV;
-      uniform float centerLat, centerLon, satLat, satLon, footprint, zoom, aspect, brightness;
+      uniform float centerSinLat, centerCosLat, centerLon, satLat, satLon, footprint, zoom, aspect, brightness;
       in vec2 ndc;
       out vec4 out_Color;
 
@@ -70,22 +70,29 @@ namespace SkyRoof
         return fallback;
       }
 
-      // Spherical exponential map, shared with the CPU camera. For a
-      // small viewport radius, use the local series to preserve deltas
-      // below the precision of absolute float latitude/longitude.
-      vec2 geoDelta(vec2 tangent, float r, float lat, float lon)
+      // Evaluate the inverse spherical projection in a longitude-relative
+      // basis. Rationalize the horizontal difference to preserve small
+      // latitude deltas without subtracting nearly equal absolute angles.
+      vec2 geoDelta(vec2 tangent, float r, out vec3 point)
       {
-        float c = cos(centerLat);
-        if (r < 0.0005 && abs(c) > 0.1)
-        {
-          float e = tangent.x*r, n = tangent.y*r;
-          float t = tan(centerLat);
-          return vec2((e + e*n*t)/c, n - 0.5*t*e*e);
-        }
-        float dl = lon - centerLon;
-        if (dl > PI) dl -= TAU;
-        if (dl < -PI) dl += TAU;
-        return vec2(dl, lat-centerLat);
+        float c = centerCosLat;
+        float s = centerSinLat;
+        float halfSin = sin(0.5*r);
+        float cosMinusOne = -2.0*halfSin*halfSin;
+        float n = tangent.y*sin(r);
+        float y = tangent.x*sin(r);
+        float dx = c*cosMinusOne-s*n;
+        float dz = s*cosMinusOne+c*n;
+        float x = c+dx;
+        float z = s+dz;
+        float horizontal = length(vec2(x,y));
+        float hsum = horizontal+c;
+        float dh = hsum > 0.0 ? (dx*(x+c)+y*y)/hsum : 0.0;
+        float dlat = atan(dz*c-dh*s, z*s+horizontal*c);
+        float dlon = horizontal > 0.0 ? atan(y,x) : 0.0;
+        float cl = cos(centerLon), sl = sin(centerLon);
+        point = vec3(x*cl-y*sl, x*sl+y*cl, z);
+        return vec2(dlon,dlat);
       }
 
       void main()
@@ -94,18 +101,14 @@ namespace SkyRoof
         float r = length(p)*PI;
         if (r > PI) discard;
         vec2 tangent = r > 0.0 ? normalize(p) : vec2(0.0,0.0);
-        vec3 center = geo(centerLat, centerLon);
-        vec3 east = vec3(-sin(centerLon), cos(centerLon), 0.0);
-        vec3 north = vec3(-sin(centerLat)*cos(centerLon),
-          -sin(centerLat)*sin(centerLon), cos(centerLat));
-        vec3 point = center*cos(r) + (east*tangent.x + north*tangent.y)*sin(r);
+        vec3 point;
+        vec2 delta = geoDelta(tangent, r, point);
         float lat = atan(point.z, length(point.xy));
         float lon = atan(point.y, point.x);
         vec4 fallback = texture(worldMapTexture, vec2(0.5+lon/TAU, 0.5-lat/PI));
 
         int width = 1 << level;
         int height = width / 2;
-        vec2 delta = geoDelta(tangent, r, lat, lon);
         vec2 offset = vec2(originU,originV) + delta*vec2(float(width)/TAU,-float(height)/PI);
         ivec2 tile = ivec2(originX,originY) + ivec2(floor(offset));
         vec2 uv = fract(offset);

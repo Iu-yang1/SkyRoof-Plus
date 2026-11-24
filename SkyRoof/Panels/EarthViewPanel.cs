@@ -607,13 +607,13 @@ namespace SkyRoof
       }
       try
       {
-        onlineRenderer ??= new EarthMapRenderer(gl, mapSources.Capacity);
+        onlineRenderer ??= new EarthMapRenderer(gl, TextureIds[0], mapSources.Capacity);
         onlineRenderer.SetCapacity(mapSources.Capacity);
         mapSources.Update(Center, size, Zoom, onlineRenderer.Capacity);
         RefreshMapStatus();
         if (mapSources.ReadyCount == 0) return false;
-        onlineRenderer.Draw(mapSources, TextureIds[0], Center, SatGeoPoint,
-          Mode == EarthViewMode.RealTime ? SatFootprint : Math.PI, size, Zoom, Brightness);
+        onlineRenderer.Draw(mapSources, new EarthMapFrame(Center, SatGeoPoint,
+          Mode == EarthViewMode.RealTime ? SatFootprint : Math.PI, size, Zoom, Brightness));
         return true;
       }
       catch (Exception ex)

@@ -40,9 +40,18 @@ namespace SkyRoof
   // All dictionaries and state transitions belong to the WinForms thread.
   // Workers publish immutable results only; cancellation/generations prevent
   // stale results and network requests from changing the selected source.
-  internal sealed class MapSourceManager(Action invalidate,
-    Func<EarthMapSourceKind, string, IMapSource>? factory = null) : IDisposable
+  internal sealed class MapSourceManager : IDisposable
   {
+    private readonly Action invalidate;
+    private readonly Func<EarthMapSourceKind, string, IMapSource>? factory;
+
+    internal MapSourceManager(Action invalidate,
+      Func<EarthMapSourceKind, string, IMapSource>? factory = null)
+    {
+      this.invalidate = invalidate;
+      this.factory = factory;
+    }
+
     private const int ParallelRequests = 4;
     private readonly ConcurrentQueue<Action> completions = new();
     private readonly Dictionary<EarthTileKey, byte[]> ready = new();
