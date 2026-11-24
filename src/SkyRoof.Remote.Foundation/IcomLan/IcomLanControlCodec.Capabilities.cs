@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SkyRoof.Remote.Foundation.IcomLan;
 
@@ -13,9 +14,9 @@ public static partial class IcomLanControlCodec
     // Call only after MatchesCapabilities correlated the entire response to
     // the active login/token/SID transaction.
     public static bool TryParseCapabilities(ReadOnlySpan<byte> packet,
-        out IcomLanRadioCapabilities capabilities)
+        [NotNullWhen(true)] out IcomLanRadioCapabilities? capabilities)
     {
-        capabilities = default!;
+        capabilities = null;
         const int header = 0x42, entryLength = 0x66;
         if (packet.Length < header + entryLength ||
             (packet.Length - header) % entryLength != 0)

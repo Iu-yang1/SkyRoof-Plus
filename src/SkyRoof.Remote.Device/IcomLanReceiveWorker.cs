@@ -13,7 +13,8 @@ internal sealed partial class IcomLanReceiveWorker(ILogger<IcomLanReceiveWorker>
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var address = Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_HOST")!;
+        var address = Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_HOST")
+            ?? throw new InvalidOperationException("Missing SKYROOF_ICOM_LAN_HOST.");
         var user = Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_USERNAME")
             ?? throw new InvalidOperationException("Missing SKYROOF_ICOM_LAN_USERNAME.");
         var password = Environment.GetEnvironmentVariable("SKYROOF_ICOM_LAN_PASSWORD")

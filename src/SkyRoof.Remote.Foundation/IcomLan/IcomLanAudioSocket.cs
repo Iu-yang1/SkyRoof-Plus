@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using SkyRoof.Remote.Foundation.Media;
@@ -25,7 +26,8 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
 
     public uint LocalSid { get; }
     public uint RemoteSid { get; private set; }
-    public int LocalPort => ((IPEndPoint)_socket.Client.LocalEndPoint!).Port;
+    public int LocalPort => (_socket.Client.LocalEndPoint as IPEndPoint
+        ?? throw new InvalidOperationException("UDP socket is not bound.")).Port;
 
     // Reserve the real socket *before* the authenticated control grant.
     // Icom's stream request advertises this exact bound UDP port.
@@ -37,9 +39,11 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
         using var route = new Socket(AddressFamily.InterNetwork,
             SocketType.Dgram, ProtocolType.Udp);
         route.Connect(new IPEndPoint(ip, controlPort));
-        var localAddress = ((IPEndPoint)route.LocalEndPoint!).Address;
+        var localAddress = (route.LocalEndPoint as IPEndPoint
+            ?? throw new InvalidOperationException("UDP route has no local endpoint.")).Address;
         var udp = new UdpClient(new IPEndPoint(localAddress, 0));
-        var local = (IPEndPoint)udp.Client.LocalEndPoint!;
+        var local = udp.Client.LocalEndPoint as IPEndPoint
+            ?? throw new InvalidOperationException("UDP socket is not bound.");
         return new IcomLanAudioSocket(udp,
             IcomLanControlCodec.BuildSessionId(local.Address, local.Port));
     }
@@ -126,8 +130,10 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
         if (_heartbeat is not null)
         {
             try { await _heartbeat; }
-            catch (OperationCanceledException) { }
-            catch (ObjectDisposedException) { }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            { Trace.TraceInformation("Icom audio maintenance cancelled during shutdown."); }
+            catch (ObjectDisposedException error) { Trace.TraceWarning("Icom audio shutdown: {0}", error.Message); }
+            catch (SocketException error) { Trace.TraceWarning("Icom audio heartbeat: {0}", error.Message); }
         }
         if (RemoteSid != 0)
         {
@@ -138,7 +144,7 @@ public sealed partial class IcomLanAudioSocket : IAsyncDisposable
                 await _socket.SendAsync(disconnect, CancellationToken.None);
                 await _socket.SendAsync(disconnect, CancellationToken.None);
             }
-            catch (SocketException) { }
+            catch (SocketException error) { Trace.TraceWarning("Icom audio shutdown: {0}", error.Message); }
         }
         _socket.Dispose();
         _sendLock.Dispose();

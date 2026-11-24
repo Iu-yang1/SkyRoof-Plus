@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 
@@ -26,7 +27,8 @@ public sealed partial class IcomLanCivSocket : IAsyncDisposable
 
     public uint LocalSid { get; }
     public uint RemoteSid { get; private set; }
-    public int LocalPort => ((IPEndPoint)_socket.Client.LocalEndPoint!).Port;
+    public int LocalPort => (_socket.Client.LocalEndPoint as IPEndPoint
+        ?? throw new InvalidOperationException("UDP socket is not bound.")).Port;
 
     public static IcomLanCivSocket Reserve(string address, int controlPort = 50001)
     {
@@ -34,9 +36,11 @@ public sealed partial class IcomLanCivSocket : IAsyncDisposable
         using var route = new Socket(AddressFamily.InterNetwork,
             SocketType.Dgram, ProtocolType.Udp);
         route.Connect(new IPEndPoint(ip, controlPort));
-        var localIp = ((IPEndPoint)route.LocalEndPoint!).Address;
+        var localIp = (route.LocalEndPoint as IPEndPoint
+            ?? throw new InvalidOperationException("UDP route has no local endpoint.")).Address;
         var socket = new UdpClient(new IPEndPoint(localIp, 0));
-        var local = (IPEndPoint)socket.Client.LocalEndPoint!;
+        var local = socket.Client.LocalEndPoint as IPEndPoint
+                ?? throw new InvalidOperationException("UDP socket is not bound.");
         socket.Client.ReceiveBufferSize = 1_048_576;
         return new IcomLanCivSocket(socket,
             IcomLanControlCodec.BuildSessionId(local.Address, local.Port));
@@ -100,21 +104,22 @@ public sealed partial class IcomLanCivSocket : IAsyncDisposable
         if (_maintenance is not null)
         {
             try { await _maintenance; }
-            catch (OperationCanceledException) { }
-            catch (IOException) { }
-            catch (SocketException) { }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            { Trace.TraceInformation("Icom CI-V maintenance cancelled during shutdown."); }
+            catch (IOException error) { Trace.TraceWarning("Icom CI-V shutdown: {0}", error.Message); }
+            catch (SocketException error) { Trace.TraceWarning("Icom CI-V shutdown: {0}", error.Message); }
         }
         if (_opened)
         {
             try { await SendOpenCloseAsync(true, CancellationToken.None); }
-            catch (SocketException) { }
+            catch (SocketException error) { Trace.TraceWarning("Icom CI-V shutdown: {0}", error.Message); }
             var close = IcomLanControlCodec.ControlPacket(5, 0, LocalSid, RemoteSid);
             try
             {
                 await _socket.SendAsync(close, CancellationToken.None);
                 await _socket.SendAsync(close, CancellationToken.None);
             }
-            catch (SocketException) { }
+            catch (SocketException error) { Trace.TraceWarning("Icom CI-V shutdown: {0}", error.Message); }
         }
         _socket.Dispose();
         _lifetime.Dispose();

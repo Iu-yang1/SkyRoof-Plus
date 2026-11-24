@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 
@@ -48,7 +49,8 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
         try
         {
             socket.Connect(remote, options.ControlPort);
-            var local = (IPEndPoint)socket.Client.LocalEndPoint!;
+            var local = socket.Client.LocalEndPoint as IPEndPoint
+                ?? throw new InvalidOperationException("UDP socket is not bound.");
             uint localSid = IcomLanControlCodec.BuildSessionId(local.Address, local.Port);
             var session = new IcomLanControlConnection(socket, localSid);
             try
@@ -104,9 +106,11 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
         if (_maintenance is not null)
         {
             try { await _maintenance; }
-            catch (OperationCanceledException) { }
-            catch (IOException) { }
-            catch (TimeoutException) { }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            { Trace.TraceInformation("Icom control maintenance cancelled during shutdown."); }
+            catch (IOException error) { Trace.TraceWarning("Icom control shutdown: {0}", error.Message); }
+            catch (SocketException error) { Trace.TraceWarning("Icom control maintenance: {0}", error.Message); }
+            catch (TimeoutException error) { Trace.TraceWarning("Icom control shutdown: {0}", error.Message); }
         }
         if (_authenticated)
         {
@@ -123,8 +127,8 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
                     packet, LocalSid, RemoteSid, sequence, 1, authId),
                     TimeSpan.FromMilliseconds(400), CancellationToken.None);
             }
-            catch (TimeoutException) { }
-            catch (SocketException) { }
+            catch (TimeoutException error) { Trace.TraceWarning("Icom control shutdown: {0}", error.Message); }
+            catch (SocketException error) { Trace.TraceWarning("Icom control shutdown: {0}", error.Message); }
         }
         try
         {
@@ -132,7 +136,7 @@ public sealed partial class IcomLanControlConnection : IAsyncDisposable
             await SendAsync(disconnect, tracked: false, CancellationToken.None);
             await SendAsync(disconnect, tracked: false, CancellationToken.None);
         }
-        catch (SocketException) { }
+        catch (SocketException error) { Trace.TraceWarning("Icom control shutdown: {0}", error.Message); }
         _control.Dispose();
         _lifetime.Dispose();
     }
