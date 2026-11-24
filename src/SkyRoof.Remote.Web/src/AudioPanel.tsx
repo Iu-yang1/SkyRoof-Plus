@@ -40,7 +40,10 @@ export function AudioPanel() {
   }
 
   async function start(voice = false) {
-    if (playback.current || starting.current || !workspaceActive || !hub) return;
+    if (!workspaceActive || !hub) return;
+    // A new transport choice replaces the previous receiver, including a
+    // still-negotiating peer, rather than requiring a separate STOP click.
+    if (playback.current || starting.current) disposePlayback();
     starting.current = true;
     const attempt = ++generation.current;
     setStatus('CONNECTING...');
@@ -117,7 +120,7 @@ export function AudioPanel() {
   useEffect(() => () => disposePlayback(), []);
 
   return <section className="panel audio-panel">
-    <header>RX AUDIO · RAW PCM16</header>
+    <header>RX AUDIO · PCM / OPUS</header>
     <p>{status}</p>
     <div className="readout">48,000 samples/s · PCM16 · SAP/1</div>
     <div className="readout">Received {frames} frames · Buffer {bufferedMs} ms · Underruns {underruns}</div>

@@ -60,6 +60,11 @@ export class RxPcmTransport {
       event.track.onended = () => { if (this.rtc === peer) this.fallback(); };
       event.track.onmute = () => { if (this.rtc === peer) this.arm(3000); };
       this.voiceStream?.(stream);
+      if (!event.track.muted) {
+        this.status('RTC VOICE · Opus 48 kHz');
+        if (this.timer !== null) window.clearTimeout(this.timer);
+        this.timer = null;
+      }
     };
   }
 

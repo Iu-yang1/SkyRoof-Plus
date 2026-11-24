@@ -22,7 +22,8 @@
         "SKYROOF_ICOM_LAN_PASSWORD": "REPLACE_WITH_RADIO_PASSWORD",
         "SKYROOF_ICOM_LAN_RX_RATE": "48000",
         "SKYROOF_ICOM_LAN_TX_RATE": "48000",
-        "SKYROOF_ICOM_LAN_RF_SCOPE": "true"
+        "SKYROOF_ICOM_LAN_RF_SCOPE": "true",
+        "SKYROOF_TIMED_TX_DIRECTORY": "C:/SkyRoofRemote/data/timed-tx"
       }
     },
     {
@@ -62,7 +63,8 @@
         "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
         "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
         "SKYROOF_RX_AUDIO_CHANNELS": "1",
-        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary"
+        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary"
       }
     },
     {
@@ -81,7 +83,8 @@
         "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
         "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
         "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
-        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary"
+        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary",
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary"
       }
     }
   ]
