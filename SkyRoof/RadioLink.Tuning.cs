@@ -141,6 +141,20 @@ namespace SkyRoof
             previousCorrected) >= 0.5;
       }
 
+      if (!SetSatelliteTuningPosition(targetFrequency, useRit)) return false;
+
+      ComputeFrequencies();
+
+      return
+        ritModeChanged ||
+        Math.Abs(
+          CorrectedDownlinkFrequency -
+          previousCorrected) >= 0.5;
+    }
+
+
+    private bool SetSatelliteTuningPosition(double targetFrequency, bool useRit)
+    {
       double dopplerScale =
         DownlinkDopplerCorrectionEnabled
           ? 1.0 - DopplerFactor
@@ -193,15 +207,8 @@ namespace SkyRoof
             MidpointRounding.AwayFromZero);
       }
 
-      ComputeFrequencies();
-
-      return
-        ritModeChanged ||
-        Math.Abs(
-          CorrectedDownlinkFrequency -
-          previousCorrected) >= 0.5;
+      return true;
     }
-
 
     private bool CanSetCorrectedDownlink(double targetFrequency, bool useRit)
     {

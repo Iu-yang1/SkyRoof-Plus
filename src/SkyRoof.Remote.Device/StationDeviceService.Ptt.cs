@@ -97,7 +97,7 @@ public sealed partial class StationDeviceService
             active.SessionId == command.SessionId)
         {
             _lastManualBeat = System.Diagnostics.Stopwatch.GetTimestamp();
-            return ("ptt-lease-renewed", false);
+            return (digital ? "digital-ptt-lease-renewed" : "manual-ptt-lease-renewed", false);
         }
         return ("stale-ptt-heartbeat-ignored", false);
     }

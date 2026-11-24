@@ -2,6 +2,16 @@ namespace SkyRoof.Remote.Foundation.IcomLan;
 
 public readonly record struct IcomCivMode(byte Code, byte Filter)
 {
+    public string ToModeName(bool data) => (Code, data) switch
+    {
+        (0, true) => "LSB-D", (1, true) => "USB-D",
+        (2, true) => "AM-D", (5, true) => "FM-D",
+        (0, _) => "LSB", (1, _) => "USB", (2, _) => "AM", (3, _) => "CW",
+        (4, _) => "RTTY", (5, _) => "FM", (7, _) => "CWR", (8, _) => "RTTYR",
+        (0x17, _) => "DV", (0x22, _) => "DD",
+        _ => throw new InvalidDataException("Unknown CI-V mode readback.")
+    };
+
     public static byte ParseCode(string mode) => mode.Trim().ToUpperInvariant() switch
     {
         "LSB" => 0, "USB" => 1, "AM" => 2, "CW" => 3,

@@ -75,6 +75,14 @@ public sealed class RigctldLink(string host, int port) : IAsyncDisposable
 
     public Task<string> ReadPositionAsync(CancellationToken token) => SendAsync("p", token, 2);
 
+    public async Task<string> ReadModeAsync(string command, CancellationToken token)
+    {
+        var reply = await SendAsync(command, token, 2);
+        if (reply.StartsWith("RPRT ", StringComparison.Ordinal))
+            throw new IOException("CAT mode readback failed: " + reply);
+        return reply.Split('\n')[0].Trim();
+    }
+
     private void Reset()
     {
         _reader?.Dispose();

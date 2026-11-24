@@ -17,6 +17,15 @@ public sealed class IcomLanSatelliteCat(IcomLanCivSocket socket, byte radioAddre
             return true;
         }, ct);
 
+    public Task<string> ReadModeAsync(bool uplink, CancellationToken ct) =>
+        OnBandAsync(uplink, async token =>
+        {
+            var mode = await _readbacks.ReadSelectedModeAsync(token);
+            bool data = mode.Code is 0 or 1 or 2 or 5 &&
+                (await _readbacks.ReadDataModeAsync(token)).Enabled;
+            return mode.ToModeName(data);
+        }, ct);
+
     public Task SetModeAsync(bool uplink, string mode, CancellationToken ct) =>
         OnBandAsync(uplink, async token =>
         {

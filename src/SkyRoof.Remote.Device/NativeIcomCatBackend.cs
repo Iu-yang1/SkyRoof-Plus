@@ -10,6 +10,7 @@ internal sealed class NativeIcomCatBackend(NativeIcomCatSession session) : IStat
         session.Current.ReadFrequencyAsync(false, ct);
     public Task<long> ReadTxFrequencyAsync(CancellationToken ct) =>
         session.Current.ReadFrequencyAsync(true, ct);
+    public Task<string> ReadModeAsync(bool uplink, CancellationToken ct) => session.Current.ReadModeAsync(uplink, ct);
     public Task<bool> ReadPttAsync(CancellationToken ct) =>
         session.Current.ReadPttAsync(ct);
     public Task SetRxFrequencyAsync(long hz, CancellationToken ct) =>

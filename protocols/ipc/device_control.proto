@@ -25,6 +25,7 @@ enum DeviceOperation {
   DEVICE_MANUAL_HEARTBEAT = 11;
   DEVICE_TRACK_FREQUENCIES = 12;
   DEVICE_DIGITAL_HEARTBEAT = 13;
+  DEVICE_READ_MODES = 14;
 }
 
 message DeviceCommand {

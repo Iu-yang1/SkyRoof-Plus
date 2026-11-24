@@ -57,6 +57,13 @@ public sealed partial class StationDeviceService
         return ("tracking-frequencies-applied", true);
     }
 
+    private async Task<(string Description, bool Changed)> ReadModesAsync(CancellationToken ct)
+    {
+        _rxMode = await cat.ReadModeAsync(false, ct);
+        _txMode = await cat.ReadModeAsync(true, ct);
+        return ("modes-readback", false);
+    }
+
     private static void RequireTransaction(DeviceCommand command)
     {
         if (string.IsNullOrWhiteSpace(command.TransactionId) ||

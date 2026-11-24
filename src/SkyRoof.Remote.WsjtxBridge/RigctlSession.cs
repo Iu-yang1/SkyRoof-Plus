@@ -23,8 +23,8 @@ public sealed partial class RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
                 "get_info" => "SkyRoof Remote WSJT-X Bridge",
                 "f" => Number((await rig.ReadAsync(ct)).RxFrequencyHz),
                 "i" => Number((await rig.ReadAsync(ct)).TxFrequencyHz),
-                "m" => ModeReply((await rig.ReadAsync(ct)).RxMode),
-                "x" => ModeReply((await rig.ReadAsync(ct)).TxMode),
+                "m" => ModeReply((await ReadModesAsync(ct)).RxMode),
+                "x" => ModeReply((await ReadModesAsync(ct)).TxMode),
                 "t" => (await rig.ReadAsync(ct)).ActualPtt ? "1" : "0",
                 "F" => await FrequencyAsync(args, false, ct),
                 "I" => await FrequencyAsync(args, true, ct),
@@ -46,6 +46,9 @@ public sealed partial class RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
         }
     }
 
+    private Task<RigStatus> ReadModesAsync(CancellationToken ct) =>
+        rig.ExecuteAsync(new RigCommand("", DeviceOperation.DeviceReadModes), ct);
+
     private static string Number(long hz) => hz.ToString(CultureInfo.InvariantCulture);
 
     private async Task<string> FrequencyAsync(string[] args, bool tx, CancellationToken ct)
@@ -64,8 +67,9 @@ public sealed partial class RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
         if (args.Length != 3) return "RPRT -1";
         string mode = RadioMode(args[1]);
         if (mode.Length == 0) return "RPRT -4";
-        var state = await rig.ExecuteAsync(new RigCommand("", tx ? DeviceOperation.DeviceTxMode :
+        await rig.ExecuteAsync(new RigCommand("", tx ? DeviceOperation.DeviceTxMode :
             DeviceOperation.DeviceRxMode, Mode: mode), ct);
+        var state = await ReadModesAsync(ct);
         return string.Equals(tx ? state.TxMode : state.RxMode, mode, StringComparison.OrdinalIgnoreCase)
             ? "RPRT 0" : "RPRT -5";
     }
@@ -75,7 +79,7 @@ public sealed partial class RigctlSession(IRemoteRig rig, DigitalPttSession ptt)
         if (args.Length != 2 || !int.TryParse(args[1], out int value) || value is < 0 or > 3)
             return "RPRT -1";
         if (value == 0) return await ptt.SetAsync(false, 0, "", ct) ? "RPRT 0" : "RPRT -5";
-        var state = await rig.ReadAsync(ct);
+        var state = await ReadModesAsync(ct);
         bool duplex = _split || (state.SupportsDuplexFrequencies && state.RxFrequencyHz != state.TxFrequencyHz);
         long frequency = duplex ? state.TxFrequencyHz : state.RxFrequencyHz;
         string mode = duplex ? state.TxMode : state.RxMode;

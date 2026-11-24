@@ -104,6 +104,8 @@ public sealed class FakeRigctld : IAsyncDisposable
         if (command == "f") return _rx.ToString(CultureInfo.InvariantCulture);
         if (command == "i") return _tx.ToString(CultureInfo.InvariantCulture);
         if (command == "t") return _ptt ? "1" : "0";
+        if (command == "m") return _rxMode + "\n2400";
+        if (command == "x") return _txMode + "\n2400";
         if (command == "p") return FormattableString.Invariant($"{_azimuth:F3}\n{_elevation:F3}");
         if (command == "S") return "RPRT 0";
         if (command.StartsWith("P ", StringComparison.Ordinal))

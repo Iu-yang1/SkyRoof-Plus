@@ -6,6 +6,7 @@ public interface IStationRadioCat
     Task<long> ReadRxFrequencyAsync(CancellationToken ct);
     Task<long> ReadTxFrequencyAsync(CancellationToken ct);
     Task<bool> ReadPttAsync(CancellationToken ct);
+    Task<string> ReadModeAsync(bool uplink, CancellationToken ct);
     Task SetRxFrequencyAsync(long hz, CancellationToken ct);
     Task SetTxFrequencyAsync(long hz, CancellationToken ct);
     Task SetRxModeAsync(string mode, CancellationToken ct);
