@@ -8,6 +8,11 @@ public sealed partial class StationDeviceService
         DeviceCommand command, bool digital, CancellationToken token)
     {
         RequireTransaction(command);
+        if (_cwActive is not null)
+        {
+            if (digital) return ("digital-busy", false);
+            await StopCwLockedAsync(_cwActive);
+        }
         if (_owner?.TransactionId == command.TransactionId &&
             _owner.SessionId == command.SessionId && _owner.Digital == digital)
             return ("duplicate", false);
@@ -132,6 +137,9 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> StopAsync(CancellationToken token)
     {
         _digitalPaused = true;
+        bool stoppedCw = _cwActive is not null;
+        if (_cwActive is { } cw) await StopCwLockedAsync(cw);
+        if (stoppedCw && _owner is null) return ("cw-stopped", true);
         if (_owner is null) return ("no-owned-transmission", false);
         if (await cat.ReadPttAsync(token))
         {

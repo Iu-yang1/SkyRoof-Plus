@@ -15,6 +15,7 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> TuneTxAsync(DeviceCommand command, CancellationToken ct)
     {
         if (command.FrequencyHz <= 0) throw new ArgumentException("TX frequency must be positive.");
+        if (_cwActive is not null) throw new InvalidOperationException("Stop the active CW message before changing TX frequency.");
         await cat.SetTxFrequencyAsync(command.FrequencyHz, ct);
         _txHz = command.FrequencyHz;
         if (_owner is not null) _owner = _owner with { FrequencyHz = command.FrequencyHz };
@@ -30,6 +31,7 @@ public sealed partial class StationDeviceService
     private async Task<(string Description, bool Changed)> SetTxModeAsync(DeviceCommand command, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(command.Mode)) throw new ArgumentException("TX mode is required.");
+        if (_cwActive is not null) throw new InvalidOperationException("Stop the active CW message before changing TX mode.");
         await cat.SetTxModeAsync(command.Mode, ct);
         _txMode = command.Mode;
         if (_owner is not null) _owner = _owner with { Mode = command.Mode };
@@ -47,6 +49,8 @@ public sealed partial class StationDeviceService
             throw new InvalidOperationException("This CAT dialect currently supports only simplex tracking. Use an independent RX/TX SkyCAT endpoint for duplex.");
         if (command.FrequencyHz > 0)
             await cat.SetRxFrequencyAsync(command.FrequencyHz, ct);
+        if (command.TxFrequencyHz > 0 && _cwActive is not null)
+            return ("tracking-cw-tx-deferred", command.FrequencyHz > 0);
         if (command.TxFrequencyHz > 0)
         {
             await cat.SetTxFrequencyAsync(command.TxFrequencyHz, ct);

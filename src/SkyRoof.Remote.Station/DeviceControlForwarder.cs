@@ -74,5 +74,14 @@ public sealed class DeviceControlForwarder : StationDevice.StationDeviceBase, ID
             deadline: DateTime.UtcNow.AddSeconds(2),
             cancellationToken: context.CancellationToken);
 
+    public override async Task<CwRadioStatus> GetCwStatus(CwStatusRequest request, ServerCallContext context) =>
+        await _device.GetCwStatusAsync(request, deadline: context.Deadline, cancellationToken: context.CancellationToken);
+
+    public override async Task<CwRadioStatus> SetCwSpeed(CwSpeedRequest request, ServerCallContext context) =>
+        await _device.SetCwSpeedAsync(request, deadline: context.Deadline, cancellationToken: context.CancellationToken);
+
+    public override async Task<CwSendReceipt> SendCw(CwSendRequest request, ServerCallContext context) =>
+        await _device.SendCwAsync(request, deadline: context.Deadline, cancellationToken: context.CancellationToken);
+
     public void Dispose() => _channel.Dispose();
 }

@@ -7,6 +7,9 @@ service StationDevice {
   rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
   rpc RunTimedTx(TimedTxRequest) returns (TimedTxReceipt);
   rpc PushTxPcm(TxPcmChunk) returns (TxPcmReceipt);
+  rpc GetCwStatus(CwStatusRequest) returns (CwRadioStatus);
+  rpc SetCwSpeed(CwSpeedRequest) returns (CwRadioStatus);
+  rpc SendCw(CwSendRequest) returns (CwSendReceipt);
   rpc ReleaseSession(DeviceReleaseSessionRequest) returns (DeviceSnapshot);
 }
 
@@ -86,3 +89,17 @@ message TimedTxReceipt {
   int64 actual_first_packet_utc_nanoseconds = 3;
   int64 source_samples = 4;
 }
+
+message CwStatusRequest {}
+message CwSpeedRequest { double wpm = 1; }
+message CwRadioStatus {
+  string lease = 1;
+  string mode = 2;
+  int32 break_in = 3;
+  bool transmitting = 4;
+  int32 key_speed_raw = 5;
+  double wpm = 6;
+  int64 actual_tx_frequency_hz = 7;
+}
+message CwSendRequest { string text = 1; string session_id = 2; }
+message CwSendReceipt { string state = 1; string text = 2; }
