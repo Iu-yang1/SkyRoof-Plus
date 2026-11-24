@@ -147,18 +147,19 @@ namespace SkyRoof
     private void RefreshMapStatus()
     {
       if (mapSources == null) return;
+      string provider = EarthMapProviders.ProviderName(ctx.Settings.EarthMap.Source);
       string status = onlineRendererFailed ? SettingsLanguage.Text("GPU 瓦片渲染不可用，内置地图", "GPU tiles unavailable; built-in map") :
         mapSources.Status switch
         {
           EarthMapStatus.Offline => SettingsLanguage.Text("内置地图", "Built-in map"),
           EarthMapStatus.KeyMissing => SettingsLanguage.Text("请在设置中填写天地图 API Key", "Configure Tianditu API Key in Settings"),
-          EarthMapStatus.Unavailable => SettingsLanguage.Text("天地图不可用，内置地图回退", "Tianditu unavailable; built-in fallback"),
-          EarthMapStatus.Ready => SettingsLanguage.Text("天地图", "Tianditu") + $" · L{mapSources.Level}",
-          EarthMapStatus.Partial => SettingsLanguage.Text("天地图 · 部分瓦片", "Tianditu · partial tiles"),
-          _ => SettingsLanguage.Text("天地图 · 加载中", "Tianditu · loading")
+          EarthMapStatus.Unavailable => provider + SettingsLanguage.Text("不可用，内置地图回退", " unavailable; built-in fallback"),
+          EarthMapStatus.Ready => provider + $" · L{mapSources.Level}",
+          EarthMapStatus.Partial => provider + SettingsLanguage.Text(" · 部分瓦片", " · partial tiles"),
+          _ => provider + SettingsLanguage.Text(" · 加载中", " · loading")
         };
       if (ctx.Settings.EarthMap.Source != EarthMapSourceKind.BuiltIn)
-        status += " | © 天地图 / Tianditu";
+        status += " | © " + provider;
       if (MapStatusLabel.Text != status) MapStatusLabel.Text = status;
     }
 
@@ -612,7 +613,7 @@ namespace SkyRoof
     private bool TryDrawOnlineMap(Size size)
     {
       if (mapSources == null || ctx.Settings.EarthMap.Source == EarthMapSourceKind.BuiltIn ||
-          onlineRendererFailed || string.IsNullOrWhiteSpace(ctx.Settings.EarthMap.TiandituKey))
+          onlineRendererFailed || !mapSources.HasSource)
       {
         RefreshMapStatus();
         return false;

@@ -20,7 +20,8 @@ namespace SkyRoof
       uniform sampler2D worldMapTexture;
       uniform sampler2DArray tileTexture;
       uniform isampler2D tileIndex;
-      uniform int level, originX, originY;
+      uniform int level, originX, originY, projection;
+      uniform float centerLat, mercatorCenterLat;
       uniform float originU, originV;
       uniform float centerSinLat, centerCosLat, centerLon, satLat, satLon, footprint, zoom, aspect, brightness;
       in vec2 ndc;
@@ -51,7 +52,7 @@ namespace SkyRoof
 
       vec4 sampleTiles(ivec2 tile, vec2 uv, vec4 fallback)
       {
-        for (int z = level; z >= 1; --z)
+        for (int z = level; z >= (projection == 0 ? 1 : 0); --z)
         {
           int factor = 1 << (level-z);
           ivec2 parent = tile / factor;
@@ -95,6 +96,59 @@ namespace SkyRoof
         return vec2(dlon,dlat);
       }
 
+      // Conventional GCJ-02 forward offset, matching the CPU tile planner.
+      // Evaluate offsets relative to the CPU's double precision tile origin.
+      vec2 gcjOffset(vec2 degreesLonLat)
+      {
+        float lon = degreesLonLat.x, lat = degreesLonLat.y;
+        if (lon < 72.004 || lon > 137.8347 || lat < 0.8293 || lat > 55.8271)
+          return vec2(0.0);
+        float x = lon - 105.0, y = lat - 35.0;
+        float sharedTerm = (20.0*sin(6.0*x*PI)+20.0*sin(2.0*x*PI))*2.0/3.0;
+        float dy = -100.0+2.0*x+3.0*y+0.2*y*y+0.1*x*y+0.2*sqrt(abs(x))+sharedTerm;
+        dy += (20.0*sin(y*PI)+40.0*sin(y*PI/3.0))*2.0/3.0;
+        dy += (160.0*sin(y*PI/12.0)+320.0*sin(y*PI/30.0))*2.0/3.0;
+        float dx = 300.0+x+2.0*y+0.1*x*x+0.1*x*y+0.1*sqrt(abs(x))+sharedTerm;
+        dx += (20.0*sin(x*PI)+40.0*sin(x*PI/3.0))*2.0/3.0;
+        dx += (150.0*sin(x*PI/12.0)+300.0*sin(x*PI/30.0))*2.0/3.0;
+        float phi = radians(lat), s = sin(phi);
+        float ee = 0.006693421622965943, a = 6378245.0;
+        float magic = 1.0-ee*s*s, root = sqrt(magic);
+        return vec2(dx/(a/root*cos(phi)),dy/(a*(1.0-ee)/(magic*root)));
+      }
+
+      float mercatorDelta(float phi, float dphi)
+      {
+        // atanh(sin(phi+dphi))-atanh(sin(phi)), without losing
+        // small angular deltas to subtraction at deep zoom.
+        float ds = 2.0*cos(phi+0.5*dphi)*sin(0.5*dphi);
+        float s = sin(phi);
+        float t = clamp(ds/(1.0-s*(s+ds)), -0.99999994, 0.99999994);
+        if (abs(t) < 0.01) return t*(1.0+t*t/3.0);
+        return 0.5*log((1.0+t)/(1.0-t));
+      }
+
+      vec2 sourceOffset(vec2 delta, float lat, float lon, out bool covered)
+      {
+        covered = true;
+        if (projection == 0) return delta*vec2(1.0/TAU,-1.0/TAU);
+        vec2 offset = vec2(0.0), centerOffset = vec2(0.0);
+        if (projection == 2)
+        {
+          offset = gcjOffset(degrees(vec2(lon,lat)));
+          centerOffset = gcjOffset(degrees(vec2(centerLon,centerLat)));
+        }
+        float targetLat = lat+offset.y;
+        float limit = radians(85.0511287798066);
+        covered = abs(targetLat) <= limit;
+        if (!covered) return vec2(0.0);
+        float centerSourceLat = centerLat+centerOffset.y;
+        float dphi = delta.y+offset.y-centerOffset.y;
+        if (abs(centerSourceLat) > limit) dphi = targetLat-mercatorCenterLat;
+        return vec2((delta.x+offset.x-centerOffset.x)/TAU,
+          -mercatorDelta(mercatorCenterLat,dphi)/TAU);
+      }
+
       void main()
       {
         vec2 p = ndc * vec2(max(aspect,1.0), max(1.0/aspect,1.0)) / zoom;
@@ -108,14 +162,16 @@ namespace SkyRoof
         vec4 fallback = texture(worldMapTexture, vec2(0.5+lon/TAU, 0.5-lat/PI));
 
         int width = 1 << level;
-        int height = width / 2;
-        vec2 offset = vec2(originU,originV) + delta*vec2(float(width)/TAU,-float(height)/PI);
+        int height = projection == 0 ? width / 2 : width;
+        bool covered;
+        vec2 sourceDelta = sourceOffset(delta,lat,lon,covered);
+        vec2 offset = vec2(originU,originV) + sourceDelta*float(width);
         ivec2 tile = ivec2(originX,originY) + ivec2(floor(offset));
         vec2 uv = fract(offset);
         tile.x = (tile.x % width + width) % width;
         if (tile.y < 0) { tile.y = 0; uv.y = 0.0; }
         if (tile.y >= height) { tile.y = height-1; uv.y = 1.0; }
-        out_Color = sampleTiles(tile, uv, fallback);
+        out_Color = covered ? sampleTiles(tile, uv, fallback) : fallback;
         out_Color.rgb *= brightness;
         if (footprint < PI && dot(point,geo(satLat,satLon)) < cos(footprint))
           out_Color *= 0.8;
