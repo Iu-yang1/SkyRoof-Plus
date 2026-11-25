@@ -11,7 +11,7 @@ using SkyRoof.Remote.SignalBus;
 
 internal static partial class TelemetryLiveProbe
 {
-    public static async Task RunAsync(NamedSignalRing rx, string resultsName, string pipe, string corpus, string archive)
+    public static async Task RunAsync(NamedSignalRing rx, string resultsName, string pipe, string corpus, string archive, SatnogsHttpFixture satnogs)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var ct = timeout.Token;
@@ -28,7 +28,7 @@ internal static partial class TelemetryLiveProbe
         using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
         var dsp = new DspWaveform.DspWaveformClient(channel);
         var config = new TelemetryRxConfiguration { Enabled = true, NoradId = 39444, Satellite = "AO-73",
-            Modulation = "BPSK", Framing = "AO40FEC", Baud = 1200, Input = "tone-audio", CenterHz = 1700, Differential = true, SaveFrames = true, KissPort = ReserveKissPort() };
+            Modulation = "BPSK", Framing = "AO40FEC", Baud = 1200, Input = "tone-audio", CenterHz = 1700, Differential = true, SaveFrames = true, UploadSatnogs = true, KissPort = ReserveKissPort() };
         await dsp.ConfigureTelemetryAsync(config, cancellationToken: ct);
         using var output = new NamedSignalRing(resultsName, 64, 262144);
         using var kiss = new TcpClient();
@@ -41,6 +41,7 @@ internal static partial class TelemetryLiveProbe
         byte[] decoded = VerifyResults(output);
         byte[] received = await wire;
         VerifyOutputs(decoded, received, archive);
+        await satnogs.VerifyAsync(decoded, ct);
         config.KissPort = 0;
         await dsp.ConfigureTelemetryAsync(config, cancellationToken: ct);
         Console.WriteLine("PASS: real AO-73 decoded bytes equal station BIN archive and escaped KISS TCP payload; STOP flush persisted LOG.");
