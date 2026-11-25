@@ -48,7 +48,7 @@ internal static partial class NativeFt4HttpProbe
             throw new InvalidDataException("Q65 final packet padding is not silence.");
     }
 
-    private static async Task<Q65EncodedWaveform> ReadQ65WaveformAsync(string pipe, CancellationToken ct)
+    private static async Task<Q65EncodedWaveform> ReadQ65WaveformAsync(string pipe, CancellationToken ct, string message = "CQ K1ABC FN42")
     {
         using var handler = new SocketsHttpHandler
         {
@@ -63,7 +63,7 @@ internal static partial class NativeFt4HttpProbe
         using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
         return await new DspWaveform.DspWaveformClient(channel).EncodeQ65Async(new Q65EncodeRequest
         {
-            Submode = "15A", Message = "CQ K1ABC FN42", AudioHz = 1500, Gain = 0.5f
+            Submode = "15A", Message = message, AudioHz = 1500, Gain = 0.5f
         }, cancellationToken: ct);
     }
 }

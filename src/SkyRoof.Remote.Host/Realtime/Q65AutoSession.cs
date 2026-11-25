@@ -19,6 +19,8 @@ internal sealed partial class Q65AutoSession(HttpContext context, Q65AutoRequest
         while (!qso.Finished)
         {
             await EnsureAuthorizedAsync();
+            if (_resultEpoch.HasValue && ring.StreamEpoch != _resultEpoch.Value)
+                throw new InvalidOperationException("Q65 receiver generation changed before TX.");
             var encoded = await EncodeAsync(qso, config);
             long delay = Q65TxDelayMs();
             long slot = Q65SlotTiming.Select(NowNs, encoded.SlotSeconds, encoded.TxStartSamples12K, delay, request.Odd, next);

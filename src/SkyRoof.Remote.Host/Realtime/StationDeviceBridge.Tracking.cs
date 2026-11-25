@@ -4,13 +4,27 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Host.Realtime;
 
-public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseconds,
-    double AzimuthDegrees, double ElevationDegrees, double RangeMetres,
-    double RangeRateMetresPerSecond, long RxHz, long TxHz,
-    string OrbitBackend, string DataQuality, bool CatApplied, bool RotatorApplied,
-    long ActualRxHz, long ActualTxHz, double? ActualAzimuthDegrees,
-    double? ActualElevationDegrees, string RotatorError, string CelestialTarget = "", double OwnEchoDelaySeconds = 0)
+public sealed record RemoteTrackingStatus
 {
+    public int NoradNumber { get; init; }
+    public long UtcUnixMilliseconds { get; init; }
+    public double AzimuthDegrees { get; init; }
+    public double ElevationDegrees { get; init; }
+    public double RangeMetres { get; init; }
+    public double RangeRateMetresPerSecond { get; init; }
+    public long RxHz { get; init; }
+    public long TxHz { get; init; }
+    public string OrbitBackend { get; init; } = "";
+    public string DataQuality { get; init; } = "";
+    public bool CatApplied { get; init; }
+    public bool RotatorApplied { get; init; }
+    public long ActualRxHz { get; init; }
+    public long ActualTxHz { get; init; }
+    public double? ActualAzimuthDegrees { get; init; }
+    public double? ActualElevationDegrees { get; init; }
+    public string RotatorError { get; init; } = "";
+    public string CelestialTarget { get; init; } = "";
+    public double OwnEchoDelaySeconds { get; init; }
     public RemoteEmePath? EmePath { get; init; }
 }
 
@@ -54,15 +68,19 @@ public sealed partial class StationDeviceBridge
                 LongitudeDegrees = peer.LongitudeDegrees, HeightMetres = peer.HeightMetres } : null
         };
 
-    private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
-                result.AzimuthDegrees, result.ElevationDegrees, result.RangeMetres,
-                result.RangeRateMetresPerSecond, result.RxHz, result.TxHz,
-                result.OrbitBackend, result.DataQuality, result.CatApplied, result.RotatorApplied,
-                result.ActualRxHz, result.ActualTxHz, result.RotatorReadback?.AzimuthDegrees,
-                result.RotatorReadback?.ElevationDegrees, result.RotatorError, result.CelestialTarget, result.OwnEchoDelaySeconds)
-            {
-                EmePath = result.EmePath is { } path ? new RemoteEmePath(path.ReceiveRatio, path.TransmitRatio,
-                    path.IncomingDelaySeconds, path.OutgoingDelaySeconds, path.PeerElevationDegrees) : null
-            };
-
+    private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new()
+        {
+            NoradNumber = result.NoradNumber, UtcUnixMilliseconds = result.UtcUnixMilliseconds,
+            AzimuthDegrees = result.AzimuthDegrees, ElevationDegrees = result.ElevationDegrees,
+            RangeMetres = result.RangeMetres, RangeRateMetresPerSecond = result.RangeRateMetresPerSecond,
+            RxHz = result.RxHz, TxHz = result.TxHz, OrbitBackend = result.OrbitBackend,
+            DataQuality = result.DataQuality, CatApplied = result.CatApplied, RotatorApplied = result.RotatorApplied,
+            ActualRxHz = result.ActualRxHz, ActualTxHz = result.ActualTxHz,
+            ActualAzimuthDegrees = result.RotatorReadback?.AzimuthDegrees,
+            ActualElevationDegrees = result.RotatorReadback?.ElevationDegrees,
+            RotatorError = result.RotatorError, CelestialTarget = result.CelestialTarget,
+            OwnEchoDelaySeconds = result.OwnEchoDelaySeconds,
+            EmePath = result.EmePath is { } path ? new RemoteEmePath(path.ReceiveRatio, path.TransmitRatio,
+                path.IncomingDelaySeconds, path.OutgoingDelaySeconds, path.PeerElevationDegrees) : null
+        };
 }
