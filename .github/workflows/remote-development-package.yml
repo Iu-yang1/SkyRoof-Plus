@@ -11,8 +11,10 @@ permissions:
 jobs:
   rtc-runtime:
     uses: ./.github/workflows/remote-webrtc-datachannel.yml
+  q65-runtime:
+    uses: ./.github/workflows/remote-q65-native.yml
   packaged-e2e:
-    needs: rtc-runtime
+    needs: [rtc-runtime, q65-runtime]
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -50,6 +52,16 @@ jobs:
         with:
           name: SkyRoof-RTC-native-win-x64
           path: artifacts/remote-v1/Host
+      - name: Install verified Q65 native runtime into DSP package
+        uses: actions/download-artifact@v4
+        with:
+          name: SkyRoof-Q65-native-win-x64
+          path: artifacts/remote-v1/Dsp
+      - name: Verify packaged Q65 ABI
+        shell: pwsh
+        run: |
+          dotnet artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll --q65-self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run real Chromium RTC media integration from packaged Host
         shell: pwsh
         run: |

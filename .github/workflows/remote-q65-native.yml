@@ -10,6 +10,9 @@ on:
       - 'src/SkyRoof.Remote.Dsp/**'
       - '.github/workflows/remote-q65-native.yml'
   workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
 jobs:
   q65:
     runs-on: windows-latest
@@ -30,7 +33,12 @@ jobs:
         working-directory: native-mfsk
         env:
           RUSTFLAGS: '-C target-feature=+crt-static'
-        run: cargo build --locked -p mfsk-ffi --release
+        shell: pwsh
+        run: |
+          cargo generate-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --locked -p mfsk-ffi --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build DSP and run Q65
         shell: pwsh
         run: |
@@ -39,3 +47,22 @@ jobs:
           Copy-Item native-mfsk/target/release/mfsk.dll artifacts/q65-dsp/
           dotnet artifacts/q65-dsp/SkyRoof.Remote.Dsp.dll --q65-self-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Stage native runtime with build provenance
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/q65-runtime/licenses | Out-Null
+          Copy-Item native-mfsk/target/release/mfsk.dll artifacts/q65-runtime/
+          Copy-Item native-mfsk/LICENSE artifacts/q65-runtime/licenses/mfsk-LICENSE.txt
+          Copy-Item native-mfsk/Cargo.lock artifacts/q65-runtime/licenses/mfsk-Cargo.lock
+          @(
+            'Source: https://github.com/Iu-yang1/mfsk-core-tx5dr'
+            'Commit: 8a9d74a93100c5ddbc06d14887c5ea67f50f7e9f'
+            'Rust: 1.98.1; cargo build --locked -p mfsk-ffi --release; static CRT'
+            'Complete corresponding source: https://github.com/Iu-yang1/mfsk-core-tx5dr/archive/8a9d74a93100c5ddbc06d14887c5ea67f50f7e9f.zip'
+          ) | Set-Content artifacts/q65-runtime/licenses/mfsk-SOURCE.txt
+          Get-FileHash artifacts/q65-runtime/mfsk.dll -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkyRoof-Q65-native-win-x64
+          path: artifacts/q65-runtime
+          if-no-files-found: error
