@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SkyRoof.Remote.Host.Identity;
@@ -17,6 +18,7 @@ var database = Environment.GetEnvironmentVariable("SKYROOF_AUTH_DB")
 var databaseFolder = Path.GetDirectoryName(Path.GetFullPath(database))
     ?? throw new InvalidOperationException("Invalid station database path.");
 Directory.CreateDirectory(databaseFolder);
+var stationIdentity = StationInstanceIdentity.Configure(builder.Services, databaseFolder);
 
 builder.Services.AddDbContext<StationIdentityDb>(options =>
     options.UseSqlite("Data Source=" + database));
@@ -39,7 +41,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.Name = "skyroof.station";
+    options.Cookie.Name = stationIdentity.CookieName;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Events.OnRedirectToLogin = context =>
     {
@@ -93,7 +95,7 @@ app.MapGet("/health/ready", async (StationDeviceBridge station, CancellationToke
 });
 app.MapGet("/api/v1/station", (System.Security.Claims.ClaimsPrincipal principal) =>
     Results.Ok(new { protocol = "skyroof.remote.v1",
-        runtimeMode = "foundation-prototype", user = principal.Identity?.Name }))
+        runtimeMode = "foundation-prototype", stationId = stationIdentity.Id, user = principal.Identity?.Name }))
     .RequireAuthorization();
 app.MapStationAuth();
 app.MapStationAdministration();

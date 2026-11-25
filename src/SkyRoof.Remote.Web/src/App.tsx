@@ -9,6 +9,7 @@ import { RotatorPanel } from './RotatorPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 import { RfScopePanel } from './RfScopePanel';
 
+import { StationLauncher } from './StationLauncher';
 import { CameraPanel } from './CameraPanel';
 import { TelemetryPanel } from './TelemetryPanel';
 import { DigitalPanel } from './DigitalPanel';
@@ -135,11 +136,12 @@ export default function App() {
 
   return <div className="app">
     <div className="titlebar"><strong>SkyRoof</strong><span>REMOTE V1 · DEV PROTOTYPE</span>
-      <small>{station.user} · {status}</small></div>
+      <small>{station.stationId || 'default'} · {station.user} · {status}</small></div>
     <nav className="station-tabs">
       <button className={workspace === 'local' ? 'active' : ''} onClick={() => setWorkspace('local')}>Local Station</button>
       <button className={workspace === 'remote' ? 'active' : ''} onClick={() => setWorkspace('remote')}>Remote Workspace</button>
-      <small>第二工作区仅展示独立布局，不连接另一台真实台站</small>
+      <small>第二工作区仅展示独立布局；其他真实台站使用独立 Host 登录。</small>
+      <StationLauncher />
     </nav>
     <div className="workspace-slot" style={{ display: workspace === 'local' ? 'flex' : 'none' }}>
       <DeviceHubContext.Provider value={hub}>

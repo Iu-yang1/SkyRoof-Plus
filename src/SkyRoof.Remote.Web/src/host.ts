@@ -33,7 +33,7 @@ export interface DeviceReadback {
   Outcome: string;
 }
 
-export interface StationInfo { protocol: string; runtimeMode: string; user: string | null }
+export interface StationInfo { protocol: string; runtimeMode: string; stationId?: string; user: string | null }
 
 export async function queryStation(): Promise<StationInfo | null> {
   const response = await fetch('/api/v1/station', { credentials: 'include' });
