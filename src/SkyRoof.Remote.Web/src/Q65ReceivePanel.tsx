@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Q65AdvancedConfig } from './Q65AdvancedConfig';
 import { Q65TransmitPanel } from './Q65TransmitPanel';
+import { Q65AutoPanel } from './Q65AutoPanel';
 
 const modes = ['15A', '30A', '60A', '60B', '60C', '60D', '60E', '120D', '120E', '300A'];
 export type Config = { enabled: boolean; submode: string; rxHz: number; toleranceHz: number; averaging: boolean; emeDelay: boolean; myCall: string; hisCall: string; hisGrid: string; apMode: number; qsoProgress: number; maxDrift: number; pileup: boolean; fadingB90Ts: number; lorentzian: boolean };
@@ -13,6 +14,7 @@ export function Q65ReceivePanel({ available }: { available: boolean }) {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [automatic, setAutomatic] = useState(false);
   const latest = slots.at(-1);
   useEffect(() => {
     if (!available) { setSlots([]); return; }
@@ -48,6 +50,7 @@ export function Q65ReceivePanel({ available }: { available: boolean }) {
 
   return <section className="q65-receive-panel">
     <header>Q65 · EME RECEIVE</header>
+    <fieldset disabled={automatic}>
     <label>SUBMODE <select value={draft.submode} onChange={e => setDraft({ ...draft, submode: e.target.value })}>
       {modes.map(mode => <option key={mode}>{mode}</option>)}</select></label>
     <label>RX AF Hz <input type="number" value={draft.rxHz} onChange={e => setDraft({ ...draft, rxHz: Number(e.target.value) })} /></label>
@@ -57,13 +60,15 @@ export function Q65ReceivePanel({ available }: { available: boolean }) {
     <Q65AdvancedConfig config={draft} onChange={setDraft} />
     <button disabled={!available || busy} onClick={() => void configure(true)}>START / APPLY</button>
     <button disabled={!available || busy} onClick={() => void configure(false)}>STOP / CLEAR AVG</button>
+    </fieldset>
     <p role="status">{available ? 'Q65 · ' + (latest?.config.submode ?? draft.submode) + ' · ' + (latest?.state ?? 'waiting') : 'NO STATION LINK'}</p>
     {(error || latest?.error) && <p role="alert">{error || latest?.error}</p>}
     <table><thead><tr><th>UTC</th><th>dB</th><th>DT</th><th>Hz</th><th>AP</th><th>MESSAGE</th></tr></thead>
       <tbody>{slots.slice().reverse().flatMap(slot => (slot.messages ?? []).map((row, i) =>
         <tr key={(slot.utc ?? '') + ':' + i}><td>{slot.utc?.slice(11, 19)}</td><td>{row.snrDb.toFixed(0)}</td>
           <td>{row.dtSeconds.toFixed(2)}</td><td>{row.frequencyHz.toFixed(1)}</td><td>{row.apType || '—'}</td><td>{row.text}</td></tr>))}</tbody></table>
-    <Q65TransmitPanel available={available} submode={draft.submode} rxHz={draft.rxHz} />
+    <Q65TransmitPanel available={available && !automatic} submode={draft.submode} rxHz={draft.rxHz} />
+    <Q65AutoPanel available={available && !busy} config={draft} onRunning={setAutomatic} />
     <small>Station UTC slots · native decoder · estimated input timing. Requires mfsk.dll ABI v3.</small>
   </section>;
 }

@@ -25,6 +25,6 @@ export async function readFt4Events(stream: ReadableStream<Uint8Array>, publish:
     }
     pending += decoder.decode();
     if (pending.trim()) consume(pending);
-    if (!terminal) throw new Error('FT4 session ended without a terminal receipt; check CAT RX.');
+    if (!terminal) throw new Error('Automatic digital session ended without a terminal receipt; check CAT RX.');
   } finally { reader.releaseLock(); }
 }

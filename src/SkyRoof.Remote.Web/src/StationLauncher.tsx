@@ -12,7 +12,7 @@ export function StationLauncher() {
     } catch (err) { setError(String(err)); }
   }
   return <div className="audio-buttons">
-    <input aria-label="Other station URL" placeholder="https://station.example" value={address} onChange={e => setAddress(e.target.value)} />
+    <input aria-label="Other station URL" placeholder="Station HTTP(S) URL" value={address} onChange={e => setAddress(e.target.value)} />
     <button disabled={!address.trim()} onClick={connect}>OPEN STATION</button>
     {error && <small role="alert">{error}</small>}
   </div>;

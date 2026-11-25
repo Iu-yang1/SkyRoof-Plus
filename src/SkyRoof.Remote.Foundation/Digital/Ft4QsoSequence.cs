@@ -14,9 +14,19 @@ public sealed class Ft4QsoSequence
     private readonly int _attemptLimit;
     private int _attempts;
     private int _snr;
+    private readonly int _minimumReport;
+    private readonly int _maximumReport;
 
     public Ft4QsoSequence(string call, string grid, string target, int attemptLimit)
+        : this(call, grid, target, attemptLimit, -24, 49) { }
+
+    public static Ft4QsoSequence ForQ65(string call, string grid, string target, int attemptLimit) =>
+        new(call, grid, target, attemptLimit, -50, 50);
+
+    private Ft4QsoSequence(string call, string grid, string target, int attemptLimit, int minimumReport, int maximumReport)
     {
+        _minimumReport = minimumReport;
+        _maximumReport = maximumReport;
         _call = NormalizeCall(call);
         _grid = grid.Trim().ToUpperInvariant();
         if (!Regex.IsMatch(_grid, "^[A-R]{2}[0-9]{2}([A-X]{2})?$") || attemptLimit < 1)
@@ -48,7 +58,7 @@ public sealed class Ft4QsoSequence
     public void Sent()
     {
         if (Finished) throw new InvalidOperationException("QSO already ended.");
-        if (Stage is Ft4Exchange.Report or Ft4Exchange.RogerReport) ReportSent = Math.Clamp(_snr, -24, 49);
+        if (Stage is Ft4Exchange.Report or Ft4Exchange.RogerReport) ReportSent = Math.Clamp(_snr, _minimumReport, _maximumReport);
         _attempts++;
         if (Stage == Ft4Exchange.Final73) Stage = Ft4Exchange.Complete;
     }
@@ -95,13 +105,13 @@ public sealed class Ft4QsoSequence
         return int.TryParse(value.TrimStart('R'), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out report);
     }
 
-    private static string FormatReport(int snr) => Math.Clamp(snr, -24, 49).ToString("+00;-00;+00", CultureInfo.InvariantCulture);
+    private string FormatReport(int snr) => Math.Clamp(snr, _minimumReport, _maximumReport).ToString("+00;-00;+00", CultureInfo.InvariantCulture);
     private static bool IsStandardCall(string call) => Regex.IsMatch(call, "^([A-Z]{0,2}|[A-Z][0-9]|[0-9][A-Z])[0-9][A-Z]{1,3}(/R|/P)?$");
 
     private static string NormalizeCall(string call)
     {
         string value = call.Trim().ToUpperInvariant();
-        if (!IsStandardCall(value)) throw new ArgumentException("Automatic standard FT4 exchange requires a standard callsign.");
+        if (!IsStandardCall(value)) throw new ArgumentException("Automatic standard exchange requires a standard callsign.");
         return value;
     }
 }

@@ -53,6 +53,18 @@ Test("FT4 directed exchange confirms final 73 only after completed transmission 
     empty.FinishReceiveWindow();
     Check(empty.Stage == SkyRoof.Remote.Foundation.Digital.Ft4Exchange.Exhausted);
 });
+Test("Q65 standard weak-signal reports and same-parity deferral", () =>
+{
+    var qso = SkyRoof.Remote.Foundation.Digital.Ft4QsoSequence.ForQ65("K1ABC", "FN42", "W1XYZ", 3);
+    qso.Sent();
+    qso.Observe([new("K1ABC", "W1XYZ", "-42", -40)]);
+    Check(qso.Message == "W1XYZ K1ABC R-40");
+    qso.Sent();
+    Check(qso.ReportSent == -40 && qso.ReportReceived == -42);
+    long slot = SkyRoof.Remote.Foundation.Digital.Q65SlotTiming.Select(120_000_000_000L, 60, 12000, 0, false, 2);
+    Check(slot == 4);
+    Check(SkyRoof.Remote.Foundation.Digital.Q65SlotTiming.Target(slot, 60, 12000, 0) == 241_000_000_000L);
+});
 Test("FT4 native fixed-width receive record parses calls and SNR", () =>
 {
     string line = "123456 " + "-12" + "  0.1 1500 +  " + "K1ABC W1XYZ FN31";

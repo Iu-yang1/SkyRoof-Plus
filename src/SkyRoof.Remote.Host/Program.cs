@@ -106,6 +106,7 @@ app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
 app.MapFt4Results();
 app.MapQ65();
+app.MapAutoQ65();
 app.MapTelemetry();
 app.MapCamera();
 app.MapCwResults();

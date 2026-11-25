@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using SkyRoof.Remote.Foundation.Digital;
 using Grpc.Core;
 using SkyRoof.Remote.Ipc;
 
@@ -45,11 +46,9 @@ public static partial class Q65Endpoints
 
     internal static long TargetUtc(int seconds, int startSamples12k, bool odd)
     {
-        long period = seconds * 1_000_000_000L;
         long now = (DateTime.UtcNow.Ticks - DateTime.UnixEpoch.Ticks) * 100;
-        long index = (now + 3_000_000_000L + period - 1) / period;
-        if ((index % 2 == 1) != odd) index++;
         long delay = long.TryParse(Environment.GetEnvironmentVariable("SKYROOF_Q65_TX_DELAY_MS"), out long ms) ? ms : 0;
-        return checked(index * period + startSamples12k * 1_000_000_000L / 12000 - delay * 1_000_000);
+        long slot = Q65SlotTiming.Select(now, seconds, startSamples12k, delay, odd);
+        return Q65SlotTiming.Target(slot, seconds, startSamples12k, delay);
     }
 }

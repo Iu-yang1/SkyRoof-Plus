@@ -18,7 +18,7 @@ public sealed record Ft4AutoRequest
 
 public static class Ft4AutoEndpoints
 {
-    private static readonly SemaphoreSlim Owner = new(1, 1);
+
 
     public static void MapAutoFt4(this WebApplication app) =>
         app.MapPost("/api/v1/dsp/ft4/auto", RunAsync)
@@ -43,7 +43,7 @@ public static class Ft4AutoEndpoints
             await context.Response.WriteAsJsonAsync(new { error = error.Message });
             return;
         }
-        if (!await Owner.WaitAsync(0, context.RequestAborted))
+        if (!await DigitalAutoOwner.Gate.WaitAsync(0, context.RequestAborted))
         { context.Response.StatusCode = 409; return; }
         try
         {
@@ -60,6 +60,6 @@ public static class Ft4AutoEndpoints
             if (!context.Response.HasStarted) context.Response.StatusCode = 409;
             else await Ft4AutoSession.WriteErrorAsync(context, error.Message);
         }
-        finally { Owner.Release(); }
+        finally { DigitalAutoOwner.Gate.Release(); }
     }
 }
