@@ -9,13 +9,14 @@ import { RotatorPanel } from './RotatorPanel';
 import { SpectrumPanel } from './SpectrumPanel';
 import { RfScopePanel } from './RfScopePanel';
 
+import { CameraPanel } from './CameraPanel';
 import { TelemetryPanel } from './TelemetryPanel';
 import { DigitalPanel } from './DigitalPanel';
 function RfSpectrumPanel() { return <RfScopePanel />; }
 function AfSpectrumPanel() { return <SpectrumPanel audioFrequency />; }
 const components = {
   radio: RadioPanel, audio: AudioPanel, scope: RfSpectrumPanel, afscope: AfSpectrumPanel,
-  satellites: TrackingPanel, rotator: RotatorPanel, digital: DigitalPanel, telemetry: TelemetryPanel
+  satellites: TrackingPanel, rotator: RotatorPanel, digital: DigitalPanel, telemetry: TelemetryPanel, camera: CameraPanel
 };
 
 function Workbench({ station }: { station: string }) {
@@ -49,6 +50,7 @@ function Workbench({ station }: { station: string }) {
         if (api.current) localStorage.setItem(key, JSON.stringify(api.current.toJSON()));
       }}>SAVE LAYOUT</button>
       <button onClick={() => { if (api.current && !api.current.getPanel('telemetry')) api.current.addPanel({ id: 'telemetry', title: 'Telemetry', component: 'telemetry' }); }}>TELEMETRY</button>
+      <button onClick={() => { if (api.current && !api.current.getPanel('camera')) api.current.addPanel({ id: 'camera', title: 'Camera', component: 'camera' }); }}>CAMERA</button>
     </div>
     <div className="dock">
       <DockviewReact className="dockview-theme-abyss" onReady={onReady} components={components} />
