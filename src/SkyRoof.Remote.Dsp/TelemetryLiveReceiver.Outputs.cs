@@ -28,6 +28,6 @@ public sealed partial class TelemetryLiveReceiver
     private object OutputStatus() => new
     {
         archiveSaved = _archive.Saved, archiveErrors = _archive.Errors,
-        kissPort = _kiss.ListeningPort, kissClients = _kiss.ClientCount, kissError = _kissError
+        kissPort = _kiss.ListeningPort, kissClients = _kiss.ClientCount, kissError = _kissError, satnogs = _satnogs.Status
     };
 }

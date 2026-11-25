@@ -20,6 +20,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
     private readonly int _channels;
     private readonly TelemetryFrameArchive _archive;
     private readonly KissServer _kiss = new();
+    private readonly RemoteSatnogsUploader _satnogs = new();
     private string _kissError = "";
     private volatile bool _enabled;
     private long _dropped;
@@ -48,6 +49,8 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
     {
         if (request.Enabled) _ = TelemetryModem.CreateSignal(request);
         if (request.KissPort is < 0 or > 65535) throw new ArgumentException("Invalid KISS TCP port.");
+        if (request.Enabled && request.UploadSatnogs && (!_satnogs.Ready || request.NoradId <= 0))
+            throw new ArgumentException("SatNOGS requires station token, callsign, grid and NORAD ID.");
         var reply = new TaskCompletionSource<TelemetryRxConfiguration>(TaskCreationOptions.RunContinuationsAsynchronously);
         await _queue.Writer.WriteAsync(new Configure(request.Clone(), reply), ct);
         return await reply.Task.WaitAsync(ct);
@@ -65,6 +68,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
         if (_config.SaveFrames)
             _archive.Offer(frame, _config.NoradId, _config.Satellite, _config.Transmitter, inner);
         _kiss.SendToAll(frame, inner ? 1 : frame.CrcValid == false ? 2 : 0);
+        if (_config.UploadSatnogs) _satnogs.Offer(frame, _config.NoradId, inner);
         var fields = inner ? AsrtuTmShortKissTransport.DescribeSpacePacket(frame.Bytes) :
             frame.CrcValid == true && _config.NoradId == 39444 ? Funcube1Telemetry.Describe(frame.Bytes) :
             frame.CrcValid == true && TelemetryModem.IsUnne(_config) ? Unne1bTelemetry.Describe(frame.Bytes) :
@@ -87,6 +91,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
         {
             await _archive.CompleteAsync();
             await _kiss.StopAsync();
+            await _satnogs.DisposeAsync();
             _results.Dispose();
         }
     }

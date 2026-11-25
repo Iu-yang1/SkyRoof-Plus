@@ -96,4 +96,5 @@ message TelemetryRxConfiguration {
   string rs_mode = 22;
   string scrambler_mode = 23;
   string decoder_protocol = 24;
+  bool upload_satnogs = 25;
 }

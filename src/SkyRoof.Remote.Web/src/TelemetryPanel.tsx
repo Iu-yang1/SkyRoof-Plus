@@ -6,7 +6,7 @@ import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalo
 
 type Frame = { state: string; config?: TelemetryConfig; utc?: string; generation?: number; length?: number;
   hex?: string; crcValid?: boolean | null; snrDb?: number | null; cfoHz?: number | null;
-  outputs?: { archiveSaved: number; archiveErrors: number; kissPort: number; kissClients: number; kissError: string };
+  outputs?: { archiveSaved: number; archiveErrors: number; kissPort: number; kissClients: number; kissError: string; satnogs?: { ready: boolean; sent: number; failed: number; dropped: number; last: string } };
   fields?: { name: string; value: string }[]; framing?: string; note?: string; error?: string };
 
 export function TelemetryPanel() {
@@ -71,6 +71,7 @@ export function TelemetryPanel() {
     <button disabled={!available || busy} onClick={() => void apply(false)}>STOP / FLUSH</button>
     <p role="status">{available ? latest?.state ?? 'WAITING' : 'NO STATION LINK'}</p>
     {latest?.outputs && <p>ARCHIVE {latest.outputs.archiveSaved} SAVED / {latest.outputs.archiveErrors} ERRORS · KISS {latest.outputs.kissPort || 'OFF'} · {latest.outputs.kissClients} CLIENTS {latest.outputs.kissError}</p>}
+    {latest?.outputs?.satnogs && <p>SATNOGS {latest.outputs.satnogs.ready ? 'READY' : 'NOT CONFIGURED'} · {latest.outputs.satnogs.sent} SENT / {latest.outputs.satnogs.failed} FAILED / {latest.outputs.satnogs.dropped} DROPPED · {latest.outputs.satnogs.last}</p>}
     {(error || latest?.error) && <p role="alert">{error || latest?.error}</p>}
     <div className="digital-messages">{frames.map((frame, i) =>
       <button key={frame.utc + ':' + i} onClick={() => setSelected(frame)}>
