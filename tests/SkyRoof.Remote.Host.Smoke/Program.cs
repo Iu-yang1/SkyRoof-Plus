@@ -21,6 +21,8 @@ var busName = "rx-smoke-" + Guid.NewGuid().ToString("N");
 using var bus = new NamedSignalRing(busName, slots: 64, payloadCapacity: 4096, initialEpoch: 33);
 var afBusName = "af-smoke-" + Guid.NewGuid().ToString("N");
 using var afBus = new NamedSignalRing(afBusName, 64, 4096, initialEpoch: 44);
+var digital = new DspResultHttpProbe();
+using var digitalLifetime = digital;
 var processInfo = new System.Diagnostics.ProcessStartInfo("dotnet") { UseShellExecute = false };
 processInfo.ArgumentList.Add(Path.GetFullPath(args.Single()));
 processInfo.Environment["ASPNETCORE_URLS"] = url;
@@ -28,6 +30,7 @@ processInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 processInfo.Environment["SKYROOF_AUTH_DB"] = database;
 processInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = busName;
 processInfo.Environment["SKYROOF_AF_SPECTRUM_BUS"] = afBusName;
+digital.Configure(processInfo);
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_USER"] = "station-admin";
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_PASSWORD"] = "ExampleStationAdminPassw0rd!";
 using var host = System.Diagnostics.Process.Start(processInfo)
@@ -67,6 +70,7 @@ try
     Ensure((await user.GetAsync("/api/v1/media/rx-status")).StatusCode ==
         HttpStatusCode.ServiceUnavailable,
         "Host hid missing Media IPC instead of reporting it as 503.");
+    await digital.VerifyAsync(anon, user);
     var created = await user.PostAsJsonAsync("/api/v1/auth/tokens", new { name = "CI test" });
     created.EnsureSuccessStatusCode();
     using var tokenJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());

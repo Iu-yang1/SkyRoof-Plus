@@ -18,7 +18,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Build Remote Host
-        run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release
+        run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
       - name: Build simulated remote client
         run: dotnet build tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release
       - name: Run HTTP + SignalR + WSS process-level smoke

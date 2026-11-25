@@ -26,6 +26,9 @@ info.Environment["SKYROOF_CW_RESULTS_BUS"] = cwName;
 info.Environment["SKYROOF_Q65_RESULTS_BUS"] = q65Name;
 info.Environment["SKYROOF_TELEMETRY_RESULTS_BUS"] = telemetryName;
 info.Environment["SKYROOF_CW_HISTORY_DIRECTORY"] = history;
+var archive = Path.Combine(history, "telemetry");
+info.Environment["SKYROOF_TELEMETRY_ARCHIVE_DIRECTORY"] = archive;
+info.Environment["SKYROOF_TELEMETRY_KISS_BIND"] = "127.0.0.1";
 using var process = Process.Start(info) ?? throw new InvalidOperationException("DSP process not started");
 try
 {
@@ -110,7 +113,7 @@ try
     if (File.Exists(Path.Combine(Path.GetDirectoryName(dll)!, "mfsk.dll")))
         await Q65LiveProbe.RunAsync(rx, q65Name, dspPipe);
     if (Environment.GetEnvironmentVariable("SKYROOF_SATELLITE_AUDIO_CORPUS") is { Length: > 0 } corpus)
-        await TelemetryLiveProbe.RunAsync(rx, telemetryName, dspPipe, corpus);
+        await TelemetryLiveProbe.RunAsync(rx, telemetryName, dspPipe, corpus, archive);
 }
 finally
 {

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Net.Sockets;
 using System.Security.Principal;
 using System.Text.Json;
 using Grpc.Net.Client;
@@ -8,9 +9,9 @@ using NAudio.Wave;
 using SkyRoof.Remote.Ipc;
 using SkyRoof.Remote.SignalBus;
 
-internal static class TelemetryLiveProbe
+internal static partial class TelemetryLiveProbe
 {
-    public static async Task RunAsync(NamedSignalRing rx, string resultsName, string pipe, string corpus)
+    public static async Task RunAsync(NamedSignalRing rx, string resultsName, string pipe, string corpus, string archive)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var ct = timeout.Token;
@@ -27,15 +28,28 @@ internal static class TelemetryLiveProbe
         using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
         var dsp = new DspWaveform.DspWaveformClient(channel);
         var config = new TelemetryRxConfiguration { Enabled = true, NoradId = 39444, Satellite = "AO-73",
-            Modulation = "BPSK", Framing = "AO40FEC", Baud = 1200, Input = "tone-audio", CenterHz = 1700, Differential = true };
+            Modulation = "BPSK", Framing = "AO40FEC", Baud = 1200, Input = "tone-audio", CenterHz = 1700, Differential = true, SaveFrames = true, KissPort = ReserveKissPort() };
         await dsp.ConfigureTelemetryAsync(config, cancellationToken: ct);
         using var output = new NamedSignalRing(resultsName, 64, 262144);
+        using var kiss = new TcpClient();
+        await kiss.ConnectAsync("127.0.0.1", config.KissPort, ct);
+        var wire = ReadKissAsync(kiss.GetStream(), ct);
         rx.ResetEpoch(91);
         await ReplayAsync(rx, Path.Combine(corpus, "ao73.wav"), ct);
         config.Enabled = false;
         await dsp.ConfigureTelemetryAsync(config, cancellationToken: ct);
+        byte[] decoded = VerifyResults(output);
+        byte[] received = await wire;
+        VerifyOutputs(decoded, received, archive);
+        config.KissPort = 0;
+        await dsp.ConfigureTelemetryAsync(config, cancellationToken: ct);
+        Console.WriteLine("PASS: real AO-73 decoded bytes equal station BIN archive and escaped KISS TCP payload; STOP flush persisted LOG.");
+    }
+
+    private static byte[] VerifyResults(NamedSignalRing output)
+    {
         var cursor = new SignalCursor();
-        bool verified = false;
+        byte[]? verified = null;
         while (output.TryReadNext(cursor, out var frame) && frame is not null)
         {
             using var json = JsonDocument.Parse(frame.Payload);
@@ -47,10 +61,11 @@ internal static class TelemetryLiveProbe
             if (root.GetProperty("hex").GetString()?.Length != 512 ||
                 !root.GetProperty("fields").EnumerateArray().Any(field => field.GetProperty("name").GetString() == "Frame header"))
                 throw new InvalidDataException("Telemetry frame bytes or decoded fields missing.");
-            verified = true;
+            verified = Convert.FromHexString(root.GetProperty("hex").GetString() ?? "");
         }
-        if (!verified) throw new InvalidDataException("Deployed DSP did not recover original AO-73 frame.");
+        if (verified is null) throw new InvalidDataException("Deployed DSP did not recover original AO-73 frame.");
         Console.WriteLine("PASS: real AO-73 recorded RF -> PCM SignalBus -> independent SkyTlm DSP -> verified 256-byte frame and engineering fields.");
+        return verified;
     }
 
     private static async Task ReplayAsync(NamedSignalRing rx, string path, CancellationToken ct)
