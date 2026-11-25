@@ -5,11 +5,13 @@ using SkyRoof.Remote.SignalBus;
 
 namespace SkyRoof.Remote.Host.Realtime;
 
-public static class Q65Endpoints
+public static partial class Q65Endpoints
 {
     public static void MapQ65(this WebApplication app)
     {
         app.MapGet("/api/v1/dsp/q65", ReadAsync).RequireAuthorization();
+        app.MapPost("/api/v1/dsp/q65/transmit", TransmitAsync)
+            .RequireAuthorization(policy => policy.RequireRole("Operator", "Administrator"));
         app.MapPut("/api/v1/dsp/q65", ConfigureAsync)
             .RequireAuthorization(policy => policy.RequireRole("Operator", "Administrator"));
     }

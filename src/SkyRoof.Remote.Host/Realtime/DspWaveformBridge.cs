@@ -20,7 +20,7 @@ public sealed class DspWaveformBridge : IDisposable
                 catch { await stream.DisposeAsync(); throw; }
             }
         };
-        return GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
+        return GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler, MaxReceiveMessageSize = 32 * 1024 * 1024 });
     });
 
     public async Task<EncodedWaveform> EncodeFt4Async(Ft4EncodeRequest request, CancellationToken ct) =>
@@ -38,6 +38,10 @@ public sealed class DspWaveformBridge : IDisposable
     public async Task<Q65RxConfiguration> ConfigureQ65Async(Q65RxConfiguration request, CancellationToken ct) =>
         await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureQ65Async(request,
             deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
+
+    public async Task<Q65EncodedWaveform> EncodeQ65Async(Q65EncodeRequest request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).EncodeQ65Async(request,
+            deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: ct);
 
     public void Dispose()
     {

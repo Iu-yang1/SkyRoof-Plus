@@ -3,6 +3,7 @@ package skyroof.remote.ipc.v1;
 option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service DspWaveform {
+  rpc EncodeQ65(Q65EncodeRequest) returns (Q65EncodedWaveform);
   rpc ConfigureQ65(Q65RxConfiguration) returns (Q65RxConfiguration);
   rpc GetCwHistory(CwHistoryRequest) returns (CwHistoryReply);
   rpc ConfigureCw(CwRxConfiguration) returns (CwRxConfiguration);
@@ -46,4 +47,16 @@ message Q65RxConfiguration {
   float tolerance_hz = 4;
   bool averaging = 5;
   bool eme_delay = 6;
+}
+
+message Q65EncodeRequest {
+  string submode = 1;
+  string message = 2;
+  float audio_hz = 3;
+  float gain = 4;
+}
+message Q65EncodedWaveform {
+  EncodedWaveform waveform = 1;
+  int32 slot_seconds = 2;
+  int32 tx_start_samples_12k = 3;
 }

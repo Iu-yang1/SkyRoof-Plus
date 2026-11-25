@@ -5,7 +5,7 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Dsp;
 
-public sealed class DspWaveformService(CwLiveReceiver cw, Q65LiveReceiver q65) : DspWaveform.DspWaveformBase
+public sealed partial class DspWaveformService(CwLiveReceiver cw, Q65LiveReceiver q65) : DspWaveform.DspWaveformBase
 {
     public override Task<Q65RxConfiguration> ConfigureQ65(Q65RxConfiguration request, ServerCallContext context)
     {

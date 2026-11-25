@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Q65TransmitPanel } from './Q65TransmitPanel';
 
 const modes = ['15A', '30A', '60A', '60B', '60C', '60D', '60E', '120D', '120E', '300A'];
 type Config = { enabled: boolean; submode: string; rxHz: number; toleranceHz: number; averaging: boolean; emeDelay: boolean };
@@ -60,6 +61,7 @@ export function Q65ReceivePanel({ available }: { available: boolean }) {
       <tbody>{slots.slice().reverse().flatMap(slot => (slot.messages ?? []).map((row, i) =>
         <tr key={(slot.utc ?? '') + ':' + i}><td>{slot.utc?.slice(11, 19)}</td><td>{row.snrDb.toFixed(0)}</td>
           <td>{row.dtSeconds.toFixed(2)}</td><td>{row.frequencyHz.toFixed(1)}</td><td>{row.apType || '—'}</td><td>{row.text}</td></tr>))}</tbody></table>
+    <Q65TransmitPanel available={available} submode={draft.submode} rxHz={draft.rxHz} />
     <small>Station UTC slots · native decoder · estimated input timing. Requires mfsk.dll ABI v3.</small>
   </section>;
 }

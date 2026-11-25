@@ -20,7 +20,7 @@ if (nativeCat && string.IsNullOrWhiteSpace(nativeHost))
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(server =>
     server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));
-builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 16 * 1024 * 1024);
+builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 32 * 1024 * 1024);
 builder.Services.AddSingleton(new RigctldLink(host, port));
 var journal = Environment.GetEnvironmentVariable("SKYROOF_DEVICE_PTT_JOURNAL");
 if (string.IsNullOrWhiteSpace(journal))

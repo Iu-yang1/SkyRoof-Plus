@@ -10,7 +10,7 @@ var stationPipe = Environment.GetEnvironmentVariable("SKYROOF_STATION_PIPE")
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(k =>
     k.ListenNamedPipe(stationPipe, options => options.Protocols = HttpProtocols.Http2));
-builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 16 * 1024 * 1024);
+builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 32 * 1024 * 1024);
 builder.Services.AddSingleton<DeviceControlForwarder>();
 builder.Services.AddSingleton<IOrbitBackend>(_ => StationOrbitBackend.Create());
 builder.Services.AddSingleton<OrbitTrackingCalculator>();
