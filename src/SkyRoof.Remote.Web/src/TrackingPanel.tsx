@@ -10,7 +10,7 @@ type TrackingStatus = {
   RxHz: number; TxHz: number; CatApplied: boolean; RotatorApplied: boolean;
   ActualRxHz: number; ActualTxHz: number;
   ActualAzimuthDegrees: number | null; ActualElevationDegrees: number | null;
-  RotatorError: string;
+  RotatorError: string; CelestialTarget?: string; OwnEchoDelaySeconds?: number;
 };
 
 type TrackingJob = {
@@ -36,7 +36,10 @@ export function TrackingPanel() {
   const [tx, setTx] = useState('0');
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [useCatalogOrbit, setUseCatalogOrbit] = useState(false);
+  const [moon, setMoon] = useState(false);
+  const [emeMode, setEmeMode] = useState('cfom');
   function selectCatalog(value: CatalogSelection) {
+    setMoon(false);
     setSelection(value);
     setUseCatalogOrbit(true);
     setTle1(value.satellite.tleLine1);
@@ -97,8 +100,9 @@ export function TrackingPanel() {
         CorrectUplink: form.has('correctTx'),
         PointRotator: form.has('rotator'),
         ElevationMaskDegrees: numeric(form.get('mask'), 'Elevation mask'),
-        RadioLink: readRadioLink(form),
-        CatalogSatelliteId: useCatalogOrbit ? selection?.satellite.satelliteId ?? '' : ''
+        RadioLink: moon ? null : readRadioLink(form),
+        CelestialTarget: moon ? 'MOON' : '', EmeDopplerMode: moon ? emeMode : '',
+        CatalogSatelliteId: !moon && useCatalogOrbit ? selection?.satellite.satelliteId ?? '' : ''
       };
       if (operation === 'start') {
         const interval = numeric(form.get('interval'), 'Interval');
@@ -116,15 +120,16 @@ export function TrackingPanel() {
 
   const displayed = job?.Running ? job.Latest : status;
   return <section className="panel tracking-panel">
-    <header>SATELLITE TRACKING</header>
-    <SatelliteCatalogPicker available={Boolean(hub)} onSelect={selectCatalog} />
+    <header>SATELLITE / MOON TRACKING</header>
+    <label>TARGET <select value={moon ? 'moon' : 'satellite'} onChange={e => setMoon(e.target.value === 'moon')}><option value="satellite">SATELLITE</option><option value="moon">MOON / EME</option></select></label>
+    {!moon && <SatelliteCatalogPicker available={Boolean(hub)} onSelect={selectCatalog} />}
     <form onSubmit={event => {
       const button = (event.nativeEvent as SubmitEvent).submitter;
       void submit(event, button?.getAttribute('value') ?? 'predict');
     }}>
-      {selection && <label><input type="checkbox" checked={useCatalogOrbit} onChange={e => setUseCatalogOrbit(e.target.checked)} /> FOLLOW STATION ORBIT · {selection.satellite.name}</label>}
-      <label>TLE LINE 1<input name="tle1" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="1 …" value={tle1} onChange={e => setTle1(e.target.value)} /></label>
-      <label>TLE LINE 2<input name="tle2" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="2 …" value={tle2} onChange={e => setTle2(e.target.value)} /></label>
+      {!moon && selection && <label><input type="checkbox" checked={useCatalogOrbit} onChange={e => setUseCatalogOrbit(e.target.checked)} /> FOLLOW STATION ORBIT · {selection.satellite.name}</label>}
+      {!moon && <><label>TLE LINE 1<input name="tle1" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="1 …" value={tle1} onChange={e => setTle1(e.target.value)} /></label>
+      <label>TLE LINE 2<input name="tle2" required={!useCatalogOrbit} readOnly={useCatalogOrbit} placeholder="2 …" value={tle2} onChange={e => setTle2(e.target.value)} /></label></>}
       <div className="tracking-grid">
         <label>LAT °<input name="latitude" type="number" step="any" required /></label>
         <label>LON °<input name="longitude" type="number" step="any" required /></label>
@@ -133,7 +138,12 @@ export function TrackingPanel() {
         <label>DOWNLINK MHz<input name="rx" type="number" step="any" required value={rx} onChange={e => setRx(e.target.value)} /></label>
         <label>UPLINK MHz (0 = RX only)<input name="tx" type="number" step="any" required value={tx} onChange={e => setTx(e.target.value)} /></label>
       </div>
-      <RadioLinkOptions key={selectionRevision} seed={selection?.transmitter.link} />
+      {moon ? <label>EME DOPPLER <select value={emeMode} onChange={e => setEmeMode(e.target.value)}>
+        <option value="cfom">CONSTANT FREQUENCY ON MOON</option>
+        <option value="own-echo-rx">OWN ECHO · RX CORRECTION</option>
+        <option value="own-echo-tx">OWN ECHO · TX CORRECTION</option>
+        <option value="none">NONE</option>
+      </select></label> : <RadioLinkOptions key={selectionRevision} seed={selection?.transmitter.link} />}
       <label>INTERVAL ms<input name="interval" type="number" min="100" step="100" defaultValue="1000" required /></label>
       <div className="tracking-options">
         <label><input name="correctRx" type="checkbox" defaultChecked /> RX DOPPLER</label>
@@ -152,13 +162,14 @@ export function TrackingPanel() {
     {jobError && <small>{jobError}</small>}
     {job?.Error && <p className="error">{job.Error}</p>}
     {displayed && <div className="tracking-result">
-      <div className="readout">NORAD {displayed.NoradNumber} · {displayed.OrbitBackend}</div>
+      <div className="readout">{displayed.CelestialTarget || 'NORAD ' + displayed.NoradNumber} · {displayed.OrbitBackend}</div>
       <div className="readout">AZ {displayed.AzimuthDegrees.toFixed(2)}° · EL {displayed.ElevationDegrees.toFixed(2)}°</div>
       <div className="readout">Range {(displayed.RangeMetres / 1000).toFixed(1)} km · Rate {displayed.RangeRateMetresPerSecond.toFixed(1)} m/s</div>
       <div className="readout">RX {(displayed.RxHz / 1e6).toFixed(6)} · TX {(displayed.TxHz / 1e6).toFixed(6)} MHz</div>
       {displayed.CatApplied && <p>CAT readback: {displayed.ActualRxHz} / {displayed.ActualTxHz} Hz</p>}
       {displayed.RotatorApplied && <p>Rotator readback: {displayed.ActualAzimuthDegrees} / {displayed.ActualElevationDegrees}°</p>}
       {displayed.RotatorError && <p className="error">{displayed.RotatorError}</p>}
+      {displayed.CelestialTarget && <small>OWN ECHO DELAY ≈ {displayed.OwnEchoDelaySeconds?.toFixed(3)} s · first-order local geometric Doppler</small>}
       <small>{displayed.DataQuality}</small>
     </div>}
     {error && <p className="error" role="alert">{error}</p>}

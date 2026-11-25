@@ -164,6 +164,7 @@ try
     {
         await tracker.StartAsync();
         await TrackingChecks.RunAsync(tracker, radio, rotator);
+        await MoonTrackingChecks.RunAsync(tracker, stationDll, radio);
         await OmmFixture.RunAsync(tracker);
         await RotatorChecks.RunAsync(tracker, rotator);
         await tracker.StopAsync();

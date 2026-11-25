@@ -9,6 +9,10 @@ internal static class TrackingRadioLink
     {
         double rxFactor = request.CorrectDownlink ? factor : 0;
         double txFactor = request.CorrectUplink ? factor : 0;
+        if (request.CelestialTarget.Equals("MOON", StringComparison.OrdinalIgnoreCase))
+            return CalculateMoon(request, factor);
+        if (request.EmeDopplerMode.Length > 0)
+            throw new ArgumentException("EME Doppler mode requires Moon target.");
         if (request.RadioLink is not { } link)
             return (Rounded(RadioLinkMath.CorrectDownlink(request.DownlinkHz, rxFactor, 0, 0)),
                 Rounded(RadioLinkMath.CorrectUplink(request.UplinkHz, txFactor, 0, 0)));
@@ -20,6 +24,22 @@ internal static class TrackingRadioLink
                 ? Rounded(RadioLinkMath.CorrectDownlink(rx, rxFactor, link.RitHz, link.DownlinkManualHz)) : 0,
             band.UplinkLowHz.HasValue
                 ? Rounded(RadioLinkMath.CorrectUplink(tx, txFactor, link.XitHz, link.UplinkManualHz)) : 0);
+    }
+
+    private static (long Rx, long Tx) CalculateMoon(TrackingRequest request, double factor)
+    {
+        double rxFactor = request.CorrectDownlink ? factor : 0;
+        double txFactor = request.CorrectUplink ? factor : 0;
+        (double rx, double tx) = request.EmeDopplerMode switch
+        {
+            "cfom" => (rxFactor, txFactor),
+            "own-echo-rx" => (2 * rxFactor, 0),
+            "own-echo-tx" => (0, 2 * txFactor),
+            "none" => (0, 0),
+            _ => throw new ArgumentException("Select Moon Doppler mode explicitly.")
+        };
+        return (Rounded(RadioLinkMath.CorrectDownlink(request.DownlinkHz, rx, 0, 0)),
+            Rounded(RadioLinkMath.CorrectUplink(request.UplinkHz, tx, 0, 0)));
     }
 
     private static long? Edge(long hz) => hz switch

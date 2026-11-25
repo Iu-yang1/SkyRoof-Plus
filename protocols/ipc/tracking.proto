@@ -45,6 +45,8 @@ message TrackingRequest {
   double elevation_mask_degrees = 12;
   RadioLinkProfile radio_link = 13;
   string catalog_satellite_id = 14; // resolved by Station on each tracking tick
+  string celestial_target = 15;
+  string eme_doppler_mode = 16;
 }
 message TrackingSnapshot {
   int32 norad_number = 1;
@@ -63,6 +65,8 @@ message TrackingSnapshot {
   int64 actual_rx_hz = 14;
   int64 actual_tx_hz = 15;
   string rotator_error = 16;
+  string celestial_target = 17;
+  double own_echo_delay_seconds = 18;
 }
 
 service StationTrackingJobs {

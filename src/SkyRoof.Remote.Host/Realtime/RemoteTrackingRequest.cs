@@ -16,4 +16,6 @@ public sealed record RemoteTrackingRequest
     public double ElevationMaskDegrees { get; init; }
     public RemoteRadioLink? RadioLink { get; init; }
     public string? CatalogSatelliteId { get; init; }
+    public string? CelestialTarget { get; init; }
+    public string? EmeDopplerMode { get; init; }
 }

@@ -9,7 +9,7 @@ public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseco
     double RangeRateMetresPerSecond, long RxHz, long TxHz,
     string OrbitBackend, string DataQuality, bool CatApplied, bool RotatorApplied,
     long ActualRxHz, long ActualTxHz, double? ActualAzimuthDegrees,
-    double? ActualElevationDegrees, string RotatorError);
+    double? ActualElevationDegrees, string RotatorError, string CelestialTarget = "", double OwnEchoDelaySeconds = 0);
 
 public sealed partial class StationDeviceBridge
 {
@@ -42,7 +42,8 @@ public sealed partial class StationDeviceBridge
             PointRotator = input.PointRotator,
             ElevationMaskDegrees = input.ElevationMaskDegrees,
             RadioLink = input.RadioLink?.ToIpc(),
-            CatalogSatelliteId = input.CatalogSatelliteId ?? ""
+            CatalogSatelliteId = input.CatalogSatelliteId ?? "",
+            CelestialTarget = input.CelestialTarget ?? "", EmeDopplerMode = input.EmeDopplerMode ?? ""
         };
 
     private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
@@ -50,6 +51,6 @@ public sealed partial class StationDeviceBridge
                 result.RangeRateMetresPerSecond, result.RxHz, result.TxHz,
                 result.OrbitBackend, result.DataQuality, result.CatApplied, result.RotatorApplied,
                 result.ActualRxHz, result.ActualTxHz, result.RotatorReadback?.AzimuthDegrees,
-                result.RotatorReadback?.ElevationDegrees, result.RotatorError);
+                result.RotatorReadback?.ElevationDegrees, result.RotatorError, result.CelestialTarget, result.OwnEchoDelaySeconds);
 
 }

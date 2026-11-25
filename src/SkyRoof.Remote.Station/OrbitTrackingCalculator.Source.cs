@@ -5,8 +5,19 @@ namespace SkyRoof.Remote.Station;
 
 public sealed partial class OrbitTrackingCalculator
 {
+    private IOrbitTrack? _moon;
+
     private (IOrbitTrack Track, string Source) ResolveTrack(TrackingRequest request)
     {
+        if (request.CelestialTarget.Length > 0)
+        {
+            if (!request.CelestialTarget.Equals("MOON", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Unsupported celestial tracking target.");
+            if (backend is not ICelestialOrbitBackend celestial)
+                throw new ArgumentException("Moon tracking requires Orekit/JPL ephemeris.");
+            _moon ??= celestial.CreateCelestialTrack("MOON");
+            return (_moon, "MOON_DE430;");
+        }
         CatalogCacheTle? orbit = request.CatalogSatelliteId.Length == 0 ? null :
             catalog.ResolveOrbit(request.CatalogSatelliteId, DateTimeOffset.UtcNow);
         var omm = orbit?.ReadOmm();

@@ -60,7 +60,10 @@ public sealed partial class OrbitTrackingCalculator
             RxHz = frequencies.Rx,
             TxHz = frequencies.Tx,
             OrbitBackend = orbitBackend,
-            DataQuality = qualityPrefix + observed.DataQuality
+            DataQuality = qualityPrefix + observed.DataQuality,
+            CelestialTarget = request.CelestialTarget.ToUpperInvariant(),
+            OwnEchoDelaySeconds = request.CelestialTarget.Length > 0 ?
+                2 * observed.RangeMetres / RadioLinkMath.SpeedOfLightMetresPerSecond : 0
         };
     }
 
