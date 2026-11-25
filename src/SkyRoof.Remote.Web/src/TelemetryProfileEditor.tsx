@@ -18,7 +18,20 @@ export function TelemetryProfileEditor({ config, onChange }: { config: Telemetry
     <label>BAUD <input type="number" value={config.baud} onChange={e => onChange({ ...config, baud: Number(e.target.value) })} /></label>
     <label>CENTER Hz <input type="number" value={config.centerHz} onChange={e => onChange({ ...config, centerHz: Number(e.target.value) })} /></label>
     <label>DEVIATION Hz <input type="number" value={config.deviationHz} onChange={e => onChange({ ...config, deviationHz: Number(e.target.value) })} /></label>
-    <label><input type="checkbox" checked={config.differential} onChange={e => onChange({ ...config, differential: e.target.checked })} /> DBPSK</label>
+    <label>PRECODING <select value={config.differentialMode || (config.differential ? 'differential' : 'auto')}
+      onChange={e => onChange({ ...config, differentialMode: e.target.value, differential: e.target.value === 'differential' })}>
+      <option value="auto">AUTO</option><option value="coherent">NONE / COHERENT</option><option value="differential">DIFFERENTIAL / NRZI</option></select></label>
+    <label>DECODER <select value={config.decoderProtocol} onChange={e => onChange({ ...config, decoderProtocol: e.target.value })}>
+      <option value="">STANDARD</option><option value="unne1b">UNNE-1B</option></select></label>
+    {config.framing === 'CCSDS' && <details><summary>CCSDS</summary>
+      <label>FRAME SIZE <input type="number" min="0" value={config.frameSize} onChange={e => onChange({ ...config, frameSize: Number(e.target.value) })} /></label>
+      <label>RS INTERLEAVING <input type="number" min="0" value={config.rsInterleaving} onChange={e => onChange({ ...config, rsInterleaving: Number(e.target.value) })} /></label>
+      <label>RS BASIS <select value={config.rsBasis} onChange={e => onChange({ ...config, rsBasis: e.target.value })}><option value="">AUTO</option><option value="conventional">CONVENTIONAL</option><option value="dual">DUAL</option></select></label>
+      <label>RS <select value={config.rsMode} onChange={e => onChange({ ...config, rsMode: e.target.value })}><option value="">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></label>
+      <label>SCRAMBLER <select value={config.scramblerMode} onChange={e => onChange({ ...config, scramblerMode: e.target.value })}><option value="">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></label>
+      <label>CONVOLUTIONAL <select value={config.convolutional} onChange={e => onChange({ ...config, convolutional: e.target.value })}><option value="">NONE</option>
+        {['CCSDS','CCSDS uninverted','NASA-DSN','NASA-DSN uninverted'].map(v => <option key={v}>{v}</option>)}</select></label>
+    </details>}
     <label><input type="checkbox" checked={config.manchester} onChange={e => onChange({ ...config, manchester: e.target.checked })} /> MANCHESTER</label>
     <label><input type="checkbox" checked={config.saveFrames} onChange={e => onChange({ ...config, saveFrames: e.target.checked })} /> SAVE BIN + LOG ON STATION</label>
     <label>KISS TCP PORT (0=OFF) <input type="number" min={0} max={65535} value={config.kissPort} onChange={e => onChange({ ...config, kissPort: Number(e.target.value) })} /></label>

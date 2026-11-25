@@ -12,10 +12,10 @@ internal static partial class CatalogTelemetryResolver
         layer is { ValueKind: JsonValueKind.Object } value && value.TryGetProperty(name, out var field)
             ? Text(field) : null;
 
-    private static string? Text(JsonElement? value) => value?.ValueKind switch
+    private static string? Text(JsonElement? value) => value is not { } field ? null : field.ValueKind switch
     {
-        JsonValueKind.String => value.Value.GetString(),
-        JsonValueKind.Number => value.Value.GetRawText(),
+        JsonValueKind.String => field.GetString(),
+        JsonValueKind.Number => field.GetRawText(),
         _ => null
     };
 

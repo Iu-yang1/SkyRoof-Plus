@@ -1,17 +1,18 @@
 import { useState } from 'react';
+import type { CatalogTelemetryProfile } from './TelemetryProfiles';
 
 export type CatalogLink = {
   downlinkLowHz: number; downlinkHighHz: number; uplinkLowHz: number; uplinkHighHz: number;
   inverting: boolean;
 };
 type CatalogTransmitter = { id: string; description: string; alive: boolean; status: string;
-  mode: string; uplinkMode: string; link: CatalogLink };
+  mode: string; uplinkMode: string; link: CatalogLink; telemetry?: CatalogTelemetryProfile | null };
 type CatalogSatellite = { satelliteId: string; norad: number; name: string; status: string;
   tleLine1: string; tleLine2: string; orbitSource: string; orbitState: string; transmitters: CatalogTransmitter[] };
 export type CatalogSelection = { satellite: CatalogSatellite; transmitter: CatalogTransmitter };
 
-export function SatelliteCatalogPicker({ available, onSelect }: {
-  available: boolean; onSelect: (value: CatalogSelection) => void
+export function SatelliteCatalogPicker({ available, onSelect, purpose = 'tracking' }: {
+  available: boolean; onSelect: (value: CatalogSelection) => void; purpose?: 'tracking' | 'telemetry'
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogSatellite[]>([]);
@@ -59,11 +60,12 @@ export function SatelliteCatalogPicker({ available, onSelect }: {
         {(satellite?.transmitters ?? []).map(item => <option key={item.id} value={item.id}>
           {item.description} · {item.mode} · {item.alive ? 'ALIVE' : item.status || 'INACTIVE'}
         </option>)}</select></label>
-      <button type="button" disabled={!available || !satellite || !transmitter || !['tle', 'omm-only'].includes(satellite.orbitState)}
+      <button type="button" disabled={!available || !satellite || !transmitter || (purpose === 'tracking' ? !['tle', 'omm-only'].includes(satellite.orbitState) : !transmitter.telemetry)}
         onClick={() => { if (satellite && transmitter) onSelect({ satellite, transmitter }); }}>
-        LOAD RADIO LINK
+        {purpose === 'tracking' ? 'LOAD RADIO LINK' : 'LOAD TELEMETRY PROFILE'}
       </button>
-      <small>Source: {satellite?.orbitSource || 'unavailable'}. Orbit is resolved by Station on every tracking tick.</small>
+      {purpose === 'tracking' ? <small>Source: {satellite?.orbitSource || 'unavailable'}. Orbit is resolved by Station on every tracking tick.</small> :
+        <small>{transmitter?.telemetry ? transmitter.telemetry.source : 'No supported decoder profile. Use manual settings.'}</small>}
     </>}
   </section>;
 }

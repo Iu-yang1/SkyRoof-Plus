@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-internal static class CatalogChecks
+internal static partial class CatalogChecks
 {
     internal static void WriteFixture(string path)
     {
@@ -23,6 +23,7 @@ internal static class CatalogChecks
                         uplink_low = 435630000L, uplink_high = 435650000L, invert = true }
                 }
             },
+            TelemetryCatalogFixture(),
             new
             {
                 sat_id = "fixture-100001", norad_cat_id = 100001, name = "OMM Test",
@@ -53,5 +54,6 @@ internal static class CatalogChecks
             link.GetProperty("uplinkHighHz").GetInt64() != 435650000)
             throw new InvalidDataException("Station catalog projection or manual orbit expiration incorrect.");
         Console.WriteLine("PASS: authenticated Host -> Station original-format catalog, alias search, expired manual orbit fallback, exact transmitter edges.");
+        await VerifyTelemetryProfilesAsync(admin);
     }
 }

@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { telemetryProfiles, type TelemetryConfig } from './TelemetryProfiles';
 import { TelemetryProfileEditor } from './TelemetryProfileEditor';
+import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
 
 type Frame = { state: string; config?: TelemetryConfig; utc?: string; generation?: number; length?: number;
   hex?: string; crcValid?: boolean | null; snrDb?: number | null; cfoHz?: number | null;
@@ -17,6 +18,16 @@ export function TelemetryPanel() {
   const [selected, setSelected] = useState<Frame>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [profileSource, setProfileSource] = useState('Manual / preset');
+  function loadProfile(selection: CatalogSelection) {
+    const profile = selection.transmitter.telemetry;
+    if (!profile) return;
+    const { source, ...settings } = profile;
+    setConfig(old => ({ ...old, ...settings, noradId: selection.satellite.norad,
+      satellite: selection.satellite.name, transmitter: selection.transmitter.description,
+      downlinkHz: selection.transmitter.link.downlinkLowHz, differential: profile.differentialMode === 'differential' }));
+    setProfileSource(source);
+  }
   useEffect(() => {
     if (!available) return;
     const abort = new AbortController();
@@ -53,7 +64,9 @@ export function TelemetryPanel() {
   const detail = selected ?? frames[0];
   return <section className="panel">
     <header>TELEMETRY</header>
-    <TelemetryProfileEditor config={config} onChange={setConfig} />
+    <SatelliteCatalogPicker available={available} onSelect={loadProfile} purpose="telemetry" />
+    <small>{profileSource} · verify actual AF/IF input before applying.</small>
+    <TelemetryProfileEditor config={config} onChange={next => { setConfig(next); setProfileSource('Manual / edited'); }} />
     <button disabled={!available || busy} onClick={() => void apply(true)}>START / APPLY</button>
     <button disabled={!available || busy} onClick={() => void apply(false)}>STOP / FLUSH</button>
     <p role="status">{available ? latest?.state ?? 'WAITING' : 'NO STATION LINK'}</p>
