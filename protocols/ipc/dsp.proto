@@ -90,4 +90,6 @@ message TelemetryRxConfiguration {
   int32 frame_size = 16;
   int32 rs_interleaving = 17;
   string rs_basis = 18;
+  bool save_frames = 19;
+  int32 kiss_port = 20;
 }

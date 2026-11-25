@@ -13,7 +13,7 @@ public sealed partial class TelemetryLiveReceiver
             {
                 if (work is Configure configure)
                 {
-                    try { Apply(configure); }
+                    try { await ApplyAsync(configure); }
                     catch (Exception error) { configure.Reply.TrySetException(error); }
                 }
                 else if (work is Input input && _modem is not null && input.ConfigurationVersion == _configurationVersion)
@@ -33,7 +33,7 @@ public sealed partial class TelemetryLiveReceiver
         finally { _modem?.Dispose(); }
     }
 
-    private void Apply(Configure work)
+    private async Task ApplyAsync(Configure work)
     {
         // Build first so an invalid profile cannot tear down a working receiver.
         var next = work.Config.Enabled ? new TelemetryModem(work.Config, FrameDecoded) : null;
@@ -43,6 +43,8 @@ public sealed partial class TelemetryLiveReceiver
             _modem?.Dispose();
         }
         catch { next?.Dispose(); throw; }
+        await _archive.FlushAsync();
+        ApplyKiss(work.Config.KissPort);
         _modem = next;
         _config = work.Config;
         Interlocked.Increment(ref _configurationVersion);
@@ -51,7 +53,7 @@ public sealed partial class TelemetryLiveReceiver
         _next = 0;
         _enabled = _modem is not null;
         Publish(new { state = _enabled ? "receiving" : "disabled", config = _config,
-            generation = _generation, droppedBlocks = Interlocked.Read(ref _dropped) });
+            generation = _generation, outputs = OutputStatus(), droppedBlocks = Interlocked.Read(ref _dropped) });
         work.Reply.TrySetResult(_config.Clone());
     }
 

@@ -62,5 +62,7 @@
     <Compile Include="../../SkyRoof/DSP/Unne1bTelemetry.cs" Link="Legacy/Telemetry/Unne1bTelemetry.cs" />
     <Compile Include="../../SkyRoof/DSP/Unne1bDeframer.cs" Link="Legacy/Telemetry/Unne1bDeframer.cs" />
     <Compile Include="../../SkyRoof/DSP/AsrtuTmShortKissTransport.cs" Link="Legacy/Telemetry/AsrtuTmShortKissTransport.cs" />
+    <Compile Include="../../SkyRoof/DSP/TelemetryFrameArchive.cs" Link="Legacy/Telemetry/TelemetryFrameArchive.cs" />
+    <Compile Include="../../SkyRoof/DSP/KissServer.cs" Link="Legacy/Telemetry/KissServer.cs" />
   </ItemGroup>
 </Project>

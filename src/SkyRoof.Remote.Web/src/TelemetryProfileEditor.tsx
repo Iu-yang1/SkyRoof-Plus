@@ -20,6 +20,8 @@ export function TelemetryProfileEditor({ config, onChange }: { config: Telemetry
     <label>DEVIATION Hz <input type="number" value={config.deviationHz} onChange={e => onChange({ ...config, deviationHz: Number(e.target.value) })} /></label>
     <label><input type="checkbox" checked={config.differential} onChange={e => onChange({ ...config, differential: e.target.checked })} /> DBPSK</label>
     <label><input type="checkbox" checked={config.manchester} onChange={e => onChange({ ...config, manchester: e.target.checked })} /> MANCHESTER</label>
+    <label><input type="checkbox" checked={config.saveFrames} onChange={e => onChange({ ...config, saveFrames: e.target.checked })} /> SAVE BIN + LOG ON STATION</label>
+    <label>KISS TCP PORT (0=OFF) <input type="number" min={0} max={65535} value={config.kissPort} onChange={e => onChange({ ...config, kissPort: Number(e.target.value) })} /></label>
     <small>Input describes existing station PCM. REAL IF requires the station source to actually supply 12 kHz IF.</small>
   </details>;
 }

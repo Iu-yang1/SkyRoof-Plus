@@ -2,12 +2,12 @@ export type TelemetryConfig = {
   enabled: boolean; noradId: number; satellite: string; transmitter: string; modulation: string;
   framing: string; baud: number; input: string; centerHz: number; deviationHz: number;
   differential: boolean; manchester: boolean; downlinkHz: number; afCarrierHz: number;
-  convolutional: string; frameSize: number; rsInterleaving: number; rsBasis: string;
+  convolutional: string; frameSize: number; rsInterleaving: number; rsBasis: string; saveFrames: boolean; kissPort: number;
 };
 const base: TelemetryConfig = { enabled: false, noradId: 39444, satellite: 'AO-73', transmitter: 'Telemetry',
   modulation: 'BPSK', framing: 'AO40FEC', baud: 1200, input: 'tone-audio', centerHz: 1700,
   deviationHz: 0, differential: true, manchester: false, downlinkHz: 0, afCarrierHz: 0,
-  convolutional: '', frameSize: 0, rsInterleaving: 0, rsBasis: '' };
+  convolutional: '', frameSize: 0, rsInterleaving: 0, rsBasis: '', saveFrames: false, kissPort: 0 };
 export const telemetryProfiles = {
   'AO-73': base,
   'AO-27': { ...base, noradId: 22825, satellite: 'AO-27', modulation: 'AFSK', framing: 'AX25G3RUH',
