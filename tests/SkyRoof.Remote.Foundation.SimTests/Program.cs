@@ -21,6 +21,8 @@ void Reject(Action work)
     throw new InvalidOperationException("Expected invalid operation.");
 }
 
+Test("SDR rational complex channelizer anti-aliasing", IqChannelizerProbe.Run);
+
 Test("FT4 automatic exchange locks peer, rejects unrelated and stale progression, completes after TX", () =>
 {
     var qso = new SkyRoof.Remote.Foundation.Digital.Ft4QsoSequence("K1ABC", "FN42", "", 3);
