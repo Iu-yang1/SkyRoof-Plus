@@ -26,11 +26,12 @@ internal sealed partial class Q65AutoSession
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Stop);
         var waveform = encoded.Waveform;
         long target = Q65SlotTiming.Target(slot, encoded.SlotSeconds, encoded.TxStartSamples12K, delay);
+        long frequency = await Q65TrackingFrequency.ResolveAsync(station, request.TrackingJobId, request.FrequencyHz, target, Stop);
         var job = new TimedTxRequest
         {
             JobId = Guid.NewGuid().ToString("N"), SessionId = "q65-auto:" + context.TraceIdentifier,
             AuthorizedPrincipal = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
-            FrequencyHz = request.FrequencyHz, Mode = "USB-D", TargetUtcNanoseconds = target,
+            FrequencyHz = frequency, Mode = "USB-D", TargetUtcNanoseconds = target,
             Pcm16 = waveform.Pcm16, Sha256 = waveform.Sha256
         };
         try

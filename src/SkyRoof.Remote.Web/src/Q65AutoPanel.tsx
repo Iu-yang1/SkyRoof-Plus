@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Q65TrackingSelector } from './Q65TrackingSelector';
 import { readFt4Events, type Ft4AutoEvent } from './Ft4AutoEvents';
 import type { Config } from './Q65ReceivePanel';
 
@@ -9,6 +10,7 @@ export function Q65AutoPanel({ available, config, onRunning }: { available: bool
   const [grid, setGrid] = useState('');
   const [target, setTarget] = useState('');
   const [mhz, setMhz] = useState('');
+  const [jobId, setJobId] = useState('');
   const [gain, setGain] = useState(50);
   const [odd, setOdd] = useState(false);
   const [attempts, setAttempts] = useState(4);
@@ -20,8 +22,8 @@ export function Q65AutoPanel({ available, config, onRunning }: { available: bool
 
   async function start() {
     if (!available || active.current) return;
-    const frequencyHz = Math.round(Number(mhz) * 1e6);
-    if (!call.trim() || !grid.trim() || !(frequencyHz > 0) || !Number.isInteger(attempts) || attempts < 1) {
+    const frequencyHz = jobId ? 0 : Math.round(Number(mhz) * 1e6);
+    if (!call.trim() || !grid.trim() || (!jobId && !(frequencyHz > 0)) || !Number.isInteger(attempts) || attempts < 1) {
       setEvent({ state: 'error', error: 'Enter MY CALL, grid, TX MHz and positive attempts.' });
       return;
     }
@@ -32,7 +34,7 @@ export function Q65AutoPanel({ available, config, onRunning }: { available: bool
       const response = await fetch('/api/v1/dsp/q65/auto', {
         method: 'POST', credentials: 'include', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ call, grid, target, frequencyHz, gain: gain / 100, odd, attempts, rx: config })
+        body: JSON.stringify({ call, grid, target, frequencyHz, trackingJobId: jobId || null, gain: gain / 100, odd, attempts, rx: config })
       });
       if (!response.ok || !response.body) throw new Error(await response.text() || 'Q65 HTTP ' + response.status);
       await readFt4Events(response.body, setEvent);
@@ -49,7 +51,8 @@ export function Q65AutoPanel({ available, config, onRunning }: { available: bool
       <label>MY CALL <input value={call} onChange={e => setCall(e.target.value.toUpperCase())} /></label>
       <label>MY GRID <input value={grid} onChange={e => setGrid(e.target.value.toUpperCase())} /></label>
       <label>DX CALL (blank = CQ) <input value={target} onChange={e => setTarget(e.target.value.toUpperCase())} /></label>
-      <label>TX MHz <input inputMode="decimal" value={mhz} onChange={e => setMhz(e.target.value)} /></label>
+      <Q65TrackingSelector jobId={jobId} onChange={setJobId} disabled={!available || running} />
+    <label>TX MHz <input disabled={!!jobId || running} inputMode="decimal" value={mhz} onChange={e => setMhz(e.target.value)} /></label>
       <label>PCM LEVEL % <input type="number" min="0" max="100" value={gain} onChange={e => setGain(Number(e.target.value))} /></label>
       <label>TX SLOT <select value={odd ? 'odd' : 'even'} onChange={e => setOdd(e.target.value === 'odd')}><option value="even">EVEN</option><option value="odd">ODD</option></select></label>
       <label>ATTEMPTS <input type="number" min="1" value={attempts} onChange={e => setAttempts(Number(e.target.value))} /></label>

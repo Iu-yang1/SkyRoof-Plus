@@ -75,6 +75,7 @@ service StationTrackingJobs {
   rpc Start(TrackingJobStart) returns (TrackingJobStatus);
   rpc Status(TrackingJobQuery) returns (TrackingJobStatus);
   rpc Stop(TrackingJobStop) returns (TrackingJobStatus);
+  rpc PredictAt(TrackingJobPredictionRequest) returns (TrackingSnapshot);
 }
 message TrackingJobStart {
   TrackingRequest tracking = 1;
@@ -82,6 +83,10 @@ message TrackingJobStart {
   bool resume_after_restart = 3;
 }
 message TrackingJobQuery {}
+message TrackingJobPredictionRequest {
+  string job_id = 1;
+  int64 utc_unix_milliseconds = 2;
+}
 message TrackingJobStop { string job_id = 1; }
 message TrackingJobStatus {
   string job_id = 1;

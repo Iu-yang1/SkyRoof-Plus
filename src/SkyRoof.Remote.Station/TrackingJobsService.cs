@@ -11,6 +11,9 @@ public sealed class TrackingJobsService(TrackingJobRunner runner) : StationTrack
     public override Task<TrackingJobStatus> Status(TrackingJobQuery request, ServerCallContext context) =>
         runner.GetStatusAsync(context.CancellationToken);
 
+    public override Task<TrackingSnapshot> PredictAt(TrackingJobPredictionRequest request, ServerCallContext context) =>
+        runner.PredictAtAsync(request, context.CancellationToken);
+
     public override Task<TrackingJobStatus> Stop(TrackingJobStop request, ServerCallContext context) =>
         runner.StopJobAsync(request.JobId, context.CancellationToken);
 }

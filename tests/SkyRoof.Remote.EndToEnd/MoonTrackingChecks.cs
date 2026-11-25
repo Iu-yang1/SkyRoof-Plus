@@ -29,6 +29,7 @@ internal static class MoonTrackingChecks
         var applied = await hub.InvokeAsync<RemoteTrackingStatus>("ApplyTracking", request with { ElevationMaskDegrees = -90 });
         if (!applied.CatApplied || applied.ActualRxHz != moon.RxHz || applied.ActualTxHz != moon.TxHz || radio.Count("T 1") != ptt)
             throw new InvalidDataException("Moon CAT correction failed or keyed PTT.");
+        await MoonJobPredictionChecks.RunAsync(hub, request, radio);
         Console.WriteLine("PASS: packaged JPL DE430 Moon position/range/range-rate, CFOM and own-echo Doppler, real CAT readback without PTT.");
     }
 }

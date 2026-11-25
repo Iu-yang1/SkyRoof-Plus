@@ -16,6 +16,13 @@ public sealed partial class StationControlHub
         return await device.ReadTrackingJobAsync(Context.ConnectionAborted);
     }
 
+    public async Task<RemoteTrackingStatus> PredictTrackingJobAt(string jobId, long utcMilliseconds)
+    {
+        await VerifyCurrentSessionAsync(requireOperator: false);
+        try { return await device.PredictTrackingJobAtAsync(jobId, utcMilliseconds, Context.ConnectionAborted); }
+        catch (Grpc.Core.RpcException error) { throw new Microsoft.AspNetCore.SignalR.HubException(error.Status.Detail); }
+    }
+
     public async Task<RemoteTrackingJobStatus> StopTrackingJob(string jobId)
     {
         await VerifyCurrentSessionAsync(requireOperator: true);

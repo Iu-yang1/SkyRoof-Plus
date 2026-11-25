@@ -46,6 +46,15 @@ public sealed partial class StationDeviceBridge
         catch (RpcException ex) { throw new HubException(ex.Status.Detail); }
     }
 
+    internal async Task<RemoteTrackingStatus> PredictTrackingJobAtAsync(string jobId, long utcMilliseconds, CancellationToken ct)
+    {
+        var result = await Jobs.PredictAtAsync(new TrackingJobPredictionRequest
+        {
+            JobId = jobId, UtcUnixMilliseconds = utcMilliseconds
+        }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+        return MapTrackingStatus(result);
+    }
+
     private static RemoteTrackingJobStatus MapJob(TrackingJobStatus status) =>
         new(status.JobId, status.Running, status.Phase, status.CompletedTicks,
             status.Latest is null ? null : MapTrackingStatus(status.Latest),

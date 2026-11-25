@@ -12,6 +12,7 @@ public sealed record Q65AutoRequest
     public string Target { get; init; } = "";
     public int Attempts { get; init; } = 4;
     public long FrequencyHz { get; init; }
+    public string? TrackingJobId { get; init; }
     public float Gain { get; init; } = 0.5f;
     public bool Odd { get; init; }
     public Q65RxConfiguration Rx { get; init; } = new();
@@ -34,7 +35,7 @@ public static class Q65AutoEndpoints
         try
         {
             qso = Ft4QsoSequence.ForQ65(call, request.Grid ?? "", target, request.Attempts);
-            if (request.Rx is null || request.FrequencyHz <= 0 ||
+            if (request.Rx is null || (request.FrequencyHz <= 0 && string.IsNullOrWhiteSpace(request.TrackingJobId)) ||
                 !float.IsFinite(request.Gain) || request.Gain is < 0 or > 1)
                 throw new ArgumentException("Q65 automatic TX requires a receiver profile, RF frequency and PCM level.");
         }
