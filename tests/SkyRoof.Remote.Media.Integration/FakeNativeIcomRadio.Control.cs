@@ -62,5 +62,6 @@ internal sealed partial class FakeNativeIcomRadio
         BinaryPrimitives.WriteUInt16BigEndian(status.AsSpan(0x46, 2), (ushort)AudioPort);
         await _control.SendAsync(status, peer, ct);
         _controlSession = (peer, local);
+        await MaintainControlAsync(peer, local, ct);
     }
 }

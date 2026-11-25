@@ -28,7 +28,6 @@ internal static partial class DeviceIcomAudioProbe
                     info.Environment["SKYROOF_DEVICE_PIPE"] ?? throw new InvalidOperationException("Missing Device pipe."),
                     suffix, fake, deadline.Token);
             fake.FinishNativeCat();
-            await radioTask;
             var observed = new Dictionary<ulong, byte>();
             var cursor = new SignalCursor();
             for (int attempt = 0; attempt < 150 && observed.Count < 4; attempt++)
@@ -60,6 +59,9 @@ internal static partial class DeviceIcomAudioProbe
             Console.WriteLine("PASS: real UDP fake IC-9700 login/grant/CI-V/audio -> Device IPC -> Media SignalBus.");
             await fake.DisconnectControlAsync(deadline.Token);
             await AssertSourceEndedAsync(media, receipt.Epoch, deadline.Token);
+            await radioTask;
+            if (ft4Paths is not null && fake.RenewalCount == 0)
+                throw new InvalidDataException("Packaged FT4 did not exercise control token renewal.");
         }
         finally
         {
