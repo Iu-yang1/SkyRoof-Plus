@@ -31,8 +31,9 @@ internal static partial class CwLiveProbe
         input.ResetEpoch(71);
         var cursor = new SignalCursor();
         byte[] pcm = MakeWaveform(12);
+        var readback = WaitForTracksAndDecodeAsync(output, cursor, ct);
         await FeedAsync(input, pcm, ct);
-        await WaitForTracksAndDecodeAsync(output, cursor, ct);
+        await readback;
 
         ulong oldEpoch = output.StreamEpoch;
         input.ResetEpoch(72);
@@ -61,12 +62,14 @@ internal static partial class CwLiveProbe
     private static async Task WaitForTracksAndDecodeAsync(NamedSignalRing output,
         SignalCursor cursor, CancellationToken ct)
     {
-        while (true)
+        string last = "No CW result";
+        while (!ct.IsCancellationRequested)
         {
             while (output.TryReadNext(cursor, out var frame) && frame is not null)
             {
                 using var doc = JsonDocument.Parse(frame.Payload);
                 var state = doc.RootElement;
+                last = state.GetRawText();
                 if (state.GetProperty("sourceEpoch").GetUInt64() != 71 ||
                     !state.TryGetProperty("completedInferenceWindows", out var completed) ||
                     completed.GetInt64() == 0) continue;
@@ -77,8 +80,10 @@ internal static partial class CwLiveProbe
                     return;
                 }
             }
-            await Task.Delay(50, ct);
+            try { await Task.Delay(50, ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
         }
+        throw new TimeoutException("CW two-carrier/inference result missing. Last state: " + last);
     }
 
     private static bool HasTrack(JsonElement[] tracks, double frequency) =>

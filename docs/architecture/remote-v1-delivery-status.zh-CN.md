@@ -269,3 +269,12 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `67a6798` / `98e1aed`：Telemetry 独立 DSP、真实音频 IQ 前端、SkyTlm、UNNE-1B/FC1/ASRTU 业务解释、认证 API、Dockview 工作台与真实录音 CI。
 - 新增真实 AO-73 SignalBus 进程回归及配置代际隔离，详见 [Telemetry PCM](remote-v1-telemetry.zh-CN.md)。历史 FT4 修复基线 `454345c` 已 21/22 通过，整包仍 queued；最新 Q65 / Telemetry CI 未验证，不视为发布完成。
 - 剩余：Q65 自动 QSO 和 EME Doppler；Telemetry 自动 catalog/原始 SDR IQ、归档/KISS/上传/图像语音；SDR、ONVIF、多台站、WinForms IPC、生产安装与公网。保留 Draft。
+
+
+## 2026-11-25 — CI 收敛及 Telemetry 输出与目录
+
+- `454345c` [开发包 45515572745](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45515572745) 实际成功，22/22 全绿；FT4 自动 QSO 长会话修复完成。
+- `f854204` 19/24；[Q65 45518012062](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45518012062) 原生 30A/60B、15A 48 kHz slot/gap/epoch 通过；[Telemetry 45518011776](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45518011776) 四份真实录音及 AO-73 发布版 DSP 通过。Media/E2E/Package 同一 ASP0016 错误，浏览器旧标题，aislop 3 warnings。
+- `a899a84` 修复 GET delegate overload、标题回归、aislop 三告警；实际 [Media 45559459116](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459116)、[认证 E2E 45559459394](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459394)、[Browser 45559459144](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459144)、[aislop 45559459371](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459371) 全通过；整包待结果。独立 DSP 45559459128 的 CW 双载波测试超时，新增并行读取与最后状态诊断，保持双载波和实际推理门槛。
+- `7e0935f` / `5cc9bad` BIN/LOG、KISS TCP、真实 AO-73 字节一致性、HTTP GET 结果体。 `9012304` / `e571417` Station catalog 元数据映射、CCSDS 参数、Web Profile 选择及真实 HTTP fixture。见 [Telemetry](remote-v1-telemetry.zh-CN.md)。
+- Q65 60B AP / EME 延迟高级参数新回归（模拟 2.5s 月面往返延迟；非实际 EME）。原生解码与整包仍待最新 CI；不提前合并。
