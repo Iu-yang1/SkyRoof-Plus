@@ -105,6 +105,7 @@ app.MapLiveRfScope();
 app.MapFt4Results();
 app.MapQ65();
 app.MapTelemetry();
+app.MapCamera();
 app.MapCwResults();
 app.MapCwKeyer();
 app.MapStationCatalog();

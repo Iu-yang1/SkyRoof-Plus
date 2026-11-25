@@ -220,14 +220,18 @@ namespace SkyRoof
     private readonly Uri deviceEndpoint;
     private readonly string username;
     private readonly string password;
+    private readonly bool sameHostOnly;
     private readonly Dictionary<bool, Uri> mediaEndpoints = new();
 
-    internal OnvifProtocolClient(string endpoint, string username, string password)
+    internal OnvifProtocolClient(string endpoint, string username, string password, bool sameHostOnly = false)
     {
       if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? address) ||
           address.Scheme is not ("http" or "https"))
         throw new ArgumentException("ONVIF device endpoint must be an HTTP(S) URL.");
+      if (sameHostOnly && !string.IsNullOrEmpty(address.UserInfo))
+        throw new ArgumentException("ONVIF endpoint must not embed credentials.");
       deviceEndpoint = address;
+      this.sameHostOnly = sameHostOnly;
       this.username = username;
       this.password = password;
       var handler = new HttpClientHandler
@@ -295,6 +299,20 @@ namespace SkyRoof
       if (!Uri.TryCreate(text, UriKind.Absolute, out Uri? uri) ||
           uri.Scheme is not ("rtsp" or "rtsps"))
         throw new InvalidOperationException("Camera did not return a valid RTSP stream URI.");
+      return uri;
+    }
+
+    internal async Task<Uri> GetSnapshotUriAsync(OnvifMediaProfile profile, CancellationToken cancel)
+    {
+      if (!mediaEndpoints.ContainsKey(profile.Media2)) await ResolveServicesAsync(cancel);
+      if (!mediaEndpoints.TryGetValue(profile.Media2, out var endpoint))
+        throw new InvalidOperationException("ONVIF snapshot service unavailable.");
+      XNamespace service = profile.Media2 ? Media2Ns : Media1Ns;
+      var response = await SoapAsync(endpoint, service.NamespaceName, "GetSnapshotUri",
+        new XElement(service + "GetSnapshotUri", new XElement(service + "ProfileToken", profile.Token)), cancel);
+      string? value = response.Descendants().FirstOrDefault(x => x.Name.LocalName == "Uri")?.Value;
+      if (!TryServiceUri(value, out var uri) || uri is null)
+        throw new InvalidOperationException("Camera returned an invalid snapshot endpoint.");
       return uri;
     }
 
@@ -369,10 +387,12 @@ namespace SkyRoof
         throw new InvalidOperationException("ONVIF device does not advertise a compatible Media service.");
     }
 
-    private static bool TryServiceUri(string? text, out Uri? uri)
+    private bool TryServiceUri(string? text, out Uri? uri)
     {
       bool good = Uri.TryCreate(text, UriKind.Absolute, out uri)
-        && uri.Scheme is "http" or "https";
+        && uri.Scheme is "http" or "https"
+        && (!sameHostOnly || (uri.Host.Equals(deviceEndpoint.Host, StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrEmpty(uri.UserInfo)));
       if (!good) uri = null;
       return good;
     }
