@@ -5,12 +5,12 @@ namespace SkyRoof.Remote.Station;
 
 internal static class TrackingRadioLink
 {
-    internal static (long Rx, long Tx) Calculate(TrackingRequest request, double factor)
+    internal static (long Rx, long Tx) Calculate(TrackingRequest request, double factor, EmePathStatus? path = null)
     {
         double rxFactor = request.CorrectDownlink ? factor : 0;
         double txFactor = request.CorrectUplink ? factor : 0;
         if (request.CelestialTarget.Equals("MOON", StringComparison.OrdinalIgnoreCase))
-            return CalculateMoon(request, factor);
+            return path is null ? CalculateMoon(request, factor) : CalculateDxFixed(request, path);
         if (request.EmeDopplerMode.Length > 0)
             throw new ArgumentException("EME Doppler mode requires Moon target.");
         if (request.RadioLink is not { } link)
@@ -40,6 +40,13 @@ internal static class TrackingRadioLink
         };
         return (Rounded(RadioLinkMath.CorrectDownlink(request.DownlinkHz, rx, 0, 0)),
             Rounded(RadioLinkMath.CorrectUplink(request.UplinkHz, tx, 0, 0)));
+    }
+
+    private static (long Rx, long Tx) CalculateDxFixed(TrackingRequest request, EmePathStatus path)
+    {
+        double rx = request.CorrectDownlink ? request.DownlinkHz * path.ReceiveRatio : request.DownlinkHz;
+        double tx = request.CorrectUplink ? request.UplinkHz / path.TransmitRatio : request.UplinkHz;
+        return (Rounded(rx), Rounded(tx));
     }
 
     private static long? Edge(long hz) => hz switch

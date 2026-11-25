@@ -47,6 +47,7 @@ message TrackingRequest {
   string catalog_satellite_id = 14; // resolved by Station on each tracking tick
   string celestial_target = 15;
   string eme_doppler_mode = 16;
+  EmePeerSite eme_peer = 17;
 }
 message TrackingSnapshot {
   int32 norad_number = 1;
@@ -67,6 +68,7 @@ message TrackingSnapshot {
   string rotator_error = 16;
   string celestial_target = 17;
   double own_echo_delay_seconds = 18;
+  EmePathStatus eme_path = 19;
 }
 
 service StationTrackingJobs {
@@ -154,4 +156,17 @@ message CatalogTelemetryProfile {
   string rs_mode = 13;
   string scrambler_mode = 14;
   string decoder_protocol = 15;
+}
+
+message EmePeerSite {
+  double latitude_degrees = 1;
+  double longitude_degrees = 2;
+  double height_metres = 3;
+}
+message EmePathStatus {
+  double receive_ratio = 1;
+  double transmit_ratio = 2;
+  double incoming_delay_seconds = 3;
+  double outgoing_delay_seconds = 4;
+  double peer_elevation_degrees = 5;
 }

@@ -24,6 +24,7 @@ internal static class MoonTrackingChecks
         var echo = await hub.InvokeAsync<RemoteTrackingStatus>("PredictTracking", request with { EmeDopplerMode = "own-echo-rx" });
         if (echo.TxHz != request.UplinkHz || echo.RxHz != (long)Math.Round(request.DownlinkHz * (1 - 2 * factor)))
             throw new InvalidDataException("Moon own-echo correction invalid.");
+        await MoonDxTrackingChecks.RunAsync(hub, request);
         int ptt = radio.Count("T 1");
         var applied = await hub.InvokeAsync<RemoteTrackingStatus>("ApplyTracking", request with { ElevationMaskDegrees = -90 });
         if (!applied.CatApplied || applied.ActualRxHz != moon.RxHz || applied.ActualTxHz != moon.TxHz || radio.Count("T 1") != ptt)

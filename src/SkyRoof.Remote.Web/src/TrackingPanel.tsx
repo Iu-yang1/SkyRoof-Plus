@@ -11,6 +11,7 @@ type TrackingStatus = {
   ActualRxHz: number; ActualTxHz: number;
   ActualAzimuthDegrees: number | null; ActualElevationDegrees: number | null;
   RotatorError: string; CelestialTarget?: string; OwnEchoDelaySeconds?: number;
+  EmePath?: { ReceiveRatio: number; TransmitRatio: number; IncomingDelaySeconds: number; OutgoingDelaySeconds: number; PeerElevationDegrees: number };
 };
 
 type TrackingJob = {
@@ -102,6 +103,11 @@ export function TrackingPanel() {
         ElevationMaskDegrees: numeric(form.get('mask'), 'Elevation mask'),
         RadioLink: moon ? null : readRadioLink(form),
         CelestialTarget: moon ? 'MOON' : '', EmeDopplerMode: moon ? emeMode : '',
+        EmePeer: moon && emeMode === 'dx-fixed' ? {
+          LatitudeDegrees: numeric(form.get('peerLat'), 'DX latitude'),
+          LongitudeDegrees: numeric(form.get('peerLon'), 'DX longitude'),
+          HeightMetres: numeric(form.get('peerHeight'), 'DX height')
+        } : null,
         CatalogSatelliteId: !moon && useCatalogOrbit ? selection?.satellite.satelliteId ?? '' : ''
       };
       if (operation === 'start') {
@@ -142,8 +148,14 @@ export function TrackingPanel() {
         <option value="cfom">CONSTANT FREQUENCY ON MOON</option>
         <option value="own-echo-rx">OWN ECHO · RX CORRECTION</option>
         <option value="own-echo-tx">OWN ECHO · TX CORRECTION</option>
+        <option value="dx-fixed">DX STATION FIXED FREQUENCY</option>
         <option value="none">NONE</option>
       </select></label> : <RadioLinkOptions key={selectionRevision} seed={selection?.transmitter.link} />}
+      {moon && emeMode === 'dx-fixed' && <div className="tracking-grid">
+        <label>DX LAT °<input name="peerLat" type="number" min="-90" max="90" step="any" required /></label>
+        <label>DX LON °<input name="peerLon" type="number" min="-180" max="180" step="any" required /></label>
+        <label>DX HEIGHT m<input name="peerHeight" type="number" step="any" defaultValue="0" required /></label>
+      </div>}
       <label>INTERVAL ms<input name="interval" type="number" min="100" step="100" defaultValue="1000" required /></label>
       <div className="tracking-options">
         <label><input name="correctRx" type="checkbox" defaultChecked /> RX DOPPLER</label>
@@ -169,7 +181,8 @@ export function TrackingPanel() {
       {displayed.CatApplied && <p>CAT readback: {displayed.ActualRxHz} / {displayed.ActualTxHz} Hz</p>}
       {displayed.RotatorApplied && <p>Rotator readback: {displayed.ActualAzimuthDegrees} / {displayed.ActualElevationDegrees}°</p>}
       {displayed.RotatorError && <p className="error">{displayed.RotatorError}</p>}
-      {displayed.CelestialTarget && <small>OWN ECHO DELAY ≈ {displayed.OwnEchoDelaySeconds?.toFixed(3)} s · first-order local geometric Doppler</small>}
+      {displayed.EmePath && <div className="readout">DX EL {displayed.EmePath.PeerElevationDegrees.toFixed(2)}° · RX path {displayed.EmePath.IncomingDelaySeconds.toFixed(6)} s · TX path {displayed.EmePath.OutgoingDelaySeconds.toFixed(6)} s</div>}
+      {displayed.CelestialTarget && !displayed.EmePath && <small>OWN ECHO DELAY ≈ {displayed.OwnEchoDelaySeconds?.toFixed(3)} s · first-order local geometric Doppler</small>}
       <small>{displayed.DataQuality}</small>
     </div>}
     {error && <p className="error" role="alert">{error}</p>}

@@ -33,6 +33,7 @@ public sealed partial class OrbitTrackingCalculator
 
         var utc = DateTimeOffset.FromUnixTimeMilliseconds(request.UtcUnixMilliseconds);
         OrbitObservation observed;
+        EmePathStatus? emePath = null;
         int noradNumber;
         string orbitBackend, qualityPrefix;
         lock (_sync)
@@ -42,11 +43,12 @@ public sealed partial class OrbitTrackingCalculator
             var selected = _issOem.Select(backend, track, utc);
             orbitBackend = selected.Backend;
             qualityPrefix = source + selected.QualityPrefix;
-            observed = selected.Track.Observe(new GroundStationSpec(request.LatitudeDegrees,
-                request.LongitudeDegrees, request.HeightMetres), utc);
+            var local = new GroundStationSpec(request.LatitudeDegrees, request.LongitudeDegrees, request.HeightMetres);
+            observed = selected.Track.Observe(local, utc);
+            emePath = PredictEmePath(request, selected.Track, local, utc);
         }
         var factor = observed.RangeRateMetresPerSecond / RadioLinkMath.SpeedOfLightMetresPerSecond;
-        var frequencies = TrackingRadioLink.Calculate(request, factor);
+        var frequencies = TrackingRadioLink.Calculate(request, factor, emePath);
         if (frequencies.Rx == 0 && frequencies.Tx == 0)
             throw new ArgumentException("RadioLink requires at least one frequency.");
         return new TrackingSnapshot
@@ -62,6 +64,7 @@ public sealed partial class OrbitTrackingCalculator
             OrbitBackend = orbitBackend,
             DataQuality = qualityPrefix + observed.DataQuality,
             CelestialTarget = request.CelestialTarget.ToUpperInvariant(),
+            EmePath = emePath,
             OwnEchoDelaySeconds = request.CelestialTarget.Length > 0 ?
                 2 * observed.RangeMetres / RadioLinkMath.SpeedOfLightMetresPerSecond : 0
         };

@@ -9,7 +9,13 @@ public sealed record RemoteTrackingStatus(int NoradNumber, long UtcUnixMilliseco
     double RangeRateMetresPerSecond, long RxHz, long TxHz,
     string OrbitBackend, string DataQuality, bool CatApplied, bool RotatorApplied,
     long ActualRxHz, long ActualTxHz, double? ActualAzimuthDegrees,
-    double? ActualElevationDegrees, string RotatorError, string CelestialTarget = "", double OwnEchoDelaySeconds = 0);
+    double? ActualElevationDegrees, string RotatorError, string CelestialTarget = "", double OwnEchoDelaySeconds = 0)
+{
+    public RemoteEmePath? EmePath { get; init; }
+}
+
+public sealed record RemoteEmePath(double ReceiveRatio, double TransmitRatio,
+    double IncomingDelaySeconds, double OutgoingDelaySeconds, double PeerElevationDegrees);
 
 public sealed partial class StationDeviceBridge
 {
@@ -43,7 +49,9 @@ public sealed partial class StationDeviceBridge
             ElevationMaskDegrees = input.ElevationMaskDegrees,
             RadioLink = input.RadioLink?.ToIpc(),
             CatalogSatelliteId = input.CatalogSatelliteId ?? "",
-            CelestialTarget = input.CelestialTarget ?? "", EmeDopplerMode = input.EmeDopplerMode ?? ""
+            CelestialTarget = input.CelestialTarget ?? "", EmeDopplerMode = input.EmeDopplerMode ?? "",
+            EmePeer = input.EmePeer is { } peer ? new EmePeerSite { LatitudeDegrees = peer.LatitudeDegrees,
+                LongitudeDegrees = peer.LongitudeDegrees, HeightMetres = peer.HeightMetres } : null
         };
 
     private static RemoteTrackingStatus MapTrackingStatus(TrackingSnapshot result) => new RemoteTrackingStatus(result.NoradNumber, result.UtcUnixMilliseconds,
@@ -51,6 +59,10 @@ public sealed partial class StationDeviceBridge
                 result.RangeRateMetresPerSecond, result.RxHz, result.TxHz,
                 result.OrbitBackend, result.DataQuality, result.CatApplied, result.RotatorApplied,
                 result.ActualRxHz, result.ActualTxHz, result.RotatorReadback?.AzimuthDegrees,
-                result.RotatorReadback?.ElevationDegrees, result.RotatorError, result.CelestialTarget, result.OwnEchoDelaySeconds);
+                result.RotatorReadback?.ElevationDegrees, result.RotatorError, result.CelestialTarget, result.OwnEchoDelaySeconds)
+            {
+                EmePath = result.EmePath is { } path ? new RemoteEmePath(path.ReceiveRatio, path.TransmitRatio,
+                    path.IncomingDelaySeconds, path.OutgoingDelaySeconds, path.PeerElevationDegrees) : null
+            };
 
 }

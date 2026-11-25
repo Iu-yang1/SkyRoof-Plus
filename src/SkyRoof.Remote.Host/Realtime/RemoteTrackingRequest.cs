@@ -18,4 +18,7 @@ public sealed record RemoteTrackingRequest
     public string? CatalogSatelliteId { get; init; }
     public string? CelestialTarget { get; init; }
     public string? EmeDopplerMode { get; init; }
+    public RemoteEmePeer? EmePeer { get; init; }
 }
+
+public sealed record RemoteEmePeer(double LatitudeDegrees, double LongitudeDegrees, double HeightMetres);
