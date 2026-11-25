@@ -206,6 +206,7 @@ try
     Console.WriteLine("PASS: revoked Access Token terminates ongoing audio WSS.");
 
     Console.WriteLine("PASS: Identity/SQLite, token/code, SignalR MessagePack, binary WebSocket.");
+    await StationIsolationProbe.VerifyAsync(args.Single());
 }
 finally
 {

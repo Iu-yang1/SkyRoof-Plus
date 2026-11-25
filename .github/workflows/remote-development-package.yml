@@ -126,6 +126,9 @@ jobs:
         run: |
           ./deploy/remote/windows/New-RemotePackageManifest.ps1 -PackageRoot artifacts/remote-v1 -Revision $env:GITHUB_SHA
           ./deploy/remote/windows/Test-RemotePackage.ps1 -PackageRoot artifacts/remote-v1
+      - name: Verify real SCM upgrade and failed replacement rollback
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteServiceUpgrade.ps1 -PackageRoot artifacts/remote-v1
       - name: Compress after smoke passes
         shell: pwsh
         run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force

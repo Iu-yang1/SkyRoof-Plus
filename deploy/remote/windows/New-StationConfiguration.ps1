@@ -9,6 +9,7 @@ param(
     [switch]$Force
 )
 $ErrorActionPreference = 'Stop'
+$StationId = $StationId.ToLowerInvariant()
 $package = (Resolve-Path -LiteralPath $PackageRoot).Path
 $state = Join-Path ([IO.Path]::GetFullPath($DataRoot)) $StationId
 $config = Get-Content -LiteralPath $Template -Raw | ConvertFrom-Json -AsHashtable

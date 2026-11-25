@@ -18,12 +18,13 @@ try {
     $state = Join-Path $root 'state'
     $first = Join-Path $root 'alpha.json'
     $second = Join-Path $root 'beta.json'
-    & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId alpha -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $first -HttpPort 8076
+    & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId ALPHA -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $first -HttpPort 8076
     & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId beta -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $second -HttpPort 8077
     $a = Get-Content -LiteralPath $first -Raw | ConvertFrom-Json
     $b = Get-Content -LiteralPath $second -Raw | ConvertFrom-Json
     $ah = ($a.Processes | Where-Object Name -eq Host).Environment
     $bh = ($b.Processes | Where-Object Name -eq Host).Environment
+    if ($ah.SKYROOF_STATION_ID -cne 'alpha') { throw 'Station identifier was not canonicalized.' }
     foreach ($key in @('SKYROOF_STATION_PIPE','SKYROOF_RX_AUDIO_BUS','SKYROOF_Q65_RESULTS_BUS','SKYROOF_TELEMETRY_RESULTS_BUS','SKYROOF_AUTH_DB','SKYROOF_AUTH_KEYS_DIRECTORY','ASPNETCORE_URLS')) {
         if ($ah.$key -eq $bh.$key) { throw "Station collision: $key" }
     }
