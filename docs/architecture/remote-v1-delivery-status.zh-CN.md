@@ -262,3 +262,10 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `ddc5322` / `76e6870`：Q65 单时隙 PCM TX、奇偶 UTC 周期、SHA256/一次性 claim、32 MiB IPC，开发包依赖原生 Windows 构建并带 DLL、许可证、锁文件与源版本。首轮 native CI 45515729888 因源无 Cargo.lock 在编译前失败，已修复；首次 Q65 aislop 45515730153 评分100/0 errors/1 warning（索引循环），本次改为 foreach，不改变门禁。
 - `474711a`：新增发布包 Q65 15A 跨进程 RX、认证 TX 精确 UDP、UTC parity 与末帧 padding 验收，未取得最终运行结果。
 - [Q65 实现说明](remote-v1-q65.zh-CN.md)。待完成 Q65 AP 详情、自动 QSO、真实 EME/多普勒、Telemetry、SDR/ONVIF、多台站、WinForms IPC、生产安装器、迁移与公网实测。保持 Draft；不提前发布。API 签名未验证。
+
+## 2026-11-25 — Q65 advanced options 与 Remote Telemetry PCM
+
+- `89fe991` 将 Q65 AP 呼号、阶段、Max Drift/Pileup/fading 参数接入 native ABI。未完成 Q65 自动 QSO、月面多普勒。
+- `67a6798` / `98e1aed`：Telemetry 独立 DSP、真实音频 IQ 前端、SkyTlm、UNNE-1B/FC1/ASRTU 业务解释、认证 API、Dockview 工作台与真实录音 CI。
+- 新增真实 AO-73 SignalBus 进程回归及配置代际隔离，详见 [Telemetry PCM](remote-v1-telemetry.zh-CN.md)。历史 FT4 修复基线 `454345c` 已 21/22 通过，整包仍 queued；最新 Q65 / Telemetry CI 未验证，不视为发布完成。
+- 剩余：Q65 自动 QSO 和 EME Doppler；Telemetry 自动 catalog/原始 SDR IQ、归档/KISS/上传/图像语音；SDR、ONVIF、多台站、WinForms IPC、生产安装与公网。保留 Draft。

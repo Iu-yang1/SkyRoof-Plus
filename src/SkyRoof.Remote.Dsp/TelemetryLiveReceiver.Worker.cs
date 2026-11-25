@@ -16,7 +16,7 @@ public sealed partial class TelemetryLiveReceiver
                     try { Apply(configure); }
                     catch (Exception error) { configure.Reply.TrySetException(error); }
                 }
-                else if (work is Input input && _modem is not null)
+                else if (work is Input input && _modem is not null && input.ConfigurationVersion == _configurationVersion)
                 {
                     try { Process(input.Frame); }
                     catch (Exception error)
@@ -45,6 +45,7 @@ public sealed partial class TelemetryLiveReceiver
         catch { next?.Dispose(); throw; }
         _modem = next;
         _config = work.Config;
+        Interlocked.Increment(ref _configurationVersion);
         ++_generation;
         _epoch = 0;
         _next = 0;

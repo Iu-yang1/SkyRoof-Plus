@@ -11,7 +11,7 @@ namespace SkyRoof.Remote.Dsp;
 public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 {
     private abstract record Work;
-    private sealed record Input(SignalFrame Frame) : Work;
+    private sealed record Input(SignalFrame Frame, long ConfigurationVersion) : Work;
     private sealed record Configure(TelemetryRxConfiguration Config, TaskCompletionSource<TelemetryRxConfiguration> Reply) : Work;
     private readonly Channel<Work> _queue = Channel.CreateBounded<Work>(new BoundedChannelOptions(64)
         { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
@@ -24,6 +24,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
     private TelemetryModem? _modem;
     private TelemetryRxConfiguration _config = new();
     private long _generation;
+    private long _configurationVersion;
 
     public TelemetryLiveReceiver(int channels)
     {
@@ -36,7 +37,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 
     public void Accept(SignalFrame frame)
     {
-        if (_enabled && !_queue.Writer.TryWrite(new Input(frame))) Interlocked.Increment(ref _dropped);
+        if (_enabled && !_queue.Writer.TryWrite(new Input(frame, Volatile.Read(ref _configurationVersion)))) Interlocked.Increment(ref _dropped);
     }
 
     public async Task<TelemetryRxConfiguration> ConfigureAsync(TelemetryRxConfiguration request, CancellationToken ct)
