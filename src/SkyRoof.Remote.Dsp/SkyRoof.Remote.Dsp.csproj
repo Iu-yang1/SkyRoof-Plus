@@ -52,5 +52,14 @@
     <None Include="../../Vendor/ft4_coder/ft4_coder.dll" Link="ft4_coder.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../Vendor/ft4_coder/LICENSE" Link="licenses/ft4_coder-LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../Vendor/VE3NEA.Dsp/libfftw3f-3.dll;../../Vendor/VE3NEA.Dsp/libgcc_s_sjlj-1.dll;../../Vendor/VE3NEA.Dsp/libquadmath-0.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Reference Include="VE3NEA.Dsp"><HintPath>../../Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll</HintPath></Reference>
+    <Reference Include="VE3NEA.SkyTlm"><HintPath>../../Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll</HintPath></Reference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <None Include="../../Vendor/VE3NEA.Dsp/libliquid.dll;../../Vendor/VE3NEA.Dsp/fec.dll;../../Vendor/VE3NEA.Dsp/codec2.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Include="../../SkyRoof/DSP/TelemetryAudioConverters.cs" Link="Legacy/Telemetry/TelemetryAudioConverters.cs" />
+    <Compile Include="../../SkyRoof/DSP/Funcube1Telemetry.cs" Link="Legacy/Telemetry/Funcube1Telemetry.cs" />
+    <Compile Include="../../SkyRoof/DSP/Unne1bTelemetry.cs" Link="Legacy/Telemetry/Unne1bTelemetry.cs" />
+    <Compile Include="../../SkyRoof/DSP/Unne1bDeframer.cs" Link="Legacy/Telemetry/Unne1bDeframer.cs" />
+    <Compile Include="../../SkyRoof/DSP/AsrtuTmShortKissTransport.cs" Link="Legacy/Telemetry/AsrtuTmShortKissTransport.cs" />
   </ItemGroup>
 </Project>

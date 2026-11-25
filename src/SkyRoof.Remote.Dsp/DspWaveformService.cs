@@ -5,8 +5,16 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Dsp;
 
-public sealed partial class DspWaveformService(CwLiveReceiver cw, Q65LiveReceiver q65) : DspWaveform.DspWaveformBase
+public sealed partial class DspWaveformService(CwLiveReceiver cw, Q65LiveReceiver q65, TelemetryLiveReceiver telemetry) : DspWaveform.DspWaveformBase
 {
+    public override async Task<TelemetryRxConfiguration> ConfigureTelemetry(TelemetryRxConfiguration request, ServerCallContext context)
+    {
+        try { return await telemetry.ConfigureAsync(request, context.CancellationToken); }
+        catch (ArgumentException e) { throw new RpcException(new Status(StatusCode.InvalidArgument, e.Message)); }
+        catch (Exception e) when (e is InvalidDataException or DllNotFoundException or EntryPointNotFoundException)
+        { throw new RpcException(new Status(StatusCode.Unavailable, e.Message)); }
+    }
+
     public override Task<Q65RxConfiguration> ConfigureQ65(Q65RxConfiguration request, ServerCallContext context)
     {
         try { return Task.FromResult(q65.Configure(request)); }

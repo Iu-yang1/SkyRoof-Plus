@@ -3,6 +3,7 @@ package skyroof.remote.ipc.v1;
 option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service DspWaveform {
+  rpc ConfigureTelemetry(TelemetryRxConfiguration) returns (TelemetryRxConfiguration);
   rpc EncodeQ65(Q65EncodeRequest) returns (Q65EncodedWaveform);
   rpc ConfigureQ65(Q65RxConfiguration) returns (Q65RxConfiguration);
   rpc GetCwHistory(CwHistoryRequest) returns (CwHistoryReply);
@@ -68,4 +69,25 @@ message Q65EncodedWaveform {
   EncodedWaveform waveform = 1;
   int32 slot_seconds = 2;
   int32 tx_start_samples_12k = 3;
+}
+
+message TelemetryRxConfiguration {
+  bool enabled = 1;
+  int32 norad_id = 2;
+  string satellite = 3;
+  string transmitter = 4;
+  string modulation = 5;
+  string framing = 6;
+  double baud = 7;
+  string input = 8;
+  int32 center_hz = 9;
+  double deviation_hz = 10;
+  bool differential = 11;
+  bool manchester = 12;
+  int64 downlink_hz = 13;
+  double af_carrier_hz = 14;
+  string convolutional = 15;
+  int32 frame_size = 16;
+  int32 rs_interleaving = 17;
+  string rs_basis = 18;
 }

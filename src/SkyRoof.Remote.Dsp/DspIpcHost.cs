@@ -8,7 +8,7 @@ namespace SkyRoof.Remote.Dsp;
 
 internal static class DspIpcHost
 {
-    public static async Task<WebApplication> StartAsync(CwLiveReceiver cw, Q65LiveReceiver q65)
+    public static async Task<WebApplication> StartAsync(CwLiveReceiver cw, Q65LiveReceiver q65, TelemetryLiveReceiver telemetry)
     {
         string pipe = Environment.GetEnvironmentVariable("SKYROOF_DSP_PIPE") ?? "skyroof-station-dsp";
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -19,6 +19,7 @@ internal static class DspIpcHost
             server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));
         builder.Services.AddSingleton(cw);
         builder.Services.AddSingleton(q65);
+        builder.Services.AddSingleton(telemetry);
         builder.Services.AddGrpc();
         var app = builder.Build();
         app.MapGrpcService<DspWaveformService>();

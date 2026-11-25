@@ -33,7 +33,8 @@ if (channels is < 1 or > 2) throw new ArgumentException("Invalid RX channel coun
 
 await using var cw = new CwLiveReceiver(channels);
 await using var q65 = new Q65LiveReceiver(channels);
-await using var ipc = await DspIpcHost.StartAsync(cw, q65);
+await using var telemetry = new TelemetryLiveReceiver(channels);
+await using var ipc = await DspIpcHost.StartAsync(cw, q65, telemetry);
 using var spectrum = new NamedSignalRing(outputName, slots: 64, payloadCapacity: 4096,
     initialEpoch: (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
 var analyzer = new AudioSpectrumTransform();
@@ -63,6 +64,7 @@ while (true)
             ft4.Accept(frame);
             cw.Accept(frame);
             q65.Accept(frame);
+            telemetry.Accept(frame);
             var oldDiscontinuities = analyzer.Discontinuities;
             analyzer.Accept(frame, channels, (firstSample, db) =>
                 {
