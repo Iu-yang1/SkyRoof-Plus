@@ -10,6 +10,7 @@ internal static partial class TelemetryArchiveEndpoints
     internal static void MapArchive(WebApplication app)
     {
         app.MapGet(Route, ListAsync).RequireAuthorization();
+        app.MapGet("/api/v1/dsp/telemetry/product/{id:guid}/{format}", ProductAsync).RequireAuthorization();
         app.MapGet(Route + "/{norad:int}/{day}/{stem}/{format}", DownloadAsync).RequireAuthorization();
     }
 
@@ -52,6 +53,19 @@ internal static partial class TelemetryArchiveEndpoints
         }
         catch (IOException) { return Results.Problem(title: "Archive temporarily unavailable", statusCode: 503); }
         catch (UnauthorizedAccessException) { return Results.Problem(title: "Archive access failed", statusCode: 503); }
+    }
+
+    private static async Task<IResult> ProductAsync(Guid id, string format, HttpContext context)
+    {
+        if (!await LiveAudioWebSocket.StillAuthorizedAsync(context)) return Results.Forbid();
+        string? type = format switch { "jpg" => "image/jpeg", "png" => "image/png",
+            "wav" => "audio/wav", "txt" => "text/plain; charset=utf-8", _ => null };
+        if (type is null) return Results.BadRequest();
+        string file = Path.Combine(Root(), "_products", id.ToString("N") + "." + format);
+        if (!File.Exists(file)) return Results.NotFound();
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return Results.File(file, type, enableRangeProcessing: true);
     }
 
     private static async Task<IResult> DownloadAsync(int norad, string day, string stem, string format, HttpContext context)

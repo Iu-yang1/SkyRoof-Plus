@@ -1,0 +1,42 @@
+using System.Drawing.Imaging;
+using MathNet.Numerics;
+using VE3NEA.SkySSTV;
+
+namespace SkyRoof.Remote.Dsp;
+
+internal sealed class TelemetrySstvAssembler : IDisposable
+{
+    private readonly SstvDecoder _decoder = new();
+    private readonly TelemetryAfskFmIqConverter _audio = new(3300);
+    private bool _flushed;
+
+    internal TelemetrySstvAssembler(Action<TelemetryMediaProduct> publish)
+    {
+        _decoder.ImageCompleted += image =>
+        {
+            if (image.ValidRows <= 0) return;
+            using var bitmap = image.Image.ToBitmap();
+            using var output = new MemoryStream();
+            bitmap.Save(output, ImageFormat.Png);
+            int received = image.Planes?.RowRendered.Count(row => row) ?? image.ValidRows;
+            publish(new("png", output.ToArray(), $"SSTV {image.Mode} · {image.Image.Width}×{image.Image.Height}",
+                received, image.Image.Height, received == image.Image.Height));
+        };
+    }
+
+    internal void PushAudio(ReadOnlySpan<float> samples) => PushIq(_audio.Convert(samples));
+    internal void PushIq(ReadOnlySpan<Complex32> samples) => _decoder.Process(samples);
+
+    internal void Flush()
+    {
+        if (_flushed) return;
+        _flushed = true;
+        _decoder.Flush();
+    }
+
+    public void Dispose()
+    {
+        Flush();
+        _decoder.Dispose();
+    }
+}

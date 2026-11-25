@@ -49,7 +49,9 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 
     public async Task<TelemetryRxConfiguration> ConfigureAsync(TelemetryRxConfiguration request, CancellationToken ct)
     {
-        if (request.Enabled) _ = TelemetryModem.CreateSignal(request);
+        if (request.Enabled && !request.SstvOnly) _ = TelemetryModem.CreateSignal(request);
+        if (request.Enabled && (request.DecodeSstv || request.SstvOnly) && request.Input is not ("fm-discriminator" or "iq-cf32"))
+            throw new ArgumentException("SSTV requires FM discriminator audio or CF32 IQ.");
         if (request.KissPort is < 0 or > 65535) throw new ArgumentException("Invalid KISS TCP port.");
         if (request.Enabled && request.UploadSatnogs && (!_satnogs.Ready || request.NoradId <= 0))
             throw new ArgumentException("SatNOGS requires station token, callsign, grid and NORAD ID.");

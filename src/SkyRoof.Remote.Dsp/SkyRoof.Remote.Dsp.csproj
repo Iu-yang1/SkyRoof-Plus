@@ -54,6 +54,8 @@
     <None Include="../../Vendor/VE3NEA.Dsp/libfftw3f-3.dll;../../Vendor/VE3NEA.Dsp/libgcc_s_sjlj-1.dll;../../Vendor/VE3NEA.Dsp/libquadmath-0.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Reference Include="VE3NEA.Dsp"><HintPath>../../Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll</HintPath></Reference>
     <Reference Include="VE3NEA.SkyTlm"><HintPath>../../Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll</HintPath></Reference>
+    <Reference Include="VE3NEA.SkySSTV"><HintPath>../../Vendor/VE3NEA.SkySignals/VE3NEA.SkySSTV.dll</HintPath></Reference>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
     <PackageReference Include="NAudio" Version="2.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <None Include="../../Vendor/VE3NEA.Dsp/libliquid.dll;../../Vendor/VE3NEA.Dsp/fec.dll;../../Vendor/VE3NEA.Dsp/codec2.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

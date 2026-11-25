@@ -10,6 +10,7 @@ internal sealed class TelemetryArchiveHttpProbe : IDisposable
     private const string Incomplete = Day + "_010002_000_00000003_abcdef12";
     private const string Route = "/api/v1/dsp/telemetry/archive";
     private readonly string _root = Path.Combine(Path.GetTempPath(), "skyroof-archive-" + Guid.NewGuid().ToString("N"));
+    private static readonly Guid Product = Guid.Parse("abcdef12-3456-7890-abcd-ef1234567890");
     private static readonly byte[] Payload = [0xc0, 0xdb, 1, 2];
 
     internal void Configure(ProcessStartInfo info)
@@ -21,6 +22,9 @@ internal sealed class TelemetryArchiveHttpProbe : IDisposable
             File.WriteAllBytes(Path.Combine(folder, stem + ".bin"), Payload);
             File.WriteAllText(Path.Combine(folder, stem + (stem == Incomplete ? ".log.part" : ".log")), "CRC/FEC: OK");
         }
+        string media = Path.Combine(_root, "_products");
+        Directory.CreateDirectory(media);
+        File.WriteAllBytes(Path.Combine(media, Product.ToString("N") + ".wav"), Payload);
         info.Environment["SKYROOF_TELEMETRY_ARCHIVE_DIRECTORY"] = _root;
     }
 
@@ -47,7 +51,14 @@ internal sealed class TelemetryArchiveHttpProbe : IDisposable
         using var incomplete = await authenticated.GetAsync(Route + "/39444/" + Day + "/" + Incomplete + "/bin");
         if (invalid.StatusCode != HttpStatusCode.BadRequest || incomplete.StatusCode != HttpStatusCode.NotFound)
             throw new InvalidDataException("Invalid or incomplete archive record exposed.");
-        Console.WriteLine("PASS: authenticated archive pagination, exact BIN/LOG download and incomplete record exclusion.");
+        string product = "/api/v1/dsp/telemetry/product/" + Product.ToString("N") + "/wav";
+        using var deniedProduct = await anonymous.GetAsync(product);
+        using var receivedProduct = await authenticated.GetAsync(product);
+        if (deniedProduct.StatusCode != HttpStatusCode.Unauthorized ||
+            receivedProduct.Content.Headers.ContentType?.MediaType != "audio/wav" ||
+            !(await receivedProduct.Content.ReadAsByteArrayAsync()).SequenceEqual(Payload))
+            throw new InvalidDataException("Media product authentication or content delivery failed.");
+        Console.WriteLine("PASS: authenticated archive pagination, exact BIN/LOG/media download and incomplete record exclusion.");
     }
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }

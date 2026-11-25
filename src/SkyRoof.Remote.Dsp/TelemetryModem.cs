@@ -6,17 +6,29 @@ namespace SkyRoof.Remote.Dsp;
 
 internal sealed class TelemetryModem : IDisposable
 {
-    private readonly StreamingPipeline _pipeline;
+    private readonly StreamingPipeline? _pipeline;
+    private readonly TelemetryMediaAssembler? _media;
+    private readonly TelemetrySstvAssembler? _sstv;
     private delegate Complex32[] ConvertPcm(ReadOnlySpan<float> pcm);
     private readonly ConvertPcm? _convert;
     private readonly Action<Frame, bool> _frame;
     private readonly AsrtuTmShortKissTransport? _asrtu;
     private readonly bool _unne;
 
-    public TelemetryModem(TelemetryRxConfiguration config, Action<Frame, bool> frame)
+    public TelemetryModem(TelemetryRxConfiguration config, Action<Frame, bool> frame,
+        Action<TelemetryMediaProduct>? product = null)
     {
         _frame = frame;
+        if (config.DecodeSstv || config.SstvOnly)
+        {
+            if (config.Input is not ("fm-discriminator" or "iq-cf32"))
+                throw new ArgumentException("SSTV requires FM discriminator audio or CF32 IQ.");
+            if (product is not null) _sstv = new TelemetrySstvAssembler(product);
+        }
+        if (config.SstvOnly) return;
         var signal = CreateSignal(config);
+        if (config.DecodeMedia && product is not null && !IsUnne(config))
+            _media = new TelemetryMediaAssembler(signal, config.NoradId, product);
         _unne = IsUnne(config) && signal.Framing == Framing.HADES;
         if (config.NoradId == 61781 && signal.Framing == Framing.CCSDS && config.DownlinkHz == 435400000)
             _asrtu = new AsrtuTmShortKissTransport();
@@ -81,11 +93,17 @@ internal sealed class TelemetryModem : IDisposable
 
     public void Push(ReadOnlySpan<float> pcm)
     {
+        _sstv?.PushAudio(pcm);
+        if (_pipeline is null) return;
         Complex32[] iq = (_convert ?? throw new InvalidOperationException("PCM cannot feed complex IQ mode."))(pcm);
         _pipeline.Push(iq);
     }
 
-    public void PushIq(ReadOnlySpan<Complex32> iq) => _pipeline.Push(iq);
+    public void PushIq(ReadOnlySpan<Complex32> iq)
+    {
+        _pipeline?.Push(iq);
+        _sstv?.PushIq(iq);
+    }
 
     private static StreamingOptions BuildUnneOptions(SignalParams signal, out bool native)
     {
@@ -105,10 +123,25 @@ internal sealed class TelemetryModem : IDisposable
     private void OnFrame(Frame frame)
     {
         _frame(frame, false);
+        _media?.Push(frame);
         if (_asrtu is not null)
             foreach (var inner in _asrtu.Push(frame)) _frame(inner, true);
     }
 
-    public void Flush() => _pipeline.Flush();
-    public void Dispose() => _pipeline.Dispose();
+    public void Flush()
+    {
+        _pipeline?.Flush();
+        _media?.Flush();
+        _sstv?.Flush();
+    }
+
+    public void Dispose()
+    {
+        try { _pipeline?.Dispose(); }
+        finally
+        {
+            try { _media?.Dispose(); }
+            finally { _sstv?.Dispose(); }
+        }
+    }
 }

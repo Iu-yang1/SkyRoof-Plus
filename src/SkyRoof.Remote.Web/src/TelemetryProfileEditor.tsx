@@ -33,6 +33,9 @@ export function TelemetryProfileEditor({ config, onChange }: { config: Telemetry
         {['CCSDS','CCSDS uninverted','NASA-DSN','NASA-DSN uninverted'].map(v => <option key={v}>{v}</option>)}</select></label>
     </details>}
     <label><input type="checkbox" checked={config.manchester} onChange={e => onChange({ ...config, manchester: e.target.checked })} /> MANCHESTER</label>
+    <label><input type="checkbox" checked={config.decodeMedia} onChange={e => onChange({ ...config, decodeMedia: e.target.checked })} /> DECODE SSDV / JPEG / CODEC2</label>
+    <label><input type="checkbox" checked={config.decodeSstv} onChange={e => onChange({ ...config, decodeSstv: e.target.checked, sstvOnly: e.target.checked && config.sstvOnly })} /> DECODE SSTV (FM / IQ)</label>
+    {config.decodeSstv && <label><input type="checkbox" checked={config.sstvOnly} onChange={e => onChange({ ...config, sstvOnly: e.target.checked })} /> SSTV ONLY</label>}
     <label><input type="checkbox" checked={config.saveFrames} onChange={e => onChange({ ...config, saveFrames: e.target.checked })} /> SAVE BIN + LOG ON STATION</label>
     <label>KISS TCP PORT (0=OFF) <input type="number" min={0} max={65535} value={config.kissPort} onChange={e => onChange({ ...config, kissPort: Number(e.target.value) })} /></label>
     <label><input type="checkbox" checked={config.uploadSatnogs} onChange={e => onChange({ ...config, uploadSatnogs: e.target.checked })} /> SUBMIT TO SATNOGS (station credentials)</label>

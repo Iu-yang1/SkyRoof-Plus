@@ -98,6 +98,9 @@ message TelemetryRxConfiguration {
   string scrambler_mode = 23;
   string decoder_protocol = 24;
   bool upload_satnogs = 25;
+  bool decode_media = 26;
+  bool decode_sstv = 27;
+  bool sstv_only = 28;
 }
 
 message TelemetryIqBlock {

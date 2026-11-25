@@ -1,11 +1,12 @@
 import { useContext, useEffect, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { telemetryProfiles, type TelemetryConfig } from './TelemetryProfiles';
+import { TelemetryMediaPanel, type TelemetryProduct } from './TelemetryMediaPanel';
 import { TelemetryArchivePanel } from './TelemetryArchivePanel';
 import { TelemetryProfileEditor } from './TelemetryProfileEditor';
 import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
 
-type Frame = { state: string; config?: TelemetryConfig; utc?: string; generation?: number; length?: number;
+type Frame = Partial<TelemetryProduct> & { state: string; config?: TelemetryConfig; utc?: string; generation?: number; length?: number;
   hex?: string; crcValid?: boolean | null; snrDb?: number | null; cfoHz?: number | null;
   outputs?: { archiveSaved: number; archiveErrors: number; kissPort: number; kissClients: number; kissError: string; satnogs?: { ready: boolean; sent: number; failed: number; dropped: number; last: string } };
   fields?: { name: string; value: string }[]; framing?: string; note?: string; error?: string };
@@ -81,6 +82,7 @@ export function TelemetryPanel() {
     {detail && <><p>{detail.config?.satellite} · {detail.framing} · {detail.snrDb?.toFixed(1)} dB · CFO {detail.cfoHz?.toFixed(1)} Hz</p>
       <p>{detail.note}</p><table><tbody>{detail.fields?.map((field, i) => <tr key={i}><th>{field.name}</th><td>{field.value}</td></tr>)}</tbody></table>
       <textarea readOnly value={detail.hex ?? ''} rows={5} aria-label="Decoded payload HEX" /></>}
+    <TelemetryMediaPanel available={available} products={results.filter((f): f is Frame & TelemetryProduct => f.state === 'media' && !!f.id && !!f.format).reverse()} />
     <TelemetryArchivePanel available={available} norad={config.noradId} />
   </section>;
 }

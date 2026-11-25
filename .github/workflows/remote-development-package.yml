@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
       - name: Build pinned UNNE telemetry runtime
         shell: pwsh
-        run: ./scripts/stage-skytlm-fork.ps1
+        run: ./scripts/stage-skytlm-fork.ps1 -IncludeSstv
       - name: Build Dockview frontend
         shell: pwsh
         run: |
@@ -75,6 +75,8 @@ jobs:
         run: |
           dotnet artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll --q65-self-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify actual SSDV / Codec2 / SSTV media decoder
+        run: dotnet artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll --telemetry-media-test SkySignals-Plus/VE3NEA.SkyTlm.Tests/Data/Ssdv
       - name: Run real Chromium RTC media integration from packaged Host
         shell: pwsh
         run: |

@@ -23,8 +23,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/checkout@v4
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
+          path: SkySignals-Plus
+          persist-credentials: false
+      - run: ./scripts/stage-skytlm-fork.ps1 -IncludeSstv
       - run: dotnet publish src/SkyRoof.Remote.Dsp -c Release -r win-x64 --self-contained false -o artifacts/telemetry -warnaserror
       - run: dotnet artifacts/telemetry/SkyRoof.Remote.Dsp.dll --telemetry-recorded-test recorded-rf
+      - run: dotnet artifacts/telemetry/SkyRoof.Remote.Dsp.dll --telemetry-media-test SkySignals-Plus/VE3NEA.SkyTlm.Tests/Data/Ssdv
       - run: dotnet build tests/SkyRoof.Remote.Dsp.Integration -c Release -warnaserror
       - name: Replay off-air PCM across the deployed DSP SignalBus
         shell: pwsh

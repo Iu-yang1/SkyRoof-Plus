@@ -10,6 +10,11 @@ if (args is ["--telemetry-recorded-test", var directory])
     TelemetryCommand.VerifyRecordedAudio(directory);
     return;
 }
+if (args is ["--telemetry-media-test", var corpus])
+{
+    TelemetryMediaSelfTest.Run(corpus);
+    return;
+}
 if (args is ["--q65-self-test"])
 {
     Q65Command.SelfTest();

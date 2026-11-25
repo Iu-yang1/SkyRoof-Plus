@@ -40,7 +40,7 @@ public sealed partial class TelemetryLiveReceiver
     private async Task ApplyAsync(Configure work)
     {
         // Build first so an invalid profile cannot tear down a working receiver.
-        var next = work.Config.Enabled ? new TelemetryModem(work.Config, FrameDecoded) : null;
+        var next = work.Config.Enabled ? new TelemetryModem(work.Config, FrameDecoded, MediaDecoded) : null;
         try
         {
             _modem?.Flush();
@@ -71,7 +71,7 @@ public sealed partial class TelemetryLiveReceiver
             if (_epoch != 0)
             {
                 _modem?.Dispose();
-                _modem = new TelemetryModem(_config, FrameDecoded);
+                _modem = new TelemetryModem(_config, FrameDecoded, MediaDecoded);
                 ++_generation;
                 Publish(new { state = "discontinuity", config = _config, generation = _generation,
                     droppedBlocks = Interlocked.Read(ref _dropped) });
