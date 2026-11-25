@@ -54,7 +54,10 @@ internal sealed partial class OnvifProtocolClient
                     return endpoint;
             }
         }
-        catch (HttpRequestException) { }
+        catch (HttpRequestException error)
+        {
+            System.Diagnostics.Trace.TraceInformation("ONVIF PTZ GetServices failed; trying GetCapabilities ({0}).", error.GetType().Name);
+        }
         var capabilities = await SoapAsync(deviceEndpoint, DeviceNs, "GetCapabilities",
             new XElement(device + "GetCapabilities", new XElement(device + "Category", "PTZ")), cancel);
         var ptz = capabilities.Descendants().FirstOrDefault(x => x.Name.LocalName == "PTZ");

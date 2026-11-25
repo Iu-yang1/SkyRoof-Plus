@@ -31,6 +31,7 @@ $shared = @{
     SKYROOF_CW_RESULTS_BUS = "$ns-cw"
     SKYROOF_Q65_RESULTS_BUS = "$ns-q65"
     SKYROOF_TELEMETRY_RESULTS_BUS = "$ns-telemetry"
+    SKYROOF_TELEMETRY_ARCHIVE_DIRECTORY = Join-Path $state 'telemetry'
 }
 foreach ($process in $config.Processes) {
     $part = $process.Name

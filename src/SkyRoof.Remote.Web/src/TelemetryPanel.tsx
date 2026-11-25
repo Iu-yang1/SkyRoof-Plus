@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { telemetryProfiles, type TelemetryConfig } from './TelemetryProfiles';
+import { TelemetryArchivePanel } from './TelemetryArchivePanel';
 import { TelemetryProfileEditor } from './TelemetryProfileEditor';
 import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
 
@@ -80,5 +81,6 @@ export function TelemetryPanel() {
     {detail && <><p>{detail.config?.satellite} · {detail.framing} · {detail.snrDb?.toFixed(1)} dB · CFO {detail.cfoHz?.toFixed(1)} Hz</p>
       <p>{detail.note}</p><table><tbody>{detail.fields?.map((field, i) => <tr key={i}><th>{field.name}</th><td>{field.value}</td></tr>)}</tbody></table>
       <textarea readOnly value={detail.hex ?? ''} rows={5} aria-label="Decoded payload HEX" /></>}
+    <TelemetryArchivePanel available={available} norad={config.noradId} />
   </section>;
 }

@@ -32,6 +32,8 @@ processInfo.Environment["SKYROOF_AUTH_DB"] = database;
 processInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = busName;
 processInfo.Environment["SKYROOF_AF_SPECTRUM_BUS"] = afBusName;
 digital.Configure(processInfo);
+using var archive = new TelemetryArchiveHttpProbe();
+archive.Configure(processInfo);
 camera.Configure(processInfo);
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_USER"] = "station-admin";
 processInfo.Environment["SKYROOF_BOOTSTRAP_ADMIN_PASSWORD"] = "ExampleStationAdminPassw0rd!";
@@ -73,6 +75,7 @@ try
         HttpStatusCode.ServiceUnavailable,
         "Host hid missing Media IPC instead of reporting it as 503.");
     await digital.VerifyAsync(anon, user);
+    await archive.VerifyAsync(anon, user);
     await CameraHttpFixture.VerifyAsync(anon, user);
     var created = await user.PostAsJsonAsync("/api/v1/auth/tokens", new { name = "CI test" });
     created.EnsureSuccessStatusCode();

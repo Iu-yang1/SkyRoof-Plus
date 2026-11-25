@@ -137,8 +137,19 @@ namespace SkyRoof
             $"Note: {entry.Note}\n" +
             $"Binary: {Path.GetFileName(bin)}\n" +
             $"HEX: {Convert.ToHexString(entry.Bytes)}\n";
+#if SKYROOF_REMOTE_DSP
+          // Publish the metadata last, atomically; readers only list complete pairs.
+          string pending = log + ".part";
+          try
+          {
+            await File.WriteAllTextAsync(pending, metadata, new UTF8Encoding(false)).ConfigureAwait(false);
+            File.Move(pending, log);
+          }
+          finally { if (File.Exists(pending)) File.Delete(pending); }
+#else
           await File.WriteAllTextAsync(log, metadata, new UTF8Encoding(false))
             .ConfigureAwait(false);
+#endif
           Interlocked.Increment(ref saved);
         }
         catch (Exception e)
