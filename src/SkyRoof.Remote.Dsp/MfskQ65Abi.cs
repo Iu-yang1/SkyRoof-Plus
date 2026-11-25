@@ -30,6 +30,24 @@ internal static unsafe class MfskQ65Abi
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal struct Extras
+    {
+        public uint Size;
+        public float SyncMin;
+        public uint MaxCandidates;
+        public int Osd, Strictness;
+        public uint Strategy, SicRounds, EqMode, MessageFilter, A7;
+        public float SniperHz;
+        public uint HasApHint;
+        public fixed byte ApCall1[16], ApCall2[16], ApGrid[16], ApReport[16];
+        public uint NbPercent, NbSweepStep;
+        public float NbFtolHz, Early, Late, ScoreThreshold;
+        public uint MaxCyclesPerBit, ChaseTrials, Pileup, MaxDrift;
+        public float FadingB90Ts;
+        public uint FadingModel;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal struct Row
     {
         public uint Size, Mode;
@@ -54,6 +72,8 @@ internal static unsafe class MfskQ65Abi
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int mfsk_encode(uint mode, [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
         uint flags, uint sampleRate, float frequency, float* output, nuint capacity, out nuint count);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int mfsk_extras_init(ref Extras extras);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint mfsk_decoder_open(uint mode, ref Params parameters, nint extras, out int status);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

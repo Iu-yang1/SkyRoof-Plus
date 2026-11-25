@@ -1,4 +1,5 @@
 using System.Text;
+using SkyRoof.Remote.Ipc;
 using static SkyRoof.Remote.Dsp.MfskQ65Abi;
 
 namespace SkyRoof.Remote.Dsp;
@@ -10,14 +11,32 @@ internal sealed unsafe class Q65Decoder : IDisposable
 
     public Q65Decoder(Q65Geometry geometry, float rxHz = 1500, float tolerance = 100,
         bool averaging = false, bool emeDelay = false)
+        : this(geometry, new Q65RxConfiguration { RxHz = rxHz, ToleranceHz = tolerance,
+            Averaging = averaging, EmeDelay = emeDelay }) { }
+
+    public Q65Decoder(Q65Geometry geometry, Q65RxConfiguration config)
     {
         _geometry = geometry;
         var parameters = new Params { Size = (uint)sizeof(Params) };
         Q65Codec.Check(mfsk_params_init(geometry.Mode, ref parameters));
-        parameters.RxFrequency = rxHz;
-        parameters.Tolerance = tolerance;
-        parameters.Flags = (parameters.Flags & ~5u) | (averaging ? 1u : 0) | (emeDelay ? 4u : 0);
-        _handle = mfsk_decoder_open(geometry.Mode, ref parameters, 0, out int status);
+        parameters.RxFrequency = config.RxHz;
+        parameters.Tolerance = config.ToleranceHz;
+        parameters.Flags = (parameters.Flags & ~5u) | (config.Averaging ? 1u : 0) | (config.EmeDelay ? 4u : 0);
+        parameters.ApMode = config.ApMode;
+        parameters.QsoProgress = config.QsoProgress;
+        CopyAscii(config.MyCall, parameters.MyCall, 16);
+        CopyAscii(config.HisCall, parameters.HisCall, 16);
+        CopyAscii(config.HisGrid, parameters.HisGrid, 8);
+        var extras = new Extras { Size = (uint)sizeof(Extras) };
+        Q65Codec.Check(mfsk_extras_init(ref extras));
+        extras.MaxDrift = config.MaxDrift;
+        extras.Pileup = config.Pileup ? 1u : 0;
+        if (config.FadingB90Ts > 0)
+        {
+            extras.FadingB90Ts = config.FadingB90Ts;
+            extras.FadingModel = config.Lorentzian ? 1u : 0;
+        }
+        _handle = mfsk_decoder_open(geometry.Mode, ref parameters, (nint)(&extras), out int status);
         if (_handle == 0) Q65Codec.Check(status);
         if (_handle == 0) throw new InvalidDataException("Q65 decoder open returned null.");
     }
@@ -60,6 +79,15 @@ internal sealed unsafe class Q65Decoder : IDisposable
                     row->Frequency, row->Dt, row->Snr, row->Flags, row->IapType);
             }
         return result;
+    }
+
+    private static void CopyAscii(string value, byte* destination, int capacity)
+    {
+        if (value.Length >= capacity || value.Any(c => !char.IsAscii(c) || c == '\0'))
+            throw new ArgumentException("Q65 AP context exceeds native field.");
+        var buffer = new Span<byte>(destination, capacity);
+        buffer.Clear();
+        Encoding.ASCII.GetBytes(value, buffer);
     }
 
     public void Dispose()

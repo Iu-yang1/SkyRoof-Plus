@@ -17,8 +17,7 @@ public sealed partial class Q65LiveReceiver
                     {
                         decoder?.Dispose();
                         decoder = null;
-                        decoder = new Q65Decoder(work.Geometry, work.Config.RxHz, work.Config.ToleranceHz,
-                            work.Config.Averaging, work.Config.EmeDelay);
+                        decoder = new Q65Decoder(work.Geometry, work.Config);
                         generation = work.Generation;
                     }
                     previous = work.Slot.Index;

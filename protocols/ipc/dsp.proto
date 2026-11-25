@@ -47,6 +47,15 @@ message Q65RxConfiguration {
   float tolerance_hz = 4;
   bool averaging = 5;
   bool eme_delay = 6;
+  string my_call = 7;
+  string his_call = 8;
+  string his_grid = 9;
+  uint32 ap_mode = 10;
+  uint32 qso_progress = 11;
+  uint32 max_drift = 12;
+  bool pileup = 13;
+  float fading_b90_ts = 14;
+  bool lorentzian = 15;
 }
 
 message Q65EncodeRequest {

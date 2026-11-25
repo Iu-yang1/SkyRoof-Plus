@@ -35,7 +35,12 @@ public sealed partial class Q65LiveReceiver : IAsyncDisposable
         if (!float.IsFinite(request.RxHz) || request.RxHz <= 0 || request.RxHz >= 6000 ||
             !float.IsFinite(request.ToleranceHz) || request.ToleranceHz <= 0)
             throw new ArgumentException("Invalid Q65 RX frequency or tolerance.");
+        if (request.ApMode > 2 || request.QsoProgress > 5 || request.MaxDrift > 50 ||
+            !float.IsFinite(request.FadingB90Ts) || request.FadingB90Ts < 0 ||
+            request.MyCall.Length > 15 || request.HisCall.Length > 15 || request.HisGrid.Length > 7)
+            throw new ArgumentException("Invalid native Q65 AP or fading settings.");
         Q65Geometry? geometry = request.Enabled ? Q65Codec.Geometry(request.Submode) : null;
+        if (geometry is not null) { using var validate = new Q65Decoder(geometry, request); }
         lock (_gate)
         {
             _config = request.Clone();

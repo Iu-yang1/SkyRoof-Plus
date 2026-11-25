@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Q65AdvancedConfig } from './Q65AdvancedConfig';
 import { Q65TransmitPanel } from './Q65TransmitPanel';
 
 const modes = ['15A', '30A', '60A', '60B', '60C', '60D', '60E', '120D', '120E', '300A'];
-type Config = { enabled: boolean; submode: string; rxHz: number; toleranceHz: number; averaging: boolean; emeDelay: boolean };
+export type Config = { enabled: boolean; submode: string; rxHz: number; toleranceHz: number; averaging: boolean; emeDelay: boolean; myCall: string; hisCall: string; hisGrid: string; apMode: number; qsoProgress: number; maxDrift: number; pileup: boolean; fadingB90Ts: number; lorentzian: boolean };
 type Decode = { text: string; frequencyHz: number; dtSeconds: number; snrDb: number; flags: number; apType: number };
 type Slot = { state: string; config: Config; utc?: string; messages?: Decode[]; error?: string };
-const defaults: Config = { enabled: false, submode: '60B', rxHz: 1500, toleranceHz: 100, averaging: true, emeDelay: true };
+const defaults: Config = { enabled: false, submode: '60B', rxHz: 1500, toleranceHz: 100, averaging: true, emeDelay: true, myCall: '', hisCall: '', hisGrid: '', apMode: 0, qsoProgress: 0, maxDrift: 0, pileup: false, fadingB90Ts: 0, lorentzian: false };
 
 export function Q65ReceivePanel({ available }: { available: boolean }) {
   const [draft, setDraft] = useState<Config>(defaults);
@@ -53,6 +54,7 @@ export function Q65ReceivePanel({ available }: { available: boolean }) {
     <label>TOL Hz <input type="number" value={draft.toleranceHz} onChange={e => setDraft({ ...draft, toleranceHz: Number(e.target.value) })} /></label>
     <label><input type="checkbox" checked={draft.averaging} onChange={e => setDraft({ ...draft, averaging: e.target.checked })} /> AVG</label>
     <label><input type="checkbox" checked={draft.emeDelay} onChange={e => setDraft({ ...draft, emeDelay: e.target.checked })} /> EME DELAY</label>
+    <Q65AdvancedConfig config={draft} onChange={setDraft} />
     <button disabled={!available || busy} onClick={() => void configure(true)}>START / APPLY</button>
     <button disabled={!available || busy} onClick={() => void configure(false)}>STOP / CLEAR AVG</button>
     <p role="status">{available ? 'Q65 · ' + (latest?.config.submode ?? draft.submode) + ' · ' + (latest?.state ?? 'waiting') : 'NO STATION LINK'}</p>
