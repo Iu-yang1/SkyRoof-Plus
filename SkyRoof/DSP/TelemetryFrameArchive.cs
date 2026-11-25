@@ -24,7 +24,9 @@ namespace SkyRoof
       string Framing, string Note, bool InnerTransport) : ArchiveItem;
     private sealed record TextEntry(DateTime Utc, string Text) : ArchiveItem;
     private sealed record Barrier(TaskCompletionSource Completion) : ArchiveItem;
+#if SKYROOF_REMOTE_DSP
     private readonly string session = Guid.NewGuid().ToString("N")[..8];
+#endif
 
     private readonly Channel<ArchiveItem> queue = Channel.CreateUnbounded<ArchiveItem>(
       new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -108,7 +110,10 @@ namespace SkyRoof
           Directory.CreateDirectory(root);
           string stem = entry.Utc.ToString("yyyyMMdd_HHmmss_fff",
             CultureInfo.InvariantCulture) +
-            "_" + entry.Sequence.ToString("D8", CultureInfo.InvariantCulture) + "_" + session;
+            "_" + entry.Sequence.ToString("D8", CultureInfo.InvariantCulture);
+#if SKYROOF_REMOTE_DSP
+          stem += "_" + session;
+#endif
           string bin = Path.Combine(root, stem + ".bin");
           string log = Path.Combine(root, stem + ".log");
           // One file per packet: tools can load the raw decoded payload without

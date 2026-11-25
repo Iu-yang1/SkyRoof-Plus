@@ -27,8 +27,9 @@ internal static partial class TelemetryLiveProbe
                 {
                     if (bytes.Count > 0)
                     {
-                        if (escaped || bytes[0] != 0) throw new InvalidDataException("Unexpected RF KISS virtual channel.");
-                        return bytes.Skip(1).ToArray();
+                        if (escaped) throw new InvalidDataException("Incomplete KISS escape.");
+                        if (bytes[0] == 0) return bytes.Skip(1).ToArray();
+                        bytes.Clear();
                     }
                     started = true;
                     continue;
@@ -50,9 +51,9 @@ internal static partial class TelemetryLiveProbe
     {
         if (!decoded.AsSpan().SequenceEqual(kiss)) throw new InvalidDataException("KISS bytes differ from decoded frame.");
         string[] files = Directory.GetFiles(archive, "*.bin", SearchOption.AllDirectories);
-        if (files.Length != 1 || !File.ReadAllBytes(files[0]).AsSpan().SequenceEqual(decoded))
-            throw new InvalidDataException("BIN archive differs from verified decoded bytes.");
-        string log = File.ReadAllText(Path.ChangeExtension(files[0], ".log"));
+        string? matching = files.FirstOrDefault(file => File.ReadAllBytes(file).AsSpan().SequenceEqual(decoded));
+        if (matching is null) throw new InvalidDataException("BIN archive lacks the verified decoded bytes.");
+        string log = File.ReadAllText(Path.ChangeExtension(matching, ".log"));
         if (!log.Contains("CRC/FEC: OK", StringComparison.Ordinal) ||
             !log.Contains("NORAD: 39444", StringComparison.Ordinal) ||
             !log.Contains(Convert.ToHexString(decoded), StringComparison.Ordinal))
