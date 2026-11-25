@@ -5,6 +5,11 @@ using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows())
     throw new PlatformNotSupportedException("DSP SignalBus uses Windows shared memory.");
+if (args is ["--telemetry-recorded-test", var directory])
+{
+    TelemetryCommand.VerifyRecordedAudio(directory);
+    return;
+}
 if (args is ["--q65-self-test"])
 {
     Q65Command.SelfTest();

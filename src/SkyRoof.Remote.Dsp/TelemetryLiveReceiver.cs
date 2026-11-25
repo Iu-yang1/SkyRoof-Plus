@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -30,7 +29,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
     {
         _channels = channels;
         _results = new NamedSignalRing(Environment.GetEnvironmentVariable("SKYROOF_TELEMETRY_RESULTS_BUS")
-            ?? "skyroof-telemetry-results", 64, 65536, (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
+            ?? "skyroof-telemetry-results", 64, 262144, (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
         Publish(new { state = "disabled" });
         _worker = Task.Run(RunAsync);
     }
@@ -57,7 +56,8 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 
     private void FrameDecoded(Frame frame, bool inner)
     {
-        var fields = frame.CrcValid == true && _config.NoradId == 39444 ? Funcube1Telemetry.Describe(frame.Bytes) :
+        var fields = inner ? AsrtuTmShortKissTransport.DescribeSpacePacket(frame.Bytes) :
+            frame.CrcValid == true && _config.NoradId == 39444 ? Funcube1Telemetry.Describe(frame.Bytes) :
             frame.CrcValid == true && _config.NoradId == Unne1bDeframer.NoradId ? Unne1bTelemetry.Describe(frame.Bytes) :
             Enumerable.Empty<(string Name, string Value)>();
         Publish(new { state = "frame", utc = DateTimeOffset.UtcNow, generation = _generation, sourceEpoch = _epoch,

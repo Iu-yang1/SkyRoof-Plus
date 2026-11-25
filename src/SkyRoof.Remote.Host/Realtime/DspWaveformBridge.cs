@@ -43,6 +43,10 @@ public sealed class DspWaveformBridge : IDisposable
         await new DspWaveform.DspWaveformClient(_channel.Value).EncodeQ65Async(request,
             deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: ct);
 
+    public async Task<TelemetryRxConfiguration> ConfigureTelemetryAsync(TelemetryRxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureTelemetryAsync(request,
+            deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+
     public void Dispose()
     {
         if (_channel.IsValueCreated) _channel.Value.Dispose();

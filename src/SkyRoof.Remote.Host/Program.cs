@@ -104,6 +104,7 @@ app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
 app.MapFt4Results();
 app.MapQ65();
+app.MapTelemetry();
 app.MapCwResults();
 app.MapCwKeyer();
 app.MapStationCatalog();

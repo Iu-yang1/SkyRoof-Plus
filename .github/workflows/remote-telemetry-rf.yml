@@ -1,0 +1,27 @@
+name: Remote Telemetry Recorded RF
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Dsp/**','.github/workflows/remote-telemetry-rf.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Dsp/**','.github/workflows/remote-telemetry-rf.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recorded-audio:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: daniestevez/satellite-recordings
+          ref: 952ddfe53f62a150c53559249c83370630254cab
+          path: recorded-rf
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet publish src/SkyRoof.Remote.Dsp -c Release -r win-x64 --self-contained false -o artifacts/telemetry -warnaserror
+      - run: dotnet artifacts/telemetry/SkyRoof.Remote.Dsp.dll --telemetry-recorded-test recorded-rf
