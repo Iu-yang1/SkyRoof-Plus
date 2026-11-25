@@ -31,6 +31,14 @@ internal sealed unsafe class Q65Decoder : IDisposable
         Q65Codec.Check(mfsk_extras_init(ref extras));
         extras.MaxDrift = config.MaxDrift;
         extras.Pileup = config.Pileup ? 1u : 0;
+        if (config.Pileup)
+        {
+            if (string.IsNullOrWhiteSpace(config.MyCall) || string.IsNullOrWhiteSpace(config.HisCall))
+                throw new ArgumentException("Q65 pileup needs My Call and DX Call for the native AP hint.");
+            extras.HasApHint = 1;
+            CopyAscii(config.MyCall, extras.ApCall1, 16);
+            CopyAscii(config.HisCall, extras.ApCall2, 16);
+        }
         if (config.FadingB90Ts > 0)
         {
             extras.FadingB90Ts = config.FadingB90Ts;

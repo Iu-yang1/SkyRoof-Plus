@@ -23,6 +23,9 @@ internal static class Q65AdvancedSelfTest
         config.Lorentzian = true;
         config.Pileup = true;
         using var options = new Q65Decoder(geometry, config);
+        var pileupRows = options.Decode(slot, 100);
+        if (!pileupRows.Any(row => row.Text.Trim() == message))
+            throw new InvalidDataException("Q65 pileup AP hint did not recover directed message.");
         Console.WriteLine("PASS: native Q65 60B AP context, EME-delayed roundtrip, averaging/drift and fading/pileup options accepted.");
     }
 }

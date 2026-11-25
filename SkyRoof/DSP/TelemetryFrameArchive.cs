@@ -108,11 +108,13 @@ namespace SkyRoof
             (entry.NoradId?.ToString(CultureInfo.InvariantCulture) ?? "Unknown"),
             entry.Utc.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
           Directory.CreateDirectory(root);
-          string stem = entry.Utc.ToString("yyyyMMdd_HHmmss_fff",
+          string baseStem = entry.Utc.ToString("yyyyMMdd_HHmmss_fff",
             CultureInfo.InvariantCulture) +
             "_" + entry.Sequence.ToString("D8", CultureInfo.InvariantCulture);
 #if SKYROOF_REMOTE_DSP
-          stem += "_" + session;
+          string stem = $"{baseStem}_{session}";
+#else
+          string stem = baseStem;
 #endif
           string bin = Path.Combine(root, stem + ".bin");
           string log = Path.Combine(root, stem + ".log");
