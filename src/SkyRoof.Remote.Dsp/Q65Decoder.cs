@@ -22,10 +22,11 @@ internal sealed unsafe class Q65Decoder : IDisposable
         if (_handle == 0) throw new InvalidDataException("Q65 decoder open returned null.");
     }
 
-    public Q65Decode[] Decode(short[] samples, long period)
+    public Q65Decode[] Decode(short[] samples, long period, uint sampleRate = 12000)
     {
         if (_handle == 0) throw new ObjectDisposedException(nameof(Q65Decoder));
-        if (samples.Length != _geometry.SlotSamples12k) throw new ArgumentException("Q65 requires a complete 12 kHz slot.");
+        if (sampleRate is not (12000 or 48000) || samples.Length != _geometry.Seconds * (int)sampleRate)
+            throw new ArgumentException("Q65 requires a complete PCM slot.");
         var rows = new Row[64];
         nuint count;
         int status;
@@ -33,7 +34,7 @@ internal sealed unsafe class Q65Decoder : IDisposable
         fixed (Row* output = rows)
         {
             output[0].Size = (uint)sizeof(Row);
-            status = mfsk_decoder_decode_i16(_handle, audio, (nuint)samples.Length, 12000, period,
+            status = mfsk_decoder_decode_i16(_handle, audio, (nuint)samples.Length, sampleRate, period,
                 output, (nuint)rows.Length, out count);
         }
         if (count > (nuint)rows.Length)
@@ -43,7 +44,7 @@ internal sealed unsafe class Q65Decoder : IDisposable
             fixed (Row* output = rows)
             {
                 output[0].Size = (uint)sizeof(Row);
-                status = mfsk_decoder_decode_i16(_handle, audio, (nuint)samples.Length, 12000, period,
+                status = mfsk_decoder_decode_i16(_handle, audio, (nuint)samples.Length, sampleRate, period,
                     output, (nuint)rows.Length, out count);
             }
         }

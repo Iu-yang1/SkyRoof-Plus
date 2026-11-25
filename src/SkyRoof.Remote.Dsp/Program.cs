@@ -32,7 +32,8 @@ var channels = int.TryParse(Environment.GetEnvironmentVariable("SKYROOF_RX_AUDIO
 if (channels is < 1 or > 2) throw new ArgumentException("Invalid RX channel count.");
 
 await using var cw = new CwLiveReceiver(channels);
-await using var ipc = await DspIpcHost.StartAsync(cw);
+await using var q65 = new Q65LiveReceiver(channels);
+await using var ipc = await DspIpcHost.StartAsync(cw, q65);
 using var spectrum = new NamedSignalRing(outputName, slots: 64, payloadCapacity: 4096,
     initialEpoch: (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue));
 var analyzer = new AudioSpectrumTransform();
@@ -61,6 +62,7 @@ while (true)
             }
             ft4.Accept(frame);
             cw.Accept(frame);
+            q65.Accept(frame);
             var oldDiscontinuities = analyzer.Discontinuities;
             analyzer.Accept(frame, channels, (firstSample, db) =>
                 {
