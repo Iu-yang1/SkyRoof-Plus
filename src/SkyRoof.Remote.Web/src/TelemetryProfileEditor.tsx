@@ -10,7 +10,7 @@ export function TelemetryProfileEditor({ config, onChange }: { config: Telemetry
     <label>SATELLITE <input value={config.satellite} onChange={e => onChange({ ...config, satellite: e.target.value })} /></label>
     <label>NORAD <input type="number" value={config.noradId} onChange={e => onChange({ ...config, noradId: Number(e.target.value) })} /></label>
     <label>INPUT <select value={config.input} onChange={e => onChange({ ...config, input: e.target.value })}>
-      <option value="tone-audio">TONE AF</option><option value="fm-discriminator">FM DISCRIMINATOR</option><option value="real-if">REAL 12 kHz IF</option></select></label>
+      <option value="tone-audio">TONE AF</option><option value="fm-discriminator">FM DISCRIMINATOR</option><option value="real-if">REAL 12 kHz IF</option><option value="iq-cf32">SDR IQ · 48 kHz CF32</option></select></label>
     <label>MOD <select value={config.modulation} onChange={e => onChange({ ...config, modulation: e.target.value })}>
       {['BPSK','QPSK','AFSK','FSK','GFSK','GMSK'].map(v => <option key={v}>{v}</option>)}</select></label>
     <label>FRAME <select value={config.framing} onChange={e => onChange({ ...config, framing: e.target.value })}>
@@ -36,6 +36,6 @@ export function TelemetryProfileEditor({ config, onChange }: { config: Telemetry
     <label><input type="checkbox" checked={config.saveFrames} onChange={e => onChange({ ...config, saveFrames: e.target.checked })} /> SAVE BIN + LOG ON STATION</label>
     <label>KISS TCP PORT (0=OFF) <input type="number" min={0} max={65535} value={config.kissPort} onChange={e => onChange({ ...config, kissPort: Number(e.target.value) })} /></label>
     <label><input type="checkbox" checked={config.uploadSatnogs} onChange={e => onChange({ ...config, uploadSatnogs: e.target.checked })} /> SUBMIT TO SATNOGS (station credentials)</label>
-    <small>Input describes existing station PCM. REAL IF requires the station source to actually supply 12 kHz IF.</small>
+    <small>Input describes actual source. IQ mode requires a local DSP IPC CF32 producer; REAL IF requires real 12 kHz IF.</small>
   </details>;
 }

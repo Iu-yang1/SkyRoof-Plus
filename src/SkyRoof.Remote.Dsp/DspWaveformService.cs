@@ -7,6 +7,12 @@ namespace SkyRoof.Remote.Dsp;
 
 public sealed partial class DspWaveformService(CwLiveReceiver cw, Q65LiveReceiver q65, TelemetryLiveReceiver telemetry) : DspWaveform.DspWaveformBase
 {
+    public override async Task<TelemetryIqReceipt> PublishTelemetryIq(IAsyncStreamReader<TelemetryIqBlock> requestStream, ServerCallContext context)
+    {
+        try { return await telemetry.PublishIqAsync(requestStream, context.CancellationToken); }
+        catch (ArgumentException error) { throw new RpcException(new Status(StatusCode.InvalidArgument, error.Message)); }
+    }
+
     public override async Task<TelemetryRxConfiguration> ConfigureTelemetry(TelemetryRxConfiguration request, ServerCallContext context)
     {
         try { return await telemetry.ConfigureAsync(request, context.CancellationToken); }

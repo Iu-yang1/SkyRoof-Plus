@@ -8,7 +8,7 @@ internal sealed class TelemetryModem : IDisposable
 {
     private readonly StreamingPipeline _pipeline;
     private delegate Complex32[] ConvertPcm(ReadOnlySpan<float> pcm);
-    private readonly ConvertPcm _convert;
+    private readonly ConvertPcm? _convert;
     private readonly Action<Frame, bool> _frame;
     private readonly AsrtuTmShortKissTransport? _asrtu;
     private readonly bool _unne;
@@ -20,7 +20,8 @@ internal sealed class TelemetryModem : IDisposable
         _unne = IsUnne(config) && signal.Framing == Framing.HADES;
         if (config.NoradId == 61781 && signal.Framing == Framing.CCSDS && config.DownlinkHz == 435400000)
             _asrtu = new AsrtuTmShortKissTransport();
-        if (config.Input == "fm-discriminator" || signal.Modulation == Modulation.AFSK && config.Input == "tone-audio")
+        if (config.Input == "iq-cf32") _convert = null;
+        else if (config.Input == "fm-discriminator" || signal.Modulation == Modulation.AFSK && config.Input == "tone-audio")
             {
             var fm = new TelemetryAfskFmIqConverter(signal.Modulation == Modulation.AFSK ? 1800 : signal.Deviation ?? signal.Baud / 4);
             _convert = samples => fm.Convert(samples);
@@ -30,15 +31,12 @@ internal sealed class TelemetryModem : IDisposable
             var tone = new TelemetryRealAudioIqConverter(config.Input == "real-if" ? 12000 : config.CenterHz);
             _convert = samples => tone.Convert(samples);
         }
-        _pipeline = _unne ? new StreamingPipeline(signal, new StreamingOptions
-        {
-            GateByShape = signal.Deviation is > 0, DecodeRejected = signal.Deviation is null,
-            HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16
-        }) : new StreamingPipeline(signal);
+        bool nativeUnne = false;
+        _pipeline = _unne ? new StreamingPipeline(signal, BuildUnneOptions(signal, out nativeUnne)) : new StreamingPipeline(signal);
         if (_unne)
             _pipeline.BurstDecoded += report =>
             {
-                foreach (var packet in Unne1bDeframer.Decode(report.Soft))
+                foreach (var packet in nativeUnne ? report.Frames : Unne1bDeframer.Decode(report.Soft))
                     _frame(packet with { BurstIndex = report.Index, TimeSeconds = report.TimeSeconds,
                         CfoHz = report.Burst.CfoHz, SnrDb = report.Burst.SnrDb }, false);
             };
@@ -52,8 +50,8 @@ internal sealed class TelemetryModem : IDisposable
             !Enum.TryParse<Framing>(c.Framing, true, out var framing) || !Enum.IsDefined(framing) || framing == Framing.Unknown ||
             !double.IsFinite(c.Baud) || c.Baud <= 0 || c.Baud >= 24000 ||
             !double.IsFinite(c.DeviationHz) || c.DeviationHz < 0 ||
-            c.Input is not ("tone-audio" or "fm-discriminator" or "real-if") ||
-            c.CenterHz is <= 0 or >= 24000)
+            c.Input is not ("tone-audio" or "fm-discriminator" or "real-if" or "iq-cf32") ||
+            (c.Input != "iq-cf32" && c.CenterHz is <= 0 or >= 24000))
             throw new ArgumentException("Invalid telemetry modem profile.");
         return new SignalParams(c.Baud, modulation, framing, 48000, c.DeviationHz > 0 ? c.DeviationHz : null)
         {
@@ -83,8 +81,25 @@ internal sealed class TelemetryModem : IDisposable
 
     public void Push(ReadOnlySpan<float> pcm)
     {
-        Complex32[] iq = _convert(pcm);
+        Complex32[] iq = (_convert ?? throw new InvalidOperationException("PCM cannot feed complex IQ mode."))(pcm);
         _pipeline.Push(iq);
+    }
+
+    public void PushIq(ReadOnlySpan<Complex32> iq) => _pipeline.Push(iq);
+
+    private static StreamingOptions BuildUnneOptions(SignalParams signal, out bool native)
+    {
+        var options = new StreamingOptions { GateByShape = signal.Deviation is > 0,
+            DecodeRejected = signal.Deviation is null, HangoverMs = 250, GuardMs = 160, MaxBurstSeconds = 16 };
+        var type = typeof(StreamingPipeline).Assembly.GetType("VE3NEA.SkyTlm.Deframing.Unne1bDeframer");
+        var property = typeof(StreamingOptions).GetProperty("DeframerOverride");
+        native = type is not null && property is not null;
+        if (type is not null && property is not null)
+        {
+            property.SetValue(options, Activator.CreateInstance(type));
+            typeof(StreamingOptions).GetProperty("RecoverFadedTail")?.SetValue(options, true);
+        }
+        return options;
     }
 
     private void OnFrame(Frame frame)

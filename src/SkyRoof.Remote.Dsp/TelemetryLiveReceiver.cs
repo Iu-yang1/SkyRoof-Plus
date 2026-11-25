@@ -11,7 +11,8 @@ namespace SkyRoof.Remote.Dsp;
 public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 {
     private abstract record Work;
-    private sealed record Input(SignalFrame Frame, long ConfigurationVersion) : Work;
+    private sealed record Input(SignalFrame Frame, long ConfigurationVersion, bool Iq = false) : Work;
+    private sealed record FinishIq(long ConfigurationVersion, TaskCompletionSource Reply) : Work;
     private sealed record Configure(TelemetryRxConfiguration Config, TaskCompletionSource<TelemetryRxConfiguration> Reply) : Work;
     private readonly Channel<Work> _queue = Channel.CreateBounded<Work>(new BoundedChannelOptions(64)
         { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
@@ -22,7 +23,8 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
     private readonly KissServer _kiss = new();
     private readonly RemoteSatnogsUploader _satnogs = new();
     private string _kissError = "";
-    private volatile bool _enabled;
+    private volatile bool _enabled, _iqEnabled;
+    private readonly SemaphoreSlim _iqLease = new(1, 1);
     private long _dropped;
     private ulong _epoch, _next;
     private TelemetryModem? _modem;
@@ -42,7 +44,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
 
     public void Accept(SignalFrame frame)
     {
-        if (_enabled && !_queue.Writer.TryWrite(new Input(frame, Volatile.Read(ref _configurationVersion)))) Interlocked.Increment(ref _dropped);
+        if (_enabled && !_iqEnabled && !_queue.Writer.TryWrite(new Input(frame, Volatile.Read(ref _configurationVersion)))) Interlocked.Increment(ref _dropped);
     }
 
     public async Task<TelemetryRxConfiguration> ConfigureAsync(TelemetryRxConfiguration request, CancellationToken ct)

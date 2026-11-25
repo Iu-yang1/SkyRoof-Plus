@@ -3,6 +3,7 @@ package skyroof.remote.ipc.v1;
 option csharp_namespace = "SkyRoof.Remote.Ipc";
 
 service DspWaveform {
+  rpc PublishTelemetryIq(stream TelemetryIqBlock) returns (TelemetryIqReceipt);
   rpc ConfigureTelemetry(TelemetryRxConfiguration) returns (TelemetryRxConfiguration);
   rpc EncodeQ65(Q65EncodeRequest) returns (Q65EncodedWaveform);
   rpc ConfigureQ65(Q65RxConfiguration) returns (Q65RxConfiguration);
@@ -97,4 +98,15 @@ message TelemetryRxConfiguration {
   string scrambler_mode = 23;
   string decoder_protocol = 24;
   bool upload_satnogs = 25;
+}
+
+message TelemetryIqBlock {
+  uint64 first_sample_index = 1;
+  int32 sample_rate = 2;
+  bytes cf32 = 3;
+}
+message TelemetryIqReceipt {
+  uint64 source_epoch = 1;
+  int64 blocks = 2;
+  int64 samples = 3;
 }

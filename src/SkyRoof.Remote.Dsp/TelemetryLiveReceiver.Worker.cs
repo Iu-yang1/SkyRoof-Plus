@@ -16,9 +16,13 @@ public sealed partial class TelemetryLiveReceiver
                     try { await ApplyAsync(configure); }
                     catch (Exception error) { configure.Reply.TrySetException(error); }
                 }
-                else if (work is Input input && _modem is not null && input.ConfigurationVersion == _configurationVersion)
+                else if (work is FinishIq finish)
                 {
-                    try { Process(input.Frame); }
+                    await FinishIqAsync(finish);
+                }
+                else if (work is Input input && _modem is not null && input.ConfigurationVersion == _configurationVersion && input.Iq == _iqEnabled)
+                {
+                    try { Process(input.Frame, input.Iq); }
                     catch (Exception error)
                     {
                         _enabled = false;
@@ -51,15 +55,16 @@ public sealed partial class TelemetryLiveReceiver
         ++_generation;
         _epoch = 0;
         _next = 0;
+        _iqEnabled = work.Config.Input == "iq-cf32";
         _enabled = _modem is not null;
         Publish(new { state = _enabled ? "receiving" : "disabled", config = _config,
             generation = _generation, outputs = OutputStatus(), droppedBlocks = Interlocked.Read(ref _dropped) });
         work.Reply.TrySetResult(_config.Clone());
     }
 
-    private void Process(SignalFrame frame)
+    private void Process(SignalFrame frame, bool iq)
     {
-        if (frame.SampleRate != 48000 || frame.Payload.Length != frame.SampleCount * _channels * 2)
+        if (frame.SampleRate != 48000 || frame.Payload.Length != frame.SampleCount * (iq ? 8 : _channels * 2))
             throw new InvalidDataException("Incorrect telemetry PCM geometry.");
         if (_epoch != frame.StreamEpoch || _next != frame.FirstSampleIndex)
         {
@@ -74,6 +79,12 @@ public sealed partial class TelemetryLiveReceiver
             _epoch = frame.StreamEpoch;
         }
         _next = frame.FirstSampleIndex + (ulong)frame.SampleCount;
+        if (iq)
+        {
+            var samples = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, MathNet.Numerics.Complex32>(frame.Payload.AsSpan());
+            (_modem ?? throw new InvalidOperationException("IQ modem stopped.")).PushIq(samples);
+            return;
+        }
         var pcm = new float[frame.SampleCount];
         for (int i = 0; i < pcm.Length; i++)
         {
