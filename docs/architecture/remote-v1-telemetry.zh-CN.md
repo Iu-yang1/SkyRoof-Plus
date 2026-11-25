@@ -29,3 +29,12 @@ DSP 中 `SKYROOF_SATNOGS_TOKEN`、`SKYROOF_STATION_CALLSIGN`、`SKYROOF_STATION_
 本机受信任生产者可以连接 DSP 的 `SKYROOF_DSP_PIPE`（默认 skyroof-station-dsp），先通过 ConfigureTelemetry 选择 Input=iq-cf32，之后使用 DspWaveform.PublishTelemetryIq 客户端流式 RPC。TelemetryIqBlock 为 48 kHz 基带 CF32 小端交织 I/Q，1–4096 complex samples/block，FirstSampleIndex 单调连续（间隙将重建 demodulator）。单生产者拥有本次流；配置变更使旧流失效。正常 EOF 在所有样本处理后 flush modem/archive，并返回 epoch、blocks、samples。该输入不经过 AF converter；不是宽带 ADC IQ 自动调谐或 SDR 驱动。
 
 固定公开真实样本 N6RFM/HADESx-Decoder 238386904c44a60657bac0039c2edb681446d2c0，经脚本核对 blob SHA1 与长度；回归将原始 50 kHz 捕获以 48 kHz 送入私有 IPC，保留 800 Hz residual CFO。断言 type 1/14 CRC 有效及 clock 192304/192124。打包 CI 固定 SkySignals-Plus 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5，使用 native UNNE deframer；旧 vendor 编译兼容 fallback。新 [Remote Telemetry Recorded IQ](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/remote-telemetry-iq.yml) 尚未完成；不声称实机 SDR 或语音播放已通过。
+
+
+## 2026-11-25 第四阶段：生产 channelizer、远程归档与媒体
+
+前述未支持的项目以本节实际增量为准。真实 UNNE IQ 回归现已通过生产 FIR channelizer，见 [45573277588](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45573277588)。已发布开发包内的 SoapySDR ABI 通过，但未连接 RSP/Pluto 实机。
+
+- 远程归档：按 NORAD 和 UTC 日查询已完成的 BIN/LOG，支持分页与认证下载；Host 和 DSP 使用同一个站点归档目录。原桌面格式保留，写入 .log.part 后原子重命名完成提交。[Host 测试 45581348613](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45581348613) 已通过字节一致性及分页断言，退出后的 SQLite 清理另有锁冲突，后续提交修复清理并待复验。
+- 可选 decode_media、decode_sstv、sstv_only；站端复用 SkyTlm / SkySSTV。图片 JPEG/PNG、Codec2 8 kHz WAV 和文本完成产物持久保存于归档目录 _products，通过认证 product API 预览/下载；当前面板仅展示最近结果，不等于完整历史媒体目录或渐进显示。HADES-SA 与 UNNE-1B 业务协议不可混用。SSTV 支持 FM discriminator PCM 或 CF32 IQ。
+- `--telemetry-media-test` 测试固定 SkySignals-Plus 真实 HADES-SA SSDV 15 分片和逐字节参考 JPEG、合成 Codec2 缺帧及 Robot36 IQ。初次 CI 编译发现必需 CrcValid 字段漏填，已修为 null；尚未通过新版整包及真实媒体自检，不能标记解码验收完成。

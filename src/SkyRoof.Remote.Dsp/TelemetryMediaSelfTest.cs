@@ -14,7 +14,7 @@ internal static class TelemetryMediaSelfTest
         {
             byte[] raw = File.ReadAllBytes(Path.Combine(corpus, "hades-sa_img235_complete.ssdv"));
             for (int offset = 0; offset < raw.Length; offset += 256)
-                assembler.Push(new Frame { Bytes = raw.AsSpan(offset + 5, 251).ToArray(), Framing = Framing.HADES });
+                assembler.Push(new Frame { Bytes = raw.AsSpan(offset + 5, 251).ToArray(), Framing = Framing.HADES, CrcValid = null });
             assembler.Push(VoiceFrame(0));
             assembler.Push(VoiceFrame(2));
             assembler.Flush();

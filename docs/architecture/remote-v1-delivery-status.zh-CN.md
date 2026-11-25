@@ -299,3 +299,14 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **P3：** `82b884a` ONVIF RelativeMove/Stop、独立 Operator/Admin 权限、标准归一化空间和真实 SOAP fixture，Web 小步位移/Zoom/STOP。未完成连续 RTSP 视频转码或实际摄像头位置读回。
 - **P4/P5：** `d7186b9` 两个独立 Host 实际启动，共享 Cookie 容器验证 A/B 登录、交叉 Bearer 拒绝、重启后 key ring 与会话保留；配置生成器 station ID 小写规范化。新增整包实 SCM 升级/不可达新配置回滚测试，保留原身份库与登录 session，测试 readiness 采用 /health/live 因无硬件；生产仍应使用 /health/ready。尚未完成统一工作台多台站、WinForms 全量 IPC、正式安装器、数据库 schema migration、签名、公网、长时与实机验收。
 - 最新 CI 排队阻止正式交付判断。不修改质量门槛，不合并 master，不发布正式 Release；提交密码学签名未独立验证。
+
+
+## 2026-11-25 — Q65/SCM 整包实证、归档与媒体增量
+
+- `7f5d514` **24/25** CI 已通过，唯一失败为 ONVIF PTZ 空 catch 的 aislop；`bac1131` [aislop 45581348874](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45581348874) 修正并通过，未调整质量规则。旧 SHA 的通过不得替代新 SHA 的验收。
+- [开发整包 45573277773](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45573277773) 完成并上传产物：六进程、原生 Q65 15A 定时 PCM/末包 padding、三报文自动 QSO（-40 dB、奇偶 slot）、SignalBus Q65 RX、双站 DE430、SoapySDR 0.8 ABI、真实 UNNE IQ、真实 SCM 升级/失败回滚及登录持久化均通过。QSO 使用协议模拟电台和注入 RX 结果，不是月面 RF 通联。 [E2E 45573277811](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45573277811)、[真实 IQ 45573277588](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45573277588)、[Host 45573277623](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45573277623) 实际通过。
+- `bac1131` BIN/LOG 原子提交、按 NORAD/UTC 日分页及鉴权下载，Host smoke 已执行并通过下载断言，但测试进程退出后的 SQLite 文件删除遇 Windows sharing violation；`4c24d37` 仅对该锁冲突增加有限清理重试，不放宽业务断言。桌面 [Compile Check 45581348781](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45581348781) 1856/1857 通过；NativeRotatorWorkerTests.StopBypassesPendingRemoteManagementVerification 的 false 断言失败，根因待定位，不标记通过。
+- `beb1f51` Q65 单次与自动 TX 可显式绑定当前月球跟踪任务，按目标 UTC slot 计算上行频率，保留手动频率；[E2E 45581736527](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45581736527) 已验证指定 job、目标 UTC RX/TX 计算与拒绝已停止任务，无 PTT。不是已武装时隙中逐样点频率更新或实时 STOP 取消证明。
+- `572aec7` 复用 native SkyTlm SSDV/JPEG、Codec2 及 SkySSTV，完成/部分图像和 WAV 可通过认证 HTTP 取回。HADES-SA media factory 限定实际 NORAD 68446，不把 UNNE 当 HADES-SA；Web 支持媒体预览。新增固定真实 SSDV 参考 JPEG、人工 Codec2 子帧缺失、合成 Robot36 IQ 自检。 [aislop 45582230615](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45582230615) 和 Web 已通过；[Native Q65 45582230550](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45582230550) 与 DSP 编译因自检 Frame 缺少必需 CrcValid 字段失败，本次修复为 null（保留协议无帧级 CRC 的语义），仍需新 CI。
+- `4c24d37` ONVIF GetStreamUri 连续 H.264 RTSP/TCP→FFmpeg copy-remux→fragmented MP4→浏览器 MSE。台站提供 FFmpeg，不捆绑、不重编码、无摄像头音频，原快照/PTZ 不变。真实本地 RTSP/RTP 测试流与 FFmpeg 7.1.5 产生 87507 字节 MP4，包含 ftyp/avcC/moof；这是传输与 remux 验证，未证明完整 Host/MSE/物理摄像头。新 Host smoke 与完整 CI 待验收。
+- 剩余：新媒体自检和最新 CI、桌面旋转器反馈事务回归、远程媒体历史目录/渐进更新、SDR 硬件控制、统一多台站工作台与 WinForms 全量 IPC、正式安装器/schema migration/ACL/签名、公网和硬件/长时验收。保持 Draft，不合并、不发正式 Release。API 提交签名未独立验证。
