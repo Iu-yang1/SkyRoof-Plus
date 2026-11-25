@@ -79,14 +79,15 @@ public sealed class StationCatalogCache
             OrbitSource = orbit?.Source ?? "",
             OrbitState = orbit?.HasTle == true ? "tle" : orbit?.Omm is not null ? "omm-only" : "missing"
         };
-        result.Transmitters.AddRange(entry.Transmitters.Select(MapTransmitter));
+        result.Transmitters.AddRange(entry.Transmitters.Select(tx => MapTransmitter(entry, tx)));
         return result;
     }
 
-    private static CatalogTransmitter MapTransmitter(CatalogCacheTransmitter tx) => new()
+    private static CatalogTransmitter MapTransmitter(CatalogCacheSatellite satellite, CatalogCacheTransmitter tx) => new()
     {
         Id = tx.Id, Description = tx.Description ?? "", Alive = tx.Alive, Status = tx.Status ?? "",
         Mode = tx.DownlinkMode ?? tx.Mode ?? "", UplinkMode = tx.UplinkMode ?? "",
+        Telemetry = CatalogTelemetryResolver.Resolve(satellite, tx),
         Link = new RadioLinkProfile
         {
             DownlinkLowHz = tx.DownlinkLow ?? 0, DownlinkHighHz = tx.DownlinkHigh ?? 0,

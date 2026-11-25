@@ -131,4 +131,23 @@ message CatalogTransmitter {
   string uplink_mode = 5;
   string status = 6;
   RadioLinkProfile link = 7;
+  CatalogTelemetryProfile telemetry = 8;
+}
+
+message CatalogTelemetryProfile {
+  string source = 1;
+  string modulation = 2;
+  string framing = 3;
+  double baud = 4;
+  double deviation_hz = 5;
+  string differential_mode = 6;
+  bool manchester = 7;
+  double af_carrier_hz = 8;
+  string convolutional = 9;
+  int32 frame_size = 10;
+  int32 rs_interleaving = 11;
+  string rs_basis = 12;
+  string rs_mode = 13;
+  string scrambler_mode = 14;
+  string decoder_protocol = 15;
 }

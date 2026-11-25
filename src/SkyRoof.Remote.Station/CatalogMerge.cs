@@ -48,9 +48,13 @@ internal static partial class CatalogMerge
             if (!transmitters.TryGetValue(tx.Id, out var remote) || tx.LocalCustom ||
                 tx.Manual is { ValueKind: System.Text.Json.JsonValueKind.Object })
                 transmitters[tx.Id] = tx;
-            else if (!string.IsNullOrWhiteSpace(tx.DownlinkMode) &&
+            else if (tx.DownlinkLow == remote.DownlinkLow &&
                 string.Equals(tx.Mode, remote.Mode, StringComparison.OrdinalIgnoreCase))
-                transmitters[tx.Id] = remote with { DownlinkMode = tx.DownlinkMode };
+                transmitters[tx.Id] = remote with
+                {
+                    DownlinkMode = tx.DownlinkMode ?? remote.DownlinkMode,
+                    GrSats = tx.GrSats ?? remote.GrSats
+                };
         }
         return local with
         {

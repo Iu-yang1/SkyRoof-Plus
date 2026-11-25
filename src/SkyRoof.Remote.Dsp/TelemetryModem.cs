@@ -17,7 +17,7 @@ internal sealed class TelemetryModem : IDisposable
     {
         _frame = frame;
         var signal = CreateSignal(config);
-        _unne = config.NoradId == Unne1bDeframer.NoradId && signal.Framing == Framing.HADES;
+        _unne = IsUnne(config) && signal.Framing == Framing.HADES;
         if (config.NoradId == 61781 && signal.Framing == Framing.CCSDS && config.DownlinkHz == 435400000)
             _asrtu = new AsrtuTmShortKissTransport();
         if (config.Input == "fm-discriminator" || signal.Modulation == Modulation.AFSK && config.Input == "tone-audio")
@@ -57,15 +57,29 @@ internal sealed class TelemetryModem : IDisposable
             throw new ArgumentException("Invalid telemetry modem profile.");
         return new SignalParams(c.Baud, modulation, framing, 48000, c.DeviationHz > 0 ? c.DeviationHz : null)
         {
-            Differential = c.Differential || framing == Framing.AO40FEC ? true : null,
+            Differential = c.DifferentialMode switch
+            {
+                "differential" => true, "coherent" => false, "auto" => null,
+                _ => c.Differential || framing == Framing.AO40FEC ? true : null
+            },
             Manchester = c.Manchester ? true : null,
             AfCarrier = c.AfCarrierHz > 0 ? c.AfCarrierHz : null,
             Convolutional = c.Convolutional.Length > 0 ? c.Convolutional : null,
             FrameSize = c.FrameSize > 0 ? c.FrameSize : null,
             RsInterleaving = c.RsInterleaving > 0 ? c.RsInterleaving : null,
-            RsBasis = c.RsBasis.Length > 0 ? c.RsBasis : null
+            RsBasis = c.RsBasis.Length > 0 ? c.RsBasis : null,
+            RsEnabled = OptionalSwitch(c.RsMode), Scrambler = OptionalSwitch(c.ScramblerMode)
         };
     }
+
+    internal static bool IsUnne(TelemetryRxConfiguration config) =>
+        config.DecoderProtocol == "unne1b" || config.NoradId == Unne1bDeframer.NoradId;
+
+    private static bool? OptionalSwitch(string mode) => mode switch
+    {
+        "on" => true, "off" => false, "" or "auto" => null,
+        _ => throw new ArgumentException("Invalid CCSDS option.")
+    };
 
     public void Push(ReadOnlySpan<float> pcm)
     {

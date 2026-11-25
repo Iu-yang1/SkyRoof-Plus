@@ -67,7 +67,7 @@ public sealed partial class TelemetryLiveReceiver : IAsyncDisposable
         _kiss.SendToAll(frame, inner ? 1 : frame.CrcValid == false ? 2 : 0);
         var fields = inner ? AsrtuTmShortKissTransport.DescribeSpacePacket(frame.Bytes) :
             frame.CrcValid == true && _config.NoradId == 39444 ? Funcube1Telemetry.Describe(frame.Bytes) :
-            frame.CrcValid == true && _config.NoradId == Unne1bDeframer.NoradId ? Unne1bTelemetry.Describe(frame.Bytes) :
+            frame.CrcValid == true && TelemetryModem.IsUnne(_config) ? Unne1bTelemetry.Describe(frame.Bytes) :
             Enumerable.Empty<(string Name, string Value)>();
         Publish(new { state = "frame", utc = DateTimeOffset.UtcNow, generation = _generation, sourceEpoch = _epoch,
             config = _config, outputs = OutputStatus(), innerTransport = inner, hex = Convert.ToHexString(frame.Bytes),

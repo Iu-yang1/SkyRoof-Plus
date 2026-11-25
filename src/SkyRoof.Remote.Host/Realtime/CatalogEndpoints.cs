@@ -19,7 +19,7 @@ public static class CatalogEndpoints
                 s.OrbitSource, s.OrbitState,
                 transmitters = s.Transmitters.Select(t => new
                 {
-                    t.Id, t.Description, t.Alive, t.Status, t.Mode, t.UplinkMode,
+                    t.Id, t.Description, t.Alive, t.Status, t.Mode, t.UplinkMode, t.Telemetry,
                     link = new { t.Link.DownlinkLowHz, t.Link.DownlinkHighHz,
                         t.Link.UplinkLowHz, t.Link.UplinkHighHz, t.Link.Inverting }
                 })

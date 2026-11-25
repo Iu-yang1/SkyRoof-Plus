@@ -64,6 +64,8 @@ internal sealed record CatalogCacheTransmitter
     [JsonPropertyName("norad_cat_id")] public int? Norad { get; init; }
     [JsonPropertyName("local_custom")] public bool LocalCustom { get; init; }
     public JsonElement? Manual { get; init; }
+    [JsonPropertyName("gr_sats")] public JsonElement? GrSats { get; init; }
+    public JsonElement? Baud { get; init; }
     [JsonPropertyName("uuid")] public string Id { get; init; } = "";
     public string Description { get; init; } = "";
     public bool Alive { get; init; }

@@ -92,4 +92,8 @@ message TelemetryRxConfiguration {
   string rs_basis = 18;
   bool save_frames = 19;
   int32 kiss_port = 20;
+  string differential_mode = 21;
+  string rs_mode = 22;
+  string scrambler_mode = 23;
+  string decoder_protocol = 24;
 }
