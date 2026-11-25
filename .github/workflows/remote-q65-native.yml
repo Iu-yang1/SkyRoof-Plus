@@ -1,0 +1,41 @@
+name: Remote Native Q65 ABI
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths:
+      - 'src/SkyRoof.Remote.Dsp/**'
+      - '.github/workflows/remote-q65-native.yml'
+  pull_request:
+    paths:
+      - 'src/SkyRoof.Remote.Dsp/**'
+      - '.github/workflows/remote-q65-native.yml'
+  workflow_dispatch:
+jobs:
+  q65:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Iu-yang1/mfsk-core-tx5dr
+          ref: 8a9d74a93100c5ddbc06d14887c5ea67f50f7e9f
+          path: native-mfsk
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.98.1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build pinned native library
+        working-directory: native-mfsk
+        env:
+          RUSTFLAGS: '-C target-feature=+crt-static'
+        run: cargo build --locked -p mfsk-ffi --release
+      - name: Build DSP and run Q65
+        shell: pwsh
+        run: |
+          dotnet build src/SkyRoof.Remote.Dsp -c Release -o artifacts/q65-dsp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item native-mfsk/target/release/mfsk.dll artifacts/q65-dsp/
+          dotnet artifacts/q65-dsp/SkyRoof.Remote.Dsp.dll --q65-self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
