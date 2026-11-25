@@ -19,9 +19,11 @@ internal static partial class NativeFt4HttpProbe
         dsp.Environment["SKYROOF_RX_AUDIO_BUS"] = "skyroof-ft4-test-rx-" + fixture.DspPipe;
         dsp.Environment["SKYROOF_AF_SPECTRUM_BUS"] = "skyroof-ft4-test-af-" + fixture.DspPipe;
         dsp.Environment["SKYROOF_FT4_RESULTS_BUS"] = "skyroof-ft4-test-results-" + fixture.DspPipe;
+        dsp.Environment["SKYROOF_Q65_RESULTS_BUS"] = "skyroof-q65-test-results-" + fixture.DspPipe;
         var host = Setup(paths.Host);
         host.Environment["SKYROOF_STATION_PIPE"] = fixture.StationPipe;
         host.Environment["SKYROOF_DSP_PIPE"] = fixture.DspPipe;
+        host.Environment["SKYROOF_Q65_RESULTS_BUS"] = "skyroof-q65-test-results-" + fixture.DspPipe;
         host.Environment["SKYROOF_FT4_RESULTS_BUS"] = "skyroof-ft4-test-results-" + fixture.DspPipe;
         host.Environment["ASPNETCORE_URLS"] = fixture.Address.ToString().TrimEnd('/');
         host.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";

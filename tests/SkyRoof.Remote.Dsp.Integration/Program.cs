@@ -9,6 +9,7 @@ var rxName = "skyroof-dsp-rx-" + suffix;
 var spectrumName = "skyroof-dsp-af-" + suffix;
 var ft4Name = "skyroof-dsp-ft4-" + suffix;
 var cwName = "skyroof-dsp-cw-" + suffix;
+var q65Name = "skyroof-dsp-q65-" + suffix;
 var dspPipe = "skyroof-dsp-pipe-" + suffix;
 var history = Path.Combine(Path.GetTempPath(), "skyroof-cw-history-" + suffix);
 using var rx = new NamedSignalRing(rxName, 64, 4096, initialEpoch: 11);
@@ -21,6 +22,7 @@ info.Environment["SKYROOF_FT4_RESULTS_BUS"] = ft4Name;
 info.Environment["SKYROOF_FT4_RX_DELAY_MS"] = "0";
 info.Environment["SKYROOF_DSP_PIPE"] = dspPipe;
 info.Environment["SKYROOF_CW_RESULTS_BUS"] = cwName;
+info.Environment["SKYROOF_Q65_RESULTS_BUS"] = q65Name;
 info.Environment["SKYROOF_CW_HISTORY_DIRECTORY"] = history;
 using var process = Process.Start(info) ?? throw new InvalidOperationException("DSP process not started");
 try
@@ -103,6 +105,8 @@ try
     Console.WriteLine($"PASS: DSP true AF FFT 1000 Hz -> {before.Frequency:F1} Hz, 2500 Hz -> {after.Frequency:F1} Hz; independent epochs and dBFS.");
     await Ft4LiveProbe.RunAsync(dll, rx, ft4Name);
     await CwLiveProbe.RunAsync(rx, cwName, dspPipe, history);
+    if (File.Exists(Path.Combine(Path.GetDirectoryName(dll)!, "mfsk.dll")))
+        await Q65LiveProbe.RunAsync(rx, q65Name, dspPipe);
 }
 finally
 {

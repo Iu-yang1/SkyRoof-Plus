@@ -38,6 +38,7 @@ internal static partial class NativeFt4HttpProbe
         Console.WriteLine("PASS: authenticated Host -> native DSP FT4 encoding -> Station -> Device -> exact UDP waveform.");
         await WsjtxNativeBridgeProbe.RunAsync(admin, address, fake, ct);
         await VerifyAutoAsync(anonymous, admin, dspPipe, fake, ct);
+        await VerifyQ65Async(anonymous, admin, dspPipe, fake, ct);
     }
 
     private static async Task<byte[]> ReadWaveformAsync(string pipe, CancellationToken ct, string message = "CQ K1ABC FN42")

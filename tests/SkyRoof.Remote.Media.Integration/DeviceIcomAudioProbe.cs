@@ -9,7 +9,7 @@ internal static partial class DeviceIcomAudioProbe
     {
         using var fake = new FakeNativeIcomRadio();
         fake.SeedOrphanedCw();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(ft4Paths is null ? 90 : 150));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(ft4Paths is null ? 90 : 240));
         var radioTask = fake.RunAsync(deadline.Token);
         var startEpoch = ring.StreamEpoch;
         string journal = Path.Combine(Path.GetTempPath(), "skyroof-native-icom-" + suffix + ".json");
