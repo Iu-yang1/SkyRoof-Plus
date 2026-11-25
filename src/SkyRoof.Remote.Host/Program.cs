@@ -103,6 +103,7 @@ app.MapMediaStatus();
 app.MapLiveAfSpectrum();
 app.MapLiveRfScope();
 app.MapFt4Results();
+app.MapQ65();
 app.MapCwResults();
 app.MapCwKeyer();
 app.MapStationCatalog();

@@ -50,12 +50,12 @@ public sealed partial class Q65LiveReceiver : IAsyncDisposable
     {
         lock (_gate)
         {
-            if (_assembler is null || _geometry is null) return;
-            if (_assembler.IsDiscontinuous(frame)) ResetResults("waiting-for-slot");
+            if (_assembler is not { } assembler || _geometry is not { } geometry) return;
+            if (assembler.IsDiscontinuous(frame)) ResetResults("waiting-for-slot");
             DateTimeOffset first = DateTimeOffset.UtcNow - Stopwatch.GetElapsedTime(frame.MonotonicTimestampTicks)
                 - TimeSpan.FromSeconds(frame.SampleCount / 48000.0);
-            _assembler.Accept(frame, _channels, first, slot =>
-                _pending.Writer.TryWrite(new Work(_generation, _geometry, _config, slot)));
+            assembler.Accept(frame, _channels, first, slot =>
+                _pending.Writer.TryWrite(new Work(_generation, geometry, _config, slot)));
         }
     }
 

@@ -11,6 +11,7 @@ internal static class Q65Command
         }
         RoundTrip("30A", "CQ K1ABC FN42");
         RoundTrip("60B", "W1XYZ K1ABC -15");
+        Q65SlotSelfTest.Run();
     }
 
     private static void RoundTrip(string mode, string message)

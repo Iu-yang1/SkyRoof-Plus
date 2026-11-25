@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { Q65ReceivePanel } from './Q65ReceivePanel';
 import { CwTransmitPanel } from './CwTransmitPanel';
 import { CwReceivePanel } from './CwReceivePanel';
 import { Ft4TransmitPanel } from './Ft4TransmitPanel';
@@ -32,7 +33,7 @@ export function DigitalPanel() {
     const timer = window.setInterval(() => { void update(); }, 1000);
     return () => { disposed = true; window.clearInterval(timer); };
   }, [hub, active]);
-  return <section className="panel"><header>FT4 / CW CONSOLE</header>
+  return <section className="panel"><header>FT4 / Q65 / CW CONSOLE</header>
     <p>{hub ? status : 'FT4 · NO STATION LINK'}</p>
     <div className="digital-messages">
       {slots.slice().reverse().map(slot => <div key={slot.utc + slot.sourceEpoch}>
@@ -41,6 +42,7 @@ export function DigitalPanel() {
       </div>)}
     </div>
     <Ft4TransmitPanel available={Boolean(hub && active)} />
+    <Q65ReceivePanel available={Boolean(hub && active)} />
     <CwTransmitPanel available={Boolean(hub && active)} />
     <CwReceivePanel available={Boolean(hub && active)} />
     <small>FT4 RX · estimated UTC (RX delay {slots.at(-1)?.rxDelayMs ?? 0} ms).</small>

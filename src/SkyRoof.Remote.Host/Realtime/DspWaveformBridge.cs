@@ -35,6 +35,10 @@ public sealed class DspWaveformBridge : IDisposable
         await new DspWaveform.DspWaveformClient(_channel.Value).GetCwHistoryAsync(new CwHistoryRequest(),
             deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
 
+    public async Task<Q65RxConfiguration> ConfigureQ65Async(Q65RxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureQ65Async(request,
+            deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
+
     public void Dispose()
     {
         if (_channel.IsValueCreated) _channel.Value.Dispose();
