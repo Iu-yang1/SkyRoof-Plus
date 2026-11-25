@@ -253,3 +253,12 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `9371f50` 修复 E2E 链接 FakeRigctld.Cw.cs 缺失，拆分 FT4 session；[aislop 45352691633](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45352691633) 已通过，规则未改变。`5f26b6f` 修复断连测试在 CAT T 0 与 journal 清理之间的观察竞态，并增加认证 CW API 测试。
 - `8ca3287`、`7af0e2a`、`05a9537`：Native IC-9700 SAT CW 使用现有 CI-V socket，WPM/BK-IN/Command 17/STOP，持久 journal 恢复、真实 UDP fixture 及启动孤儿恢复。见 [CW keyer 实现](remote-v1-cw-keyer.zh-CN.md)。Native 新测试和最终整包 CI 尚未取得完整结果，真实 IC-9700 SAT Command 17、BK-IN 和重连尚需实机验证。
 - 剩余：FT4 非标准呼号、日志及完整自动化，CW 宏跨设备、TX 历史、Q65/Telemetry、SDR/ONVIF、WinForms IPC、多台站、生产 ACL/安装器/升级迁移/公网及长时实测；继续 Draft。
+
+## 2026-11-25 — Native CW 验收、长会话续期、Q65 原生工作台
+
+- `d58ea6a` 实际 21/22 CI 通过。 [Media 45353242807](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45353242807) 通过 Native CW orphan recovery、CI-V CW-R、WPM BCD、BK-IN、Command 17/STOP/RX；[认证 E2E 45353242706](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45353242706)、[aislop 45353242732](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45353242732) 成功。唯一失败 [开发包 45353242893](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45353242893)：初始登录后 fixture 没有继续回应 control token renewal，自动 FT4 期间 TX Audio Grant 丢失。单次原生 FT4、WSJT-X bridge、CW UDP 已通过。
+- `454345c` 给模拟 radio control 增加长会话 Ping、续期、logout 和 token 关联验证；仍保留生产端 timeout。整包强制验证至少一次续期。独立 aislop 45515572114、DSP 45515572045 成功；自动 FT4 整包尚待结果。
+- `e7ca041` / `1b33f60` / `3a3244c`：固定 mfsk-core-tx5dr C ABI v3，十种 Q65 子模式，原生 12/48 kHz 编解码、UTC PCM 完整窗口、独立 native decoder、AVG/EME delay、认证 RX API 和 Web。
+- `ddc5322` / `76e6870`：Q65 单时隙 PCM TX、奇偶 UTC 周期、SHA256/一次性 claim、32 MiB IPC，开发包依赖原生 Windows 构建并带 DLL、许可证、锁文件与源版本。首轮 native CI 45515729888 因源无 Cargo.lock 在编译前失败，已修复；首次 Q65 aislop 45515730153 评分100/0 errors/1 warning（索引循环），本次改为 foreach，不改变门禁。
+- `474711a`：新增发布包 Q65 15A 跨进程 RX、认证 TX 精确 UDP、UTC parity 与末帧 padding 验收，未取得最终运行结果。
+- [Q65 实现说明](remote-v1-q65.zh-CN.md)。待完成 Q65 AP 详情、自动 QSO、真实 EME/多普勒、Telemetry、SDR/ONVIF、多台站、WinForms IPC、生产安装器、迁移与公网实测。保持 Draft；不提前发布。API 签名未验证。

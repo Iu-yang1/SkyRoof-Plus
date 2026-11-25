@@ -16,8 +16,12 @@ public sealed partial class DspWaveformService
             var geometry = Q65Codec.Geometry(request.Submode);
             var samples = Q65Codec.Encode(geometry, request.Message, request.AudioHz, request.Gain, 48000);
             byte[] bytes = new byte[samples.Length * 2];
-            for (int i = 0; i < samples.Length; i++)
-                BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(i * 2), samples[i]);
+            int offset = 0;
+            foreach (short sample in samples)
+            {
+                BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(offset, 2), sample);
+                offset += 2;
+            }
             context.CancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new Q65EncodedWaveform
             {

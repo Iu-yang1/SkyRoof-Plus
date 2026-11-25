@@ -40,8 +40,9 @@ internal static unsafe class Q65Codec
             Check(mfsk_encode(geometry.Mode, text, 0, rate, frequency, output, (nuint)samples.Length, out count));
         if (count == 0 || count > (nuint)samples.Length) throw new InvalidDataException("Invalid Q65 sample count.");
         var pcm = new short[(int)count];
-        for (int i = 0; i < pcm.Length; i++)
-            pcm[i] = (short)Math.Clamp(Math.Round(samples[i] * gain * 32768.0), -32768, 32767);
+        int offset = 0;
+        foreach (float sample in samples.AsSpan(0, pcm.Length))
+            pcm[offset++] = (short)Math.Clamp(Math.Round(sample * gain * 32768.0), -32768, 32767);
         return pcm;
     }
 
