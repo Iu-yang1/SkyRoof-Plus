@@ -48,7 +48,17 @@ internal static class StationIsolationProbe
         {
             await StopAsync(first);
             await StopAsync(second);
-            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            await DeleteFixtureAsync(root);
+        }
+    }
+
+    private static async Task DeleteFixtureAsync(string root)
+    {
+        for (int attempt = 0; Directory.Exists(root); attempt++)
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch (IOException error) when (attempt < 20 && (error.HResult & 0xffff) is 32 or 33)
+            { await Task.Delay(100); }
         }
     }
 

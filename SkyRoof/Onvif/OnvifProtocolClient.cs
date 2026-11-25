@@ -103,6 +103,8 @@ namespace SkyRoof
       if (!Uri.TryCreate(text, UriKind.Absolute, out Uri? uri) ||
           uri.Scheme is not ("rtsp" or "rtsps"))
         throw new InvalidOperationException("Camera did not return a valid RTSP stream URI.");
+      if (sameHostOnly && !uri.Host.Equals(deviceEndpoint.Host, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Camera RTSP host differs from configured ONVIF host.");
       return uri;
     }
 

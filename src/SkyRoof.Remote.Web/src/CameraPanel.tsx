@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
+import { CameraVideoPlayer } from './CameraVideoPlayer';
 import { CameraPtzControls } from './CameraPtzControls';
 
 type Profile = { token: string; name: string; media2: boolean };
@@ -14,6 +15,7 @@ export function CameraPanel() {
   const [image, setImage] = useState('');
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
+  const [video, setVideo] = useState(false);
   async function load() {
     setError('');
     try {
@@ -34,7 +36,7 @@ export function CameraPanel() {
 
   const profile = profiles[selected];
   useEffect(() => {
-    if (!running || !hub || !active || !profile) return;
+    if (!running || video || !hub || !active || !profile) return;
     const controller = new AbortController();
     let pending = false;
     async function next() {
@@ -52,22 +54,24 @@ export function CameraPanel() {
     void next();
     const timer = window.setInterval(() => void next(), 1500);
     return () => { controller.abort(); window.clearInterval(timer); };
-  }, [running, hub, active, profile]);
+  }, [running, video, hub, active, profile]);
   useEffect(() => () => { if (image) URL.revokeObjectURL(image); }, [image]);
 
   return <section className="panel"><header>STATION CAMERA · ONVIF</header>
     <div className="audio-buttons">
       <button disabled={!hub || !active} onClick={() => void discover()}>DISCOVER</button>
       <button disabled={!hub || !active} onClick={() => void load()}>LOAD PROFILES</button>
-      <button disabled={!hub || !active || !profile} onClick={() => setRunning(v => !v)}>{running ? 'STOP SNAPSHOTS' : 'START SNAPSHOTS'}</button>
+      <button disabled={!hub || !active || !profile} onClick={() => { setVideo(false); setRunning(v => !v); }}>{running ? 'STOP SNAPSHOTS' : 'START SNAPSHOTS'}</button>
+      <button disabled={!hub || !active || !profile} onClick={() => { setRunning(false); setVideo(v => !v); }}>{video ? 'STOP VIDEO' : 'START VIDEO'}</button>
     </div>
     <label>PROFILE <select value={selected} onChange={e => setSelected(Number(e.target.value))}>
       {profiles.map((p, i) => <option key={p.token + p.media2} value={i}>{p.name} ({p.media2 ? 'Media2' : 'Media1'})</option>)}
     </select></label>
     {profile && <CameraPtzControls enabled={!!hub && active} profile={profile.token} />}
-    {image && <img src={image} alt="Station ONVIF camera snapshot" style={{ width: '100%', objectFit: 'contain' }} />}
+    {video && hub && active && profile && <CameraVideoPlayer profile={profile.token} media2={profile.media2} />}
+    {!video && image && <img src={image} alt="Station ONVIF camera snapshot" style={{ width: '100%', objectFit: 'contain' }} />}
     {error && <p role="alert">{error}</p>}
     {devices.map(d => <p key={d.endpoint}>{d.endpoint} · {d.scope}</p>)}
-    <small>Station-configured camera; discovery never sends credentials. Snapshot mode, not continuous RTSP video.</small>
+    <small>Station-configured camera; discovery never sends credentials. Snapshots or H.264 RTSP remux (station FFmpeg required).</small>
   </section>;
 }

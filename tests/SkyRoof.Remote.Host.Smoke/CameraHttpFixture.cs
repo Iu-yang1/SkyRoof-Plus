@@ -33,6 +33,7 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
             $"<Service><Namespace>http://www.onvif.org/ver20/media/wsdl</Namespace><XAddr>{baseUrl}/onvif</XAddr></Service><Service><Namespace>http://www.onvif.org/ver20/ptz/wsdl</Namespace><XAddr>{baseUrl}/onvif</XAddr></Service>" :
             request.Contains("GetProfiles", StringComparison.Ordinal) ? "<Profiles token=\"primary\"><Name>Test camera</Name></Profiles>" :
             request.Contains("GetSnapshotUri", StringComparison.Ordinal) ? $"<Uri>{baseUrl}/snapshot</Uri>" :
+            request.Contains("GetStreamUri", StringComparison.Ordinal) && Environment.GetEnvironmentVariable("SKYROOF_TEST_RTSP_URI") is { } rtsp ? $"<Uri>{rtsp}</Uri>" :
             ValidatePtz(request);
         return body is null ? Results.BadRequest() : Results.Text(
             "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Body>" + body + "</s:Body></s:Envelope>",
@@ -61,8 +62,12 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
             ? "<StopResponse/>" : null;
     }
 
-    internal void Configure(ProcessStartInfo info) =>
+    internal void Configure(ProcessStartInfo info)
+    {
         info.Environment["SKYROOF_ONVIF_ENDPOINT"] = _app.Urls.Single() + "/onvif";
+        if (Environment.GetEnvironmentVariable("SKYROOF_TEST_RTSP_URI") is not null)
+            info.Environment["SKYROOF_FFMPEG_PATH"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_FFMPEG") ?? "ffmpeg";
+    }
 
     internal static async Task VerifyAsync(HttpClient anonymous, HttpClient authenticated)
     {
@@ -85,6 +90,8 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
         accepted.EnsureSuccessStatusCode();
         using var stopped = await authenticated.PostAsJsonAsync("/api/v1/camera/ptz/stop", new { profile = "primary" });
         stopped.EnsureSuccessStatusCode();
+        if (Environment.GetEnvironmentVariable("SKYROOF_TEST_RTSP_URI") is not null)
+            await CameraVideoHttpProbe.VerifyAsync(anonymous, authenticated);
         Console.WriteLine("PASS: authenticated Host -> real SOAP GetServices/GetProfiles/GetSnapshotUri -> exact camera image and RelativeMove/Stop wire XML.");
     }
 

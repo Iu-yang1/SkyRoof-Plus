@@ -21,5 +21,23 @@ jobs:
         run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
       - name: Build simulated remote client
         run: dotnet build tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release
-      - name: Run HTTP + SignalR + WSS process-level smoke
-        run: dotnet run --project tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+      - name: Run HTTP + SignalR + WSS and real RTSP remux smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
+          $ready = Join-Path $env:RUNNER_TEMP 'skyroof-rtsp-fixture-url.txt'
+          $script = (Resolve-Path tests/SkyRoof.Remote.Host.Smoke/rtsp_fixture.py).Path
+          $fixture = Start-Process python -ArgumentList @('-u', ('"' + $script + '"'), ('"' + $ffmpeg + '"'), ('"' + $ready + '"')) -PassThru
+          try {
+            for ($i=0; $i -lt 100 -and -not (Test-Path $ready); $i++) {
+              if ($fixture.HasExited) { throw 'RTSP fixture exited before readiness' }
+              Start-Sleep -Milliseconds 100
+            }
+            $env:SKYROOF_TEST_RTSP_URI = Get-Content -LiteralPath $ready -Raw
+            $env:SKYROOF_TEST_FFMPEG = $ffmpeg
+            dotnet run --project tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (-not $fixture.HasExited) { Stop-Process -Id $fixture.Id -Force }
+          }

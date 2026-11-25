@@ -9,6 +9,7 @@ public static partial class CameraEndpoints
         app.MapGet("/api/v1/camera/profiles", (Delegate)ProfilesAsync).RequireAuthorization();
         app.MapGet("/api/v1/camera/snapshot", SnapshotAsync).RequireAuthorization();
         MapPtz(app);
+        app.MapGet("/api/v1/camera/video", StreamVideoAsync).RequireAuthorization();
         app.MapPost("/api/v1/camera/discover", (Delegate)DiscoverAsync)
             .RequireAuthorization(policy => policy.RequireRole("Operator", "Administrator"));
     }
