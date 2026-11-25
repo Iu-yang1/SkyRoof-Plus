@@ -49,14 +49,14 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
         {
             var vector = move.Element(ptz + "Translation")?.Element(tt + "PanTilt");
             return move.Element(ptz + "ProfileToken")?.Value == "primary" &&
-                vector?.Attribute("x")?.Value == "-0.25" &&
+                vector is not null && vector.Attribute("x")?.Value == "-0.25" &&
                 vector.Attribute("y")?.Value == "0.125" &&
                 vector.Attribute("space")?.Value == "http://www.onvif.org/ver10/tptz/PanTiltSpaces/TranslationGenericSpace" &&
                 move.Element(ptz + "Translation")?.Element(tt + "Zoom") is null
                 ? "<RelativeMoveResponse/>" : null;
         }
         var stop = doc.Descendants(ptz + "Stop").SingleOrDefault();
-        return stop?.Element(ptz + "ProfileToken")?.Value == "primary" &&
+        return stop is not null && stop.Element(ptz + "ProfileToken")?.Value == "primary" &&
             stop.Element(ptz + "PanTilt")?.Value == "true" && stop.Element(ptz + "Zoom")?.Value == "true"
             ? "<StopResponse/>" : null;
     }

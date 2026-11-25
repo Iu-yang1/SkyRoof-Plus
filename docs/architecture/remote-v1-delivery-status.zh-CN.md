@@ -289,3 +289,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **P4:** `62d36c8` 站 ID 独立 pipes/rings、持久化目录、认证数据库/Cookie/DataProtection key；配置生成器保留模板设备参数，Web 可打开另一独立 Host。未实现单工作台多台站联控及原 WinForms 全量 IPC。
 - **P5:** `1924a03` 完整文件 manifest SHA-256、并列版本暂存、SCM 路径切换及 readiness 失败回滚、脚本 fixture 检查隔离及篡改拒绝。未实施真实升级回滚/数据库 schema migration、发布者签名、安装器、公网 FRP/TURN/设备实测。
 - 最终整包、最新 aislop、所有新增回归必须以当前 HEAD 的实际 CI 为准；不将历史绿色基线或已编写测试算作最新功能验收。保持 Draft PR #254，不合并 master，不发正式 release。
+
+
+## 2026-11-25 — P0–P5 后续增量、真实数据与验收阻断
+
+- **P0：** `dd83ac3` 24/24 已通过（[整包 45565280162](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45565280162)）。`11dcb26` 的 [真实 IQ 45566800160](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45566800160) 实际通过 UNNE-1B Type 1/14、CRC、星上时钟 192304/192124；[Telemetry RF 45566799782](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45566799782) 和 [Host smoke 45566800009](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45566800009) 同样已通过。历史绿灯不能替代最新 SHA。aislop ONVIF 文件长度、URL placeholder、Tracking DTO 参数数目分别在 `d9cd30d` / `22c03f1` / `d23b452` 处理，没有改变 baseline 或 gate。`22c03f1` [E2E 45571526735](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45571526735) 编译失败，Q65 Auto 呼号的 CS8602 两处在本次提交修正，仍待 CI。
+- **P1/P3：** `cdf525b` 增加 Windows SoapySDR 0.8 RX companion、设备枚举、实际采样率/频率读回、CF32 私有 DSP Named Pipe、连续 NCO/Blackman 多相 FIR 任意整数采样率→48 kHz（18 kHz 通带、24 kHz 阻带）。原生 overflow 关闭旧 epoch；FIR 重置，不将缺失样本拼成连续流。Foundation 测试 250 kHz→48 kHz 非整数比、分块一致性及折叠干扰抑制；本次修改真实 UNNE IQ 回归也复用该生产 channelizer。新增发布包 ABI probe；尚未实际连接 RSP/Pluto，尚未完成 GUI 管理、SSDV/SSTV/CODEC2 播放、远程历史下载。
+- **P2：** `0936763` ICRF 双站 EME 光行时前/后求解、固定 DX 频率的 RX/TX 频率比与对端仰角，新增 DE430 数值时延导数独立校验；月心反射近似，不是月面散射积分或物理 RF 验收。`22c03f1` / `d23b452` Q65 标准呼号自动交换、-50..+50 报告、完整 RX slot、发射准备时间不足时同奇偶下一周期、原生波形与设备定时 TX；三消息模拟 QSO 精确 UDP PCM、末帧 padding、-40/-42 报告测试已接入，待实际 CI；自动任务与月面跟踪 job 的发射时刻联动尚未完成。
+- **P3：** `82b884a` ONVIF RelativeMove/Stop、独立 Operator/Admin 权限、标准归一化空间和真实 SOAP fixture，Web 小步位移/Zoom/STOP。未完成连续 RTSP 视频转码或实际摄像头位置读回。
+- **P4/P5：** `d7186b9` 两个独立 Host 实际启动，共享 Cookie 容器验证 A/B 登录、交叉 Bearer 拒绝、重启后 key ring 与会话保留；配置生成器 station ID 小写规范化。新增整包实 SCM 升级/不可达新配置回滚测试，保留原身份库与登录 session，测试 readiness 采用 /health/live 因无硬件；生产仍应使用 /health/ready。尚未完成统一工作台多台站、WinForms 全量 IPC、正式安装器、数据库 schema migration、签名、公网、长时与实机验收。
+- 最新 CI 排队阻止正式交付判断。不修改质量门槛，不合并 master，不发布正式 Release；提交密码学签名未独立验证。

@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using SkyRoof.Remote.Foundation.Signals;
 using System.Security.Principal;
 using System.Text.Json;
 using Google.Protobuf;
@@ -82,23 +84,10 @@ internal static class TelemetryIqProbe
 
     private static byte[] Resample(byte[] source, double center)
     {
-        if (source.Length < 80000 || source.Length % 8 != 0) throw new InvalidDataException("Invalid captured CF32.");
-        int count = (int)Math.Floor((source.Length / 8 - 1.0) * 48000 / 50000);
-        var result = new byte[count * 8];
-        for (int i = 0; i < count; i++)
-        {
-            double position = i * 50000.0 / 48000;
-            int j = (int)position * 8;
-            double fraction = position - (int)position;
-            double re = BinaryPrimitives.ReadSingleLittleEndian(source.AsSpan(j)) * (1 - fraction) +
-                BinaryPrimitives.ReadSingleLittleEndian(source.AsSpan(j + 8)) * fraction;
-            double im = BinaryPrimitives.ReadSingleLittleEndian(source.AsSpan(j + 4)) * (1 - fraction) +
-                BinaryPrimitives.ReadSingleLittleEndian(source.AsSpan(j + 12)) * fraction;
-            double phase = -2 * Math.PI * center * i / 48000;
-            (double sin, double cos) = Math.SinCos(phase);
-            BinaryPrimitives.WriteSingleLittleEndian(result.AsSpan(i * 8), (float)(re * cos - im * sin));
-            BinaryPrimitives.WriteSingleLittleEndian(result.AsSpan(i * 8 + 4), (float)(re * sin + im * cos));
-        }
-        return result;
+        if (source.Length < 80000 || source.Length % 8 != 0)
+            throw new InvalidDataException("Invalid captured CF32.");
+        var channelizer = new IqChannelizer(50000, center);
+        var output = channelizer.Process(MemoryMarshal.Cast<byte, float>(source.AsSpan()));
+        return MemoryMarshal.AsBytes(output.AsSpan()).ToArray();
     }
 }

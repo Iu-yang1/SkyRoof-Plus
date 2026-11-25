@@ -28,10 +28,12 @@ public static class Q65AutoEndpoints
     {
         if (!OperatingSystem.IsWindows()) { context.Response.StatusCode = 501; return; }
         if (!await TimedFt4Endpoints.IsOperatorAsync(context)) { context.Response.StatusCode = 403; return; }
+        string call = (request.Call ?? "").Trim().ToUpperInvariant();
+        string target = (request.Target ?? "").Trim().ToUpperInvariant();
         Ft4QsoSequence qso;
         try
         {
-            qso = Ft4QsoSequence.ForQ65(request.Call ?? "", request.Grid ?? "", request.Target ?? "", request.Attempts);
+            qso = Ft4QsoSequence.ForQ65(call, request.Grid ?? "", target, request.Attempts);
             if (request.Rx is null || request.FrequencyHz <= 0 ||
                 !float.IsFinite(request.Gain) || request.Gain is < 0 or > 1)
                 throw new ArgumentException("Q65 automatic TX requires a receiver profile, RF frequency and PCM level.");
@@ -48,8 +50,8 @@ public static class Q65AutoEndpoints
         {
             var config = request.Rx.Clone();
             config.Enabled = true;
-            config.MyCall = request.Call.Trim().ToUpperInvariant();
-            config.HisCall = request.Target.Trim().ToUpperInvariant();
+            config.MyCall = call;
+            config.HisCall = target;
             await dsp.ConfigureQ65Async(config, context.RequestAborted);
             string name = Environment.GetEnvironmentVariable("SKYROOF_Q65_RESULTS_BUS") ?? "skyroof-q65-results";
             using var ring = new NamedSignalRing(name, 32, 32768);
