@@ -110,6 +110,8 @@ try
     Check(Math.Abs(after.Frequency - 2500) < 80 && after.Level is > -15 and < -2,
         $"Expected post-restart 2.5 kHz tone; got {after.Frequency:F1} Hz {after.Level:F1} dBFS.");
     Console.WriteLine($"PASS: DSP true AF FFT 1000 Hz -> {before.Frequency:F1} Hz, 2500 Hz -> {after.Frequency:F1} Hz; independent epochs and dBFS.");
+    if (Environment.GetEnvironmentVariable("SKYROOF_UNNE_REAL_IQ_DIR") is { Length: > 0 } iqCorpus)
+        await TelemetryIqProbe.RunAsync(telemetryName, dspPipe, iqCorpus);
     await Ft4LiveProbe.RunAsync(dll, rx, ft4Name);
     await CwLiveProbe.RunAsync(rx, cwName, dspPipe, history);
     if (File.Exists(Path.Combine(Path.GetDirectoryName(dll)!, "mfsk.dll")))

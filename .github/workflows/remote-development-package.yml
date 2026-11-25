@@ -25,6 +25,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/checkout@v4
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
+          path: SkySignals-Plus
+          persist-credentials: false
+      - name: Build pinned UNNE telemetry runtime
+        shell: pwsh
+        run: ./scripts/stage-skytlm-fork.ps1
       - name: Build Dockview frontend
         shell: pwsh
         run: |
@@ -103,8 +112,12 @@ jobs:
         run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Media/SkyRoof.Remote.Media.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll artifacts/remote-v1/Device/SkyRoof.Remote.Device.dll artifacts/remote-v1/Station/SkyRoof.Remote.Station.dll artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
       - name: Build independent DSP AF integration harness
         run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
-      - name: Exercise packaged DSP AF FFT on synthetic PCM
-        run: dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
+      - name: Exercise packaged DSP AF and recorded IQ
+        shell: pwsh
+        run: |
+          ./scripts/fetch-unne1b-real-iq.ps1
+          $env:SKYROOF_UNNE_REAL_IQ_DIR = Join-Path $PWD 'artifacts/unne1b-real-iq'
+          dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
       - name: Validate staging and isolated station configuration
         shell: pwsh
         run: ./deploy/remote/windows/Test-RemoteDeploymentScripts.ps1
