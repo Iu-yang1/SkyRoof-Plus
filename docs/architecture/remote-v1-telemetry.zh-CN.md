@@ -18,3 +18,14 @@ Q65 AP 增量：My Call、DX Call/Grid、AP off/CQ/full、QSO progress、Max Dri
 - `5cc9bad` 新增真实 AO-73 帧 BIN / LOG / KISS TCP payload 一致性与 HTTP Q65/Telemetry JSON result 测试，未取得最终结果。
 - `9012304` / `e571417` 从现有 Station catalog 的 manual / gr_sats / SatNOGS 字段生成 decoder profile；相同发射机、频率与调制保留原桌面 SatYAML 元数据，manual 优先；不从未知 framing 猜测协议。UI LOAD TELEMETRY PROFILE，保留实际 AF/IF 选择与手动修改；支持 CCSDS frame size、RS、scrambler、convolutional、NRZI。UNNE 协议 ID 与实际 NORAD 分离。此阶段不等于独立在线完整 SatYAML/JE9PEL enrichment、自动调谐或业务校准。
 - 当前遗留：独立 SDR IQ 数据路径、自动跟踪/调谐联动、SatNOGS 上传、SSDV/SSTV/语音、远程归档列表和下载；实机测试尚无。
+
+
+## 2026-11-25 第三阶段：SatNOGS SiDS 和复数 IQ
+
+旧段落关于不支持 KISS、上传与直接 IQ 的说法以本节增量为准。
+
+DSP 中 `SKYROOF_SATNOGS_TOKEN`、`SKYROOF_STATION_CALLSIGN`、`SKYROOF_STATION_GRID` 必须有效，配置 UploadSatnogs 才会发送。默认 https://db.satnogs.org/api/telemetry/，`SKYROOF_SATNOGS_TELEMETRY_URL` 仅允许 HTTPS 或本机 HTTP fixture。独立 128 项队列，超容量有计数，失败不阻塞解码。CRC 明确失败和 ASRTU 派生内包不上传；未知 CRC 保留原协议语义。STOP 不取消已接收排队帧，进程退出可取消未发送项；不承诺持久化投递。API token 留在台站，不发给浏览器。CI 使用本地 HTTP 校验实际 AO-73 HEX、NORAD、呼号、网格坐标、UTC 与认证头，不访问公共上传服务。
+
+本机受信任生产者可以连接 DSP 的 `SKYROOF_DSP_PIPE`（默认 skyroof-station-dsp），先通过 ConfigureTelemetry 选择 Input=iq-cf32，之后使用 DspWaveform.PublishTelemetryIq 客户端流式 RPC。TelemetryIqBlock 为 48 kHz 基带 CF32 小端交织 I/Q，1–4096 complex samples/block，FirstSampleIndex 单调连续（间隙将重建 demodulator）。单生产者拥有本次流；配置变更使旧流失效。正常 EOF 在所有样本处理后 flush modem/archive，并返回 epoch、blocks、samples。该输入不经过 AF converter；不是宽带 ADC IQ 自动调谐或 SDR 驱动。
+
+固定公开真实样本 N6RFM/HADESx-Decoder 238386904c44a60657bac0039c2edb681446d2c0，经脚本核对 blob SHA1 与长度；回归将原始 50 kHz 捕获以 48 kHz 送入私有 IPC，保留 800 Hz residual CFO。断言 type 1/14 CRC 有效及 clock 192304/192124。打包 CI 固定 SkySignals-Plus 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5，使用 native UNNE deframer；旧 vendor 编译兼容 fallback。新 [Remote Telemetry Recorded IQ](https://github.com/Iu-yang1/SkyRoof-Plus/actions/workflows/remote-telemetry-iq.yml) 尚未完成；不声称实机 SDR 或语音播放已通过。

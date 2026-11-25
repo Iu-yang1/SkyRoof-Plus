@@ -55,3 +55,25 @@ Device 可独立于 SkyCAT CAT 连接，使用 `SKYROOF_ICOM_LAN_HOST` 启动 LA
 - Device 与 Media 的 `SKYROOF_MEDIA_PIPE` 必须一致，Host 的状态接口也使用同名管道。Host/Device 的 RF scope bus、Host/Dsp 的 FT4 result bus 必须一致。
 - `SKYROOF_FT4_RX_DELAY_MS`（Dsp）是接收路径的校准偏移，默认 0。该时刻使用 Media 的本机 PCM 发布时间推定，不是硬件 ADC 时间戳。
 - RTC 原生运行库 `skyroof_rtc.dll` 与依赖必须在 Host 发布目录。开发打包 CI 构建并测试固定 libdatachannel v0.24.7，再复制 Windows 运行库；未通过该测试不能视为 RTC 已交付。可选 Host `SKYROOF_RTC_ICE_SERVER` 设定 STUN/TURN URL；浏览器当前使用默认 ICE 配置，公网 FRP/ICE 尚未验收。RTC Data 不可用时自动回退认证 WSS。
+
+
+## 多实例与并列版本部署（开发增量）
+
+需要 PowerShell 7，管理员权限用于 Windows Service 操作。先从已验收的开发包使用同一可信来源取得 ZIP 和部署脚本。SHA-256 manifest 校验文件完整性，不等于发布者签名。
+
+```powershell
+$version = ./Stage-RemotePackage.ps1 -Archive ./SkyRoof-Remote-V1-development-win-x64.zip -VersionsDirectory C:/SkyRoofRemote/versions
+./New-StationConfiguration.ps1 -StationId alpha -PackageRoot $version -DataRoot C:/SkyRoofRemote/data -Template ./supervisor.icom9700.json.example -Output C:/SkyRoofRemote/alpha.json -HttpPort 8076
+```
+
+生成配置时不覆盖既有数据。核对模板真实 CAT/IP/串口、认证凭据、RF 设置及端口；每个实例选择独立硬件、HTTP 端口、KISS 端口及 service name。CW ONNX model 放到该站 data/alpha/cwmodel；将所需 orekit-data（包括 DE430）复制到该站目录。受限 ACL 保护配置、SQLite、auth-keys 及实际凭据，运行服务账号要具备读写权限。Host 端 Cookie、认证数据库与 DataProtection application name 按 station ID 隔离。外网仍需独立 HTTPS/WSS 反代，另一 Host 通过 Web 站点入口打开，不是同一 Dockview 多站联控。
+
+保留上一版本和上一配置，不直接覆盖正在运行的目录。新版本先生成独立 JSON，确认设备参数及数据目录一致，再切换 SCM：
+
+```powershell
+./Switch-RemoteServiceVersion.ps1 -ServiceName SkyRoofRemote-alpha -PackageRoot $version -Configuration C:/SkyRoofRemote/alpha-new.json -HealthUrl http://127.0.0.1:8076/health/ready
+```
+
+脚本验证 manifest 与配置五个组件路径；停止旧服务，修改 SCM 命令、启动并检查指定 readiness。失败恢复旧命令和原运行状态。该脚本不进行 SQLite schema migration 或数据快照；不能把 readiness 200 当作全部 DSP/RTC 或 RF 硬件健康。先备份数据并确保旧版本与数据 schema 兼容；升级期间不要同时运行占用同一硬件的实例。CI 仅检查暂存、文件篡改、配置隔离，真实服务升级与故障回滚尚未验收。
+
+可选 DSP 环境变量 `SKYROOF_SATNOGS_TOKEN` / `SKYROOF_STATION_CALLSIGN` / `SKYROOF_STATION_GRID`，Web 显式启用上传。ONVIF Host 环境变量 `SKYROOF_ONVIF_ENDPOINT`（设备 SOAP service URL）/`SKYROOF_ONVIF_USERNAME`/`SKYROOF_ONVIF_PASSWORD`；Web Camera 支持发现、profiles 与 JPEG/PNG snapshot，不是 RTSP/PTZ。凭据不提交仓库。

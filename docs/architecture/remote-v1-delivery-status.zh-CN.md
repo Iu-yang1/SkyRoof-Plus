@@ -278,3 +278,14 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `a899a84` 修复 GET delegate overload、标题回归、aislop 三告警；实际 [Media 45559459116](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459116)、[认证 E2E 45559459394](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459394)、[Browser 45559459144](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459144)、[aislop 45559459371](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559459371) 全通过；整包待结果。独立 DSP 45559459128 的 CW 双载波测试超时，新增并行读取与最后状态诊断，保持双载波和实际推理门槛。
 - `7e0935f` / `5cc9bad` BIN/LOG、KISS TCP、真实 AO-73 字节一致性、HTTP GET 结果体。 `9012304` / `e571417` Station catalog 元数据映射、CCSDS 参数、Web Profile 选择及真实 HTTP fixture。见 [Telemetry](remote-v1-telemetry.zh-CN.md)。
 - Q65 60B AP / EME 延迟高级参数新回归（模拟 2.5s 月面往返延迟；非实际 EME）。原生解码与整包仍待最新 CI；不提前合并。
+
+
+## 2026-11-25 — P0–P5 增量与验收边界
+
+- **P0:** `7e0935f` 24/24 CI 成功，包括 [开发整包 45559585109](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45559585109)。`8301015` 21/24，Q65 pileup 缺 AP hint 导致 ABI/package 失败，另有归档拼接 quality warning。`dd83ac3` 修复真实 AP hint 并实际解码测试，不放宽门禁；[Native Q65 45565279879](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45565279879)、[aislop 45565280098](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45565280098) 与 [Telemetry RF 45565279848](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45565279848) 已通过。
+- **P1:** `7478913` / `5420582` 可选 SatNOGS SiDS 站端上传、独立有界队列、CRC 失败帧及内包排除，真实 AO-73 帧的 loopback HTTP fixture（无公共服务上传）。`28d6db7` / `79ce079` 私有 DSP gRPC CF32 流与真实 UNNE-1B 录音回归，固定 50→48 kHz 重采样和 CFO、CRC/星上时钟验收；发布包改用同一 pinned SkySignals-Plus decoder。新 CI 待完成；尚无宽带 channelizer、硬件 SDR 采集、SSDV/SSTV/CODEC2 播放。
+- **P2:** `e1c258f` Orekit/JPL DE430 月球跟踪、方位俯仰、单站一阶 CFOM/own-echo RX/TX/none Doppler、2r/c 延迟与已有 Station/Device CAT 联动。真实 DE430 E2E 待 CI。不代表双站精确月面多普勒或 Q65 自动 QSO。
+- **P3:** `99ca6f3` / `98958cc` 站端 ONVIF discovery、Media1/2 profiles、GetSnapshotUri、同主机 HTTP JPEG/PNG 代理与认证 Web Camera 面板、真实 SOAP/HTTP fixture。未实现连续 RTSP 转码、PTZ、SoapySDR/RSP/Pluto 硬件控制。
+- **P4:** `62d36c8` 站 ID 独立 pipes/rings、持久化目录、认证数据库/Cookie/DataProtection key；配置生成器保留模板设备参数，Web 可打开另一独立 Host。未实现单工作台多台站联控及原 WinForms 全量 IPC。
+- **P5:** `1924a03` 完整文件 manifest SHA-256、并列版本暂存、SCM 路径切换及 readiness 失败回滚、脚本 fixture 检查隔离及篡改拒绝。未实施真实升级回滚/数据库 schema migration、发布者签名、安装器、公网 FRP/TURN/设备实测。
+- 最终整包、最新 aislop、所有新增回归必须以当前 HEAD 的实际 CI 为准；不将历史绿色基线或已编写测试算作最新功能验收。保持 Draft PR #254，不合并 master，不发正式 release。
