@@ -105,6 +105,14 @@ jobs:
         run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
       - name: Exercise packaged DSP AF FFT on synthetic PCM
         run: dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
+      - name: Validate staging and isolated station configuration
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteDeploymentScripts.ps1
+      - name: Generate and verify complete package file manifest
+        shell: pwsh
+        run: |
+          ./deploy/remote/windows/New-RemotePackageManifest.ps1 -PackageRoot artifacts/remote-v1 -Revision $env:GITHUB_SHA
+          ./deploy/remote/windows/Test-RemotePackage.ps1 -PackageRoot artifacts/remote-v1
       - name: Compress after smoke passes
         shell: pwsh
         run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force
