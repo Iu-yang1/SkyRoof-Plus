@@ -10,7 +10,7 @@ using SkyRoof.Remote.Ipc;
 internal static partial class NativeFt4HttpProbe
 {
     private static async Task VerifyHttpAsync(HttpClient anonymous, Uri address,
-        string dspPipe, FakeNativeIcomRadio fake, CancellationToken ct)
+        string dspPipe, FakeNativeIcomRadio fake, bool q65Runtime, CancellationToken ct)
     {
         var request = new { message = "CQ K1ABC FN42", frequencyHz = 435_550_000L,
             audioHz = 1500, gain = 0.5f, odd = false };
@@ -38,7 +38,8 @@ internal static partial class NativeFt4HttpProbe
         Console.WriteLine("PASS: authenticated Host -> native DSP FT4 encoding -> Station -> Device -> exact UDP waveform.");
         await WsjtxNativeBridgeProbe.RunAsync(admin, address, fake, ct);
         await VerifyAutoAsync(anonymous, admin, dspPipe, fake, ct);
-        await VerifyQ65Async(anonymous, admin, dspPipe, fake, ct);
+        if (q65Runtime) await VerifyQ65Async(anonymous, admin, dspPipe, fake, ct);
+        else Console.WriteLine("Q65 UDP fixture not applicable: standalone FT4/CW build without native Q65 runtime.");
     }
 
     private static async Task<byte[]> ReadWaveformAsync(string pipe, CancellationToken ct, string message = "CQ K1ABC FN42")

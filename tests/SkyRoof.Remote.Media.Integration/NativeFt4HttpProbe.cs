@@ -25,7 +25,8 @@ internal static partial class NativeFt4HttpProbe
             StartProcesses(paths, new Fixture(devicePipe, stationPipe, dspPipe, root, address), processes);
             using var anonymous = new HttpClient { BaseAddress = address };
             await WaitReadyAsync(anonymous, ct);
-            await VerifyHttpAsync(anonymous, address, dspPipe, fake, ct);
+            await VerifyHttpAsync(anonymous, address, dspPipe, fake,
+                File.Exists(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(paths.Dsp)) ?? "", "mfsk.dll")), ct);
         }
         finally
         {

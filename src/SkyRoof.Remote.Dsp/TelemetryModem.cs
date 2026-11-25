@@ -7,8 +7,8 @@ namespace SkyRoof.Remote.Dsp;
 internal sealed class TelemetryModem : IDisposable
 {
     private readonly StreamingPipeline _pipeline;
-    private readonly TelemetryRealAudioIqConverter? _tone;
-    private readonly TelemetryAfskFmIqConverter? _fm;
+    private delegate Complex32[] ConvertPcm(ReadOnlySpan<float> pcm);
+    private readonly ConvertPcm _convert;
     private readonly Action<Frame, bool> _frame;
     private readonly AsrtuTmShortKissTransport? _asrtu;
     private readonly bool _unne;
@@ -21,10 +21,15 @@ internal sealed class TelemetryModem : IDisposable
         if (config.NoradId == 61781 && signal.Framing == Framing.CCSDS && config.DownlinkHz == 435400000)
             _asrtu = new AsrtuTmShortKissTransport();
         if (config.Input == "fm-discriminator" || signal.Modulation == Modulation.AFSK && config.Input == "tone-audio")
-            _fm = new TelemetryAfskFmIqConverter(signal.Modulation == Modulation.AFSK ? 1800 :
-                signal.Deviation ?? signal.Baud / 4);
+            {
+            var fm = new TelemetryAfskFmIqConverter(signal.Modulation == Modulation.AFSK ? 1800 : signal.Deviation ?? signal.Baud / 4);
+            _convert = samples => fm.Convert(samples);
+        }
         else
-            _tone = new TelemetryRealAudioIqConverter(config.Input == "real-if" ? 12000 : config.CenterHz);
+            {
+            var tone = new TelemetryRealAudioIqConverter(config.Input == "real-if" ? 12000 : config.CenterHz);
+            _convert = samples => tone.Convert(samples);
+        }
         _pipeline = _unne ? new StreamingPipeline(signal, new StreamingOptions
         {
             GateByShape = signal.Deviation is > 0, DecodeRejected = signal.Deviation is null,
@@ -64,7 +69,7 @@ internal sealed class TelemetryModem : IDisposable
 
     public void Push(ReadOnlySpan<float> pcm)
     {
-        Complex32[] iq = _fm is not null ? _fm.Convert(pcm) : _tone!.Convert(pcm);
+        Complex32[] iq = _convert(pcm);
         _pipeline.Push(iq);
     }
 

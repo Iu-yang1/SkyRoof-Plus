@@ -9,7 +9,7 @@ public static class TelemetryEndpoints
 {
     public static void MapTelemetry(this WebApplication app)
     {
-        app.MapGet("/api/v1/dsp/telemetry", ReadAsync).RequireAuthorization();
+        app.MapGet("/api/v1/dsp/telemetry", (Delegate)ReadAsync).RequireAuthorization();
         app.MapPut("/api/v1/dsp/telemetry", ConfigureAsync)
             .RequireAuthorization(policy => policy.RequireRole("Operator", "Administrator"));
     }

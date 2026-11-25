@@ -80,6 +80,6 @@ public sealed partial class TelemetryLiveReceiver
             if (_channels == 2) value += BinaryPrimitives.ReadInt16LittleEndian(frame.Payload.AsSpan(offset + 2));
             pcm[i] = value / (32768f * _channels);
         }
-        _modem!.Push(pcm);
+        (_modem ?? throw new InvalidOperationException("Telemetry receiver stopped during PCM processing.")).Push(pcm);
     }
 }

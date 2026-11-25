@@ -29,7 +29,7 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   await expect(localSlot.getByText('48,000 samples/s · PCM16 · SAP/1')).toBeVisible();
   await expect(localSlot.getByText('MEDIA · RX ACTIVE · icom-lan · Epoch 147')).toBeVisible();
   await expect(localSlot.getByText(/Source frames 22.*Missing samples 480/)).toBeVisible();
-  await expect(localSlot.getByText('FT4 / CW CONSOLE')).toBeVisible();
+  await expect(localSlot.getByText('FT4 / Q65 / CW CONSOLE')).toBeVisible();
   await expect(page.getByText('SignalR/MessagePack connected')).toBeVisible();
 
   await page.getByRole('button', { name: 'SAVE LAYOUT' }).click();
