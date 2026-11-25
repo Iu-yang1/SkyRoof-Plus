@@ -1,5 +1,7 @@
 using System.Net;
 using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -28,12 +30,35 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
         string request = await reader.ReadToEndAsync(context.RequestAborted);
         string baseUrl = "http://" + context.Request.Host;
         string? body = request.Contains("GetServices", StringComparison.Ordinal) ?
-            $"<Service><Namespace>http://www.onvif.org/ver20/media/wsdl</Namespace><XAddr>{baseUrl}/onvif</XAddr></Service>" :
+            $"<Service><Namespace>http://www.onvif.org/ver20/media/wsdl</Namespace><XAddr>{baseUrl}/onvif</XAddr></Service><Service><Namespace>http://www.onvif.org/ver20/ptz/wsdl</Namespace><XAddr>{baseUrl}/onvif</XAddr></Service>" :
             request.Contains("GetProfiles", StringComparison.Ordinal) ? "<Profiles token=\"primary\"><Name>Test camera</Name></Profiles>" :
-            request.Contains("GetSnapshotUri", StringComparison.Ordinal) ? $"<Uri>{baseUrl}/snapshot</Uri>" : null;
+            request.Contains("GetSnapshotUri", StringComparison.Ordinal) ? $"<Uri>{baseUrl}/snapshot</Uri>" :
+            ValidatePtz(request);
         return body is null ? Results.BadRequest() : Results.Text(
             "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Body>" + body + "</s:Body></s:Envelope>",
             "application/soap+xml");
+    }
+
+    private static string? ValidatePtz(string request)
+    {
+        XNamespace ptz = "http://www.onvif.org/ver20/ptz/wsdl";
+        XNamespace tt = "http://www.onvif.org/ver10/schema";
+        var doc = XDocument.Parse(request);
+        var move = doc.Descendants(ptz + "RelativeMove").SingleOrDefault();
+        if (move is not null)
+        {
+            var vector = move.Element(ptz + "Translation")?.Element(tt + "PanTilt");
+            return move.Element(ptz + "ProfileToken")?.Value == "primary" &&
+                vector?.Attribute("x")?.Value == "-0.25" &&
+                vector.Attribute("y")?.Value == "0.125" &&
+                vector.Attribute("space")?.Value == "http://www.onvif.org/ver10/tptz/PanTiltSpaces/TranslationGenericSpace" &&
+                move.Element(ptz + "Translation")?.Element(tt + "Zoom") is null
+                ? "<RelativeMoveResponse/>" : null;
+        }
+        var stop = doc.Descendants(ptz + "Stop").SingleOrDefault();
+        return stop?.Element(ptz + "ProfileToken")?.Value == "primary" &&
+            stop.Element(ptz + "PanTilt")?.Value == "true" && stop.Element(ptz + "Zoom")?.Value == "true"
+            ? "<StopResponse/>" : null;
     }
 
     internal void Configure(ProcessStartInfo info) =>
@@ -53,7 +78,14 @@ internal sealed class CameraHttpFixture : IAsyncDisposable
         byte[] bytes = await image.Content.ReadAsByteArrayAsync();
         if (!bytes.AsSpan().SequenceEqual(Png) || image.Content.Headers.ContentType?.MediaType != "image/png")
             throw new InvalidDataException("ONVIF snapshot bytes mismatch.");
-        Console.WriteLine("PASS: authenticated Host -> real SOAP GetServices/GetProfiles/GetSnapshotUri -> exact camera image.");
+        var movement = new { profile = "primary", pan = -0.25, tilt = 0.125, zoom = 0 };
+        using var anonymousMove = await anonymous.PostAsJsonAsync("/api/v1/camera/ptz/relative", movement);
+        if (anonymousMove.StatusCode != HttpStatusCode.Unauthorized) throw new InvalidDataException("Anonymous PTZ was allowed.");
+        using var accepted = await authenticated.PostAsJsonAsync("/api/v1/camera/ptz/relative", movement);
+        accepted.EnsureSuccessStatusCode();
+        using var stopped = await authenticated.PostAsJsonAsync("/api/v1/camera/ptz/stop", new { profile = "primary" });
+        stopped.EnsureSuccessStatusCode();
+        Console.WriteLine("PASS: authenticated Host -> real SOAP GetServices/GetProfiles/GetSnapshotUri -> exact camera image and RelativeMove/Stop wire XML.");
     }
 
     public async ValueTask DisposeAsync()

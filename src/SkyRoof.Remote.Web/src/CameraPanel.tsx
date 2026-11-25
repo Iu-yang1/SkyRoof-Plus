@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { DeviceHubContext, WorkspaceActiveContext } from './host';
+import { CameraPtzControls } from './CameraPtzControls';
 
 type Profile = { token: string; name: string; media2: boolean };
 type Device = { endpoint: string; scope: string };
@@ -63,6 +64,7 @@ export function CameraPanel() {
     <label>PROFILE <select value={selected} onChange={e => setSelected(Number(e.target.value))}>
       {profiles.map((p, i) => <option key={p.token + p.media2} value={i}>{p.name} ({p.media2 ? 'Media2' : 'Media1'})</option>)}
     </select></label>
+    {profile && <CameraPtzControls enabled={!!hub && active} profile={profile.token} />}
     {image && <img src={image} alt="Station ONVIF camera snapshot" style={{ width: '100%', objectFit: 'contain' }} />}
     {error && <p role="alert">{error}</p>}
     {devices.map(d => <p key={d.endpoint}>{d.endpoint} · {d.scope}</p>)}

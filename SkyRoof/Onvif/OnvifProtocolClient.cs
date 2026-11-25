@@ -10,7 +10,7 @@ namespace SkyRoof
   /// PasswordDigest (nonce + UTC created + password) and HTTP Digest/Basic are
   /// supported. Credentials are never logged or persisted.
   /// </summary>
-  internal sealed class OnvifProtocolClient : IDisposable
+  internal sealed partial class OnvifProtocolClient : IDisposable
   {
     private const string DeviceNs = "http://www.onvif.org/ver10/device/wsdl";
     private const string Media1Ns = "http://www.onvif.org/ver10/media/wsdl";

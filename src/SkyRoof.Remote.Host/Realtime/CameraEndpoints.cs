@@ -2,12 +2,13 @@ using SkyRoof;
 
 namespace SkyRoof.Remote.Host.Realtime;
 
-public static class CameraEndpoints
+public static partial class CameraEndpoints
 {
     public static void MapCamera(this WebApplication app)
     {
         app.MapGet("/api/v1/camera/profiles", (Delegate)ProfilesAsync).RequireAuthorization();
         app.MapGet("/api/v1/camera/snapshot", SnapshotAsync).RequireAuthorization();
+        MapPtz(app);
         app.MapPost("/api/v1/camera/discover", (Delegate)DiscoverAsync)
             .RequireAuthorization(policy => policy.RequireRole("Operator", "Administrator"));
     }
