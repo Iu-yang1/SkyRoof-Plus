@@ -55,6 +55,8 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
   private double? rejectedAz,rejectedEl;
   private long feedbackSinceTicks;
   private long nextId,readTicks,targetTicks,stopTicks,rateTicks;
+  private long lastVerificationStarted;
+  internal long LastVerificationStarted => Interlocked.Read(ref lastVerificationStarted);
   private long lastHeartbeatTimestamp;
   private const double HeartbeatTimeoutSeconds=5.0;
   // A living PID is not proof that the motion controller is responsive.
@@ -332,6 +334,7 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
         if(m.Type=="state")ApplyState(m);
         else if(m.Type=="reply" && pending.TryRemove(m.Id,out var reply))
           reply.TrySetResult(m.Flag);
+        else if(m.Type=="verify-start")Interlocked.Exchange(ref lastVerificationStarted,m.Id);
         else if(m.Type=="fault")ApplyFault(m);
       }
       cancel.Cancel();SignalWriter();
@@ -798,8 +801,10 @@ internal sealed class RotatorEngineSubprocess : INativeRotatorEngine
                 bool success=false;
                 try
                 {
-                  success=await engine.VerifyPostManagementFeedbackAsync(clock.Token)
-                    .ConfigureAwait(false);
+                  var verification=engine.VerifyPostManagementFeedbackAsync(clock.Token);
+                  if(!verification.IsCompleted)
+                    await Publish(new RotatorWireMessage{Type="verify-start",Id=id});
+                  success=await verification.ConfigureAwait(false);
                 }
                 catch(Exception ex)
                 {
