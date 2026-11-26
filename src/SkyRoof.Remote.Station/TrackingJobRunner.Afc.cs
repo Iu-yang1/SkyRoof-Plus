@@ -32,7 +32,13 @@ public sealed partial class TrackingJobRunner
             var now = DateTime.UtcNow;
             if (_afc is not { } active || active.Id != input.SessionId || active.JobId != _status.JobId || active.Expired(now))
                 throw new RpcException(new Status(StatusCode.FailedPrecondition, "AFC session expired or tracking target changed."));
-            return active.Update(input.Measurement, now);
+            try
+            {
+                var status = active.Update(input.Measurement, input.Target, now);
+                if (input.Target is not null) _nextTick = 0;
+                return status;
+            }
+            catch (ArgumentException error) { throw new RpcException(new Status(StatusCode.InvalidArgument, error.Message)); }
         }
         finally { _gate.Release(); }
     }
