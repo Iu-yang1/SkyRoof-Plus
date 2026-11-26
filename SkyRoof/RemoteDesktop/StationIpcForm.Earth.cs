@@ -36,7 +36,7 @@ internal sealed partial class StationIpcForm
             earthSettings.Source = Enum.Parse<EarthMapSourceKind>(earthProvider.Text);
             earthGpu.Configure(earthSettings);
         };
-        earthGpuEnabled.CheckedChanged += (_, _) => ToggleGpuEarth(page);
+        earthGpuEnabled.CheckedChanged += (_, _) => ToggleGpuEarth();
         var row = Row("Past / future minutes", earthMinutes, ActionButton("GROUND TRACK", RefreshEarthTrackAsync), earthLive,
             earthFootprint, ActionButton("RESET MAP", () => { earthMap.ResetView(); earthGpu?.ResetView(); return Task.CompletedTask; }));
         var mapOptions = Row(earthGpuEnabled, "Map provider", earthProvider);
@@ -50,8 +50,10 @@ internal sealed partial class StationIpcForm
         return page;
     }
 
-    private void ToggleGpuEarth(TabPage page)
+    private void ToggleGpuEarth()
     {
+        // RemoteDockPane transfers the tab's controls and disposes its original TabPage.
+        if (earthMap.Parent is not Control page || page.IsDisposed) return;
         if (!earthGpuEnabled.Checked)
         {
             if (earthGpu is not null) { page.Controls.Remove(earthGpu); earthGpu.Dispose(); earthGpu = null; }

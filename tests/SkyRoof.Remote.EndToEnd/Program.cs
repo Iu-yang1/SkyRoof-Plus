@@ -57,6 +57,7 @@ stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
 stationInfo.Environment["SKYROOF_LOGBOOK_DIRECTORY"] = trackingFile + "-logbook";
+stationInfo.Environment["SKYROOF_RECORDING_DIRECTORY"] = trackingFile + "-recordings";
 stationInfo.Environment["SKYROOF_SATELLITE_CATALOG"] = catalogFile;
 stationInfo.Environment["SKYROOF_ORBIT_BACKEND"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") ?? "orekit";
 stationInfo.Environment["SKYROOF_OREKIT_DATA"] = Path.Combine(Path.GetDirectoryName(stationDll)!, "orekit-data");
@@ -95,7 +96,7 @@ try
     Ensure(alive, "Host never became ready");
     await DesktopIpcChecks.RunAsync(stationPipe, radio, rotator);
     await LogbookChecks.RunAsync(stationPipe);
-    await DesktopSignalChecks.RunAsync(stationPipe, signalBus);
+    await DesktopSignalChecks.RunAsync(stationPipe, signalBus, trackingFile + "-recordings");
     Ensure((await anonymous.GetAsync("/api/v1/station")).StatusCode ==
         HttpStatusCode.Unauthorized, "Anonymous station access allowed");
 
@@ -245,6 +246,7 @@ finally
     if (File.Exists(journal)) File.Delete(journal);
     if (File.Exists(trackingFile)) File.Delete(trackingFile);
     if (Directory.Exists(trackingFile + "-logbook")) Directory.Delete(trackingFile + "-logbook", true);
+    if (Directory.Exists(trackingFile + "-recordings")) Directory.Delete(trackingFile + "-recordings", true);
     File.Delete(catalogFile);
     File.Delete(catalogFile + ".satnogs.json");
     File.Delete(catalogFile + ".celestrak.json");

@@ -35,7 +35,7 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
     private static NamedSignalRing? TryOpen(RingSpec spec)
     {
         try { return new NamedSignalRing(spec.Name, spec.Slots, spec.Capacity); }
-        catch (InvalidDataException) { return null; }
+        catch (Exception ex) when (ex is InvalidDataException or FileNotFoundException) { return null; }
     }
 
     private static async IAsyncEnumerable<StationSignalFrame> ReadAsync(NamedSignalRing ring, RingSpec spec,
