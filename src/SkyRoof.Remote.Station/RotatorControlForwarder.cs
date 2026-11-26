@@ -7,7 +7,7 @@ namespace SkyRoof.Remote.Station;
 /// Host never opens hardware TCP sockets; Station forwards validated commands
 /// to the sole Device process. No non-idempotent commands are replayed.
 /// </summary>
-public sealed class RotatorControlForwarder(DeviceControlForwarder device)
+public sealed class RotatorControlForwarder(DeviceControlForwarder device, TrackingJobRunner tracking)
     : DeviceRotator.DeviceRotatorBase
 {
     public override async Task<RotatorPosition> Read(RotatorRead request,
@@ -24,8 +24,6 @@ public sealed class RotatorControlForwarder(DeviceControlForwarder device)
         ServerCallContext context) => await device.Rotator.ParkAsync(request,
             cancellationToken: context.CancellationToken);
 
-    public override async Task<RotatorPosition> Stop(RotatorRead request,
-        ServerCallContext context) => await device.Rotator.StopAsync(request,
-            deadline: DateTime.UtcNow.AddSeconds(8),
-            cancellationToken: context.CancellationToken);
+    public override Task<RotatorPosition> Stop(RotatorRead request,
+        ServerCallContext context) => tracking.StopPointingAsync(context.CancellationToken);
 }

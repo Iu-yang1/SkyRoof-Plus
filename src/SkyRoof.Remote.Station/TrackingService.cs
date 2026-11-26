@@ -20,7 +20,7 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
     }
 
     internal async Task<TrackingSnapshot> ApplyPredictionAsync(TrackingRequest request,
-        TrackingSnapshot result, CancellationToken ct)
+        TrackingSnapshot result, CancellationToken ct, Func<bool>? pointAllowed = null)
     {
         if (result.ElevationDegrees < request.ElevationMaskDegrees) return result;
         await _apply.WaitAsync(ct);
@@ -35,7 +35,7 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
             result.CatApplied = true;
             result.ActualRxHz = radio.RxFrequencyHz;
             result.ActualTxHz = radio.TxFrequencyHz;
-            if (request.PointRotator)
+            if (request.PointRotator && (pointAllowed?.Invoke() ?? true))
             {
                 try
                 {

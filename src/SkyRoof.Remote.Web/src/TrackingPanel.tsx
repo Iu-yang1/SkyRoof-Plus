@@ -173,7 +173,7 @@ export function TrackingPanel() {
       </div>
     </form>
     {job?.Running && job.ActiveRadioLink && <LiveRadioLinkTune key={job.JobId} hub={hub} jobId={job.JobId} active={job.ActiveRadioLink} available={Boolean(hub)} />}
-    {job && <div className="readout">STATION TASK · {job.Phase.toUpperCase()} · {job.CompletedTicks} updates</div>}
+    {job && <div className="readout">STATION TASK · {job.Phase.toUpperCase()} · {job.CompletedTicks} updates · ROT {job.PointRotator ? 'TRACK' : 'OFF'}</div>}
     {jobError && <small>{jobError}</small>}
     {job?.Error && <p className="error">{job.Error}</p>}
     {displayed && <div className="tracking-result">

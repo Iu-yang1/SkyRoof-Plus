@@ -59,20 +59,22 @@ public sealed partial class TrackingJobRunner
         _nextTick = now + (long)(_request.IntervalMilliseconds / 1000.0 * Stopwatch.Frequency);
         var request = _request.Tracking.Clone();
         request.UtcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        request.PointRotator = request.PointRotator && _suspendedPointingJob != _status.JobId;
         try
         {
             // A failed rotator reply does not prove no movement occurred.
             var prediction = tracking.Calculate(request);
             if (request.PointRotator && prediction.ElevationDegrees >= request.ElevationMaskDegrees)
                 _rotatorNeedsStop = true;
-            var result = await tracking.ApplyPredictionAsync(request, prediction, ct);
+            var result = await tracking.ApplyPredictionAsync(request, prediction, ct,
+                () => _suspendedPointingJob != _status.JobId);
             _status.Latest = result;
             _status.CompletedTicks++;
             _status.Error = result.RotatorError;
             _status.Phase = result.CatApplied
                 ? (result.RotatorError.Length == 0 ? "tracking" : "device-error")
                 : "below-mask";
-            if (!result.CatApplied && _rotatorNeedsStop) await StopRotatorAsync(ct);
+            if ((!result.CatApplied || !request.PointRotator) && _rotatorNeedsStop) await StopRotatorAsync(ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {

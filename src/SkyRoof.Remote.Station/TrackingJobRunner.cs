@@ -12,6 +12,8 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
     private TrackingJobStatus _status = new() { Phase = "idle" };
     private long _nextTick;
     private bool _rotatorNeedsStop;
+    private volatile string? _pointingJob;
+    private volatile string? _suspendedPointingJob;
 
     public async Task<TrackingJobStatus> StartJobAsync(TrackingJobStart request, CancellationToken ct)
     {
@@ -44,6 +46,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
             if (jobId != _status.JobId) return Snapshot();
             store.Clear();
             _request = null;
+            _pointingJob = null;
             _status.Running = false;
             _status.Phase = "stopped";
             if (_rotatorNeedsStop)
@@ -61,7 +64,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
         var result = _status.Clone();
         if (_request?.Tracking is not { } current) return result;
         result.CelestialTarget = current.CelestialTarget;
-        result.PointRotator = current.PointRotator;
+        result.PointRotator = current.PointRotator && _suspendedPointingJob != _status.JobId;
         if (current.CelestialTarget.Length == 0)
             result.ActiveRadioLink = current.RadioLink?.Clone() ?? new RadioLinkProfile
             {
@@ -73,6 +76,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
     private void Activate(string id, TrackingJobStart request)
     {
         _request = request.Clone();
+        _pointingJob = request.Tracking.PointRotator ? id : null;
         _status = new TrackingJobStatus
         {
             JobId = id, Running = true, Phase = "starting",

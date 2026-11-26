@@ -49,6 +49,8 @@ internal static class ContinuousTrackingChecks
             (after.Latest.RxHz != before.Latest.RxHz || after.Latest.TxHz != before.Latest.TxHz),
             "Tracking stalled or reused historical Doppler after client disconnect");
 
+        await VerifyManualRotatorStopAsync(observer, after, rotator);
+        int suspendedPoints = rotator.CountPrefix("P ");
         station.Kill(entireProcessTree: true);
         await station.WaitForExitAsync();
         var replacement = Process.Start(stationInfo)
@@ -57,7 +59,8 @@ internal static class ContinuousTrackingChecks
         {
             var resumed = await WaitAsync(observer, x => x.JobId == job.JobId &&
                 x.Running && x.CompletedTicks >= 2 && x.Phase == "tracking");
-            Check(resumed.ResumeAfterRestart, "Authorized tracking job not restored");
+            Check(resumed.ResumeAfterRestart && !resumed.PointRotator, "Tracking or suspended pointing not restored");
+            Check(rotator.CountPrefix("P ") == suspendedPoints, "Station restart resumed stopped pointing");
             VerifyTunedReadback(resumed);
             var stale = await observer.InvokeAsync<RemoteTrackingJobStatus>(
                 "StopTrackingJob", "old-job");
@@ -85,6 +88,21 @@ internal static class ContinuousTrackingChecks
             replacement.Dispose();
             throw;
         }
+    }
+
+    private static async Task VerifyManualRotatorStopAsync(HubConnection hub, RemoteTrackingJobStatus before, FakeRigctld rotator)
+    {
+        var stopped = await hub.InvokeAsync<RemoteRotatorPosition>("StopRotator");
+        Check(stopped.StopTransmitted, "Manual STOP not transmitted.");
+        var suspended = await WaitAsync(hub, x => x.Running && !x.PointRotator &&
+            x.CompletedTicks > before.CompletedTicks && x.Phase == "tracking");
+        int points = rotator.CountPrefix("P ");
+        var next = await WaitAsync(hub, x => x.CompletedTicks >= suspended.CompletedTicks + 3);
+        Check(next.JobId == before.JobId && next.Latest?.CatApplied == true &&
+            !next.PointRotator && rotator.CountPrefix("P ") == points,
+            "Manual STOP allowed automatic POINT or ended Doppler tracking.");
+        VerifyTunedReadback(next);
+        Console.WriteLine("PASS: urgent rotator STOP suspends only automatic pointing; Doppler continues and durable restart retains STOP.");
     }
 
     private static async Task<RemoteTrackingJobStatus> VerifyLiveTuneAsync(HubConnection hub, RemoteTrackingJobStatus before)

@@ -29,13 +29,13 @@ internal sealed partial class StationIpcForm
     {
         if (IsDisposed) return;
         activeTracking = job;
-        tracking.Text = $"TRACK · {job.Phase} · {job.CompletedTicks} ticks";
+        tracking.Text = $"TRACK · {job.Phase} · {job.CompletedTicks} ticks · ROT {(job.PointRotator ? "TRACK" : "OFF")}";
         liveOffsets.Text = job.ActiveRadioLink is { } link
             ? $"ACTIVE · POS {link.TransponderOffsetHz:R} · RIT {link.RitHz:R} · XIT {link.XitHz:R} · RX/TX manual {link.DownlinkManualHz:R}/{link.UplinkManualHz:R} · base {link.DownlinkBaseOffsetHz}/{link.UplinkBaseOffsetHz} Hz"
             : "No active satellite RadioLink";
         if (job.Running && job.Latest is { } latest)
             trackingResult.Text = $"{job.Phase} · AZ {latest.AzimuthDegrees:F2} EL {latest.ElevationDegrees:F2} · RX {latest.RxHz} TX {latest.TxHz} · actual {latest.ActualRxHz}/{latest.ActualTxHz} · {job.Error}";
-        else if (!job.Running) trackingResult.Text = $"{job.Phase} · {job.Error}";
+
     }
 
     private Task LoadActiveOffsetsAsync()
