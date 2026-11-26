@@ -294,7 +294,7 @@ message QsoSearchResult {
   repeated QsoRecord records = 1;
   string next_before_id = 2;
 }
-message QsoAdif { string content = 1; int32 count = 2; }
+message QsoAdif { string content = 1; int32 count = 2; string next_before_id = 3; }
 
 service StationAfc {
   rpc Open(AfcOpenRequest) returns (AfcSessionStatus);

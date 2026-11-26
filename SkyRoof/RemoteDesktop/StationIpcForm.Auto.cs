@@ -21,6 +21,7 @@ internal sealed partial class StationIpcForm
     private DesktopAutoSession? autoConnection;
     private string autoStation = "";
     private bool connectingAuto;
+    private QsoRecord? lastAutoQso;
 
     private TabPage CreateAutoPage()
     {
@@ -94,12 +95,19 @@ internal sealed partial class StationIpcForm
         digitalCancellation = source;
         autoEvents.Clear();
         string mode = autoMode.Text;
+        string call = autoCall.Text.Trim(), grid = autoGrid.Text.Trim();
+        bool moon = mode == "Q65" && autoTrackingJob.Text.Trim().Length > 0;
+        JsonElement? completed = null;
         try
         {
             var local = await client.IdentifyAsync(source.Token);
             await connection.StartAsync(mode, BuildAutoRequest(mode), source.Token, local.InstanceId);
             while (await connection.ReadAsync(source.Token) is { } evt)
+            {
                 ShowAutoEvent(evt);
+                if (evt.GetProperty("state").GetString() == "completed") completed = evt;
+            }
+            if (completed is { } terminal) RememberAutoQso(terminal, mode, call, grid, moon);
         }
         catch (OperationCanceledException) when (source.IsCancellationRequested)
         { if (!IsDisposed) autoStatus.Text = "Cancellation requested; verify CAT RX."; }
@@ -141,6 +149,22 @@ internal sealed partial class StationIpcForm
         autoStatus.Text = autoStation + " · " + evt.GetProperty("state").GetString();
         if (autoEvents.TextLength > 100000) autoEvents.Clear();
         autoEvents.AppendText(evt.GetRawText() + Environment.NewLine);
+    }
+
+    private void RememberAutoQso(JsonElement terminal, string mode, string call, string grid, bool moon)
+    {
+        static string Field(JsonElement value, string name) =>
+            value.TryGetProperty(name, out var property) && property.ValueKind is not JsonValueKind.Null ? property.ToString() : "";
+        string peer = Field(terminal, "peer");
+        if (peer.Length == 0) return;
+        lastAutoQso = new QsoRecord
+        {
+            Id = Guid.NewGuid().ToString("N"), UtcMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            StationCall = call, MyGrid = grid, Call = peer, Grid = Field(terminal, "grid"),
+            Mode = "MFSK", Submode = mode, Sent = Field(terminal, "reportSent"),
+            Received = Field(terminal, "reportReceived"), Propagation = moon ? "EME" : ""
+        };
+        autoStatus.Text += " · QSO draft available in QSO LOG";
     }
 
     private Task StopAutoAsync()

@@ -19,7 +19,7 @@ internal sealed partial class StationIpcForm
         var page = new TabPage("QSO LOG");
         var fields = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         fields.Controls.Add(Row("UTC", qsoUtc, ActionButton("NOW", () => { qsoUtc.Value = DateTime.UtcNow; return Task.CompletedTask; }),
-            ActionButton("USE CAT", FillQsoFromRadioAsync)));
+            ActionButton("USE CAT", FillQsoFromRadioAsync), ActionButton("USE LAST AUTO QSO", FillLastAutoQsoAsync)));
         foreach (string[] group in new[] {
             new[] {"MY CALL", "MY GRID", "CALL", "GRID"}, new[] {"BAND", "MODE", "SUBMODE", "SAT"},
             new[] {"TX Hz", "RX Hz", "PROP", "SENT", "RCVD"}, new[] {"NAME", "STATE", "NOTES"} })
@@ -36,7 +36,7 @@ internal sealed partial class StationIpcForm
         }
         qsoUtc.Value = DateTime.UtcNow;
         fields.Controls.Add(Row(ActionButton("SAVE QSO", SaveQsoAsync), ActionButton("NEW QSO", NewQsoAsync),
-            "Search call", qsoFilter, ActionButton("SEARCH LOG", () => QueryQsoAsync(true)), ActionButton("NEXT PAGE", () => QueryQsoAsync(false)),
+            ActionButton("LOOKUP CALL", LookupQsoAsync), "Search call", qsoFilter, ActionButton("SEARCH LOG", () => QueryQsoAsync(true)), ActionButton("NEXT PAGE", () => QueryQsoAsync(false)),
             ActionButton("EXPORT ADIF", ExportQsoAsync)));
         foreach (var column in new[] { "UTC", "CALL", "GRID", "BAND", "MODE", "SAT", "SENT", "RCVD" }) qsoList.Columns.Add(column, 100);
         page.Controls.Add(qsoList); page.Controls.Add(fields); page.Controls.Add(qsoStatus);
@@ -76,8 +76,9 @@ internal sealed partial class StationIpcForm
         {
             var saved = await client.SaveQsoAsync(BuildQso(), lifetime.Token);
             qsoStatus.Text = "Saved · " + saved.Id;
-            recordingWriter?.MarkQso(saved.Id, saved.Call);
+            if (lastAutoQso?.Id == saved.Id) lastAutoQso = null;
             await NewQsoAsync();
+            recordingWriter?.MarkQso(saved.Id, saved.Call);
         }
         finally { qsoBusy = false; }
     }
@@ -109,26 +110,77 @@ internal sealed partial class StationIpcForm
         finally { qsoBusy = false; }
     }
 
+    private async Task LookupQsoAsync()
+    {
+        var call = QsoField("CALL").ToUpperInvariant();
+        if (call.Length == 0) return;
+        var results = await client.SearchQsoAsync(new QsoSearch { Call = call, Limit = 100 }, lifetime.Token);
+        var exact = results.Records.Where(q => q.Call == call).ToArray();
+        foreach (var field in new[] { "GRID", "NAME", "STATE" })
+        {
+            if (QsoField(field).Length != 0) continue;
+            var prior = exact.Select(q => field switch { "GRID" => q.Grid, "NAME" => q.Name, _ => q.State })
+                .FirstOrDefault(v => v.Length > 0);
+            if (prior is not null) qsoFields[field].Text = prior;
+        }
+        qsoStatus.Text = exact.Length == 0 ? "No exact call in returned history." : $"Worked before · {exact.Length} matching recent records";
+    }
+
+    private Task FillLastAutoQsoAsync()
+    {
+        if (lastAutoQso is not { } draft) throw new InvalidOperationException("No completed automatic QSO.");
+        qsoId = draft.Id;
+        qsoUtc.Value = DateTimeOffset.FromUnixTimeMilliseconds(draft.UtcMilliseconds).UtcDateTime;
+        foreach (var field in new[] { "GRID", "NAME", "STATE", "NOTES", "SENT", "RCVD", "SAT", "PROP", "BAND", "TX Hz", "RX Hz" })
+            qsoFields[field].Clear();
+        qsoFields["MY CALL"].Text = draft.StationCall;
+        qsoFields["MY GRID"].Text = draft.MyGrid;
+        qsoFields["CALL"].Text = draft.Call;
+        qsoFields["GRID"].Text = draft.Grid;
+        qsoFields["MODE"].Text = draft.Mode;
+        qsoFields["SUBMODE"].Text = draft.Submode;
+        qsoFields["SENT"].Text = draft.Sent;
+        qsoFields["RCVD"].Text = draft.Received;
+        qsoFields["PROP"].Text = draft.Propagation;
+        qsoStatus.Text = "Completed exchange loaded. Confirm band, satellite and actual RF frequencies before saving.";
+        return Task.CompletedTask;
+    }
+
     private async Task ExportQsoAsync()
     {
+        if (qsoBusy) return;
         using var dialog = new SaveFileDialog { Filter = "ADIF|*.adi", FileName = "skyroof-log.adi" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        // Fetch all matching pages rather than silently truncating the export.
+        qsoBusy = true;
+        string temporary = dialog.FileName + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            int count = await WriteAdifAsync(temporary, qsoFilter.Text.Trim());
+            File.Move(temporary, dialog.FileName, true);
+            qsoStatus.Text = $"Exported {count} QSO records.";
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+            qsoBusy = false;
+        }
+    }
+
+    private async Task<int> WriteAdifAsync(string path, string filter)
+    {
         string cursor = "";
         int count = 0;
-        using var writer = new StreamWriter(dialog.FileName, false, new System.Text.UTF8Encoding(false));
+        using var writer = new StreamWriter(path, false, new System.Text.UTF8Encoding(false));
         do
         {
-            var query = new QsoSearch { Call = qsoFilter.Text.Trim(), Limit = 100, BeforeId = cursor };
-            var page = await client.SearchQsoAsync(query, lifetime.Token);
-            var export = await client.ExportQsoAsync(query, lifetime.Token);
-            if (export.Count != page.Records.Count) throw new IOException("Logbook changed during export; retry.");
+            var export = await client.ExportQsoAsync(new QsoSearch { Call = filter, Limit = 100, BeforeId = cursor }, lifetime.Token);
             string content = export.Content;
             int header = content.IndexOf("<EOH>", StringComparison.OrdinalIgnoreCase);
+            if (header < 0) throw new InvalidDataException("Invalid ADIF export page.");
             await writer.WriteAsync(count == 0 ? content : content[(header + 5)..]);
             count += export.Count;
-            cursor = page.NextBeforeId;
+            cursor = export.NextBeforeId;
         } while (cursor.Length > 0);
-        qsoStatus.Text = $"Exported {count} QSO records.";
+        return count;
     }
 }

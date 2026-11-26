@@ -58,10 +58,12 @@ public sealed partial class StationLogbookService : StationLogbook.StationLogboo
     {
         lock (gate)
         {
-            var records = ReadPage(request, context.CancellationToken).Take(PageSize(request)).ToArray();
+            var page = ReadPage(request, context.CancellationToken);
+            var records = page.Take(PageSize(request)).ToArray();
             var content = new StringBuilder("SkyRoof Remote ADIF export\n<PROGRAMID:14>SkyRoof Remote<EOH>\n");
             foreach (var record in records) content.Append(FormatAdif(record));
-            return Task.FromResult(new QsoAdif { Content = content.ToString(), Count = records.Length });
+            return Task.FromResult(new QsoAdif { Content = content.ToString(), Count = records.Length,
+                NextBeforeId = page.Count > records.Length ? records[^1].Id : "" });
         }
     }
 

@@ -387,3 +387,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - f98b5cc StationRuntime.Identify 返回进程级实例标识，Host 经实际 Station pipe 获取同一身份；桌面连接及自动 FT4/Q65 请求携带期望实例，避免误将本地 CAT / Moon job 用到另一台 Host。Web 单 Host 工作流不要求新 header。新 E2E 检查同实例、匿名拒绝和错误实例 409 / 无 PTT；整包自动 QSO 使用有效实例 header。
 - 9e4a5c2 增加只读 PlanPasses RPC，复用 OrbitPassPredictor（30 秒扫描、交点约 1 秒细化、原 72 小时边界恢复），搜索输入最长 72 小时、支持取消、每窗口 31 个等间隔样本并包含峰值。使用同一 Station backend，每历元按既有 ISS OEM coverage 选择，不缓存旧轨道结果或使用客户端独立计算。Moon common visibility 以两站仰角较低值和同一 mask 判定；不是链路预算或地形遮挡模型。原生 PASSES / SKY 停靠窗、UTC AOS/LOS、峰值、backend、极坐标路径。新真实 Station E2E 检查已知 TLE 过境、峰值与 Predict 一致和无设备写入；尚未取得新 SHA 的 CI 结论。极短掠边窗口仍受采样步长限制。
 - 最新代码未实机验证；保留 Draft PR #254，不合并、不发布，API 提交未签名。剩余原 MainForm 专属面板/交互（EarthView、录制、QSO 日志、AFC 等）、真实硬件和 WAN/长期稳定性、可信发布签名需要后续独立验收。
+
+
+## 2026-11-26 — 原 MainForm 四类核心专属工作区迁移
+
+- e2b5650 已获得 Station E2E、aislop 和浏览器通过结果；整包、Compile 等仍排队，不能将其视为全绿。8a678c9 的 Compile Check 明确出现 RemoteEarthMap 缺少 VE3NEA.Utils 命名空间，a9ca955 已补 import，最新编译尚未确认。
+- 8a678c9：StationTracking.GroundTrack 使用实际 OrbitTrack.PredictGeodetic / ISS OEM 每历元选择，提供 WGS-84 经纬度、椭球高与来源；WinForms EARTH VIEW 复用原 dxcc 地图纹理，实时星下点、过去/未来轨迹、平移缩放、跨日界线不错误连线。原 GPU/在线 XYZ 瓦片、足迹圈、原 EarthView 全部操作尚未移植；新 E2E 验证采样数和无硬件写入。
+- ac1941f：StationLogbook 本地 IPC、站点受保护目录、原子 JSON 保存，GUID 幂等重试（相同内容返回已保存结果，冲突拒绝）、查询分页、原 AdifFile 序列化复用、FT4/Q65 SUBMODE、SAT/EME、收发频率/报告/UTC 等。桌面 QSO LOG 支持填写、CAT 预填、查询/导出；新增同呼号历史辅助、完成自动 QSO 后预填可审阅草稿（不伪造通联频率、不自动保存）、同一分页响应输出数据和下一 cursor、临时文件后替换。外部 LoggerInterface.dll、WSJT-X UDP QSO、旧 ADIF 导入/LoTW 同步仍未迁移。
+- 48c3802：RECORDER 读取 Station AF PCM16 与 DSP Telemetry CF32 I/Q tap，保存桌面所选 WAV，sample index/epoch/格式断点独立分段，不将缺失样本伪造成连续信号。支持 AF 回放/MP3、配置后的 DSP CF32 重放、QSO 时间/样本标记。真实 IQ tap 只覆盖当前 48 kHz telemetry ingress，并非任意宽带 Soapy IQ；桌面关闭会停止录音，不是无人值守站端录制。原 UI 的完整录音事件/时间轴、原始 SDR 全速 IQ、AF 离线 DSP 回放仍未迁移。加入 exact-byte WAV 测试和 Station IQ IPC 测试。
+- a9ca955/aebcdb7：AFC 使用原 AfcIfInput WASAPI/loopback 真 12 kHz IF 测量，复用原 AfcSpectrumView 瀑布图；AfcController/模型/证据门及 CAT chronology 源码链接到 Station。独立暂态 RX residual 与原 RIT/XIT 组合，job ID 生命周期及客户端会话 8 秒失联回收，不持久化 AFC bias；Device 锁内实际 PTT 选择保持值，独立 RX/TX 后端才允许 AFC Auto 修正（单 VFO 仅辅助，避免改 TX），实际 CAT RX 读回时刻记录于 Device。测试发送合成 12 kHz IF 原算法观测，验证 RX 偏置、TX 不变、关闭后移除。真实硬件 IF 极性、精确时间对齐、自动探针校准、AFC 站端无人值守采集、UI 运行和最终 CI 仍待确认。
+- 所有新实现位于远程 Station IPC 工作区，原本地 MainForm 未替换。不能称原 MainForm 功能完全对等。未签名、保持 Draft PR #254，未发布。

@@ -1,3 +1,4 @@
+using SkyRoof.AFC;
 using SkyRoof.Remote.Ipc;
 using SkyRoof.RemoteDesktop;
 
@@ -31,13 +32,18 @@ internal static class AfcIntegrationChecks
 
     private static async Task VerifyCorrectionAsync(StationIpcClient client, string sessionId, CancellationToken ct)
     {
+        var processor = new AfcSignalProcessing();
+        var pcm = Enumerable.Range(0, 48000).Select(i => (float)(.5 * Math.Sin(2 * Math.PI * 12090 * i / 48000))).ToArray();
         for (int i = 0; i < 30; i++)
         {
             await Task.Delay(250, ct);
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var observation = processor.Analyze(pcm, AfcSignalMode.CW, DateTime.UtcNow, 1, 90);
+            if (!observation.HasAbsoluteReference || Math.Abs(observation.IfOffsetHz - 90) > 5)
+                throw new InvalidDataException("True 12 kHz IF synthetic tone estimator failed.");
             await client.UpdateAfcAsync(new AfcUpdateRequest { SessionId = sessionId,
-                Measurement = new AfcMeasurement { SampleUtcMilliseconds = now, Generation = 1, IfOffsetHz = 90,
-                    SigmaHz = 3, Confidence = 1, AbsoluteReference = true } }, ct);
+                Measurement = new AfcMeasurement { SampleUtcMilliseconds = new DateTimeOffset(observation.SampleUtc).ToUnixTimeMilliseconds(),
+                    Generation = observation.Generation, IfOffsetHz = observation.IfOffsetHz, SigmaHz = observation.SigmaHz,
+                    Confidence = observation.Confidence, AbsoluteReference = observation.HasAbsoluteReference, Ambiguous = observation.Ambiguous } }, ct);
             var snapshot = (await client.TrackingAsync(ct)).Latest;
             if (snapshot is not { CatApplied: true } || Math.Abs(snapshot.AfcCorrectionHz) < 5) continue;
             double factor = snapshot.RangeRateMetresPerSecond / 299792458.0;
