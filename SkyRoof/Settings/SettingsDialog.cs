@@ -43,6 +43,7 @@ namespace SkyRoof
       InstallLanguageSelector();
       InstallSignedCableToolbar();
       InstallIcomLanToolbar();
+      InstallRemoteStationToolbar();
       grid.SelectedGridItemChanged += (_, _) => UpdateOrekitToolbarState();
       ctx.CatControl.IcomNetworkReadbackReceived += OnIcomNetworkReadback;
 
@@ -113,11 +114,12 @@ namespace SkyRoof
         Margin = Padding.Empty,
         Padding = Padding.Empty,
         ColumnCount = 1,
-        RowCount = 4
+        RowCount = 5
       };
       settingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 37F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+      settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 37F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 37F));
       settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
       languageBar.Dock = DockStyle.Fill;
@@ -125,12 +127,32 @@ namespace SkyRoof
       grid.Margin = Padding.Empty;
       Controls.Remove(grid);
       settingsLayout.Controls.Add(languageBar, 0, 1);
-      settingsLayout.Controls.Add(grid, 0, 3);
+      settingsLayout.Controls.Add(grid, 0, 4);
       Controls.Add(settingsLayout);
       // Match the original Designer ordering of Dock=Fill grid and bottom
       // command button panel. The TableLayoutPanel owns all top spacing.
       Controls.SetChildIndex(settingsLayout, 0);
       RefreshLanguageCaptions();
+    }
+
+    private void InstallRemoteStationToolbar()
+    {
+      var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8, 3, 8, 3) };
+      var button = new Button { AutoSize = true, Text = "Remote / 服务端设置..." };
+      button.Click += (_, _) =>
+      {
+        try
+        {
+          using var dialog = new RemoteDesktop.DesktopStationSettingsDialog(false);
+          dialog.ShowDialog(this);
+        }
+        catch (Exception error)
+        {
+          MessageBox.Show(error.Message, "Remote / Server Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+      };
+      bar.Controls.Add(button);
+      settingsLayout?.Controls.Add(bar, 0, 3);
     }
 
     private void InstallSignedCableToolbar()
