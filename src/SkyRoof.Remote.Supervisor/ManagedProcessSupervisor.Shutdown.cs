@@ -9,7 +9,7 @@ public sealed partial class ManagedProcessSupervisor
     {
         foreach (var child in children.Where(x =>
             !string.Equals(x.Spec.Name, "Device", StringComparison.OrdinalIgnoreCase)))
-            StopChild(child.Process);
+            await StopChildAsync(child.Process, logger);
 
         foreach (var child in children.Where(x =>
             string.Equals(x.Spec.Name, "Device", StringComparison.OrdinalIgnoreCase)))
@@ -43,15 +43,27 @@ public sealed partial class ManagedProcessSupervisor
                     }
                 }
             }
-            StopChild(child.Process);
+            await StopChildAsync(child.Process, logger);
         }
     }
 
-    private static void StopChild(Process? process)
+    private static async Task StopChildAsync(Process? process, ILogger logger)
     {
         if (process is null) return;
-        if (!process.HasExited)
-            process.Kill(entireProcessTree: true);
-        process.Dispose();
+        using (process)
+        {
+            try
+            {
+                if (process.HasExited) return;
+                process.Kill(entireProcessTree: true);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (InvalidOperationException) when (process.HasExited) { }
+            catch (Exception error) when (error is System.ComponentModel.Win32Exception or OperationCanceledException)
+            {
+                logger.LogError(error, "Managed child did not complete shutdown; PID {Pid}.", process.Id);
+            }
+        }
     }
 }

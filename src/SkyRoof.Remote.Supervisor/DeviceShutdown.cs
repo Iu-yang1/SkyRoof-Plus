@@ -1,5 +1,3 @@
-using System.IO.Pipes;
-using System.Security.Principal;
 using Grpc.Net.Client;
 using SkyRoof.Remote.Ipc;
 
@@ -13,8 +11,7 @@ internal static class DeviceShutdown
         {
             ConnectCallback = async (_, ct) =>
             {
-                var stream = new NamedPipeClientStream(".", pipe, PipeDirection.InOut,
-                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                var stream = LocalPipeClient.Create(pipe);
                 try
                 {
                     await stream.ConnectAsync(2500, ct);
@@ -42,8 +39,7 @@ internal static class DeviceShutdown
         {
             ConnectCallback = async (_, ct) =>
             {
-                var stream = new NamedPipeClientStream(".", pipe, PipeDirection.InOut,
-                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                var stream = LocalPipeClient.Create(pipe);
                 try { await stream.ConnectAsync(2500, ct); return stream; }
                 catch { await stream.DisposeAsync(); throw; }
             }

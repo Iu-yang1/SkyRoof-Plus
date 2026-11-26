@@ -7,5 +7,6 @@ if (!string.IsNullOrWhiteSpace(path))
     builder.Configuration.AddJsonFile(Path.GetFullPath(path), optional: false, reloadOnChange: false);
 var serviceName = builder.Configuration["service-name"] ?? "SkyRoofRemote";
 builder.Services.AddWindowsService(options => options.ServiceName = serviceName);
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(60));
 builder.Services.AddHostedService<ManagedProcessSupervisor>();
 await builder.Build().RunAsync();

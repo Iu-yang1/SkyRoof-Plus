@@ -82,5 +82,16 @@ try {
     Write-Host 'PASS: real SCM package switch, persisted authentication, failed replacement rollback and resumed previous Host.'
 } finally {
     if ($registered) { & "$PSScriptRoot/Remove-RemoteService.ps1" -ServiceName $svc }
-    if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+    # Windows may hold image sections briefly after SCM reports stopped.
+    # Do not suppress persistent sharing/ACL errors; retry only this fixture path.
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        if (-not (Test-Path -LiteralPath $root)) { break }
+        try {
+            Remove-Item -LiteralPath $root -Recurse -Force
+            break
+        } catch {
+            if ($attempt -eq 14) { throw }
+            Start-Sleep -Milliseconds 500
+        }
+    }
 }
