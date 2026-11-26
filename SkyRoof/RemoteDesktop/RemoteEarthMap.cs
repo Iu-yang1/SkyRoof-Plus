@@ -11,6 +11,20 @@ internal sealed class RemoteEarthMap : Control
     private double zoom = 1;
     private double centerLon, centerLat;
     private Point? drag;
+    private bool showFootprint = true;
+    private long currentUtc;
+
+    internal bool ShowFootprint
+    {
+        get => showFootprint;
+        set { showFootprint = value; Invalidate(); }
+    }
+
+    internal void ResetView()
+    {
+        zoom = 1; centerLon = 0; centerLat = 0;
+        Invalidate();
+    }
 
     internal RemoteEarthMap() { DoubleBuffered = true; BackColor = Color.FromArgb(17, 24, 39); }
 
@@ -18,6 +32,7 @@ internal sealed class RemoteEarthMap : Control
     {
         if (full || track is null || track.NoradNumber != value.NoradNumber || track.CelestialTarget != value.CelestialTarget)
             track = value;
+        currentUtc = utc;
         current = value.Points.MinBy(p => Math.Abs(p.UtcMilliseconds - utc));
         Invalidate();
     }
@@ -49,24 +64,51 @@ internal sealed class RemoteEarthMap : Control
         if (ClientSize.Width < 2 || ClientSize.Height < 2) return;
         DrawTexture(e.Graphics);
         if (track is not { } model) return;
-        using var line = new Pen(Color.Cyan, 2);
+        using var past = new Pen(Color.DeepSkyBlue, 2);
+        using var future = new Pen(Color.Cyan, 2) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash };
         using var marker = new SolidBrush(Color.Yellow);
         using var site = new SolidBrush(Color.LimeGreen);
         PointF? previous = null;
         foreach (var point in model.Points)
         {
             var pixel = Project(point.LatitudeDegrees, point.LongitudeDegrees);
-            if (previous is { } p && Math.Abs(p.X - pixel.X) < ClientSize.Width * zoom / 2)
-                e.Graphics.DrawLine(line, p, pixel);
+            if (previous is { } p)
+                DrawWrappedLine(e.Graphics, point.UtcMilliseconds <= currentUtc ? past : future, p, pixel);
             previous = pixel;
         }
         var home = Project(model.SiteLatitudeDegrees, model.SiteLongitudeDegrees);
         e.Graphics.FillEllipse(site, home.X - 4, home.Y - 4, 8, 8);
         if (current is { } selected)
         {
+            if (ShowFootprint) DrawFootprint(e.Graphics, selected);
             var pos = Project(selected.LatitudeDegrees, selected.LongitudeDegrees);
             e.Graphics.FillEllipse(marker, pos.X - 5, pos.Y - 5, 10, 10);
             e.Graphics.DrawString($"{selected.LatitudeDegrees:F2}°, {selected.LongitudeDegrees:F2}° · {selected.HeightMetres / 1000:F0} km", Font, marker, pos);
+        }
+    }
+
+    private void DrawFootprint(Graphics graphics, GroundTrackPoint selected)
+    {
+        using var pen = new Pen(Color.Gold, 1.5f);
+        PointF? previous = null;
+        foreach (var (lat, lon) in EarthHorizon.Outline(selected.LatitudeDegrees, selected.LongitudeDegrees, selected.HeightMetres))
+        {
+            var pixel = Project(lat, lon);
+            if (previous is { } point) DrawWrappedLine(graphics, pen, point, pixel);
+            previous = pixel;
+        }
+    }
+
+    private void DrawWrappedLine(Graphics graphics, Pen pen, PointF start, PointF end)
+    {
+        float world = (float)(ClientSize.Width * zoom);
+        float delta = end.X - start.X;
+        if (delta > world / 2) end.X -= world;
+        else if (delta < -world / 2) end.X += world;
+        for (int copy = -1; copy <= 1; copy++)
+        {
+            float offset = copy * world;
+            graphics.DrawLine(pen, start.X + offset, start.Y, end.X + offset, end.Y);
         }
     }
 
