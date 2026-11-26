@@ -16,6 +16,8 @@ public sealed partial class StationLogbookService
             ["CALL"] = qso.Call, ["STATION_CALLSIGN"] = qso.StationCall,
             ["BAND"] = qso.Band, ["MODE"] = qso.Mode
         };
+        entry["APP_SKYROOF_QSO_ID"] = qso.Id;
+        entry["APP_SKYROOF_UTC_MS"] = qso.UtcMilliseconds.ToString(CultureInfo.InvariantCulture);
         Add(entry, "SUBMODE", qso.Submode);
         Add(entry, "MY_GRIDSQUARE", qso.MyGrid);
         Add(entry, "GRIDSQUARE", qso.Grid);
