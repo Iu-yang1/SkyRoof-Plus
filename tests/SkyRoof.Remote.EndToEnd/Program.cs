@@ -56,6 +56,7 @@ stationInfo.Environment["SKYROOF_RX_AUDIO_CHANNELS"] = "1";
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
+stationInfo.Environment["SKYROOF_LOGBOOK_DIRECTORY"] = trackingFile + "-logbook";
 stationInfo.Environment["SKYROOF_SATELLITE_CATALOG"] = catalogFile;
 stationInfo.Environment["SKYROOF_ORBIT_BACKEND"] = Environment.GetEnvironmentVariable("SKYROOF_TEST_ORBIT_BACKEND") ?? "orekit";
 stationInfo.Environment["SKYROOF_OREKIT_DATA"] = Path.Combine(Path.GetDirectoryName(stationDll)!, "orekit-data");
@@ -93,6 +94,7 @@ try
     }
     Ensure(alive, "Host never became ready");
     await DesktopIpcChecks.RunAsync(stationPipe, radio, rotator);
+    await LogbookChecks.RunAsync(stationPipe);
     await DesktopSignalChecks.RunAsync(stationPipe, signalBus);
     Ensure((await anonymous.GetAsync("/api/v1/station")).StatusCode ==
         HttpStatusCode.Unauthorized, "Anonymous station access allowed");

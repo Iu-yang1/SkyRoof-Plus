@@ -251,3 +251,41 @@ message GroundTrackPoint {
   string orbit_backend = 5;
   string data_quality = 6;
 }
+
+service StationLogbook {
+  rpc Save(QsoRecord) returns (QsoRecord);
+  rpc Search(QsoSearch) returns (QsoSearchResult);
+  rpc Export(QsoSearch) returns (QsoAdif);
+}
+message QsoRecord {
+  string id = 1;
+  int64 utc_milliseconds = 2;
+  string station_call = 3;
+  string my_grid = 4;
+  string call = 5;
+  string grid = 6;
+  string mode = 7;
+  string submode = 8;
+  string band = 9;
+  int64 tx_hz = 10;
+  int64 rx_hz = 11;
+  string satellite = 12;
+  string propagation = 13;
+  string sent = 14;
+  string received = 15;
+  string name = 16;
+  string state = 17;
+  string notes = 18;
+}
+message QsoSearch {
+  string call = 1;
+  int64 from_utc_milliseconds = 2;
+  int64 to_utc_milliseconds = 3;
+  int32 limit = 4;
+  string before_id = 5;
+}
+message QsoSearchResult {
+  repeated QsoRecord records = 1;
+  string next_before_id = 2;
+}
+message QsoAdif { string content = 1; int32 count = 2; }
