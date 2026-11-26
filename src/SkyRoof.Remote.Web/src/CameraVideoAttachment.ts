@@ -24,6 +24,11 @@ function attachCamera(target: HTMLVideoElement, profile: string, media2: boolean
   const reportFailure = (error: unknown) => {
     if (!abort.signal.aborted) setError(String(error));
   };
+  // Muted autoplay alone can remain paused while a docked video is clipped.
+  // START VIDEO is an explicit operator action; request playback once, and
+  // never override subsequent manual pause/resume in the native controls.
+  target.muted = true;
+  void target.play().catch(reportFailure);
   const open = () => {
     void streamCamera(source, target, profile, media2, abort.signal).catch(reportFailure);
   };

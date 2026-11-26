@@ -67,9 +67,9 @@ export function CameraPanel() {
     <label>PROFILE <select value={selected} onChange={e => setSelected(Number(e.target.value))}>
       {profiles.map((p, i) => <option key={p.token + p.media2} value={i}>{p.name} ({p.media2 ? 'Media2' : 'Media1'})</option>)}
     </select></label>
-    {profile && <CameraPtzControls enabled={!!hub && active} profile={profile.token} />}
     {video && hub && active && profile && <CameraVideoPlayer profile={profile.token} media2={profile.media2} />}
     {!video && image && <img src={image} alt="Station ONVIF camera snapshot" style={{ width: '100%', objectFit: 'contain' }} />}
+    {profile && <CameraPtzControls enabled={!!hub && active} profile={profile.token} />}
     {error && <p role="alert">{error}</p>}
     {devices.map(d => <p key={d.endpoint}>{d.endpoint} · {d.scope}</p>)}
     <small>Station-configured camera; discovery never sends credentials. Snapshots or H.264 RTSP remux (station FFmpeg required).</small>
