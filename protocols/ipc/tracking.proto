@@ -311,6 +311,7 @@ message AfcOpenRequest {
   double tone_deadband_hz = 7;
   optional double center_hz = 8;
   bool gentle_release = 9;
+  bool auto_calibrate = 10;
 }
 message AfcMeasurement {
   int64 sample_utc_milliseconds = 1;
@@ -341,6 +342,7 @@ message AfcSessionStatus {
   double error_hz = 7;
   double confidence = 8;
   int32 sign = 9;
+  string calibration_state = 10;
 }
 
 service StationAfcCapture {

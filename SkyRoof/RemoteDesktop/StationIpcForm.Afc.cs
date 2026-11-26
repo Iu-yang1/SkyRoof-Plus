@@ -17,6 +17,7 @@ internal sealed partial class StationIpcForm
     private readonly NumericUpDown afcTarget = new() { Minimum = -6000, Maximum = 6000, Width = 80 };
     private readonly NumericUpDown afcCenter = new() { Minimum = -6000, Maximum = 6000, Width = 80 };
     private readonly NumericUpDown afcMax = new() { Minimum = 1, Maximum = 1000000, Value = 2000, Width = 80 };
+    private readonly CheckBox afcAutoProbe = new() { Text = "Verify IF polarity", AutoSize = true };
     private readonly CheckBox afcPilot = new() { Text = "SSB pilot", AutoSize = true };
     private readonly CheckBox afcCenterEnabled = new() { Text = "Center", AutoSize = true };
     private readonly CheckBox afcRelease = new() { Text = "Gentle release", AutoSize = true };
@@ -36,7 +37,7 @@ internal sealed partial class StationIpcForm
         afcPreset.Items.AddRange(Enum.GetNames<AfcAcquisitionPreset>()); afcPreset.SelectedIndex = 0;
         afcSign.Items.AddRange(new object[] { "0", "1", "-1" }); afcSign.SelectedIndex = 0;
         panel.Controls.Add(Row("Explicit 12 kHz IF endpoint", afcDevice, afcLoopback, ActionButton("SCAN IF", ScanIfAsync), afcRight));
-        panel.Controls.Add(Row(afcMode, afcControl, afcPreset, "Sign", afcSign, afcPilot, "Max Hz", afcMax, afcRelease));
+        panel.Controls.Add(Row(afcMode, afcControl, afcPreset, "Sign", afcSign, afcPilot, "Max Hz", afcMax, afcRelease, afcAutoProbe));
         panel.Controls.Add(Row("Search Hz", afcTarget, afcCenterEnabled, afcCenter, ActionButton("START AFC", StartAfcAsync),
             ActionButton("APPLY TARGET", QueueAfcTargetAsync), ActionButton("STOP AFC", () => StopStream(afcSource))));
         afcLoopback.CheckedChanged += (_, _) => { afcDevice.Items.Clear(); };
@@ -65,7 +66,7 @@ internal sealed partial class StationIpcForm
         if (activeTracking is not { Running: true } job) throw new InvalidOperationException("Start Station tracking first.");
         var profile = new AfcOpenRequest { JobId = job.JobId, Mode = afcMode.Text, Control = afcControl.Text,
             Sign = int.Parse(afcSign.Text), MaxCorrectionHz = (double)afcMax.Value,
-            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked };
+            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked, AutoCalibrate = afcAutoProbe.Checked };
         if (afcCenterEnabled.Checked) profile.CenterHz = (double)afcCenter.Value;
         ShowStationAfc(await client.StartStationAfcAsync(new AfcCaptureStart { Control = profile, Target = StationAfcTarget() }, lifetime.Token));
     }
@@ -104,7 +105,7 @@ internal sealed partial class StationIpcForm
         var modeValue = Enum.Parse<AfcSignalMode>(afcMode.Text);
         var config = new AfcOpenRequest { JobId = job.JobId, Mode = afcMode.Text, Control = afcControl.Text,
             Sign = int.Parse(afcSign.Text), MaxCorrectionHz = (double)afcMax.Value,
-            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked };
+            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked, AutoCalibrate = afcAutoProbe.Checked };
         if (afcCenterEnabled.Checked) config.CenterHz = (double)afcCenter.Value;
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         afcSource = source;

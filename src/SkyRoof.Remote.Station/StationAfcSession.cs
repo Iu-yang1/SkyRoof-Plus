@@ -12,6 +12,8 @@ internal sealed class StationAfcSession
     private readonly AfcCatTimeline timeline = new();
     private readonly AfcSignalMode mode;
     private readonly AfcControlMode control;
+    private readonly StationAfcPolarityProbe? probe;
+    private double? center;
     private DateTime lastContact = DateTime.UtcNow;
     private bool ptt, duplex;
     private string rxMode = "";
@@ -29,6 +31,9 @@ internal sealed class StationAfcSession
             !double.IsFinite(input.ToneDeadbandHz) || input.ToneDeadbandHz <= 0 ||
             (input.HasCenterHz && !double.IsFinite(input.CenterHz)))
             throw new ArgumentException("Invalid AFC control profile.");
+        if (input.AutoCalibrate && input.Sign == 0)
+            probe = new StationAfcPolarityProbe(input.MaxCorrectionHz, DateTime.UtcNow);
+        center = input.HasCenterHz ? input.CenterHz : null;
         controller.Configure(mode, control);
         controller.ConfigureSignalLoss(input.GentleRelease ? AfcSignalLossPolicy.GentleRelease : AfcSignalLossPolicy.HoldLast);
         if (input.HasCenterHz) controller.CenterOn(input.CenterHz);
@@ -40,6 +45,7 @@ internal sealed class StationAfcSession
         lastContact = now;
         if (target is not null) Retarget(target);
         if (measurement is not null) Observe(measurement, now);
+        probe?.Tick(now);
         controller.Tick(now, ptt);
         return Status();
     }
@@ -52,6 +58,8 @@ internal sealed class StationAfcSession
         if (target.Generation <= observedGeneration || target.Generation < minimumGeneration)
             throw new ArgumentException("Stale AFC target generation.");
         minimumGeneration = target.Generation;
+        center = target.HasCenterHz ? target.CenterHz : null;
+        probe?.Restart(DateTime.UtcNow);
         controller.OnUserTune();
         if (target.HasCenterHz) controller.CenterOn(target.CenterHz);
         else controller.LockHere();
@@ -66,16 +74,27 @@ internal sealed class StationAfcSession
         bool aligned = timeline.TryReadbackAt(utc, out long frequency);
         bool attributed = timeline.TryAttributedReadbackAt(utc, AfcCatWriteSource.Afc, out _);
         int nominal = rxMode.Length == 0 ? 0 : rxMode.StartsWith("LSB", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
+        if (probe is { Verified: false } calibration)
+        {
+            bool verified = calibration.Observe(measurement.IfOffsetHz, measurement.SigmaHz, measurement.Confidence,
+                measurement.AbsoluteReference, measurement.Ambiguous, aligned && duplex && !ptt, measurement.Generation, utc);
+            if (!verified) return;
+            controller.OnUserTune();
+            if (center is double value) controller.CenterOn(value);
+            else controller.LockHere();
+        }
         var observation = new AfcObservation(mode, utc, measurement.Generation, measurement.IfOffsetHz,
             measurement.SigmaHz, measurement.Confidence, measurement.AbsoluteReference, measurement.Ambiguous);
-        controller.Observe(observation, new AfcObservationContext(frequency, config.Sign, config.MaxCorrectionHz,
+        controller.Observe(observation, new AfcObservationContext(frequency, probe?.Sign ?? config.Sign, config.MaxCorrectionHz,
             config.FmDeadbandHz, config.ToneDeadbandHz, ptt, aligned, attributed, !aligned || !duplex, nominal));
     }
 
     internal void Apply(TrackingSnapshot prediction, DateTime now)
     {
+        probe?.Tick(now);
         controller.Tick(now, ptt);
-        double correction = prediction.RxHz > 0 ? controller.GetRxCorrection(ptt) : 0;
+        bool calibrating = probe is { Verified: false };
+        double correction = prediction.RxHz > 0 ? (calibrating ? probe!.Bias : controller.GetRxCorrection(ptt)) : 0;
         if (ptt) correction = lastApplied;
         if (!duplex) correction = 0;
         if (prediction.RxHz <= 0) correction = 0;
@@ -84,7 +103,7 @@ internal sealed class StationAfcSession
         prediction.RxHz = target;
         prediction.AfcCorrectionHz = correction;
         prediction.AfcHoldCorrectionHz = (long)Math.Round(lastApplied);
-        timeline.RecordRequest(target, now, correction != lastApplied ? AfcCatWriteSource.Afc : AfcCatWriteSource.SatelliteModel);
+        timeline.RecordRequest(target, now, calibrating ? AfcCatWriteSource.Calibration : correction != lastApplied ? AfcCatWriteSource.Afc : AfcCatWriteSource.SatelliteModel);
     }
 
     internal void Readback(TrackingSnapshot snapshot)
@@ -97,6 +116,7 @@ internal sealed class StationAfcSession
         timeline.RecordReadback(snapshot.ActualRxHz, utc);
         long nominal = snapshot.RxHz - (long)Math.Round(snapshot.AfcCorrectionHz);
         long applied = snapshot.ActualRxHz - nominal;
+        probe?.Readback(duplex, ptt, rxMode, applied, utc);
         if (applied == (long)Math.Round(snapshot.AfcCorrectionHz) || applied == snapshot.AfcHoldCorrectionHz)
             lastApplied = applied;
     }
@@ -105,7 +125,9 @@ internal sealed class StationAfcSession
     {
         var current = controller.Snapshot;
         return new AfcSessionStatus { SessionId = Id, JobId = JobId, State = current.State.ToString(),
-            Detail = current.Detail, ObservedHz = current.ObservedIfOffsetHz, CorrectionHz = current.CorrectionHz,
-            ErrorHz = current.ErrorHz, Confidence = current.Confidence, Sign = current.MappingSign };
+            Detail = probe is { Verified: false } calibration ? "RX polarity calibration: " + calibration.State : current.Detail,
+            CalibrationState = probe?.State ?? "Disabled", ObservedHz = current.ObservedIfOffsetHz,
+            CorrectionHz = probe is { Verified: false } ? lastApplied : current.CorrectionHz,
+            ErrorHz = current.ErrorHz, Confidence = current.Confidence, Sign = probe?.Sign ?? current.MappingSign };
     }
 }
