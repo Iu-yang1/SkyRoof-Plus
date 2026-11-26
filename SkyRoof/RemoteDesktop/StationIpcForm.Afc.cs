@@ -24,6 +24,7 @@ internal sealed partial class StationIpcForm
     private readonly AfcSpectrumView afcSpectrum = new() { Dock = DockStyle.Fill };
     private CancellationTokenSource? afcSource;
     private AfcIfInput? afcInput;
+    private bool afcRetargetPending;
     private sealed record IfDevice(string Id, string Name) { public override string ToString() => Name; }
 
     private TabPage CreateAfcPage()
@@ -37,12 +38,22 @@ internal sealed partial class StationIpcForm
         panel.Controls.Add(Row("Explicit 12 kHz IF endpoint", afcDevice, afcLoopback, ActionButton("SCAN IF", ScanIfAsync), afcRight));
         panel.Controls.Add(Row(afcMode, afcControl, afcPreset, "Sign", afcSign, afcPilot, "Max Hz", afcMax, afcRelease));
         panel.Controls.Add(Row("Search Hz", afcTarget, afcCenterEnabled, afcCenter, ActionButton("START AFC", StartAfcAsync),
-            ActionButton("STOP AFC", () => StopStream(afcSource))));
+            ActionButton("APPLY TARGET", QueueAfcTargetAsync), ActionButton("STOP AFC", () => StopStream(afcSource))));
         afcLoopback.CheckedChanged += (_, _) => { afcDevice.Items.Clear(); };
-        afcSpectrum.TargetSelected += hz => { if (afcSource is null) afcTarget.Value = (decimal)Math.Clamp(hz, -6000, 6000); };
+        afcSpectrum.TargetSelected += hz =>
+        {
+            afcTarget.Value = (decimal)Math.Clamp(hz, -6000, 6000);
+            if (afcSource is not null) afcRetargetPending = true;
+        };
         panel.Controls.Add(Row("Station tracking owns CAT. Local IF acquisition only; AF and RF scope are not IF."));
         page.Controls.Add(afcSpectrum); page.Controls.Add(panel); page.Controls.Add(afcStatus);
         return page;
+    }
+
+    private Task QueueAfcTargetAsync()
+    {
+        if (afcSource is not null) afcRetargetPending = true;
+        return Task.CompletedTask;
     }
 
     private Task ScanIfAsync()
@@ -67,6 +78,7 @@ internal sealed partial class StationIpcForm
         if (afcCenterEnabled.Checked) config.CenterHz = (double)afcCenter.Value;
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         afcSource = source;
+        afcRetargetPending = false;
         string id = "";
         try
         {
@@ -79,16 +91,16 @@ internal sealed partial class StationIpcForm
             input.Start(afcLoopback.Checked ? null : selected.Id, 12000, modeValue, afcPilot.Checked, (double)afcTarget.Value,
                 afcLoopback.Checked ? AfcIfSource.PlaybackLoopback : AfcIfSource.WasapiCapture,
                 afcLoopback.Checked ? selected.Id : null, afcRight.Checked ? AudioChannelChoice.Right : AudioChannelChoice.Left);
-            await RunAfcLoopAsync(input, id, source.Token);
+            await RunAfcLoopAsync(input, id, modeValue, source.Token);
         }
         finally
         {
-            afcInput = null; afcSource = null;
+            afcInput = null; afcSource = null; afcRetargetPending = false;
             if (id.Length > 0) await RunAsync(async () => { await client.CloseAfcAsync(id, CancellationToken.None); });
         }
     }
 
-    private async Task RunAfcLoopAsync(AfcIfInput input, string id, CancellationToken token)
+    private async Task RunAfcLoopAsync(AfcIfInput input, string id, AfcSignalMode modeValue, CancellationToken token)
     {
         AfcIfDisplayFrame? display = null;
         var gate = new object();
@@ -99,9 +111,14 @@ internal sealed partial class StationIpcForm
         {
             while (!token.IsCancellationRequested)
             {
-                var observation = input.Diagnostics.LastObservation;
                 var update = new AfcUpdateRequest { SessionId = id };
-                if (observation is { } obs && obs.SampleUtc > sent)
+                if (afcRetargetPending)
+                {
+                    afcRetargetPending = false;
+                    update.Target = RebaseAfcInput(input, modeValue);
+                    sent = default;
+                }
+                else if (input.Diagnostics.LastObservation is { } obs && obs.SampleUtc > sent)
                 {
                     sent = obs.SampleUtc;
                     update.Measurement = new AfcMeasurement { SampleUtcMilliseconds = new DateTimeOffset(obs.SampleUtc).ToUnixTimeMilliseconds(),
@@ -118,5 +135,14 @@ internal sealed partial class StationIpcForm
             }
         }
         finally { input.DisplayFrameAvailable -= Receive; }
+    }
+    private AfcTargetChange RebaseAfcInput(AfcIfInput input, AfcSignalMode modeValue)
+    {
+        input.SetAcquisitionPreset(Enum.Parse<AfcAcquisitionPreset>(afcPreset.Text));
+        input.UpdateTarget(modeValue, afcPilot.Checked, (double)afcTarget.Value);
+        input.InvalidateTarget();
+        var target = new AfcTargetChange { Generation = input.Generation };
+        if (afcCenterEnabled.Checked) target.CenterHz = (double)afcCenter.Value;
+        return target;
     }
 }
