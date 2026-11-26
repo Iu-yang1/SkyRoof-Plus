@@ -377,3 +377,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `112146f` TrackingJobStatus 新增 active_radio_link、celestial_target 和 point_rotator；Web 与桌面显示 Station 当前有效偏移（未调整字段不覆盖），桌面新增 RX/TX base Δ、读取有效偏移，调谐和停止绑定已展示任务 ID 而非重新读取可能已被替换的任务；E2E 验证配置读回与重启持久化。
 - `db2df08` 修复明确的故障模式：手动旋转器 STOP 后自动跟踪下一周期可能重新 POINT。Station 立即抑制当前任务的新自动指向并直达 Device 紧急 STOP，随后排空已进入的跟踪周期，持久化 PointRotator=false，发送最终 STOP；保留原 job ID、射频 Doppler 和所有 RadioLink 偏移。客户端 STOP 截止时间覆盖后续持久化/收尾（初次紧急 STOP 不等待任务 gate）。停止指向后可通过显式 START TRACK + Point rotator 重新启用。E2E 新增实际 TCP POINT 数量、Doppler 持续及 Station 重启后不恢复 POINT 的断言。最终 STOP 响应只确认指令发送/读回，不表示独立机械停止确认。
 - 以上新 SHA 验收需独立 CI。原 MainForm Context 全量迁移、物理硬件、实际公网和可信 Authenticode 仍未完成。保持 Draft，不合并或正式 Release；提交未签名。
+
+
+## 2026-11-26 — 原生停靠工作区、台站绑定、过境与天空轨迹
+
+- [db2df08 E2E 45781634773](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45781634773) 已在 Orekit 和 SGP.NET 两套后端实际通过：紧急 STOP 只停止自动指向、无线电多普勒继续运行、Station 重启保留停止状态；[b0d3f5f 浏览器 45781742638](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45781742638) 已通过。b0d3f5f aislop gate 新增一项 TrackingJobRunner 文件主构造器长度告警；拆出 Snapshot 到 partial，不修改门禁或 baseline。
+- 112146f Compile Check 出现单项 NativeRotatorWorkerTests.StopBypassesPendingRemoteManagementVerification 失败（管理租约为 null，1857/1858）。6fe5452 测试等待实际 fresh position、为真实 TCP fixture 增加读超时预算，原 STOP <3 s 断言保持不变；生产控制协议未改。不能据此宣称最新测试已通过。
+- 6fe5452 远程 WinForms 复用原 MainForm 的 DockPanelSuite 及主题；文档工作区可停靠、浮动、隐藏、VIEW 菜单恢复；仍是单独的 Station IPC 模式，原本地 MainForm 及硬件 Context 不改。不声称所有原面板功能对等。
+- f98b5cc StationRuntime.Identify 返回进程级实例标识，Host 经实际 Station pipe 获取同一身份；桌面连接及自动 FT4/Q65 请求携带期望实例，避免误将本地 CAT / Moon job 用到另一台 Host。Web 单 Host 工作流不要求新 header。新 E2E 检查同实例、匿名拒绝和错误实例 409 / 无 PTT；整包自动 QSO 使用有效实例 header。
+- 9e4a5c2 增加只读 PlanPasses RPC，复用 OrbitPassPredictor（30 秒扫描、交点约 1 秒细化、原 72 小时边界恢复），搜索输入最长 72 小时、支持取消、每窗口 31 个等间隔样本并包含峰值。使用同一 Station backend，每历元按既有 ISS OEM coverage 选择，不缓存旧轨道结果或使用客户端独立计算。Moon common visibility 以两站仰角较低值和同一 mask 判定；不是链路预算或地形遮挡模型。原生 PASSES / SKY 停靠窗、UTC AOS/LOS、峰值、backend、极坐标路径。新真实 Station E2E 检查已知 TLE 过境、峰值与 Predict 一致和无设备写入；尚未取得新 SHA 的 CI 结论。极短掠边窗口仍受采样步长限制。
+- 最新代码未实机验证；保留 Draft PR #254，不合并、不发布，API 提交未签名。剩余原 MainForm 专属面板/交互（EarthView、录制、QSO 日志、AFC 等）、真实硬件和 WAN/长期稳定性、可信发布签名需要后续独立验收。

@@ -21,7 +21,7 @@ internal sealed partial class StationIpcForm
         toolbar.Dock = DockStyle.Top;
         toolbar.WrapContents = true;
         foreach (var column in new[] { "AOS UTC", "LOS UTC", "Peak UTC", "Max EL°", "Backend" })
-            passList.Columns.Add(column, column == "Backend" ? 145 : 145);
+            passList.Columns.Add(column, 145);
         passList.SelectedIndexChanged += (_, _) =>
         {
             passPlot.ShowPath(passList.SelectedItems.Count == 1 ? passList.SelectedItems[0].Tag as PassWindow : null);

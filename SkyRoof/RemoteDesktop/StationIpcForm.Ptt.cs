@@ -114,6 +114,7 @@ internal sealed partial class StationIpcForm
         digitalCancellation?.Cancel();
         cwSendCancellation?.Cancel();
         StopSignalStreams();
+        passSearch?.Cancel();
         await ReleasePttAsync();
         await RunAsync(async () => ShowRadio(await client.ReleaseSessionAsync(CancellationToken.None)));
         pttCloseComplete = true;
