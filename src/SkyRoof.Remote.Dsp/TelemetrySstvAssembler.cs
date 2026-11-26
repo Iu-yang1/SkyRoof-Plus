@@ -9,6 +9,7 @@ internal sealed class TelemetrySstvAssembler : IDisposable
     private readonly SstvDecoder _decoder = new();
     private readonly TelemetryAfskFmIqConverter _audio = new(3300);
     private bool _flushed;
+    private readonly Dictionary<int, long> _lastPreview = new();
 
     internal TelemetrySstvAssembler(Action<TelemetryMediaProduct> publish)
     {
@@ -16,9 +17,17 @@ internal sealed class TelemetrySstvAssembler : IDisposable
         _decoder.ImageUpdated += image => PublishImage(image, publish);
     }
 
-    private static void PublishImage(SstvImageEvent image, Action<TelemetryMediaProduct> publish)
+    private void PublishImage(SstvImageEvent image, Action<TelemetryMediaProduct> publish)
     {
             if (image.ValidRows <= 0) return;
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (image.Final) _lastPreview.Remove(image.ImageId);
+            else
+            {
+                if (_lastPreview.TryGetValue(image.ImageId, out long last) &&
+                    System.Diagnostics.Stopwatch.GetElapsedTime(last, now) < TimeSpan.FromSeconds(1)) return;
+                _lastPreview[image.ImageId] = now;
+            }
             using var bitmap = image.Image.ToBitmap();
             using var output = new MemoryStream();
             bitmap.Save(output, ImageFormat.Png);

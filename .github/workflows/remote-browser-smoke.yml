@@ -28,6 +28,8 @@ jobs:
           npm install --no-audit --no-fund
           npm run build
           npx playwright install --with-deps chromium
+          npx playwright install chrome
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - name: Build Host
         run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release
       - name: Real Chromium UI test against authenticated Host
@@ -42,8 +44,26 @@ jobs:
           SKYROOF_BOOTSTRAP_ADMIN_PASSWORD: BrowserSmokeTestP@ssw0rd!
         run: |
           set -euo pipefail
+          pids=()
+          trap 'for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done; tail -n 50 /tmp/skyroof-browser-*.log || true' EXIT
+          python3 tests/SkyRoof.Remote.Host.Smoke/rtsp_fixture.py "$(command -v ffmpeg)" /tmp/skyroof-browser-rtsp.uri > /tmp/skyroof-browser-rtsp.log 2>&1 &
+          pids+=("$!")
+          for i in $(seq 1 100); do
+            test ! -s /tmp/skyroof-browser-rtsp.uri || break
+            sleep .2
+          done
+          test -s /tmp/skyroof-browser-rtsp.uri
+          python3 tests/SkyRoof.Remote.Host.Smoke/onvif_browser_fixture.py /tmp/skyroof-browser-rtsp.uri /tmp/skyroof-browser-onvif.uri > /tmp/skyroof-browser-onvif.log 2>&1 &
+          pids+=("$!")
+          for i in $(seq 1 100); do
+            test ! -s /tmp/skyroof-browser-onvif.uri || break
+            sleep .2
+          done
+          export SKYROOF_ONVIF_ENDPOINT="$(cat /tmp/skyroof-browser-onvif.uri)"
+          export SKYROOF_FFMPEG_PATH="$(command -v ffmpeg)"
+          export SKYROOF_CAMERA_BROWSER_TEST=1
           dotnet src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll > /tmp/skyroof-browser-host.log 2>&1 &
-          HOST_PID=$!
+          pids+=("$!")
           ASPNETCORE_URLS=http://127.0.0.1:8077 \
             SKYROOF_STATION_ID=beta \
             SKYROOF_AUTH_DB=/tmp/skyroof-browser-beta-users.db \
@@ -52,8 +72,7 @@ jobs:
             SKYROOF_BOOTSTRAP_ADMIN_PASSWORD='RemoteBrowserSmokeP@ssw0rd!' \
             SKYROOF_WORKSPACE_ORIGINS=http://127.0.0.1:8076 \
             dotnet src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll > /tmp/skyroof-browser-beta.log 2>&1 &
-          BETA_PID=$!
-          trap 'kill "$HOST_PID" "$BETA_PID" 2>/dev/null || true; tail -n 50 /tmp/skyroof-browser-host.log /tmp/skyroof-browser-beta.log' EXIT
+          pids+=("$!")
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8076/health/live > /dev/null &&
                curl -fsS http://127.0.0.1:8077/health/live > /dev/null; then break; fi
