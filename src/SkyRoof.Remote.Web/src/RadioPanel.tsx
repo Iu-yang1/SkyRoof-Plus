@@ -164,6 +164,9 @@ export function RadioPanel() {
 
   usePttInputListeners(hub, { active: activeRef, transaction: heldTx,
     pointer: heldPointer, press: pressRef, release: releaseRef });
+  useEffect(() => {
+    if (!workspaceActive) releaseRef.current();
+  }, [workspaceActive]);
 
   function tune(event: FormEvent<HTMLFormElement>, target: 'rx' | 'tx') {
     event.preventDefault();

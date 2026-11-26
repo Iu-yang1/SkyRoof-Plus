@@ -70,6 +70,7 @@ builder.Services.AddSingleton<DspWaveformBridge>();
 
 var app = builder.Build();
 await StationIdentityBootstrap.InitializeAsync(app.Services);
+app.UseStationWorkspaceFramePolicy();
 if (webUiAvailable)
 {
     app.UseDefaultFiles();
