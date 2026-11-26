@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   locks:
@@ -41,21 +41,3 @@ jobs:
             SkyRoof.Orbit.Contracts/packages.lock.json
             src/SkyRoof.Remote.Ipc.Contracts/packages.lock.json
           if-no-files-found: error
-      - name: Commit only regenerated locks to unchanged feature branch
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          git add -f -- SkyRoof/packages.lock.json VE3NEA.Dsp.Tests/packages.lock.json SkyRoof.Orbit.Contracts/packages.lock.json src/SkyRoof.Remote.Ipc.Contracts/packages.lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --cached --check
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (git diff --cached --quiet) { Write-Host 'Already up to date'; exit 0 }
-          $branch = 'refs/heads/feature/remote-v1-multiprocess-foundation'
-          $remote = (git ls-remote origin $branch) -split '\s+'
-          if ($remote[0] -ne $env:GITHUB_SHA) { throw 'Branch advanced; retrieve validated artifact instead of overwriting newer work.' }
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'build(remote): refresh locked WinForms IPC dependency graph'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git push origin "HEAD:$branch"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

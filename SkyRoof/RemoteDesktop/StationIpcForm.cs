@@ -45,7 +45,7 @@ internal sealed partial class StationIpcForm : Form
         Controls.Add(layout);
         polling.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };
-        FormClosing += ClosePttAsync;
+        FormClosing += async (_, e) => await RunAsync(() => ClosePttAsync(e));
         Deactivate += async (_, _) => await ReleasePttAsync();
         FormClosed += (_, _) =>
         {

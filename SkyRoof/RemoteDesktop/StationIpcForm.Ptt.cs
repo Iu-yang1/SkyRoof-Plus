@@ -79,6 +79,7 @@ internal sealed partial class StationIpcForm
 
     private async Task ReleasePttAsync()
     {
+        if (IsDisposed || pttCloseComplete) return;
         pttHeld = false;
         heartbeat.Stop();
         ptt.Text = "HOLD PTT";
@@ -97,7 +98,7 @@ internal sealed partial class StationIpcForm
         finally { pttCommands.Release(); }
     }
 
-    private async void ClosePttAsync(object? sender, FormClosingEventArgs e)
+    private async Task ClosePttAsync(FormClosingEventArgs e)
     {
         if (pttCloseComplete) return;
         e.Cancel = true;
@@ -107,6 +108,6 @@ internal sealed partial class StationIpcForm
         await ReleasePttAsync();
         await RunAsync(async () => ShowRadio(await client.ReleaseSessionAsync(CancellationToken.None)));
         pttCloseComplete = true;
-        Close();
+        BeginInvoke(new Action(Close));
     }
 }
