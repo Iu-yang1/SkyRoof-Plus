@@ -84,3 +84,18 @@ $version = ./Stage-RemotePackage.ps1 -Archive ./SkyRoof-Remote-V1-development-wi
 生产配置可使用 `-ProtectState`，同时将 `-Output` 放在自身 station data 目录内，例如 `C:/SkyRoofRemote/data/alpha/supervisor.json`。默认 SCM LocalSystem（SID S-1-5-18）；若使用其他服务账户，通过 `-ServiceAccount` 指定实际账户名或 SID。目录 ACL 仅保留 SYSTEM、Administrators 和指定服务账户；现有子目录及文件也按该列表重新设置访问规则，执行前确认该站数据不依赖其他账号。拒绝重解析点，避免递归修改其他目录。该选项不会改变 Windows 服务账户，也不会设置 Named Pipe/SignalBus 对象 ACL。不同站点若共用同一 LocalSystem 身份，仍不具备 OS 用户级隔离。
 
 Host 启动时对既有 SQLite 身份库执行事务式 schema version 0→1 升级，新增用户 token 批量撤销索引，不删除或重建数据表。向后兼容旧二进制；正式发布前仍需实际跨版本回滚及备份恢复验收。该迁移不改变密码哈希、令牌或 DataProtection key。
+
+
+## 首次安装入口（开发版）
+
+管理员 PowerShell 7，准备可信 ZIP、填写本地台站模板和 .NET 10 / ASP.NET Core 10 x64 Runtime 后执行：
+
+```powershell
+./Install-RemoteStation.ps1 -Archive ./SkyRoof-Remote-V1-development-win-x64.zip -InstallRoot C:/SkyRoofRemote -StationId alpha -Template ./supervisor.icom9700.json -HttpPort 8076 -RegisterOnly
+```
+
+入口校验 manifest、并列暂存、生成并保护台站配置、注册 LocalSystem SCM 服务；不覆盖现有服务或配置。去掉 RegisterOnly 将启动并使用 /health/ready 检查实际 Device；失败移除本次注册的服务，保留暂存版本及配置以便诊断。已存在服务使用 Switch-RemoteServiceVersion.ps1 升级。卸载使用 Remove-RemoteService.ps1，保留台站数据。本入口不是 MSI 或带 Authenticode 的正式安装器。
+
+### IPC 访问账户
+
+Device / Station / Media / DSP 的 Kestrel Named Pipe 默认明确限制当前进程 Windows 用户；如确需跨服务账户访问，在对应服务器进程环境指定 `SKYROOF_DEVICE_PIPE_CLIENT_SIDS`、`SKYROOF_STATION_PIPE_CLIENT_SIDS`、`SKYROOF_MEDIA_PIPE_CLIENT_SIDS`、`SKYROOF_DSP_PIPE_CLIENT_SIDS`，分号分隔的 Windows SID。只授予明确受信任的调用账户，具备该管道所有 RPC 权限；不授予 CreateNewInstance。未配置时保留原本的同用户访问语义。SignalBus 共享内存 ACL 与跨 Session 0 尚需独立实现和验收。

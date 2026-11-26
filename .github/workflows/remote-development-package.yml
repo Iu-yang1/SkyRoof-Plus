@@ -138,6 +138,9 @@ jobs:
       - name: Compress after smoke passes
         shell: pwsh
         run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force
+      - name: Verify first installation from final ZIP and state-preserving uninstall
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteStationInstall.ps1 -Archive artifacts/SkyRoof-Remote-V1-development-win-x64.zip
       - name: Upload development artifact, not a release
         uses: actions/upload-artifact@v4
         with:
