@@ -4,10 +4,10 @@ namespace SkyRoof.RemoteDesktop;
 
 internal sealed partial class StationIpcClient
 {
-    internal Task<DeviceSnapshot> ManualPttAsync(DeviceOperation operation, string transaction, CancellationToken token) =>
+    internal Task<DeviceSnapshot> ManualPttAsync(DeviceOperation operation, string transaction, CancellationToken token, string audioSource = "") =>
         cat.ExecuteAsync(new DeviceCommand
         {
-            Operation = operation, TransactionId = transaction, SessionId = session
+            Operation = operation, TransactionId = transaction, SessionId = session, AudioSource = audioSource
         }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: token).ResponseAsync;
 
     internal bool OwnsPtt(DeviceSnapshot snapshot, string transaction) =>

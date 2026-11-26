@@ -113,3 +113,23 @@ message TelemetryIqReceipt {
   int64 blocks = 2;
   int64 samples = 3;
 }
+
+service StationSdr {
+  rpc Read(SdrStatusRequest) returns (SdrStatus);
+  rpc Start(SdrCaptureRequest) returns (SdrStatus);
+  rpc Stop(SdrStatusRequest) returns (SdrStatus);
+}
+message SdrStatusRequest {}
+message SdrCaptureRequest {
+  double center_hz = 1;
+  int32 sample_rate = 2;
+  double channel_hz = 3;
+  optional double gain_db = 4;
+}
+message SdrStatus {
+  bool configured = 1;
+  bool running = 2;
+  string state = 3;
+  string detail = 4;
+  SdrCaptureRequest request = 5;
+}

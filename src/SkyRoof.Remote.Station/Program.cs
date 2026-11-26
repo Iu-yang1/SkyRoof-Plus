@@ -20,6 +20,7 @@ builder.WebHost.ConfigureKestrel(k =>
 builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 32 * 1024 * 1024);
 builder.Services.AddSingleton<DeviceControlForwarder>();
 builder.Services.AddSingleton<DspControlForwarder>();
+builder.Services.AddSingleton<StationSdrService>();
 builder.Services.AddSingleton<IOrbitBackend>(_ => StationOrbitBackend.Create());
 builder.Services.AddSingleton<OrbitTrackingCalculator>();
 builder.Services.AddSingleton<TrackingService>();
@@ -37,6 +38,7 @@ if (!string.Equals(Environment.GetEnvironmentVariable("SKYROOF_ORBIT_BACKEND"),
 app.Logger.LogInformation("Station orbit backend: {Backend}", app.Services.GetRequiredService<IOrbitBackend>().BackendId);
 app.MapGrpcService<DeviceControlForwarder>();
 app.MapGrpcService<DspControlForwarder>();
+app.MapGrpcService<StationSdrService>();
 app.MapGrpcService<StationSignalService>();
 app.MapGrpcService<TrackingService>();
 app.MapGrpcService<StationCatalogService>();

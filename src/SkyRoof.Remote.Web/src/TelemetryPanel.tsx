@@ -3,6 +3,7 @@ import { DeviceHubContext, WorkspaceActiveContext } from './host';
 import { telemetryProfiles, type TelemetryConfig } from './TelemetryProfiles';
 import { TelemetryMediaPanel, type TelemetryProduct } from './TelemetryMediaPanel';
 import { TelemetryArchivePanel } from './TelemetryArchivePanel';
+import { SdrControl } from './SdrControl';
 import { TelemetryProfileEditor } from './TelemetryProfileEditor';
 import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
 
@@ -68,6 +69,7 @@ export function TelemetryPanel() {
     <header>TELEMETRY</header>
     <SatelliteCatalogPicker available={available} onSelect={loadProfile} purpose="telemetry" />
     <small>{profileSource} · verify actual AF/IF input before applying.</small>
+    <SdrControl available={available} channelHz={config.downlinkHz} />
     <TelemetryProfileEditor config={config} onChange={next => { setConfig(next); setProfileSource('Manual / edited'); }} />
     <button disabled={!available || busy} onClick={() => void apply(true)}>START / APPLY</button>
     <button disabled={!available || busy} onClick={() => void apply(false)}>STOP / FLUSH</button>

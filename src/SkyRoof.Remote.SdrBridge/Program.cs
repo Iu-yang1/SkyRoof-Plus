@@ -24,8 +24,10 @@ using var stop = new CancellationTokenSource();
 Console.CancelKeyPress += (_, eventArgs) => { eventArgs.Cancel = true; stop.Cancel(); };
 try
 {
-    if (args is ["--rx", var pipe, var device, var center, var rate, var target, var gain])
+    if (args is [var action, var pipe, var device, var center, var rate, var target, var gain] &&
+        action is "--rx" or "--managed-rx")
     {
+        if (action == "--managed-rx") _ = StopOnParentExitAsync(stop);
         SoapyNative.Abi();
         using var rx = new SoapyRx(device, Number(center), int.Parse(rate, CultureInfo.InvariantCulture),
             gain == "default" ? null : Number(gain));
@@ -79,4 +81,11 @@ static async Task ReplayAsync(string path, string pipe, int rate, double offset,
         await sender.SendAsync(converter.Process(MemoryMarshal.Cast<byte, float>(buffer.AsSpan(0, count))), ct);
     }
     await sender.EndAsync();
+}
+
+static async Task StopOnParentExitAsync(CancellationTokenSource stop)
+{
+    try { await Console.In.ReadLineAsync(stop.Token); stop.Cancel(); }
+    catch (OperationCanceledException) { }
+    catch (ObjectDisposedException) { }
 }

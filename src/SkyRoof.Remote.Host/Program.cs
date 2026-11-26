@@ -109,6 +109,7 @@ app.MapFt4Results();
 app.MapQ65();
 app.MapAutoQ65();
 app.MapTelemetry();
+app.MapStationSdr();
 app.MapCamera();
 app.MapCwResults();
 app.MapCwKeyer();

@@ -43,7 +43,7 @@ internal sealed partial class StationIpcForm
             if (!pttHeld || pttClosing || pttTransaction is not null) return;
             string transaction = Guid.NewGuid().ToString("N");
             pttTransaction = transaction;
-            var snapshot = await client.ManualPttAsync(DeviceOperation.DeviceManualBegin, transaction, lifetime.Token);
+            var snapshot = await client.ManualPttAsync(DeviceOperation.DeviceManualBegin, transaction, lifetime.Token, microphoneEnabled.Checked ? "LAN" : "");
             ShowRadio(snapshot);
             if (pttHeld && client.OwnsPtt(snapshot, transaction))
             {

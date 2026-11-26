@@ -62,6 +62,7 @@ foreach ($process in $config.Processes) {
             $process.Environment.SKYROOF_TIMED_TX_DIRECTORY = Join-Path $state 'timed-tx'
         }
         Station {
+            $process.Environment.SKYROOF_SDR_BRIDGE_PATH = Join-Path $package 'tools/SdrBridge/SkyRoof.Remote.SdrBridge.exe'
             if ($DesktopOperatorSid.Count -gt 0) {
                 $sids = @($DesktopOperatorSid | ForEach-Object { ([System.Security.Principal.SecurityIdentifier]::new($_)).Value } | Select-Object -Unique)
                 $process.Environment.SKYROOF_STATION_PIPE_CLIENT_SIDS = $sids -join ';'
