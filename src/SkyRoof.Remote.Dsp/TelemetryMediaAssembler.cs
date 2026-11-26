@@ -5,7 +5,7 @@ using VE3NEA.SkyTlm.Imaging;
 namespace SkyRoof.Remote.Dsp;
 
 internal sealed record TelemetryMediaProduct(string Extension, byte[] Bytes, string Label,
-    int Received, int Expected, bool Complete);
+    int Received, int Expected, bool Complete, string? StreamKey = null, bool Final = true);
 
 internal sealed class TelemetryMediaAssembler : IDisposable
 {
@@ -18,15 +18,10 @@ internal sealed class TelemetryMediaAssembler : IDisposable
         if (signal.Framing == Framing.HADES && norad != 68446) return;
         _image = ImageAssemblerFactory.Create(signal, norad);
         if (_image is not null)
-            _image.ImageCompleted += product =>
-            {
-                if (product.Jpeg.Length > 0)
-                    publish(new("jpg", product.Jpeg, $"Image {product.ImageId} · {product.Width}×{product.Height}",
-                        product.FragmentsReceived, product.FragmentsExpected, product.Complete));
-                else if (product.Text is { } text)
-                    publish(new("txt", System.Text.Encoding.UTF8.GetBytes(text), $"Text {product.ImageId}",
-                        product.FragmentsReceived, product.FragmentsExpected, product.Complete));
-            };
+        {
+            _image.ImageCompleted += product => PublishImage(product, true, publish);
+            _image.ImageUpdated += product => PublishImage(product, false, publish);
+        }
         try
         {
             _voice = AudioAssemblerFactory.Create(signal, norad);
@@ -40,6 +35,17 @@ internal sealed class TelemetryMediaAssembler : IDisposable
         {
             Serilog.Log.Warning("Telemetry voice assembler unavailable ({Type})", error.GetType().Name);
         }
+    }
+
+    private static void PublishImage(ImageProduct product, bool final, Action<TelemetryMediaProduct> publish)
+    {
+        string key = $"image:{product.Source}:{product.ImageId}";
+        if (product.Jpeg.Length > 0)
+            publish(new("jpg", product.Jpeg, $"Image {product.ImageId} · {product.Width}×{product.Height}",
+                product.FragmentsReceived, product.FragmentsExpected, product.Complete, key, final));
+        else if (product.Text is { } text && final)
+            publish(new("txt", System.Text.Encoding.UTF8.GetBytes(text), $"Text {product.ImageId}",
+                product.FragmentsReceived, product.FragmentsExpected, product.Complete, key, true));
     }
 
     internal void Push(Frame frame)

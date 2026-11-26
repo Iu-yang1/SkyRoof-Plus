@@ -1,25 +1,39 @@
+using System.Diagnostics;
+using System.Text.Json;
+using SkyRoof.Remote.Foundation.Signals;
+
 namespace SkyRoof.Remote.Dsp;
 
 public sealed partial class TelemetryLiveReceiver
 {
+    private sealed record ProductIdentity(Guid Id, DateTimeOffset Started, int Revision, long Published);
+    private readonly Dictionary<string, ProductIdentity> _mediaProducts = [];
+
     private void MediaDecoded(TelemetryMediaProduct product)
     {
-        string id = Guid.NewGuid().ToString("N");
+        var key = product.StreamKey is null ? null : $"{_generation}:{product.Extension}:{product.StreamKey}";
+        var previous = key is null ? null : _mediaProducts.GetValueOrDefault(key);
+        if (!product.Final && previous is not null && Stopwatch.GetElapsedTime(previous.Published) < TimeSpan.FromSeconds(1))
+            return;
+        var identity = previous is null
+            ? new ProductIdentity(Guid.NewGuid(), DateTimeOffset.UtcNow, 1, Stopwatch.GetTimestamp())
+            : previous with { Revision = previous.Revision + 1, Published = Stopwatch.GetTimestamp() };
         try
         {
-            string folder = Path.Combine(ArchiveDirectory(), "_products");
-            Directory.CreateDirectory(folder);
-            string final = Path.Combine(folder, id + "." + product.Extension);
-            string temporary = final + ".part";
-            try
+            var record = new TelemetryProductRecord(identity.Id, product.Extension, product.Label,
+                product.Received, product.Expected, product.Complete, product.Final, identity.Revision,
+                identity.Started, DateTimeOffset.UtcNow, _config.NoradId, _config.Satellite,
+                _config.Transmitter, product.Bytes.Length);
+            TelemetryProductStore.Save(ArchiveDirectory(), record, product.Bytes);
+            if (key is not null)
             {
-                File.WriteAllBytes(temporary, product.Bytes);
-                File.Move(temporary, final);
+                if (product.Final) _mediaProducts.Remove(key);
+                else _mediaProducts[key] = identity;
             }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
-            Publish(new { state = "media", utc = DateTimeOffset.UtcNow, generation = _generation,
-                config = _config, id, format = product.Extension, product.Label, product.Received,
-                product.Expected, product.Complete, bytes = product.Bytes.Length });
+            Publish(new { state = "media", utc = record.UpdatedUtc, generation = _generation,
+                config = _config, id = record.Id.ToString("N"), format = record.Format,
+                record.Label, record.Received, record.Expected, record.Complete, record.Final, record.Revision,
+                bytes = record.Bytes });
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {

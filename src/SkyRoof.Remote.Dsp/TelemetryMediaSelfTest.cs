@@ -19,7 +19,9 @@ internal static class TelemetryMediaSelfTest
             assembler.Push(VoiceFrame(2));
             assembler.Flush();
         }
-        var jpeg = products.Single(p => p.Extension == "jpg");
+        var jpeg = products.Single(p => p.Extension == "jpg" && p.Final);
+        if (!products.Any(p => p.Extension == "jpg" && !p.Final && p.Received < jpeg.Received))
+            throw new InvalidDataException("SSDV progressive update missing.");
         if (!jpeg.Complete || jpeg.Received != 15 || !jpeg.Bytes.SequenceEqual(File.ReadAllBytes(
             Path.Combine(corpus, "hades-sa_img235_complete.ref.jpg"))))
             throw new InvalidDataException("Real HADES-SA SSDV JPEG differs from pinned reference.");
@@ -55,7 +57,9 @@ internal static class TelemetryMediaSelfTest
                 assembler.PushIq(iq.AsSpan(offset, Math.Min(4096, iq.Length - offset)));
             assembler.Flush();
         }
-        var png = products.Single();
+        var png = products.Single(p => p.Final);
+        if (!products.Any(p => !p.Final && p.Received < png.Received))
+            throw new InvalidDataException("SSTV progressive update missing.");
         if (png.Extension != "png" || png.Received < 216 || png.Expected != 240 ||
             !png.Bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
             throw new InvalidDataException("Native SSTV Robot36 PNG or row count mismatch.");

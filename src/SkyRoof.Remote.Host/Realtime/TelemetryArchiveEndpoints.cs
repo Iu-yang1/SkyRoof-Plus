@@ -1,4 +1,5 @@
 using System.Globalization;
+using SkyRoof.Remote.Foundation.Signals;
 using System.Text.RegularExpressions;
 
 namespace SkyRoof.Remote.Host.Realtime;
@@ -10,6 +11,7 @@ internal static partial class TelemetryArchiveEndpoints
     internal static void MapArchive(WebApplication app)
     {
         app.MapGet(Route, ListAsync).RequireAuthorization();
+        app.MapGet("/api/v1/dsp/telemetry/products", ProductListAsync).RequireAuthorization();
         app.MapGet("/api/v1/dsp/telemetry/product/{id:guid}/{format}", ProductAsync).RequireAuthorization();
         app.MapGet(Route + "/{norad:int}/{day}/{stem}/{format}", DownloadAsync).RequireAuthorization();
     }
@@ -65,7 +67,13 @@ internal static partial class TelemetryArchiveEndpoints
         if (!File.Exists(file)) return Results.NotFound();
         context.Response.Headers.CacheControl = "no-store";
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        return Results.File(file, type, enableRangeProcessing: true);
+        try
+        {
+            var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return Results.File(input, type, enableRangeProcessing: true);
+        }
+        catch (FileNotFoundException) { return Results.NotFound(); }
+        catch (IOException) { return Results.Problem(title: "Media temporarily unavailable", statusCode: 503); }
     }
 
     private static async Task<IResult> DownloadAsync(int norad, string day, string stem, string format, HttpContext context)

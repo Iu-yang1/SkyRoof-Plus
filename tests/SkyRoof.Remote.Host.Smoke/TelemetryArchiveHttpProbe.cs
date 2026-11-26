@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
+using SkyRoof.Remote.Foundation.Signals;
 
 internal sealed class TelemetryArchiveHttpProbe : IDisposable
 {
@@ -24,7 +25,11 @@ internal sealed class TelemetryArchiveHttpProbe : IDisposable
         }
         string media = Path.Combine(_root, "_products");
         Directory.CreateDirectory(media);
-        File.WriteAllBytes(Path.Combine(media, Product.ToString("N") + ".wav"), Payload);
+        var utc = new DateTimeOffset(2026, 11, 25, 1, 0, 0, TimeSpan.Zero);
+        TelemetryProductStore.Save(_root, new TelemetryProductRecord(Product, "wav", "Fixture audio",
+            1, 3, false, false, 1, utc, utc, 39444, "AO-73", "fixture", Payload.Length), Payload);
+        TelemetryProductStore.Save(_root, new TelemetryProductRecord(Product, "wav", "Fixture audio",
+            2, 3, false, true, 2, utc, utc.AddSeconds(1), 39444, "AO-73", "fixture", Payload.Length), Payload);
         info.Environment["SKYROOF_TELEMETRY_ARCHIVE_DIRECTORY"] = _root;
     }
 
@@ -58,7 +63,14 @@ internal sealed class TelemetryArchiveHttpProbe : IDisposable
             receivedProduct.Content.Headers.ContentType?.MediaType != "audio/wav" ||
             !(await receivedProduct.Content.ReadAsByteArrayAsync()).SequenceEqual(Payload))
             throw new InvalidDataException("Media product authentication or content delivery failed.");
-        Console.WriteLine("PASS: authenticated archive pagination, exact BIN/LOG/media download and incomplete record exclusion.");
+        const string catalog = "/api/v1/dsp/telemetry/products?norad=39444&day=20261125";
+        using var deniedCatalog = await anonymous.GetAsync(catalog);
+        using var catalogJson = JsonDocument.Parse(await authenticated.GetStringAsync(catalog));
+        var item = catalogJson.RootElement.GetProperty("items").EnumerateArray().Single();
+        if (deniedCatalog.StatusCode != HttpStatusCode.Unauthorized || item.GetProperty("revision").GetInt32() != 2 ||
+            !item.GetProperty("final").GetBoolean() || item.GetProperty("complete").GetBoolean())
+            throw new InvalidDataException("Progressive media history did not retain one final revision.");
+        Console.WriteLine("PASS: authenticated archive pagination, exact BIN/LOG/media download and durable progressive media catalog.");
     }
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }

@@ -12,16 +12,20 @@ internal sealed class TelemetrySstvAssembler : IDisposable
 
     internal TelemetrySstvAssembler(Action<TelemetryMediaProduct> publish)
     {
-        _decoder.ImageCompleted += image =>
-        {
+        _decoder.ImageCompleted += image => PublishImage(image, publish);
+        _decoder.ImageUpdated += image => PublishImage(image, publish);
+    }
+
+    private static void PublishImage(SstvImageEvent image, Action<TelemetryMediaProduct> publish)
+    {
             if (image.ValidRows <= 0) return;
             using var bitmap = image.Image.ToBitmap();
             using var output = new MemoryStream();
             bitmap.Save(output, ImageFormat.Png);
             int received = image.Planes?.RowRendered.Count(row => row) ?? image.ValidRows;
             publish(new("png", output.ToArray(), $"SSTV {image.Mode} · {image.Image.Width}×{image.Image.Height}",
-                received, image.Image.Height, received == image.Image.Height));
-        };
+                received, image.Image.Height, image.Final && received == image.Image.Height,
+                "sstv:" + image.ImageId, image.Final));
     }
 
     internal void PushAudio(ReadOnlySpan<float> samples) => PushIq(_audio.Convert(samples));

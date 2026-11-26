@@ -82,7 +82,7 @@ export function TelemetryPanel() {
     {detail && <><p>{detail.config?.satellite} · {detail.framing} · {detail.snrDb?.toFixed(1)} dB · CFO {detail.cfoHz?.toFixed(1)} Hz</p>
       <p>{detail.note}</p><table><tbody>{detail.fields?.map((field, i) => <tr key={i}><th>{field.name}</th><td>{field.value}</td></tr>)}</tbody></table>
       <textarea readOnly value={detail.hex ?? ''} rows={5} aria-label="Decoded payload HEX" /></>}
-    <TelemetryMediaPanel available={available} products={results.filter((f): f is Frame & TelemetryProduct => f.state === 'media' && !!f.id && !!f.format).reverse()} />
+    <TelemetryMediaPanel key={config.noradId} available={available} norad={config.noradId} products={results.filter((f): f is Frame & TelemetryProduct => f.state === 'media' && !!f.id && !!f.format && f.config?.noradId === config.noradId).reverse()} />
     <TelemetryArchivePanel available={available} norad={config.noradId} />
   </section>;
 }
