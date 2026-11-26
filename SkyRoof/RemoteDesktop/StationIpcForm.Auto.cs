@@ -97,7 +97,9 @@ internal sealed partial class StationIpcForm
                 ShowAutoEvent(evt);
         }
         catch (OperationCanceledException) when (source.IsCancellationRequested)
-        { autoStatus.Text = "Cancellation requested; verify CAT RX."; }
+        { if (!IsDisposed) autoStatus.Text = "Cancellation requested; verify CAT RX."; }
+        catch (Exception error) when (error is HttpRequestException or IOException or JsonException or InvalidOperationException)
+        { if (!IsDisposed) autoStatus.Text = error.Message; }
         finally
         {
             digitalCancellation = null;

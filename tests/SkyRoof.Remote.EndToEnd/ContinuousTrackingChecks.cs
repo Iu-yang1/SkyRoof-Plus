@@ -109,7 +109,7 @@ internal static class ContinuousTrackingChecks
         var current = status.Latest ?? throw new InvalidDataException("Missing tuned prediction.");
         var factor = current.RangeRateMetresPerSecond / 299792458.0;
         long rx = (long)Math.Round((145900000 + 12000) * (1 - factor));
-        long tx = (long)Math.Round((435650000 - 9000) * (1 + factor));
+        long tx = (long)Math.Round(435650000 * (1 + factor) - 9000);
         Check(current.RxHz == rx && current.TxHz == tx && current.ActualRxHz == rx && current.ActualTxHz == tx,
             "Live offsets not applied to actual CAT or not restored after restart.");
     }

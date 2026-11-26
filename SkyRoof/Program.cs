@@ -41,8 +41,15 @@ namespace SkyRoof
       }
       if(args is ["--remote-station", var stationPipe])
       {
-        ApplicationConfiguration.Initialize();
-        Application.Run(new RemoteDesktop.StationIpcForm(stationPipe));
+        try
+        {
+          ExceptionLogger.Initialize();
+          Application.SetHighDpiMode(SelectDpiMode(args, Environment.GetEnvironmentVariable("SKYROOF_DPI_MODE")));
+          Theme.Initialize();
+          ApplicationConfiguration.Initialize();
+          Application.Run(new RemoteDesktop.StationIpcForm(stationPipe));
+        }
+        finally { Log.CloseAndFlush(); }
         return;
       }
       using (new SingleInstanceEnforcer())

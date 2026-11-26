@@ -77,6 +77,7 @@ internal sealed partial class StationIpcForm
     private TrackingRequest ReadTrackingRequest()
     {
         var request = JsonParser.Default.Parse<TrackingRequest>(trackingConfig.Text);
+        if (!advancedTracking.Checked) MergeTrackingFields(request);
         request.UtcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return request;
     }

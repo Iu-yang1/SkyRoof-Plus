@@ -19,6 +19,7 @@ internal sealed partial class StationIpcForm
     private readonly TextBox peerHeight = new() { Width = 60, Text = "0" };
     private readonly CheckBox rxDoppler = new() { Text = "RX Doppler", Checked = true, AutoSize = true };
     private readonly CheckBox txDoppler = new() { Text = "TX Doppler", Checked = true, AutoSize = true };
+    private readonly CheckBox advancedTracking = new() { Text = "Use advanced JSON instead of fields", AutoSize = true };
     private readonly CheckBox pointTracking = new() { Text = "Point rotator", AutoSize = true };
 
     private Control CreateTrackingFields()
@@ -31,6 +32,7 @@ internal sealed partial class StationIpcForm
         panel.Controls.Add(Row("DX LAT °", peerLat, "DX LON °", peerLon, "DX height m", peerHeight));
         panel.Controls.Add(Row(rxDoppler, txDoppler, pointTracking,
             ActionButton("APPLY FIELDS", ApplyTrackingFieldsAsync), ActionButton("LOAD JSON FIELDS", ReadTrackingFieldsAsync)));
+        panel.Controls.Add(Row(advancedTracking));
         return panel;
     }
 
@@ -65,6 +67,14 @@ internal sealed partial class StationIpcForm
     private Task ApplyTrackingFieldsAsync()
     {
         var request = JsonParser.Default.Parse<TrackingRequest>(trackingConfig.Text);
+        MergeTrackingFields(request);
+        trackingConfig.Text = JsonFormatter.Default.Format(request);
+        trackingResult.Text = "Fields applied to request.";
+        return Task.CompletedTask;
+    }
+
+    private void MergeTrackingFields(TrackingRequest request)
+    {
         request.LatitudeDegrees = ReadNumber(siteLat);
         request.LongitudeDegrees = ReadNumber(siteLon);
         request.HeightMetres = ReadNumber(siteHeight);
@@ -75,9 +85,11 @@ internal sealed partial class StationIpcForm
         request.CorrectUplink = txDoppler.Checked;
         request.PointRotator = pointTracking.Checked;
         ApplyEmeFields(request);
-        trackingConfig.Text = JsonFormatter.Default.Format(request);
-        trackingResult.Text = "Fields applied to request.";
-        return Task.CompletedTask;
+        if (request.RadioLink is { } link)
+        {
+            link.DownlinkLowHz = request.DownlinkHz;
+            link.UplinkLowHz = request.UplinkHz;
+        }
     }
 
     private void ApplyEmeFields(TrackingRequest request)

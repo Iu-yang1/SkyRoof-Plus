@@ -19,6 +19,7 @@ internal sealed partial class StationIpcForm : Form
     private readonly TextBox az = new() { Width = 75 };
     private readonly TextBox el = new() { Width = 75 };
     private bool refreshing;
+    private bool resourcesReleased;
 
     internal StationIpcForm(string pipe)
     {
@@ -61,19 +62,24 @@ internal sealed partial class StationIpcForm : Form
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };
         FormClosing += async (_, e) => await RunAsync(() => ClosePttAsync(e));
         Deactivate += async (_, _) => await ReleasePttAsync();
-        FormClosed += (_, _) =>
-        {
-            cwSendCancellation?.Cancel();
-            digitalCancellation?.Cancel();
-            autoConnection?.Dispose();
-            StopSignalStreams();
-            StopMicrophone();
-            heartbeat.Dispose();
-            polling.Dispose();
-            lifetime.Cancel();
-            client.Dispose();
-            lifetime.Dispose();
-        };
+        FormClosed += (_, _) => ReleaseResources();
+        Disposed += (_, _) => ReleaseResources();
+    }
+
+    private void ReleaseResources()
+    {
+        if (resourcesReleased) return;
+        resourcesReleased = true;
+        cwSendCancellation?.Cancel();
+        digitalCancellation?.Cancel();
+        autoConnection?.Dispose();
+        StopSignalStreams();
+        StopMicrophone();
+        heartbeat.Dispose();
+        polling.Dispose();
+        lifetime.Cancel();
+        client.Dispose();
+        lifetime.Dispose();
     }
 
     private static FlowLayoutPanel Row(params object[] items)

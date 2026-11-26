@@ -359,3 +359,12 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **P3：** `4345103` 增加真实 RTSP/RTP、ONVIF SOAP、Host remux、Chrome 视频解码帧计数端到端测试，不 mock 视频内容。`6e23f09` Station 管理固定配置 SoapySDR companion，起停、重调谐、采样率/增益、实际读回状态、Host 角色授权；设备选择来自站端配置，重调谐结束旧采集并重建 IQ epoch。设置 Station 进程的 SKYROOF_SDR_DEVICE_ARGS 后启用；需要实机和驱动测试。
 - **P5：** `3b25c43` Inno Setup 首次安装固定 alpha 站，验证 ZIP、注册但不启动未配置电台，保留版本/数据，实际 SCM 安装/卸载回归已接入 CI。更新继续使用 Switch-RemoteServiceVersion.ps1。可选 Sign-RemoteInstaller.ps1 使用操作者已安装的代码签名证书，验签失败即报错；未提供真实证书，当前产物仅无签名开发版。安装路径须管理员控制。公网 HTTPS/ICE/FRP、物理 IC-9700、SDR、摄像头、旋转器和长期运行均未实测。
 - 所有新代码需要最新 SHA 的实际 CI，不能用旧 SHA 的成功替代；保持 Draft #254，不合并、不正式 Release。API 提交未签名。
+
+
+## 2026-11-26 — 最新整包实证、桌面自动 QSO 和在线跟踪调谐
+
+- `0044154` 最终 CI **23/25**；[Compile Check 45763215844](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45763215844) 1857/1857，[整包 45763216040](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45763216040) 成功，真实 SCM 回滚、最终 ZIP 安装/卸载以及 Inno Setup EXE 实际注册/状态保留均通过，并上传无签名 EXE 和 ZIP。[E2E 45763215917](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45763215917) 已通过桌面 CAT/ROT、PCM 索引/epoch、CW/PTT、双站月面光行时以及 SDR 未配置/鉴权测试。
+- `0044154` aislop 报告 10 项新增问题；浏览器测试真实 H.264 解码尺寸 160×120 和 decoded=true，但持续播放断言未通过。 `daa1b28` 处理空 catch、nullable、Trace 输出等全部新告警，并延长实时 RTSP fixture、修正初始缓冲寻址、增加播放时间继续前进断言；[aislop 45773194313](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45773194313) 已实际通过。浏览器结果仍待确认，不删除或跳过播放断言。
+- `a0df4fd` / `d585276` 桌面 FT4/Q65 AUTO QSO 使用 Host 原生授权 NDJSON 状态机，Bearer token 仅内存保留，显示实际 Host identity、可复用连接、取消、终态检查、Moon job 选择。新 packaged E2E 直接复用桌面 HTTP 适配器，继续精确三报文 UDP 波形及报告验证。允许 HTTPS 或 loopback HTTP，禁止自动重定向，避免 token 泄露；不是新建第二套自动 QSO 引擎。
+- `d0d09cb` 增加 StationTrackingJobs.Tune RPC 和 Host SignalR TuneTrackingJob，按原 JobId 串行校验/持久化修改 RIT、XIT、转发器位置、手动及基频偏移，不替换任务、不清空计数、不限制数据库通带外调谐。仅处理卫星 RadioLink 偏移，EME Doppler 模式/频率调整仍按既有 Moon 任务流程。Web 和桌面均接入；E2E 检查实际 CAT 读回、旧任务 ID 拒绝、进程重启恢复，RIT 在 RX Doppler 前，XIT 在 TX Doppler 后。
+- 桌面新增 QTH/频率/Moon/DX 站点结构化字段与高级 JSON 可选模式，默认未填写 QTH 不提交预测，旋转器指向由操作者选择；增加 STA WinForms 构造/控件 smoke。原 MainForm 的 Context 仍直接持有 CAT、SDR、音频、DSP，不冒充全量迁移。原本地模式不变。真实设备、公网、长时、受信任签名和原面板全量迁移仍是验收缺口；本轮 API 提交未签名，保持 Draft PR #254，不合并或正式 Release。最新 SHA 仍需独立 CI 验证。
