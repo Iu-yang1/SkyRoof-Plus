@@ -9,6 +9,8 @@ param(
     [switch]$ProtectState,
     [string]$ServiceAccount = 'S-1-5-18',
     [string[]]$DesktopOperatorSid = @(),
+    [switch]$GlobalSignalBus,
+    [string[]]$SignalBusReaderSid = @(),
     [switch]$Force
 )
 $ErrorActionPreference = 'Stop'
@@ -35,6 +37,10 @@ $shared = @{
     SKYROOF_Q65_RESULTS_BUS = "$ns-q65"
     SKYROOF_TELEMETRY_RESULTS_BUS = "$ns-telemetry"
     SKYROOF_TELEMETRY_ARCHIVE_DIRECTORY = Join-Path $state 'telemetry'
+}
+if ($GlobalSignalBus) {
+    $shared.SKYROOF_SIGNALBUS_SCOPE = 'global'
+    $shared.SKYROOF_SIGNALBUS_READER_SIDS = @($SignalBusReaderSid | ForEach-Object { ([System.Security.Principal.SecurityIdentifier]::new($_)).Value } | Select-Object -Unique) -join ';'
 }
 foreach ($process in $config.Processes) {
     $part = $process.Name

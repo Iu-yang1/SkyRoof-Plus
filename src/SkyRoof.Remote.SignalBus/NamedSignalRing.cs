@@ -28,10 +28,25 @@ public sealed partial class NamedSignalRing : IDisposable
         _slots = slots;
         _payloadCapacity = payloadCapacity;
         _stride = checked(FrameHeaderBytes + payloadCapacity);
-        _mapping = MemoryMappedFile.CreateOrOpen("Local\\SkyRoofRemoteBus_" + name,
-            checked(HeaderBytes + (long)slots * _stride), MemoryMappedFileAccess.ReadWrite);
-        _view = _mapping.CreateViewAccessor();
-        _mutex = new Mutex(false, "Local\\SkyRoofRemoteBusLock_" + name);
+        var capacity = checked(HeaderBytes + (long)slots * _stride);
+        var global = string.Equals(Environment.GetEnvironmentVariable("SKYROOF_SIGNALBUS_SCOPE"),
+            "global", StringComparison.OrdinalIgnoreCase);
+        var objects = global
+            ? GlobalSignalRingObjects.Open(name, capacity, initialEpoch != 0)
+            : OpenLocal(name, capacity);
+        _mapping = objects.Mapping;
+        _mutex = objects.Mutex;
+        try
+        {
+            _view = _mapping.CreateViewAccessor(0, capacity,
+                global && initialEpoch == 0 ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite);
+        }
+        catch
+        {
+            _mapping.Dispose();
+            _mutex.Dispose();
+            throw;
+        }
         try
         {
             if (initialEpoch != 0) ResetEpoch(initialEpoch);
@@ -50,6 +65,15 @@ public sealed partial class NamedSignalRing : IDisposable
             _mapping.Dispose();
             throw;
         }
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static (MemoryMappedFile Mapping, Mutex Mutex) OpenLocal(string name, long capacity)
+    {
+        var mapping = MemoryMappedFile.CreateOrOpen("Local\\SkyRoofRemoteBus_" + name,
+            capacity, MemoryMappedFileAccess.ReadWrite);
+        try { return (mapping, new Mutex(false, "Local\\SkyRoofRemoteBusLock_" + name)); }
+        catch { mapping.Dispose(); throw; }
     }
 
     public ulong StreamEpoch => Locked(() => _view.ReadUInt64(8));
