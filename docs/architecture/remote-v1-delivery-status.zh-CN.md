@@ -418,3 +418,14 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - 旋转器并发 STOP 旧基线 8bbf937 Compile Check（45786463535）1859/1860 通过；失败为测试等待期间验证已结束。新增 worker 实际验证开始事件和 TCP fixture 同步，不改变 STOP <3s 及验证失败断言。新 CI 未确认，不宣称 P0 已通过。
 - Compile Check 新增成功编译后的 Remote desktop preview artifact，不绕过后续测试或质量门禁。服务端 ZIP/安装器仍通过 Remote package workflow 构建；没有已确认的新构建产物时不发布。
 - 仍未完成：站端无人值守 AFC 与自动探针校准、站端录制、原 GPU EarthView 在线 XYZ 在 Remote 窗口的完整接入、扩展 ADIF/外部 logger/LoTW、其他原 MainForm 专属功能及新 SHA CI、实机验证。上述同步不等于功能对等。
+
+
+## 2026-11-26：P0–P2 继续迁移
+
+- c1cd498：StationRecorder 独立 Start/Status/Stop，复用 AF/48 kHz IQ/原始 CF32 IQ 流与 WAV 分段写入；关闭启动者客户端不会停止录制。站端目录 SKYROOF_RECORDING_DIRECTORY。未实现录制任务跨进程重启恢复或远程文件下载/管理。
+- d2747f4：Station AFC 真实 12 kHz IF WASAPI 48 kHz endpoint，SKYROOF_AFC_IF_DEVICE / SKYROOF_AFC_IF_LOOPBACK / SKYROOF_AFC_IF_CHANNEL；原 IF DSP，任务 gate，generation 切换，采集失败关闭 AFC 会话。Windows Session 0 实机音频可用性未确认。
+- 007aee0：Remote EarthView 复用原 GPU AEQD、纹理、XYZ/WMTS 管理器及 WGS-84 轨迹、覆盖轮廓；软件地图回退。ad1e85b 修复停靠页面转移生命周期，加入真实录音 IPC 与 IF 样本测试。
+- f7ed81f：录音 AF WAV 选择时间偏移、声道及 FT4/Q65 单时隙离线解码；复用原生 DSP API，结果仅返回请求端，不注入实时自动通联；不提供跨时隙 Q65 平均。
+- a4681d5：可选 RX 极性探针（50–150 Hz 范围内），基准/探测/恢复读回与真实 IF 双向变化一致才确认；PTT、代际变化和超时撤销探针，仍依赖 Device RX-only/PTT 事务；新增状态机测试。
+- 95e5d28：记录级 ADIF 附加字段及类型保留、规范化；原 LoggerInterface.dll 查询与手动转发已保存 QSO；显式 TQSL 选择站点并上传过滤 ADIF，证书由 TQSL 管理，不把上传成功等同 LoTW 确认。旧日志插件额外字段兼容性和实际 LoTW 账户未测试。
+- 补充 FT4/Q65 独立 DSP 解码、typed ADIF 实际 IPC roundtrip、录音 epoch 分段检查；修复 IF 时钟回退、关闭状态、GPU 初始相机及 TQSL 清理路径。新增测试尚未取得 CI 结果。上一轮及 95e5d28 的工作流仍 queued。P0 编译/aislop/E2E/整包不宣称通过；仍需原 MainForm 全部功能逐项核对、实机与 WAN/长期运行验收。保持 Draft PR #254，不合并 master，不发布。

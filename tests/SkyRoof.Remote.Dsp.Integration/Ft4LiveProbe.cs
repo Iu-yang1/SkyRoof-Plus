@@ -1,10 +1,14 @@
 using System.Diagnostics;
+using System.IO.Pipes;
+using System.Security.Principal;
+using Grpc.Net.Client;
+using SkyRoof.Remote.Ipc;
 using System.Text.Json;
 using SkyRoof.Remote.SignalBus;
 
 internal static class Ft4LiveProbe
 {
-    public static async Task RunAsync(string dspDll, NamedSignalRing input, string resultsName)
+    public static async Task RunAsync(string dspDll, NamedSignalRing input, string resultsName, string pipe)
     {
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".pcm");
         try
@@ -17,6 +21,7 @@ internal static class Ft4LiveProbe
             await encoder.WaitForExitAsync(timeout.Token);
             if (encoder.ExitCode != 0) throw new InvalidDataException("FT4 waveform generation failed.");
             byte[] waveform = await File.ReadAllBytesAsync(file, timeout.Token);
+            await AssertOfflineAsync(waveform, pipe, timeout.Token);
             byte[] timeline = new byte[408000 * 2];
             // Start 1 second before a slot. Place FT4 at slot + 0.5 seconds.
             waveform.CopyTo(timeline, 72000 * 2);
@@ -27,6 +32,25 @@ internal static class Ft4LiveProbe
             await AssertResultAsync(output, cursor, timeout.Token);
         }
         finally { File.Delete(file); }
+    }
+
+    private static async Task AssertOfflineAsync(byte[] waveform, string pipe, CancellationToken ct)
+    {
+        using var handler = new SocketsHttpHandler { ConnectCallback = async (_, token) =>
+        {
+            var stream = new NamedPipeClientStream(".", pipe, PipeDirection.InOut, PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+            try { await stream.ConnectAsync(5000, token); return stream; }
+            catch { await stream.DisposeAsync(); throw; }
+        }};
+        using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
+        var dsp = new DspWaveform.DspWaveformClient(channel);
+        var slot = new byte[290304 * 2];
+        waveform.CopyTo(slot, 24000 * 2);
+        var result = await dsp.DecodeOfflineAfAsync(new OfflineAfDecodeRequest { Mode = "FT4", SampleRate = 48000,
+            Pcm16 = Google.Protobuf.ByteString.CopyFrom(slot) }, cancellationToken: ct);
+        if (!result.Messages.Any(m => m.Contains("K1ABC", StringComparison.Ordinal)))
+            throw new InvalidDataException("Independent offline FT4 slot did not decode the encoded message.");
+        Console.WriteLine("PASS: deployed DSP offline FT4 independent slot decode.");
     }
 
     private static async Task PublishAsync(NamedSignalRing input, byte[] timeline, CancellationToken ct)

@@ -30,6 +30,7 @@ internal sealed class RemoteGpuEarthMap : UserControl
 
     internal RemoteGpuEarthMap(EarthMapSettings settings)
     {
+        camera.Reset(new GeoPoint(0, 0));
         sources = new MapSourceManager(RequestDraw);
         canvas = new OpenGLControl();
         ((System.ComponentModel.ISupportInitialize)canvas).BeginInit();
@@ -138,7 +139,7 @@ internal sealed class RemoteGpuEarthMap : UserControl
             sources.Update(camera.Center, size, zoom, renderer.Capacity);
             renderer.Draw(sources, new EarthMapFrame(camera.Center, CenterTarget(), Math.PI, size, zoom, Theme.EarthMapBrightness));
             MapStatus?.Invoke(sourceKind == EarthMapSourceKind.BuiltIn ? "Built-in GPU map" :
-                $"{EarthMapProviders.ProviderName(sourceKind)} · {sources.Status} · L{sources.Level} · © provider");
+                $"{EarthMapProviders.ProviderName(sourceKind)} · {sources.Status} · L{sources.Level} · © {EarthMapProviders.ProviderName(sourceKind)}");
             DrawOverlays(size);
         }
         catch (Exception error) { Fail(error); }

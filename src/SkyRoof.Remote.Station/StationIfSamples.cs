@@ -26,7 +26,7 @@ internal sealed class StationIfSamples
             throw new InvalidDataException("Unsupported station IF sample format.");
         lock (gate)
         {
-            if (lastUtc != default && (utc - lastUtc).TotalMilliseconds > 250 + bytes.Length * 1000.0 / format.BlockAlign / 48000)
+            if (lastUtc != default && (utc < lastUtc || (utc - lastUtc).TotalMilliseconds > 250 + bytes.Length * 1000.0 / format.BlockAlign / 48000))
                 ResetLocked();
             for (int i = channel * width; i + width <= bytes.Length; i += format.BlockAlign)
             {
@@ -62,7 +62,7 @@ internal sealed class StationIfSamples
     {
         lock (gate)
         {
-            if (used < profile.MinimumSamples || samples == consumed || now - lastUtc > TimeSpan.FromMilliseconds(500))
+            if (used < profile.MinimumSamples || samples == consumed || now < lastUtc || now - lastUtc > TimeSpan.FromMilliseconds(500))
                 return null;
             int n = Math.Min(used, profile.WindowSamples);
             var pcm = new float[n];

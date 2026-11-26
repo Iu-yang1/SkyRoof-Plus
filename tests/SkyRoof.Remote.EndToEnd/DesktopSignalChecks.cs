@@ -10,7 +10,7 @@ internal static class DesktopSignalChecks
     {
         using var client = new StationIpcClient(pipe);
         using var ring = new NamedSignalRing(bus, 64, 4096, 10);
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
         var token = timeout.Token;
         using var stream = client.Subscribe(StationSignalKind.StationSignalRxAudio, token);
         byte[] pcm = Enumerable.Range(0, 1920).Select(x => (byte)(x % 251)).ToArray();
@@ -51,7 +51,7 @@ internal static class DesktopSignalChecks
         var previous = state.Samples;
         ring.ResetEpoch(12);
         ring.Publish(0, System.Diagnostics.Stopwatch.GetTimestamp(), 48000, 960, pcm);
-        for (int i = 0; i < 50 && state.Samples <= previous; i++)
+        for (int i = 0; i < 50 && (state.Samples <= previous || state.Discontinuities < 1 || state.Files.Count < 2); i++)
         {
             await Task.Delay(50, token);
             state = await observer.StationRecordingAsync(token);

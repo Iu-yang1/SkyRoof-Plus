@@ -93,10 +93,10 @@ internal sealed partial class StationIpcForm
             "LoTW", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
         tqslBusy = qsoBusy = true;
         string root = Path.Combine(Path.GetTempPath(), "SkyRoof-LoTW-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
         string path = Path.Combine(root, "station-log.adi");
         try
         {
+            Directory.CreateDirectory(root);
             int count = await WriteAdifAsync(path, qsoFilter.Text.Trim());
             if (count == 0) { qsoStatus.Text = "No matching QSOs."; return; }
             var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
@@ -121,8 +121,8 @@ internal sealed partial class StationIpcForm
         }
         finally
         {
-            if (Directory.Exists(root)) Directory.Delete(root, true);
-            tqslBusy = qsoBusy = false;
+            try { if (Directory.Exists(root)) Directory.Delete(root, true); }
+            finally { tqslBusy = qsoBusy = false; }
         }
     }
 }

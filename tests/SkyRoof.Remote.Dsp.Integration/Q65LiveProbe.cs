@@ -28,6 +28,13 @@ internal static class Q65LiveProbe
         var encoded = await dsp.EncodeQ65Async(new Q65EncodeRequest { Submode = "15A",
             Message = "CQ K1ABC FN42", AudioHz = 1500, Gain = 0.5f }, cancellationToken: ct);
         var configuration = new Q65RxConfiguration { Enabled = true, Submode = "15A", RxHz = 1500, ToleranceHz = 100 };
+        var offlineSlot = new byte[encoded.SlotSeconds * 96000];
+        encoded.Waveform.Pcm16.Span.CopyTo(offlineSlot.AsSpan(encoded.TxStartSamples12K * 8));
+        var offline = await dsp.DecodeOfflineAfAsync(new OfflineAfDecodeRequest { Mode = "Q65", SampleRate = 48000,
+            Pcm16 = Google.Protobuf.ByteString.CopyFrom(offlineSlot), Q65 = configuration }, cancellationToken: ct);
+        if (!offline.Rows.Any(row => row.Text.Trim() == "CQ K1ABC FN42"))
+            throw new InvalidDataException("Independent offline Q65 slot did not decode the encoded message.");
+        Console.WriteLine("PASS: deployed DSP offline Q65 independent slot decode.");
         await dsp.ConfigureQ65Async(configuration, cancellationToken: ct);
         using var output = new NamedSignalRing(resultsName, 32, 32768);
         var timeline = new byte[(encoded.SlotSeconds + 2) * 96000];

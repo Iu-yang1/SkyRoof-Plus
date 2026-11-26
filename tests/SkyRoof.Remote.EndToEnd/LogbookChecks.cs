@@ -16,6 +16,10 @@ internal static class LogbookChecks
             Submode = "FT4", Satellite = "RS-44", Propagation = "SAT", Sent = "-14", Received = "-16",
             TxHz = 435650000, RxHz = 145900000, Notes = "literal <EOR> tag"
         };
+        qso.ExtraAdifFields.Add("APP_TEST_NOTE", "<EOR>");
+        qso.ExtraAdifTypes.Add("APP_TEST_NOTE", "S");
+        qso.ExtraAdifFields.Add("TX_PWR", "50");
+        qso.ExtraAdifTypes.Add("TX_PWR", "N");
         var first = await client.SaveQsoAsync(qso, token);
         var retry = await client.SaveQsoAsync(qso, token);
         var query = new QsoSearch { Call = qso.Call, Limit = 10 };
@@ -23,7 +27,8 @@ internal static class LogbookChecks
         var export = await client.ExportQsoAsync(query, token);
         if (!first.Equals(retry) || history.Records.Count != 1 || export.Count != 1 ||
             !export.Content.Contains("<SUBMODE:3>FT4") || !export.Content.Contains("<PROP_MODE:3>SAT") ||
-            !export.Content.Contains("<FREQ:6>435.65") || !export.Content.Contains("<FREQ_RX:5>145.9"))
+            !export.Content.Contains("<FREQ:6>435.65") || !export.Content.Contains("<FREQ_RX:5>145.9") ||
+            !export.Content.Contains("<APP_TEST_NOTE:5:S><EOR>") || !export.Content.Contains("<TX_PWR:2:N>50"))
             throw new InvalidDataException("Station QSO idempotency/ADIF export mismatch.");
         await CheckImportAsync(client, first, export, token);
         var changed = qso.Clone(); changed.Notes = "different";

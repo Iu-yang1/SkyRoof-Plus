@@ -39,7 +39,7 @@ internal sealed class StationAfcPolarityProbe
 
     internal void Tick(DateTime now)
     {
-        if (phase is Phase.Baseline or Phase.Probe or Phase.Restore &&
+        if ((phase is Phase.Baseline or Phase.Probe or Phase.Restore) &&
             now - entered > TimeSpan.FromSeconds(15))
             Move(Phase.AbortRestore, now);
     }

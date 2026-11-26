@@ -88,8 +88,15 @@ public sealed class StationAfcCaptureWorker(TrackingJobRunner runner, ILogger<St
         catch (Exception ex) { detail = ex.Message; logger.LogWarning(ex, "Station IF capture ended"); }
         finally
         {
-            await runner.CloseAfcAsync(session, CancellationToken.None);
-            lock (stateGate) { state.Running = false; state.Detail = detail; pending = null; }
+            try
+            {
+                var closed = await runner.CloseAfcAsync(session, CancellationToken.None);
+                lock (stateGate) state.Afc = closed;
+            }
+            finally
+            {
+                lock (stateGate) { state.Running = false; state.Detail = detail; pending = null; }
+            }
         }
     }
 
