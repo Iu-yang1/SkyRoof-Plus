@@ -48,6 +48,7 @@ static double Number(string value) => double.Parse(value, CultureInfo.InvariantC
 static async Task CaptureAsync(SoapyRx rx, string pipe, double offset, CancellationToken ct)
 {
     using var sender = new TelemetryIqSender(pipe);
+    using var raw = new RawIqTap(Environment.GetEnvironmentVariable("SKYROOF_RAW_IQ_BUS") ?? "skyroof-raw-iq");
     var converter = new IqChannelizer(rx.SampleRate, offset);
     var buffer = new float[16384];
     Console.WriteLine($"SDR RX actual center={rx.Frequency:R} Hz rate={rx.SampleRate} channel offset={offset:R} Hz, FIR delay={converter.GroupDelaySeconds:R}s");
@@ -58,10 +59,12 @@ static async Task CaptureAsync(SoapyRx rx, string pipe, double offset, Cancellat
         if (count == -4)
         {
             await sender.EndAsync();
+            raw.Reset();
             converter = new IqChannelizer(rx.SampleRate, offset);
             Console.Error.WriteLine("SDR overflow: closed IQ epoch and reset FIR.");
             continue;
         }
+        raw.Publish(buffer.AsSpan(0, count * 2), rx.SampleRate);
         await sender.SendAsync(converter.Process(buffer.AsSpan(0, count * 2)), ct);
     }
     await sender.EndAsync();
