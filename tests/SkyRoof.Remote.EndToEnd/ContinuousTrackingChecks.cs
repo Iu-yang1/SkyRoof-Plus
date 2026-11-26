@@ -38,6 +38,7 @@ internal static class ContinuousTrackingChecks
             "StartTrackingJob", request, 300, true);
         var before = await WaitAsync(first, x => x.CompletedTicks >= 2 && x.Phase == "tracking");
         Check(File.Exists(jobFile) && before.JobId == job.JobId, "Tracking job not saved");
+        await AfcIntegrationChecks.RunAsync(stationInfo.Environment["SKYROOF_STATION_PIPE"] ?? throw new InvalidDataException("Missing Station pipe"), before.JobId);
         before = await VerifyLiveTuneAsync(first, before);
         await first.StopAsync();
         await Task.Delay(1300);

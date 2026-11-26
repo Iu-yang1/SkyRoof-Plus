@@ -244,6 +244,7 @@ finally
     await Task.WhenAll(host.WaitForExitAsync(), station.WaitForExitAsync(), device.WaitForExitAsync());
     if (File.Exists(journal)) File.Delete(journal);
     if (File.Exists(trackingFile)) File.Delete(trackingFile);
+    if (Directory.Exists(trackingFile + "-logbook")) Directory.Delete(trackingFile + "-logbook", true);
     File.Delete(catalogFile);
     File.Delete(catalogFile + ".satnogs.json");
     File.Delete(catalogFile + ".celestrak.json");

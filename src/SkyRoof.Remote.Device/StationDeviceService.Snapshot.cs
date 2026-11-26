@@ -9,11 +9,13 @@ public sealed partial class StationDeviceService
     private async Task<DeviceSnapshot> ReadSnapshotAsync(string status, CancellationToken token)
     {
         _rxHz = await cat.ReadRxFrequencyAsync(token);
+        long rxReadUtc = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         _txHz = await cat.ReadTxFrequencyAsync(token);
         var ptt = await cat.ReadPttAsync(token);
         return new DeviceSnapshot
         {
             RxFrequencyHz = _rxHz,
+            RxReadbackUtcMilliseconds = rxReadUtc,
             TxFrequencyHz = _txHz,
             RxMode = _rxMode,
             TxMode = _txMode,

@@ -39,6 +39,8 @@ message DeviceCommand {
   string mode = 5;
   string audio_source = 6;
   int64 tx_frequency_hz = 7;
+  int64 afc_rx_correction_hz = 8;
+  int64 afc_hold_correction_hz = 9;
 }
 
 message DeviceReadbackRequest {}
@@ -59,6 +61,7 @@ message DeviceSnapshot {
   int32 device_process_id = 12;
   bool supports_duplex_frequencies = 13;
   bool native_tx_available = 14;
+  int64 rx_readback_utc_milliseconds = 15;
 }
 
 message TxPcmChunk {

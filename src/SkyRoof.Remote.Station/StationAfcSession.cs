@@ -13,7 +13,7 @@ internal sealed class StationAfcSession
     private readonly AfcSignalMode mode;
     private readonly AfcControlMode control;
     private DateTime lastContact = DateTime.UtcNow;
-    private bool ptt;
+    private bool ptt, duplex;
     private string rxMode = "";
     private double lastApplied;
     internal bool Expired(DateTime now) => now - lastContact > TimeSpan.FromSeconds(8);
@@ -52,7 +52,7 @@ internal sealed class StationAfcSession
         var observation = new AfcObservation(mode, utc, measurement.Generation, measurement.IfOffsetHz,
             measurement.SigmaHz, measurement.Confidence, measurement.AbsoluteReference, measurement.Ambiguous);
         controller.Observe(observation, new AfcObservationContext(frequency, config.Sign, config.MaxCorrectionHz,
-            config.FmDeadbandHz, config.ToneDeadbandHz, ptt, aligned, attributed, !aligned, nominal));
+            config.FmDeadbandHz, config.ToneDeadbandHz, ptt, aligned, attributed, !aligned || !duplex, nominal));
     }
 
     internal void Apply(TrackingSnapshot prediction, DateTime now)
@@ -60,11 +60,13 @@ internal sealed class StationAfcSession
         controller.Tick(now, ptt);
         double correction = prediction.RxHz > 0 ? controller.GetRxCorrection(ptt) : 0;
         if (ptt) correction = lastApplied;
+        if (!duplex) correction = 0;
         if (prediction.RxHz <= 0) correction = 0;
         long target = checked(prediction.RxHz + (long)Math.Round(correction));
         if (target <= 0) return;
         prediction.RxHz = target;
         prediction.AfcCorrectionHz = correction;
+        prediction.AfcHoldCorrectionHz = (long)Math.Round(lastApplied);
         timeline.RecordRequest(target, now, correction != lastApplied ? AfcCatWriteSource.Afc : AfcCatWriteSource.SatelliteModel);
     }
 
@@ -72,10 +74,14 @@ internal sealed class StationAfcSession
     {
         if (!snapshot.CatApplied || snapshot.CatReadbackUtcMilliseconds <= 0) return;
         ptt = snapshot.ActualPtt;
+        duplex = snapshot.SupportsDuplexFrequencies;
         rxMode = snapshot.ActualRxMode;
         var utc = DateTimeOffset.FromUnixTimeMilliseconds(snapshot.CatReadbackUtcMilliseconds).UtcDateTime;
         timeline.RecordReadback(snapshot.ActualRxHz, utc);
-        if (snapshot.ActualRxHz == snapshot.RxHz) lastApplied = snapshot.AfcCorrectionHz;
+        long nominal = snapshot.RxHz - (long)Math.Round(snapshot.AfcCorrectionHz);
+        long applied = snapshot.ActualRxHz - nominal;
+        if (applied == (long)Math.Round(snapshot.AfcCorrectionHz) || applied == snapshot.AfcHoldCorrectionHz)
+            lastApplied = applied;
     }
 
     internal AfcSessionStatus Status()

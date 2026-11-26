@@ -47,8 +47,9 @@ public sealed partial class StationDeviceService
         if (!cat.SupportsDuplexFrequencies && command.FrequencyHz > 0 && command.TxFrequencyHz > 0 &&
             command.TxFrequencyHz != command.FrequencyHz)
             throw new InvalidOperationException("This CAT dialect currently supports only simplex tracking. Use an independent RX/TX SkyCAT endpoint for duplex.");
-        if (command.FrequencyHz > 0)
-            await cat.SetRxFrequencyAsync(command.FrequencyHz, ct);
+        long rx = await ResolveTrackingRxAsync(command, ct);
+        if (rx > 0)
+            await cat.SetRxFrequencyAsync(rx, ct);
         if (command.TxFrequencyHz > 0 && _cwActive is not null)
             return ("tracking-cw-tx-deferred", command.FrequencyHz > 0);
         if (command.TxFrequencyHz > 0)
@@ -59,6 +60,20 @@ public sealed partial class StationDeviceService
                 _owner = _owner with { FrequencyHz = command.TxFrequencyHz };
         }
         return ("tracking-frequencies-applied", true);
+    }
+
+    private async Task<long> ResolveTrackingRxAsync(DeviceCommand command, CancellationToken ct)
+    {
+        if (command.FrequencyHz <= 0 ||
+            (command.AfcRxCorrectionHz == 0 && command.AfcHoldCorrectionHz == 0))
+            return command.FrequencyHz;
+        // On a single-VFO radio independent RX AFC would also move TX.
+        if (!cat.SupportsDuplexFrequencies) return command.FrequencyHz;
+        bool transmitting = await cat.ReadPttAsync(ct);
+        long offset = transmitting ? command.AfcHoldCorrectionHz : command.AfcRxCorrectionHz;
+        long rx = checked(command.FrequencyHz + offset);
+        if (rx <= 0) throw new ArgumentException("AFC-adjusted RX frequency must be positive.");
+        return rx;
     }
 
     private async Task<(string Description, bool Changed)> ReadModesAsync(CancellationToken ct)

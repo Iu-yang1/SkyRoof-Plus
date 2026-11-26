@@ -75,6 +75,8 @@ message TrackingSnapshot {
   bool actual_ptt = 21;
   string actual_rx_mode = 22;
   double afc_correction_hz = 23;
+  int64 afc_hold_correction_hz = 24;
+  bool supports_duplex_frequencies = 25;
 }
 
 service StationTrackingJobs {

@@ -43,13 +43,16 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
             var radio = await device.Cat.ExecuteAsync(new DeviceCommand
             {
                 Operation = DeviceOperation.DeviceTrackFrequencies,
-                FrequencyHz = result.RxHz,
+                FrequencyHz = result.RxHz - (long)Math.Round(result.AfcCorrectionHz),
+                AfcRxCorrectionHz = (long)Math.Round(result.AfcCorrectionHz),
+                AfcHoldCorrectionHz = result.AfcHoldCorrectionHz,
                 TxFrequencyHz = result.TxHz
             }, deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
             result.CatApplied = true;
             result.ActualRxHz = radio.RxFrequencyHz;
             result.ActualTxHz = radio.TxFrequencyHz;
-            result.CatReadbackUtcMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            result.CatReadbackUtcMilliseconds = radio.RxReadbackUtcMilliseconds;
+            result.SupportsDuplexFrequencies = radio.SupportsDuplexFrequencies;
             result.ActualPtt = radio.ActualPtt;
             result.ActualRxMode = radio.RxMode;
             if (request.PointRotator && (pointAllowed?.Invoke() ?? true))

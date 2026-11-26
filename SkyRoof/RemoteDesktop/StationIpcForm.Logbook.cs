@@ -62,6 +62,8 @@ internal sealed partial class StationIpcForm
         qsoFields["RX Hz"].Text = radioState.RxFrequencyHz.ToString(CultureInfo.InvariantCulture);
         qsoFields["MODE"].Text = radioState.TxMode switch { "USB" or "LSB" => "SSB", _ => radioState.TxMode };
         if (activeTracking?.CelestialTarget == "MOON") qsoFields["PROP"].Text = "EME";
+        var hz = radioState.TxFrequencyHz;
+        qsoFields["BAND"].Text = hz switch { >= 144000000 and <= 148000000 => "2m", >= 420000000 and <= 450000000 => "70cm", >= 1240000000 and <= 1300000000 => "23cm", >= 2300000000 and <= 2450000000 => "13cm", _ => qsoFields["BAND"].Text };
         if (autoCall.Text.Length > 0) qsoFields["MY CALL"].Text = autoCall.Text;
         if (autoGrid.Text.Length > 0) qsoFields["MY GRID"].Text = autoGrid.Text;
     }

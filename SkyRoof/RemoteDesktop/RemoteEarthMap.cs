@@ -16,7 +16,7 @@ internal sealed class RemoteEarthMap : Control
 
     internal void SetTrack(GroundTrackResult value, long utc, bool full)
     {
-        if (full || track?.NoradNumber != value.NoradNumber || track.CelestialTarget != value.CelestialTarget)
+        if (full || track is null || track.NoradNumber != value.NoradNumber || track.CelestialTarget != value.CelestialTarget)
             track = value;
         current = value.Points.MinBy(p => Math.Abs(p.UtcMilliseconds - utc));
         Invalidate();

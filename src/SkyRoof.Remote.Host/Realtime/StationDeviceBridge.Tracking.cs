@@ -25,6 +25,7 @@ public sealed record RemoteTrackingStatus
     public string RotatorError { get; init; } = "";
     public string CelestialTarget { get; init; } = "";
     public double OwnEchoDelaySeconds { get; init; }
+    public double AfcCorrectionHz { get; init; }
     public RemoteEmePath? EmePath { get; init; }
 }
 
@@ -79,7 +80,7 @@ public sealed partial class StationDeviceBridge
             ActualAzimuthDegrees = result.RotatorReadback?.AzimuthDegrees,
             ActualElevationDegrees = result.RotatorReadback?.ElevationDegrees,
             RotatorError = result.RotatorError, CelestialTarget = result.CelestialTarget,
-            OwnEchoDelaySeconds = result.OwnEchoDelaySeconds,
+            OwnEchoDelaySeconds = result.OwnEchoDelaySeconds, AfcCorrectionHz = result.AfcCorrectionHz,
             EmePath = result.EmePath is { } path ? new RemoteEmePath(path.ReceiveRatio, path.TransmitRatio,
                 path.IncomingDelaySeconds, path.OutgoingDelaySeconds, path.PeerElevationDegrees) : null
         };
