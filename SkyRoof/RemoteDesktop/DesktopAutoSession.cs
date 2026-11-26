@@ -34,7 +34,8 @@ internal sealed class DesktopAutoSession : IDisposable
 
     internal async Task StartAsync(string mode, object request, CancellationToken token)
     {
-        if (reader is not null) throw new InvalidOperationException("Automatic session already opened.");
+        if (response is not null) throw new InvalidOperationException("Automatic session already opened.");
+        terminal = false;
         string route = mode switch
         {
             "FT4" => "/api/v1/dsp/ft4/auto",
@@ -65,10 +66,18 @@ internal sealed class DesktopAutoSession : IDisposable
         return null;
     }
 
-    public void Dispose()
+    internal void End()
     {
         reader?.Dispose();
         response?.Dispose();
+        reader = null;
+        response = null;
+        terminal = false;
+    }
+
+    public void Dispose()
+    {
+        End();
         http.Dispose();
     }
 }

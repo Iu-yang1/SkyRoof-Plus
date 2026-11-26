@@ -68,7 +68,8 @@ internal static partial class NativeFt4HttpProbe
         if (completed.GetProperty("reportSent").GetInt32() != -40 ||
             completed.GetProperty("reportReceived").GetInt32() != -42)
             throw new InvalidDataException("Q65 weak-signal reports changed or QSO did not complete.");
-        Console.WriteLine("PASS: authenticated native Q65 three-message exchange, complete synthetic result windows, -40 dB report, deferred parity and exact UDP PCM.");
+        if (await reader.ReadAsync(ct) is not null) throw new InvalidDataException("Unexpected Q65 event after completion.");
+        Console.WriteLine("PASS: desktop authenticated native Q65 three-message exchange, complete synthetic result windows, -40 dB report, deferred parity and exact UDP PCM.");
     }
 
     private static async Task PublishQ65ReplyAsync(Q65AutoFixture fixture, long slot, string message, CancellationToken ct)

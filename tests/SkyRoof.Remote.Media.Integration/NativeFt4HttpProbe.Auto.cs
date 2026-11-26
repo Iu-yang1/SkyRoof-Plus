@@ -57,7 +57,8 @@ internal static partial class NativeFt4HttpProbe
             completed.GetProperty("reportSent").GetInt32() != -15 ||
             completed.GetProperty("reportReceived").GetInt32() != -9)
             throw new InvalidDataException("FT4 completed without the expected peer/reports.");
-        Console.WriteLine("PASS: authenticated automatic FT4 three-slot QSO, synthetic decoder windows, exact native UDP PCM and final receipt.");
+        if (await reader.ReadAsync(ct) is not null) throw new InvalidDataException("Unexpected FT4 event after completion.");
+        Console.WriteLine("PASS: desktop authenticated automatic FT4 three-slot QSO, synthetic decoder windows, exact native UDP PCM and final receipt.");
     }
 
     private static async Task PublishAutoReplyAsync(NamedSignalRing ring, long slot, string message, CancellationToken ct)

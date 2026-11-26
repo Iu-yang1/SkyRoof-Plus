@@ -21,8 +21,9 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row("Search", catalogQuery, ActionButton("SEARCH", SearchCatalogAsync)));
         layout.Controls.Add(Row("Satellite", satellites, "Transmitter", transmitters, ActionButton("USE", UseCatalogSelectionAsync)));
         satellites.SelectedIndexChanged += (_, _) => PopulateTransmitters();
-        layout.Controls.Add(Row("Tracking request · QTH, TLE/OMM, EME peer, RadioLink, RIT/XIT (protobuf JSON)"));
-        trackingConfig.Text = JsonFormatter.Default.Format(new TrackingRequest { CorrectDownlink = true, CorrectUplink = true, PointRotator = true, RadioLink = new RadioLinkProfile() });
+        layout.Controls.Add(CreateTrackingFields());
+        layout.Controls.Add(Row("Advanced request · TLE/OMM, RadioLink, RIT/XIT (protobuf JSON)"));
+        trackingConfig.Text = JsonFormatter.Default.Format(new TrackingRequest { CorrectDownlink = true, CorrectUplink = true, PointRotator = false });
         layout.Controls.Add(trackingConfig);
         layout.Controls.Add(Row(ActionButton("PREDICT", PredictAsync), ActionButton("START TRACK", StartTrackingAsync),
             ActionButton("STOP TRACK", StopTrackingAsync), resumeTrack));
@@ -66,6 +67,9 @@ internal sealed partial class StationIpcForm
         request.DownlinkHz = request.RadioLink.DownlinkLowHz;
         request.UplinkHz = request.RadioLink.UplinkLowHz;
         trackingConfig.Text = JsonFormatter.Default.Format(request);
+        linkRx.Text = request.DownlinkHz.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        linkTx.Text = request.UplinkHz.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        moonTarget.Checked = false;
         return Task.CompletedTask;
     }
 
@@ -80,6 +84,7 @@ internal sealed partial class StationIpcForm
     {
         var result = await client.PredictAsync(ReadTrackingRequest(), lifetime.Token);
         trackingResult.Text = $"AZ {result.AzimuthDegrees:F2} EL {result.ElevationDegrees:F2} · RX {result.RxHz} · TX {result.TxHz} · {result.OrbitBackend} {result.DataQuality}";
+        if (result.EmePath is { } path) trackingResult.Text += $" · DX EL {path.PeerElevationDegrees:F2}° · delays {path.IncomingDelaySeconds:F6}/{path.OutgoingDelaySeconds:F6} s";
     }
 
     private async Task StartTrackingAsync()

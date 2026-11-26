@@ -20,6 +20,7 @@ internal sealed partial class StationIpcForm
     private readonly TextBox autoEvents = new() { Multiline = true, ReadOnly = true, Width = 790, Height = 240, ScrollBars = ScrollBars.Vertical };
     private DesktopAutoSession? autoConnection;
     private string autoStation = "";
+    private bool connectingAuto;
 
     private TabPage CreateAutoPage()
     {
@@ -29,7 +30,7 @@ internal sealed partial class StationIpcForm
         autoMode.SelectedIndex = 0;
         layout.Controls.Add(Row("Host origin", autoHost, "Access token", autoToken, ActionButton("CONNECT", ConnectAutoAsync)));
         layout.Controls.Add(Row(autoMode, "MY CALL", autoCall, "GRID", autoGrid, "DX (blank = CQ)", autoTarget, "Attempts", autoAttempts));
-        layout.Controls.Add(Row("Host TX Hz", autoFrequency, ActionButton("USE CAT TX", CopyCatTxAsync), "Q65 Moon job ID", autoTrackingJob));
+        layout.Controls.Add(Row("Host TX Hz", autoFrequency, ActionButton("USE CAT TX", CopyCatTxAsync), "Q65 Moon job ID", autoTrackingJob, ActionButton("USE MOON JOB", UseMoonJobAsync)));
         layout.Controls.Add(Row(ActionButton("START AUTO QSO", StartAutoAsync), ActionButton("STOP AUTO QSO", StopAutoAsync)));
         layout.Controls.Add(autoStatus);
         layout.Controls.Add(autoEvents);
@@ -40,21 +41,39 @@ internal sealed partial class StationIpcForm
 
     private async Task ConnectAutoAsync()
     {
-        if (digitalCancellation is not null) return;
+        if (digitalCancellation is not null || connectingAuto) return;
+        connectingAuto = true;
+        try { await ReplaceAutoConnectionAsync(); }
+        finally { connectingAuto = false; }
+    }
+
+    private async Task ReplaceAutoConnectionAsync()
+    {
         autoConnection?.Dispose();
         autoConnection = null;
         autoStation = "";
-        var connection = new DesktopAutoSession(new Uri(autoHost.Text.Trim()), autoToken.Text.Trim());
+        var endpoint = new Uri(autoHost.Text.Trim());
+        var connection = new DesktopAutoSession(endpoint, autoToken.Text.Trim());
         autoToken.Clear();
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
-            autoStation = await connection.StationAsync(timeout.Token);
+            var identity = await connection.StationAsync(timeout.Token);
+            autoStation = $"{identity} · {endpoint.GetLeftPart(UriPartial.Authority)}";
+            if (pttClosing || IsDisposed) { connection.Dispose(); return; }
             autoConnection = connection;
             autoStatus.Text = "Authenticated Host: " + autoStation;
         }
         catch { connection.Dispose(); throw; }
+    }
+
+    private async Task UseMoonJobAsync()
+    {
+        var job = await client.TrackingAsync(lifetime.Token);
+        if (!job.Running || job.Latest?.CelestialTarget != "MOON" || job.Latest.TxHz <= 0)
+            throw new InvalidOperationException("Start a Moon tracking job with TX frequency first.");
+        autoTrackingJob.Text = job.JobId;
     }
 
     private async Task CopyCatTxAsync()
@@ -82,9 +101,7 @@ internal sealed partial class StationIpcForm
         finally
         {
             digitalCancellation = null;
-            autoConnection = null;
-            connection.Dispose();
-            autoStation = "";
+            connection.End();
         }
     }
 
