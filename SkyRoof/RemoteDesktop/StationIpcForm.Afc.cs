@@ -45,9 +45,39 @@ internal sealed partial class StationIpcForm
             afcTarget.Value = (decimal)Math.Clamp(hz, -6000, 6000);
             if (afcSource is not null) afcRetargetPending = true;
         };
-        panel.Controls.Add(Row("Station tracking owns CAT. Local IF acquisition only; AF and RF scope are not IF."));
+        panel.Controls.Add(Row(ActionButton("START STATION AFC", StartStationAfcAsync),
+            ActionButton("STATION AFC STATUS", ReadStationAfcAsync), ActionButton("APPLY STATION TARGET", RetargetStationAfcAsync),
+            ActionButton("STOP STATION AFC", StopStationAfcAsync)));
+        panel.Controls.Add(Row("Station tracking owns CAT. Station AFC uses its configured actual 12 kHz IF endpoint."));
         page.Controls.Add(afcSpectrum); page.Controls.Add(panel); page.Controls.Add(afcStatus);
         return page;
+    }
+
+    private AfcCaptureTarget StationAfcTarget()
+    {
+        var target = new AfcCaptureTarget { TargetHz = (double)afcTarget.Value, SsbPilot = afcPilot.Checked, Preset = afcPreset.Text };
+        if (afcCenterEnabled.Checked) target.CenterHz = (double)afcCenter.Value;
+        return target;
+    }
+
+    private async Task StartStationAfcAsync()
+    {
+        if (activeTracking is not { Running: true } job) throw new InvalidOperationException("Start Station tracking first.");
+        var profile = new AfcOpenRequest { JobId = job.JobId, Mode = afcMode.Text, Control = afcControl.Text,
+            Sign = int.Parse(afcSign.Text), MaxCorrectionHz = (double)afcMax.Value,
+            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked };
+        if (afcCenterEnabled.Checked) profile.CenterHz = (double)afcCenter.Value;
+        ShowStationAfc(await client.StartStationAfcAsync(new AfcCaptureStart { Control = profile, Target = StationAfcTarget() }, lifetime.Token));
+    }
+    private async Task ReadStationAfcAsync() => ShowStationAfc(await client.StationAfcAsync(lifetime.Token));
+    private async Task RetargetStationAfcAsync() => ShowStationAfc(await client.RetargetStationAfcAsync(StationAfcTarget(), lifetime.Token));
+    private async Task StopStationAfcAsync() => ShowStationAfc(await client.StopStationAfcAsync(lifetime.Token));
+    private void ShowStationAfc(AfcCaptureStatus value)
+    {
+        if (IsDisposed) return;
+        afcStatus.Text = value.Afc is { } afc
+            ? $"Station IF · {value.Detail} · {value.Samples} samples · {afc.State} · IF {afc.ObservedHz:F1} Hz · correction {afc.CorrectionHz:F1} Hz"
+            : "Station IF · " + value.Detail;
     }
 
     private Task QueueAfcTargetAsync()

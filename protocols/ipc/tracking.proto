@@ -342,3 +342,27 @@ message AfcSessionStatus {
   double confidence = 8;
   int32 sign = 9;
 }
+
+service StationAfcCapture {
+  rpc Start(AfcCaptureStart) returns (AfcCaptureStatus);
+  rpc Status(AfcCaptureQuery) returns (AfcCaptureStatus);
+  rpc Retarget(AfcCaptureTarget) returns (AfcCaptureStatus);
+  rpc Stop(AfcCaptureQuery) returns (AfcCaptureStatus);
+}
+message AfcCaptureStart {
+  AfcOpenRequest control = 1;
+  AfcCaptureTarget target = 2;
+}
+message AfcCaptureTarget {
+  double target_hz = 1;
+  bool ssb_pilot = 2;
+  string preset = 3;
+  optional double center_hz = 4;
+}
+message AfcCaptureQuery {}
+message AfcCaptureStatus {
+  bool running = 1;
+  string detail = 2;
+  int64 samples = 3;
+  AfcSessionStatus afc = 4;
+}
