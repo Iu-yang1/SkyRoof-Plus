@@ -292,6 +292,8 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
     CancellationToken cancellationToken=default)
   {
     DateTime checkpoint=DateTime.UtcNow;
+    long verificationVersion;
+    lock(sync)verificationVersion=commandVersion;
     long deadline=Environment.TickCount64+4000;
     while(Environment.TickCount64<deadline)
     {
@@ -299,7 +301,7 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
       lock(sync)
       {
         if(stopping || !managementHeld || safetyLatched ||
-           managementReviewRequired)return false;
+           managementReviewRequired || commandVersion!=verificationVersion)return false;
         if(HasFreshPositionLocked() && lastReadUtc>checkpoint &&
            lastSuccessfulQueryStartedUtc>checkpoint &&
            !requiresStopAfterReconnect && !stopRequested)
@@ -515,11 +517,11 @@ internal sealed class NativeRotatorControlEngine : INativeRotatorEngine
       {
         lastRead=current;
         lastReadUtc=receivedUtc;
+        lastSuccessfulQueryStartedUtc=queryStartedUtc;
       }
       // Rejected replies show link liveness, not a fresh physical position.
       // PARK and feedback-based trajectory checks only see accepted timestamps.
       lastProtocolReplyUtc=receivedUtc;
-      lastSuccessfulQueryStartedUtc=queryStartedUtc;
       if(accepted && settings.NativeProtocol==RotatorProtocolKind.Rc3040sLan)
       {
         if(rateEstimator.Observe(p,receivedUtc,out var observation))
