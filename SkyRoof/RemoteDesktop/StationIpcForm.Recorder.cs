@@ -8,7 +8,7 @@ namespace SkyRoof.RemoteDesktop;
 
 internal sealed partial class StationIpcForm
 {
-    private readonly CheckBox recordIq = new() { Text = "Telemetry CF32 I/Q (not AF)", AutoSize = true };
+    private readonly ComboBox recordKind = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 275 };
     private readonly Label recordStatus = new() { AutoSize = true, MaximumSize = new Size(750, 0) };
     private readonly ListBox recordFiles = new() { Width = 750, Height = 230 };
     private CancellationTokenSource? recordingSource, replaySource;
@@ -20,14 +20,17 @@ internal sealed partial class StationIpcForm
     {
         var page = new TabPage("RECORDER");
         var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(12) };
-        layout.Controls.Add(Row(recordIq, ActionButton("RECORD WAV", RecordAsync), ActionButton("STOP RECORD", () => StopStream(recordingSource))));
+        recordKind.Items.AddRange(new object[] { "AF PCM16", "Telemetry CF32 IQ (48 kHz)", "Raw SDR CF32 IQ (native rate)" });
+        recordKind.SelectedIndex = 0;
+        layout.Controls.Add(Row(recordKind, ActionButton("RECORD WAV", RecordAsync), ActionButton("STOP RECORD", () => StopStream(recordingSource))));
         layout.Controls.Add(recordStatus);
         layout.Controls.Add(recordFiles);
         layout.Controls.Add(Row(ActionButton("LOAD WAV", LoadRecordingAsync), ActionButton("PLAY AF", PlayRecordingAsync),
             ActionButton("STOP PLAY", StopFilePlaybackAsync), ActionButton("EXPORT MP3", ExportMp3Async)));
         layout.Controls.Add(Row(ActionButton("REPLAY IQ TO DSP", ReplayIqAsync), ActionButton("STOP REPLAY", () => StopStream(replaySource))));
         layout.Controls.Add(Row("Recordings saved on this desktop; gaps/epoch changes start a new WAV segment."));
-        layout.Controls.Add(Row("I/Q replay uses configured Station telemetry receiver, not the speaker or TX."));
+        layout.Controls.Add(Row("48 kHz I/Q replay uses configured Station telemetry receiver, not the speaker or TX."));
+        layout.Controls.Add(Row("Raw SDR recording uses the native sample rate; lost IPC frames create segment gaps."));
         page.Controls.Add(layout);
         return page;
     }
@@ -35,7 +38,13 @@ internal sealed partial class StationIpcForm
     private async Task RecordAsync()
     {
         if (recordingSource is not null) return;
-        bool iq = recordIq.Checked;
+        var kind = recordKind.SelectedIndex switch
+        {
+            1 => StationSignalKind.StationSignalIqCf32,
+            2 => StationSignalKind.StationSignalRawIqCf32,
+            _ => StationSignalKind.StationSignalRxAudio
+        };
+        bool iq = kind != StationSignalKind.StationSignalRxAudio;
         using var dialog = new SaveFileDialog { Filter = "Waveform|*.wav", FileName = $"skyroof-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{(iq ? "iq" : "af")}.wav" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
@@ -45,12 +54,11 @@ internal sealed partial class StationIpcForm
         recordStatus.Text = "Waiting for actual samples...";
         try
         {
-            var kind = iq ? StationSignalKind.StationSignalIqCf32 : StationSignalKind.StationSignalRxAudio;
             using var call = client.Subscribe(kind, source.Token);
             while (await call.ResponseStream.MoveNext(source.Token))
             {
                 writer.Accept(call.ResponseStream.Current);
-                if (!IsDisposed) recordStatus.Text = $"{writer.Samples / 48000.0:F1} s · {writer.Files.Count} files · {writer.Discontinuities} gaps";
+                if (!IsDisposed) recordStatus.Text = $"{writer.DurationSeconds:F1} s · {writer.Files.Count} files · {writer.Discontinuities} gaps";
             }
         }
         catch (RpcException error) when (source.IsCancellationRequested && error.StatusCode == StatusCode.Cancelled)
