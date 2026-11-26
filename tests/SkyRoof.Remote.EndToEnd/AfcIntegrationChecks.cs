@@ -15,6 +15,7 @@ internal static class AfcIntegrationChecks
         try
         {
             await VerifyCorrectionAsync(client, opened.SessionId, ct);
+            await VerifyRetargetAsync(client, opened.SessionId, ct);
         }
         finally { await client.CloseAfcAsync(opened.SessionId, CancellationToken.None); }
         for (int i = 0; i < 30; i++)
@@ -29,6 +30,44 @@ internal static class AfcIntegrationChecks
         }
         throw new InvalidDataException("AFC bias not removed after close.");
     }
+
+    private static async Task VerifyRetargetAsync(StationIpcClient client, string sessionId, CancellationToken ct)
+    {
+        var rebased = await client.UpdateAfcAsync(new AfcUpdateRequest
+        {
+            SessionId = sessionId, Target = new AfcTargetChange { Generation = 2, CenterHz = 90 }
+        }, ct);
+        if (rebased.SessionId != sessionId || rebased.CorrectionHz != 0)
+            throw new InvalidDataException("AFC retarget did not rebase correction in the same session.");
+        for (int i = 0; i < 3; i++)
+        {
+            await Task.Delay(220, ct);
+            var stale = await client.UpdateAfcAsync(TargetMeasurement(sessionId, 1, 600), ct);
+            if (stale.CorrectionHz != 0 || Math.Abs(stale.ObservedHz - 600) < 1)
+                throw new InvalidDataException("Old IF generation affected the retargeted AFC session.");
+        }
+        for (int i = 0; i < 8; i++)
+        {
+            await Task.Delay(220, ct);
+            var current = await client.UpdateAfcAsync(TargetMeasurement(sessionId, 2, 90), ct);
+            if (Math.Abs(current.ObservedHz - 90) < 1 && current.State == "Locked" && Math.Abs(current.CorrectionHz) < 1)
+            {
+                Console.WriteLine("PASS: AFC live target change, stale generation ignored, new carrier acquired within same session.");
+                return;
+            }
+        }
+        throw new InvalidDataException("AFC did not reacquire the new generation.");
+    }
+
+    private static AfcUpdateRequest TargetMeasurement(string id, long generation, double offset) => new()
+    {
+        SessionId = id,
+        Measurement = new AfcMeasurement
+        {
+            SampleUtcMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Generation = generation, IfOffsetHz = offset, SigmaHz = 1, Confidence = .99, AbsoluteReference = true
+        }
+    };
 
     private static async Task VerifyCorrectionAsync(StationIpcClient client, string sessionId, CancellationToken ct)
     {
