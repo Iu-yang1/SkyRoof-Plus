@@ -53,7 +53,7 @@ jobs:
             SKYROOF_WORKSPACE_ORIGINS=http://127.0.0.1:8076 \
             dotnet src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll > /tmp/skyroof-browser-beta.log 2>&1 &
           BETA_PID=$!
-          trap 'kill "$HOST_PID" "$BETA_PID" 2>/dev/null || true; tail -50 /tmp/skyroof-browser-host.log /tmp/skyroof-browser-beta.log' EXIT
+          trap 'kill "$HOST_PID" "$BETA_PID" 2>/dev/null || true; tail -n 50 /tmp/skyroof-browser-host.log /tmp/skyroof-browser-beta.log' EXIT
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8076/health/live > /dev/null &&
                curl -fsS http://127.0.0.1:8077/health/live > /dev/null; then break; fi
