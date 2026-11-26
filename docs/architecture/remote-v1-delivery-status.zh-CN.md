@@ -338,3 +338,11 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `1fae064` 桌面独立 IPC 工作台增加按住 PTT、释放、捕获丢失/窗口失焦回 RX、事务心跳、关闭时释放当前 session。Device 仍负责硬件及超时回收；双 IPC 客户端模拟抢占、旧事务释放及新所有者释放新增 E2E 检查。仅是 CAT PTT，尚未接入桌面麦克风 PCM。
 - `f9aeda3` 命名管道客户端显式请求 ReadWrite + Synchronize，避免 GENERIC_WRITE 隐含 CreateNewInstance 导致跨账户被拒绝。新增标准 Windows 用户授权及拒绝探针，安装器可显式传入 DesktopOperatorSid，仅授权 Station 管道，不授权文件目录。该 SID 有完整 Station RPC 权限，不是 Host Web 角色。新测试尚待运行。
 - SignalBus ACL、跨 Session 0 共享内存、原 MainForm 全量迁移、真实射频/远程公网实测和正式签名发布仍未完成；保持 Draft，不发正式 Release。
+
+
+## 2026-11-26 — lockfile 恢复与 Global SignalBus
+
+- `a4aa985` 的 [Windows IPC Probe](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45746524521) 已实际通过标准用户 SID 授权/拒绝、DACL 和 128 RPC（P50 0.610 ms，P95 0.882 ms）。
+- `e71c4e9` 修复 aislop 新增唯一告警（WinForms close async void 改 Task）；锁文件候选生成加入现有 Compile Check 独立 job，实际 locked restore 验证、上传 artifact，原 build job 的 LockedMode 不变。独立 refresh workflow 不再自动写分支，避免竞争；取得真实 artifact 后审查并提交锁文件。
+- `9fbc8f1` 可选 Global SignalBus：默认 Local 保留，Global 生产者创建页文件共享映射及命名 mutex，明确 Windows SID DACL；消费者只打开已存在的只读映射与同步 mutex，不创建、不写入。安装脚本可传 GlobalSignalBus / SignalBusReaderSid，所有托管进程使用同配置；授权仅为可信读者，不能跨用作生产者。
+- 本轮增加 Session 0 SYSTEM scheduled task 生产者、独立进程授权读取、写入拒绝、未授权读取拒绝及配置传播测试。日志明确记录实际 session ID，若 CI 客户端也在 Session 0，不宣称已跨 Session 验收。新代码 CI 待确认；未接入桌面 PCM/频谱读取，未完成正式安装器/签名。

@@ -3,6 +3,11 @@ using System.Reflection;
 using SkyRoof.Remote.SignalBus;
 
 if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+if (args.Length > 0 && args[0].StartsWith("global-", StringComparison.Ordinal))
+{
+    GlobalRingProbe.Run(args);
+    return;
+}
 if (args is ["reader", var readName])
 {
     using var reader = new NamedSignalRing(readName, 8, 128);

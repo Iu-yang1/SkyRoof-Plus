@@ -34,7 +34,14 @@ try {
     $secure = Join-Path $state 'secure'
     $secureConfig = Join-Path $secure 'supervisor.json'
     $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId secure -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $secureConfig -HttpPort 8078 -ProtectState -ServiceAccount $currentSid
+    & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId secure -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $secureConfig -HttpPort 8078 -ProtectState -ServiceAccount $currentSid -GlobalSignalBus -SignalBusReaderSid $currentSid
+    $secureSpec = Get-Content -LiteralPath $secureConfig -Raw | ConvertFrom-Json
+    foreach ($process in $secureSpec.Processes) {
+        if ($process.Environment.SKYROOF_SIGNALBUS_SCOPE -ne 'global' -or
+            $process.Environment.SKYROOF_SIGNALBUS_READER_SIDS -ne $currentSid) {
+            throw 'Global SignalBus configuration was not propagated.'
+        }
+    }
     $expectedSids = @('S-1-5-18','S-1-5-32-544',$currentSid) | Select-Object -Unique
     foreach ($protectedPath in @($secure,$secureConfig)) {
         $acl = Get-Acl -LiteralPath $protectedPath

@@ -104,3 +104,8 @@ Device / Station / Media / DSP 的 Kestrel Named Pipe 默认明确限制当前�
 ### 本地桌面操作者
 
 首次安装可附加 `-DesktopOperatorSid ( [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value )`，仅为可信 Windows SID 配置 Station 管道读写访问。默认不添加其他 SID；该 SID 获得全部 Station RPC 权限，不能替代 Web 角色权限。独立桌面模式支持 CAT PTT 按住/释放与租约心跳，尚不包括本地麦克风音频。共享内存仍处于同 Session 范围。
+
+
+### 可选 Global SignalBus（开发验证）
+
+安装或生成配置时可选择 `-GlobalSignalBus -SignalBusReaderSid <Windows SID>`，所有托管进程使用 Global 命名对象。服务账户为生产者，指定读者拥有映射只读权限及互斥锁同步权限，不获得映射写权限。消费者必须等生产者创建映射，普通交互账户不需要 SeCreateGlobalPrivilege；Global 生产者需要 Session 0 或该权限。默认 Local 兼容原先行为；更改模式需重启同一台站的所有进程。外部桥接工具如需使用对应 SignalBus，须设置同样的 scope；外部生产者权限未扩展，当前不建议混合不同生产者账户。该路径仍待 CI 验收。

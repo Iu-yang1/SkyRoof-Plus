@@ -31,3 +31,7 @@ jobs:
         run: dotnet build tests/SkyRoof.Remote.SignalBus.Probe/SkyRoof.Remote.SignalBus.Probe.csproj -c Release -warnaserror
       - name: Simulate real shared memory across processes
         run: dotnet run --project tests/SkyRoof.Remote.SignalBus.Probe/SkyRoof.Remote.SignalBus.Probe.csproj -c Release --no-build
+
+      - name: Verify Global SignalBus ACL with Session 0 SYSTEM producer
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteGlobalSignalBus.ps1
