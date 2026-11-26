@@ -38,6 +38,7 @@ internal sealed partial class StationIpcForm
         fields.Controls.Add(Row(ActionButton("SAVE QSO", SaveQsoAsync), ActionButton("NEW QSO", NewQsoAsync),
             ActionButton("LOOKUP CALL", LookupQsoAsync), "Search call", qsoFilter, ActionButton("SEARCH LOG", () => QueryQsoAsync(true)), ActionButton("NEXT PAGE", () => QueryQsoAsync(false)),
             ActionButton("IMPORT ADIF", ImportQsoAsync), ActionButton("EXPORT ADIF", ExportQsoAsync)));
+        fields.Controls.Add(Row("WSJT-X UDP port", wsjtxLogPort, ActionButton("START WSJT-X LOG", StartWsjtxLogAsync), ActionButton("STOP WSJT-X LOG", StopWsjtxLogAsync)));
         foreach (var column in new[] { "UTC", "CALL", "GRID", "BAND", "MODE", "SAT", "SENT", "RCVD" }) qsoList.Columns.Add(column, 100);
         page.Controls.Add(qsoList); page.Controls.Add(fields); page.Controls.Add(qsoStatus);
         return page;
