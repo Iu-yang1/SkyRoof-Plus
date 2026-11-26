@@ -11,6 +11,13 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
     public override Task<TrackingSnapshot> Predict(TrackingRequest request,
         ServerCallContext context) => Task.FromResult(Calculate(request));
 
+    public override Task<GroundTrackResult> GroundTrack(GroundTrackRequest request, ServerCallContext context)
+    {
+        try { return Task.FromResult(calculator.GroundTrack(request, context.CancellationToken)); }
+        catch (Exception error) when (error is ArgumentException or FormatException or OverflowException or IOException or Newtonsoft.Json.JsonException or System.Text.Json.JsonException or org.orekit.errors.OrekitException)
+        { throw new RpcException(new Status(StatusCode.InvalidArgument, error.Message)); }
+    }
+
     public override Task<PassSearchResult> PlanPasses(PassSearchRequest request, ServerCallContext context)
     {
         try { return Task.FromResult(calculator.PlanPasses(request, context.CancellationToken)); }

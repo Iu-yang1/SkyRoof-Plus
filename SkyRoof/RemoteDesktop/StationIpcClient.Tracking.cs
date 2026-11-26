@@ -7,6 +7,9 @@ internal sealed partial class StationIpcClient
     internal Task<CatalogSearchResult> SearchCatalogAsync(string query, CancellationToken token) =>
         catalog.SearchAsync(new CatalogSearchRequest { Query = query, Limit = 50 }, deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: token).ResponseAsync;
 
+    internal Task<GroundTrackResult> GroundTrackAsync(GroundTrackRequest request, CancellationToken token) =>
+        predictor.GroundTrackAsync(request, deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: token).ResponseAsync;
+
     internal Task<PassSearchResult> PlanPassesAsync(PassSearchRequest request, CancellationToken token) =>
         predictor.PlanPassesAsync(request, deadline: DateTime.UtcNow.AddMinutes(2), cancellationToken: token).ResponseAsync;
 

@@ -26,6 +26,14 @@ internal static class PassPlanningChecks
         var peak = await client.PredictAsync(request, token);
         Require(Math.Abs(peak.ElevationDegrees - pass.MaximumElevationDegrees) < 0.02 &&
             pass.SkyPath.Any(p => p.UtcMilliseconds == pass.CulminationUtcMilliseconds), "Pass peak differs from Station prediction.");
+        var ground = await client.GroundTrackAsync(new GroundTrackRequest
+        {
+            Tracking = request, StartUtcMilliseconds = input.UtcUnixMilliseconds,
+            EndUtcMilliseconds = input.UtcUnixMilliseconds + 120000, StepSeconds = 30
+        }, token);
+        Require(ground.Points.Count == 5 && ground.Points.All(p => p.LatitudeDegrees is >= -90 and <= 90 &&
+            double.IsFinite(p.LongitudeDegrees) && p.HeightMetres > 0 && p.OrbitBackend.Length > 0),
+            "Ground track samples invalid.");
         Require(radio.CountPrefix("F ") == cat && rotator.CountPrefix("P ") == point, "Read-only pass search wrote hardware.");
         Console.WriteLine("PASS: native Station pass search, UTC AOS/LOS, maximum elevation and sky path; no CAT/rotator writes.");
     }

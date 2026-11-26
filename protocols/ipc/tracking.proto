@@ -29,6 +29,7 @@ message RotatorPosition {
 service StationTracking {
   rpc Predict(TrackingRequest) returns (TrackingSnapshot);
   rpc PlanPasses(PassSearchRequest) returns (PassSearchResult);
+  rpc GroundTrack(GroundTrackRequest) returns (GroundTrackResult);
   rpc Apply(TrackingRequest) returns (TrackingSnapshot);
 }
 message TrackingRequest {
@@ -225,6 +226,28 @@ message PassSkyPoint {
   double azimuth_degrees = 2;
   double elevation_degrees = 3;
   optional double peer_elevation_degrees = 4;
+  string orbit_backend = 5;
+  string data_quality = 6;
+}
+
+message GroundTrackRequest {
+  TrackingRequest tracking = 1;
+  int64 start_utc_milliseconds = 2;
+  int64 end_utc_milliseconds = 3;
+  int32 step_seconds = 4;
+}
+message GroundTrackResult {
+  repeated GroundTrackPoint points = 1;
+  int32 norad_number = 2;
+  double site_latitude_degrees = 3;
+  double site_longitude_degrees = 4;
+  string celestial_target = 5;
+}
+message GroundTrackPoint {
+  int64 utc_milliseconds = 1;
+  double latitude_degrees = 2;
+  double longitude_degrees = 3;
+  double height_metres = 4;
   string orbit_backend = 5;
   string data_quality = 6;
 }

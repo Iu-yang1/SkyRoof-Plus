@@ -53,7 +53,7 @@ internal sealed partial class StationIpcForm : Form
         radioPage.Controls.Add(layout);
         workspace = new RemoteDockWorkspace(new[]
         {
-            radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage(), CreatePassesPage()
+            radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage(), CreatePassesPage(), CreateEarthPage()
         });
         Controls.Add(workspace);
         Shown += (_, _) => workspace.OpenInitialLayout();
@@ -115,6 +115,7 @@ internal sealed partial class StationIpcForm : Form
         {
             await RunAsync(async () => ShowRadio(await client.ReadRadioAsync(lifetime.Token)));
             await RunAsync(async () => ShowRotator(await client.ReadRotatorAsync(lifetime.Token)));
+            if (earthLive.Checked) await RunAsync(UpdateEarthAsync);
             await RunAsync(async () =>
             {
                 var job = await client.TrackingAsync(lifetime.Token);
