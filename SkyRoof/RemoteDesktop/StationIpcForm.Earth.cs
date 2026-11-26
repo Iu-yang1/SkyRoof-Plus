@@ -8,6 +8,7 @@ internal sealed partial class StationIpcForm
     private readonly Label earthStatus = new() { Dock = DockStyle.Bottom, Height = 30 };
     private readonly CheckBox earthLive = new() { Text = "Live (selected target)", AutoSize = true };
     private readonly NumericUpDown earthMinutes = new() { Minimum = 1, Maximum = 1440, Value = 100, Width = 65 };
+    private readonly CheckBox earthFootprint = new() { Text = "Horizon footprint", Checked = true, AutoSize = true };
     private bool earthBusy;
     private DateTimeOffset earthLastTrack;
     private TrackingRequest? earthLastRequest;
@@ -15,7 +16,9 @@ internal sealed partial class StationIpcForm
     private TabPage CreateEarthPage()
     {
         var page = new TabPage("EARTH VIEW");
-        var row = Row("Past / future minutes", earthMinutes, ActionButton("GROUND TRACK", RefreshEarthTrackAsync), earthLive);
+        earthFootprint.CheckedChanged += (_, _) => earthMap.ShowFootprint = earthFootprint.Checked;
+        var row = Row("Past / future minutes", earthMinutes, ActionButton("GROUND TRACK", RefreshEarthTrackAsync), earthLive,
+            earthFootprint, ActionButton("RESET MAP", () => { earthMap.ResetView(); return Task.CompletedTask; }));
         row.Dock = DockStyle.Top;
         page.Controls.Add(earthMap);
         page.Controls.Add(row);
