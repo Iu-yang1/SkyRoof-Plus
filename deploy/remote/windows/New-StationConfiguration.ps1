@@ -71,6 +71,7 @@ foreach ($process in $config.Processes) {
             }
             $process.Environment.SKYROOF_TRACKING_JOB_FILE = Join-Path $state 'tracking.json'
             $process.Environment.SKYROOF_LOGBOOK_DIRECTORY = Join-Path $state 'logbook'
+            $process.Environment.SKYROOF_RECORDING_DIRECTORY = Join-Path $state 'recordings'
             $process.Environment.SKYROOF_SATELLITE_CATALOG = Join-Path $state 'Satellites.json'
             $process.Environment.SKYROOF_ISS_OEM_PATH = Join-Path $state 'ISS.OEM_J2K_EPH.txt'
             $process.Environment.SKYROOF_OREKIT_DATA = Join-Path $state 'orekit-data'

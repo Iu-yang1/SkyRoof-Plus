@@ -71,3 +71,21 @@ message StationSignalFrame {
   int64 lost_frames = 8;
   int32 channels = 9;
 }
+
+service StationRecorder {
+  rpc Start(StationRecordingStart) returns (StationRecordingStatus);
+  rpc Status(StationRecordingQuery) returns (StationRecordingStatus);
+  rpc Stop(StationRecordingQuery) returns (StationRecordingStatus);
+}
+message StationRecordingStart { StationSignalKind kind = 1; }
+message StationRecordingQuery {}
+message StationRecordingStatus {
+  bool running = 1;
+  string id = 2;
+  StationSignalKind kind = 3;
+  int64 samples = 4;
+  double duration_seconds = 5;
+  int32 discontinuities = 6;
+  repeated string files = 7;
+  string detail = 8;
+}

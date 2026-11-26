@@ -13,6 +13,8 @@
     <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
     <Compile Include="../../SkyRoof/AFC/AfcCoreModels.cs;../../SkyRoof/AFC/AfcController*.cs;../../SkyRoof/AFC/AfcFmPredictor.cs;../../SkyRoof/AFC/AfcFmEvidenceGate.cs;../../SkyRoof/AFC/AfcCatTimeline.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
     <Compile Include="../../SkyRoof/Qso/AdifFile.cs" Link="Legacy/AdifFile.cs" />
+    <Compile Include="../../SkyRoof/RemoteDesktop/RemoteRecordingWriter.cs" Link="Legacy/RemoteRecordingWriter.cs" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />

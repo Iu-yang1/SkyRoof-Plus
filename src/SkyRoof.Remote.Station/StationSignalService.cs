@@ -12,8 +12,14 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
     public override async Task Subscribe(StationSignalRequest request,
         IServerStreamWriter<StationSignalFrame> response, ServerCallContext context)
     {
-        var spec = Resolve(request.Kind);
-        var token = context.CancellationToken;
+        await foreach (var frame in ReadFramesAsync(request.Kind, context.CancellationToken))
+            await response.WriteAsync(frame, context.CancellationToken);
+    }
+
+    internal static async IAsyncEnumerable<StationSignalFrame> ReadFramesAsync(StationSignalKind kind,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken token)
+    {
+        var spec = Resolve(kind);
         while (!token.IsCancellationRequested)
         {
             using var ring = TryOpen(spec);
@@ -22,7 +28,7 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
                 await Task.Delay(200, token);
                 continue;
             }
-            await ReadAsync(ring, spec, response, token);
+            await foreach (var frame in ReadAsync(ring, spec, token)) yield return frame;
         }
     }
 
@@ -32,8 +38,8 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
         catch (InvalidDataException) { return null; }
     }
 
-    private static async Task ReadAsync(NamedSignalRing ring, RingSpec spec,
-        IServerStreamWriter<StationSignalFrame> response, CancellationToken token)
+    private static async IAsyncEnumerable<StationSignalFrame> ReadAsync(NamedSignalRing ring, RingSpec spec,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken token)
     {
         var cursor = new SignalCursor();
         while (!token.IsCancellationRequested)
@@ -47,15 +53,15 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
                     continue;
                 }
             }
-            catch (InvalidDataException) { return; }
-            await response.WriteAsync(new StationSignalFrame
+            catch (InvalidDataException) { yield break; }
+            yield return new StationSignalFrame
             {
                 Sequence = frame.Sequence, Epoch = frame.StreamEpoch,
                 FirstSampleIndex = frame.FirstSampleIndex, MonotonicTicks = frame.MonotonicTimestampTicks,
                 SampleRate = frame.SampleRate, SampleCount = frame.SampleCount,
                 Payload = ByteString.CopyFrom(frame.Payload), LostFrames = cursor.LostFrames,
                 Channels = spec.Channels
-            }, token);
+            };
         }
     }
 

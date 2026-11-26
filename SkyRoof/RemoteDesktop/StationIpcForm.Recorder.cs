@@ -24,6 +24,9 @@ internal sealed partial class StationIpcForm
         recordKind.Items.AddRange(new object[] { "AF PCM16", "Telemetry CF32 IQ (48 kHz)", "Raw SDR CF32 IQ (native rate)" });
         recordKind.SelectedIndex = 0;
         layout.Controls.Add(Row(recordKind, ActionButton("RECORD WAV", RecordAsync), ActionButton("STOP RECORD", () => StopStream(recordingSource))));
+        layout.Controls.Add(Row(ActionButton("START STATION RECORD", StartStationRecordAsync),
+            ActionButton("STATION RECORD STATUS", StationRecordStatusAsync), ActionButton("STOP STATION RECORD", StopStationRecordAsync)));
+        layout.Controls.Add(stationRecordStatus);
         layout.Controls.Add(recordStatus);
         layout.Controls.Add(recordFiles);
         layout.Controls.Add(Row(ActionButton("LOAD WAV", LoadRecordingAsync), ActionButton("PLAY AF", PlayRecordingAsync),
@@ -34,6 +37,24 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row("Raw SDR recording uses the native sample rate; lost IPC frames create segment gaps."));
         page.Controls.Add(layout);
         return page;
+    }
+
+    private readonly Label stationRecordStatus = new() { AutoSize = true, MaximumSize = new Size(750, 0) };
+    private StationSignalKind SelectedRecordKind() => recordKind.SelectedIndex switch
+    {
+        1 => StationSignalKind.StationSignalIqCf32,
+        2 => StationSignalKind.StationSignalRawIqCf32,
+        _ => StationSignalKind.StationSignalRxAudio
+    };
+    private async Task StartStationRecordAsync() =>
+        ShowStationRecording(await client.StartStationRecordingAsync(SelectedRecordKind(), lifetime.Token));
+    private async Task StationRecordStatusAsync() =>
+        ShowStationRecording(await client.StationRecordingAsync(lifetime.Token));
+    private async Task StopStationRecordAsync() =>
+        ShowStationRecording(await client.StopStationRecordingAsync(lifetime.Token));
+    private void ShowStationRecording(StationRecordingStatus value)
+    {
+        if (!IsDisposed) stationRecordStatus.Text = $"Station · {value.Detail} · {value.DurationSeconds:F1} s · {value.Files.Count} files · {value.Discontinuities} gaps";
     }
 
     private async Task RecordAsync()
