@@ -22,9 +22,10 @@ internal sealed partial class StationIpcForm : Form
     private bool resourcesReleased;
     private readonly RemoteDockWorkspace workspace;
 
-    internal StationIpcForm(string pipe)
+    internal StationIpcForm(string pipe, string? hostOrigin = null)
     {
         client = new(pipe);
+        if (hostOrigin is not null) autoHost.Text = hostOrigin;
         Text = "SkyRoof Remote · " + pipe;
         ClientSize = new Size(1000, 730);
         MinimumSize = new Size(760, 520);
@@ -55,6 +56,12 @@ internal sealed partial class StationIpcForm : Form
         {
             radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage(), CreatePassesPage(), CreateEarthPage(), CreateQsoPage(), CreateRecorderPage(), CreateAfcPage()
         });
+        workspace.AddSettingsAction(() =>
+        {
+            using var dialog = new DesktopStationSettingsDialog(true);
+            dialog.ShowDialog(this);
+            return Task.CompletedTask;
+        }, RunAsync);
         Controls.Add(workspace);
         Shown += (_, _) => workspace.OpenInitialLayout();
         Controls.Add(status);
