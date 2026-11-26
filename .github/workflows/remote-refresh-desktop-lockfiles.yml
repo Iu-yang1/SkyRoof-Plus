@@ -1,0 +1,61 @@
+name: Remote desktop refresh dependency lockfiles
+
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['.github/workflows/remote-refresh-desktop-lockfiles.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  locks:
+    if: github.ref == 'refs/heads/feature/remote-v1-multiprocess-foundation'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          submodules: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore pinned SkyCAT
+        run: dotnet restore Vendor/SkyCAT/skycatd/skycatd.csproj --locked-mode
+      - name: Regenerate and validate exact desktop dependency graph
+        shell: pwsh
+        run: |
+          dotnet restore SkyRoof.sln --force-evaluate -p:RestoreLockedMode=false -p:RestorePackagesWithLockFile=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore SkyRoof.sln --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git status --short
+      - name: Upload validated lockfiles
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: remote-desktop-lockfiles
+          path: |
+            SkyRoof/packages.lock.json
+            VE3NEA.Dsp.Tests/packages.lock.json
+            SkyRoof.Orbit.Contracts/packages.lock.json
+            src/SkyRoof.Remote.Ipc.Contracts/packages.lock.json
+          if-no-files-found: error
+      - name: Commit only regenerated locks to unchanged feature branch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git add -f -- SkyRoof/packages.lock.json VE3NEA.Dsp.Tests/packages.lock.json SkyRoof.Orbit.Contracts/packages.lock.json src/SkyRoof.Remote.Ipc.Contracts/packages.lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (git diff --cached --quiet) { Write-Host 'Already up to date'; exit 0 }
+          $branch = 'refs/heads/feature/remote-v1-multiprocess-foundation'
+          $remote = (git ls-remote origin $branch) -split '\s+'
+          if ($remote[0] -ne $env:GITHUB_SHA) { throw 'Branch advanced; retrieve validated artifact instead of overwriting newer work.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build(remote): refresh locked WinForms IPC dependency graph'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git push origin "HEAD:$branch"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

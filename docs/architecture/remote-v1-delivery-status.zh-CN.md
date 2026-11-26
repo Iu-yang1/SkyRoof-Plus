@@ -330,3 +330,11 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **P5:** `644dd0c` 首次安装入口 Install-RemoteStation.ps1，验证 ZIP/manifest、版本暂存、运行库、受限 LocalSystem 站点配置、SCM 注册及可选 readiness/失败移除。新增实际最终 ZIP 的注册、重复安装拒绝、保留数据卸载测试。不是正式签名 MSI/EXE，首次启动失败清理尚未由新测试执行。
 - **P4:** `6979841` 原 SkyRoof 新增 `SkyRoof.exe --remote-station skyroof-alpha-station` 独立 WinForms IPC 工作台；直接使用 Station gRPC 而不初始化本地硬件，支持 CAT 读回、RX/TX 频率/模式、AZ/EL POINT/STOP 和跟踪状态。新增 E2E 复用同一适配器，验证模拟 CAT 实际 TCP 频率写入并恢复、旋转器 POINT/STOP 及 tracking status。此为首批桌面 IPC 接入，不是原 MainForm 全面迁移或 WinForms UI 自动化验收。PTT、DSP/媒体、完整 RadioLink 等原有面板仍须迁移。Named Pipe SID 授权是可信本地操作者访问该端点的全部 RPC，不是 Host 角色鉴权。
 - 最新代码 CI 需要独立验收，保持 Draft PR，不合并、不发正式 Release；本轮 API 提交未签名。公网 HTTPS/ICE、真实 IC-9700/SDR/rotator/camera、长期稳定性无新实测。
+
+
+## 2026-11-26 — WinForms PTT、跨账户 IPC 与依赖锁定
+
+- `64c9969` 已确认 [Named Pipe IPC Probe](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45744812278) 实际 DACL 检查通过，128 次跨进程 RPC P50 0.608 ms / P95 0.924 ms；Host、Chromium、aislop、IQ/RF、SignalBus 等已通过。Compile Check 与 CW Benchmark 因新增桌面 gRPC 依赖使 NuGet lockfile 不一致（NU1004），不是算法性能或 C# 编译失败；新增独立锁文件刷新工作流，保留 LockedMode，使用 Windows Runner 实际 restore、再 locked restore，上传产物并仅在分支未移动时提交锁文件。
+- `1fae064` 桌面独立 IPC 工作台增加按住 PTT、释放、捕获丢失/窗口失焦回 RX、事务心跳、关闭时释放当前 session。Device 仍负责硬件及超时回收；双 IPC 客户端模拟抢占、旧事务释放及新所有者释放新增 E2E 检查。仅是 CAT PTT，尚未接入桌面麦克风 PCM。
+- `f9aeda3` 命名管道客户端显式请求 ReadWrite + Synchronize，避免 GENERIC_WRITE 隐含 CreateNewInstance 导致跨账户被拒绝。新增标准 Windows 用户授权及拒绝探针，安装器可显式传入 DesktopOperatorSid，仅授权 Station 管道，不授权文件目录。该 SID 有完整 Station RPC 权限，不是 Host Web 角色。新测试尚待运行。
+- SignalBus ACL、跨 Session 0 共享内存、原 MainForm 全量迁移、真实射频/远程公网实测和正式签名发布仍未完成；保持 Draft，不发正式 Release。

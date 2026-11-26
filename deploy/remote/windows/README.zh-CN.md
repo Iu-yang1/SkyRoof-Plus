@@ -99,3 +99,8 @@ Host 启动时对既有 SQLite 身份库执行事务式 schema version 0→1 升
 ### IPC 访问账户
 
 Device / Station / Media / DSP 的 Kestrel Named Pipe 默认明确限制当前进程 Windows 用户；如确需跨服务账户访问，在对应服务器进程环境指定 `SKYROOF_DEVICE_PIPE_CLIENT_SIDS`、`SKYROOF_STATION_PIPE_CLIENT_SIDS`、`SKYROOF_MEDIA_PIPE_CLIENT_SIDS`、`SKYROOF_DSP_PIPE_CLIENT_SIDS`，分号分隔的 Windows SID。只授予明确受信任的调用账户，具备该管道所有 RPC 权限；不授予 CreateNewInstance。未配置时保留原本的同用户访问语义。SignalBus 共享内存 ACL 与跨 Session 0 尚需独立实现和验收。
+
+
+### 本地桌面操作者
+
+首次安装可附加 `-DesktopOperatorSid ( [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value )`，仅为可信 Windows SID 配置 Station 管道读写访问。默认不添加其他 SID；该 SID 获得全部 Station RPC 权限，不能替代 Web 角色权限。独立桌面模式支持 CAT PTT 按住/释放与租约心跳，尚不包括本地麦克风音频。共享内存仍处于同 Session 范围。

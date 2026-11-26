@@ -7,6 +7,7 @@ param(
     [ValidateRange(1024,65535)][int]$HttpPort = 8076,
     [ValidateSet('auto','demand')][string]$Startup = 'demand',
     [ValidateRange(10,300)][int]$ReadyTimeoutSeconds = 60,
+    [string[]]$DesktopOperatorSid = @(),
     [switch]$RegisterOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -29,7 +30,7 @@ if ($LASTEXITCODE -ne 0 -or -not ($runtimes -match '^Microsoft.NETCore.App 10\.'
     throw 'Install the Windows x64 .NET 10 and ASP.NET Core 10 runtimes first.'
 }
 $version = & "$PSScriptRoot/Stage-RemotePackage.ps1" -Archive $Archive -VersionsDirectory (Join-Path $root 'versions')
-& "$PSScriptRoot/New-StationConfiguration.ps1" -StationId $StationId -PackageRoot $version -DataRoot $dataRoot -Template $Template -Output $config -HttpPort $HttpPort -ProtectState
+& "$PSScriptRoot/New-StationConfiguration.ps1" -StationId $StationId -PackageRoot $version -DataRoot $dataRoot -Template $Template -Output $config -HttpPort $HttpPort -ProtectState -DesktopOperatorSid $DesktopOperatorSid
 $registered = $false
 try {
     & "$PSScriptRoot/Install-RemoteService.ps1" -Executable (Join-Path $version 'Supervisor/SkyRoof.Remote.Supervisor.exe') -Configuration $config -ServiceName $service -Startup $Startup

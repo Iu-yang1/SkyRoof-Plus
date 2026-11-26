@@ -61,3 +61,7 @@ jobs:
             if (Test-Path $outFile) { Get-Content $outFile }
             if (Test-Path $errFile) { Get-Content $errFile }
           }
+
+      - name: Verify authorized and unauthorized real Windows accounts
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemotePipeAccounts.ps1
