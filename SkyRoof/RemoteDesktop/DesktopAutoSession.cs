@@ -32,7 +32,15 @@ internal sealed class DesktopAutoSession : IDisposable
         return doc.RootElement.GetProperty("stationId").GetString() ?? "";
     }
 
-    internal async Task StartAsync(string mode, object request, CancellationToken token)
+    internal async Task<string> RuntimeInstanceAsync(CancellationToken token)
+    {
+        using var reply = await http.GetAsync("/api/v1/station/runtime", token);
+        reply.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await reply.Content.ReadAsStringAsync(token));
+        return doc.RootElement.GetProperty("instanceId").GetString() ?? throw new InvalidDataException("Missing Station runtime identity.");
+    }
+
+    internal async Task StartAsync(string mode, object request, CancellationToken token, string? expectedInstance = null)
     {
         if (response is not null) throw new InvalidOperationException("Automatic session already opened.");
         terminal = false;
@@ -43,6 +51,7 @@ internal sealed class DesktopAutoSession : IDisposable
             _ => throw new ArgumentException("Unknown automatic digital mode.")
         };
         using var post = new HttpRequestMessage(HttpMethod.Post, route) { Content = JsonContent.Create(request) };
+        if (expectedInstance is not null) post.Headers.Add("X-SkyRoof-Station-Instance", expectedInstance);
         response = await http.SendAsync(post, HttpCompletionOption.ResponseHeadersRead, token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"Auto QSO HTTP {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(token)}");

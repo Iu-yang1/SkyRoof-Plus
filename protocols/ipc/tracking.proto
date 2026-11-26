@@ -189,3 +189,13 @@ message EmePathStatus {
   double outgoing_delay_seconds = 4;
   double peer_elevation_degrees = 5;
 }
+
+// Process-scoped identity shared by local IPC and authenticated Host.
+service StationRuntime {
+  rpc Identify(StationRuntimeQuery) returns (StationRuntimeIdentity);
+}
+message StationRuntimeQuery {}
+message StationRuntimeIdentity {
+  string station_id = 1;
+  string instance_id = 2;
+}

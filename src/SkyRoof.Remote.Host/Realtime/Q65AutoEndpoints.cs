@@ -29,6 +29,7 @@ public static class Q65AutoEndpoints
     {
         if (!OperatingSystem.IsWindows()) { context.Response.StatusCode = 501; return; }
         if (!await TimedFt4Endpoints.IsOperatorAsync(context)) { context.Response.StatusCode = 403; return; }
+        if (!await StationRuntimeEndpoints.MatchExpectedInstanceAsync(context, station)) return;
         string call = (request.Call ?? "").Trim().ToUpperInvariant();
         string target = (request.Target ?? "").Trim().ToUpperInvariant();
         Ft4QsoSequence qso;

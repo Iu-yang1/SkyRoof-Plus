@@ -60,6 +60,10 @@ internal sealed partial class StationIpcForm
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
             var identity = await connection.StationAsync(timeout.Token);
+            var local = await client.IdentifyAsync(timeout.Token);
+            var remote = await connection.RuntimeInstanceAsync(timeout.Token);
+            if (!string.Equals(local.InstanceId, remote, StringComparison.Ordinal))
+                throw new InvalidOperationException("Host does not control the selected local IPC Station.");
             autoStation = $"{identity} · {endpoint.GetLeftPart(UriPartial.Authority)}";
             if (pttClosing || IsDisposed) { connection.Dispose(); return; }
             autoConnection = connection;
@@ -92,7 +96,8 @@ internal sealed partial class StationIpcForm
         string mode = autoMode.Text;
         try
         {
-            await connection.StartAsync(mode, BuildAutoRequest(mode), source.Token);
+            var local = await client.IdentifyAsync(source.Token);
+            await connection.StartAsync(mode, BuildAutoRequest(mode), source.Token, local.InstanceId);
             while (await connection.ReadAsync(source.Token) is { } evt)
                 ShowAutoEvent(evt);
         }

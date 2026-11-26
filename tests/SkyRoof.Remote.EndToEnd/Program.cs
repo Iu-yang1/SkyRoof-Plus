@@ -111,6 +111,7 @@ try
     using var tokenDoc = JsonDocument.Parse(await tokenReply.Content.ReadAsStringAsync());
     var token = tokenDoc.RootElement.GetProperty("token").GetString()!;
     var tokenId = tokenDoc.RootElement.GetProperty("id").GetGuid();
+    await StationRuntimeChecks.RunAsync(stationPipe, anonymous, admin, radio);
     var added = await admin.PostAsJsonAsync("/api/v1/admin/users", new {
         userName = "field-operator", password = "SimulationOperatorP@ssw0rd!", role = "Operator"
     });

@@ -44,6 +44,9 @@ internal sealed partial class StationIpcClient : IDisposable
         predictor = new(channel);
     }
 
+    internal Task<StationRuntimeIdentity> IdentifyAsync(CancellationToken token) =>
+        new StationRuntime.StationRuntimeClient(channel).IdentifyAsync(new(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: token).ResponseAsync;
+
     internal Task<DeviceSnapshot> ReadRadioAsync(CancellationToken token) =>
         cat.ReadbackAsync(new(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: token).ResponseAsync;
 
