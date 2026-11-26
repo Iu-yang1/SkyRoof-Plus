@@ -320,3 +320,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **P4:** `54743db` / `5a2fa1a` Web 可保存、增加、切换和关闭独立台站工作区；各 Host 独立 origin、认证、SignalR、Dockview，不交换登录凭据。远端 Host 通过 `SKYROOF_WORKSPACE_ORIGINS` 配置允许嵌入的控制端 origin；切换时原工作区释放 PTT，避免跨文档丢失按键释放事件，非活动工作区保留页面连接但限制音频和操作。新增真实双 Host Chromium 测试，不是双物理设备测试。跨站 Cookie、麦克风权限与公网 HTTPS 仍需实测；可使用 OPEN STATION 独立窗口。尚非跨 Host 面板任意混排，也未完成 WinForms 全量 IPC。
 - **P5:** `4d91a5a` SQLite `user_version` 0→1 事务式增量迁移，新增 token owner/revoked 索引，不重建用户表；启动拒绝未知更高版本。新增旧 schema 重启与 Cookie/Token 保留测试；完整备份恢复、未来破坏性 schema 回滚仍未实现。 `ab9be06` 可选 `Protect-StationState.ps1` / `New-StationConfiguration -ProtectState -ServiceAccount` Windows 文件目录 ACL，实际 SID/继承回归；不等同于 Named Pipe/SignalBus ACL 或 SCM 服务账户配置。
 - 上述新增功能均以最新 CI 为验收依据，不能用历史绿色基线替代。P1/P2 已有整包实证不代表真实月面 RF 通联；P3 SDR 实机、P4 WinForms、P5 正式安装器/签名/IPC ACL、WAN/长时和硬件仍有缺口。保持 Draft PR #254，不合并 master，不发布正式 Release。API 提交未签名。
+
+
+## 2026-11-26 — 收敛 P4 测试与继续 P4/P5
+
+- `505995e` 24/25 CI 成功。[浏览器 45731693740](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45731693740) 日志为 Playwright 5 passed、2 skipped（原生 RTC 专项条件），实际失败是 EXIT trap 的 GNU tail 多文件旧参数语法；`a5f34b4` 改为 tail -n 50，不改测试断言。
+- 已确认 [Host 45731693815](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45731693815) 实际通过旧 SQLite schema 原地迁移、双 Host Cookie/token/重启、授权 BIN/LOG/media 下载及真实本地 ONVIF RTSP/RTP→FFmpeg→fMP4。[整包 45731694205](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45731694205) 实际通过 Windows 文件 ACL、SCM 升级回滚、真实 HADES-SA SSDV 精确 JPEG、Codec2 WAV 缺帧计数及合成 Robot36 IQ→PNG 239/240 行。[Compile Check 45731693719](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45731693719) 1857/1857；[aislop 45731693831](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45731693831) 通过。
+- **P5:** `51afb17` Device/Station/Media/DSP 服务器明确采用同用户 Named Pipe 默认策略；可按独立环境变量指定受信任 Windows SID 读写授权，创建服务端实例权限仅授予服务账号。新增真实 Windows DACL 检查与使用自定义 ACL 的跨进程 RPC probe。此测试不是使用两个真实 Windows 登录账户的授权/拒绝验证。共享内存 SignalBus ACL 和跨 Session 0 仍待完成。
+- **P5:** `644dd0c` 首次安装入口 Install-RemoteStation.ps1，验证 ZIP/manifest、版本暂存、运行库、受限 LocalSystem 站点配置、SCM 注册及可选 readiness/失败移除。新增实际最终 ZIP 的注册、重复安装拒绝、保留数据卸载测试。不是正式签名 MSI/EXE，首次启动失败清理尚未由新测试执行。
+- **P4:** `6979841` 原 SkyRoof 新增 `SkyRoof.exe --remote-station skyroof-alpha-station` 独立 WinForms IPC 工作台；直接使用 Station gRPC 而不初始化本地硬件，支持 CAT 读回、RX/TX 频率/模式、AZ/EL POINT/STOP 和跟踪状态。新增 E2E 复用同一适配器，验证模拟 CAT 实际 TCP 频率写入并恢复、旋转器 POINT/STOP 及 tracking status。此为首批桌面 IPC 接入，不是原 MainForm 全面迁移或 WinForms UI 自动化验收。PTT、DSP/媒体、完整 RadioLink 等原有面板仍须迁移。Named Pipe SID 授权是可信本地操作者访问该端点的全部 RPC，不是 Host 角色鉴权。
+- 最新代码 CI 需要独立验收，保持 Draft PR，不合并、不发正式 Release；本轮 API 提交未签名。公网 HTTPS/ICE、真实 IC-9700/SDR/rotator/camera、长期稳定性无新实测。
