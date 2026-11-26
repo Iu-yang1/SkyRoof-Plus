@@ -25,6 +25,7 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row("Advanced request · TLE/OMM, RadioLink, RIT/XIT (protobuf JSON)"));
         trackingConfig.Text = JsonFormatter.Default.Format(new TrackingRequest { CorrectDownlink = true, CorrectUplink = true, PointRotator = false });
         layout.Controls.Add(trackingConfig);
+        layout.Controls.Add(CreateLiveTuningRow());
         layout.Controls.Add(Row(ActionButton("PREDICT", PredictAsync), ActionButton("START TRACK", StartTrackingAsync),
             ActionButton("STOP TRACK", StopTrackingAsync), resumeTrack));
         layout.Controls.Add(trackingResult);

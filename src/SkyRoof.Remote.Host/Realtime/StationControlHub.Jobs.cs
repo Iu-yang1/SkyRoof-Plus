@@ -23,6 +23,12 @@ public sealed partial class StationControlHub
         catch (Grpc.Core.RpcException error) { throw new Microsoft.AspNetCore.SignalR.HubException(error.Status.Detail); }
     }
 
+    public async Task<RemoteTrackingJobStatus> TuneTrackingJob(RemoteTrackingTune request)
+    {
+        await VerifyCurrentSessionAsync(requireOperator: true);
+        return await device.TuneTrackingJobAsync(request, Context.ConnectionAborted);
+    }
+
     public async Task<RemoteTrackingJobStatus> StopTrackingJob(string jobId)
     {
         await VerifyCurrentSessionAsync(requireOperator: true);

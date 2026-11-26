@@ -76,6 +76,7 @@ service StationTrackingJobs {
   rpc Status(TrackingJobQuery) returns (TrackingJobStatus);
   rpc Stop(TrackingJobStop) returns (TrackingJobStatus);
   rpc PredictAt(TrackingJobPredictionRequest) returns (TrackingSnapshot);
+  rpc Tune(TrackingJobTune) returns (TrackingJobStatus);
 }
 message TrackingJobStart {
   TrackingRequest tracking = 1;
@@ -83,6 +84,16 @@ message TrackingJobStart {
   bool resume_after_restart = 3;
 }
 message TrackingJobQuery {}
+message TrackingJobTune {
+  string job_id = 1;
+  optional double transponder_offset_hz = 2;
+  optional double rit_hz = 3;
+  optional double xit_hz = 4;
+  optional double downlink_manual_hz = 5;
+  optional double uplink_manual_hz = 6;
+  optional int64 downlink_base_offset_hz = 7;
+  optional int64 uplink_base_offset_hz = 8;
+}
 message TrackingJobPredictionRequest {
   string job_id = 1;
   int64 utc_unix_milliseconds = 2;

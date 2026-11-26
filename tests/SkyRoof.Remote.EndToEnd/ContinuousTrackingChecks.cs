@@ -38,6 +38,7 @@ internal static class ContinuousTrackingChecks
             "StartTrackingJob", request, 300, true);
         var before = await WaitAsync(first, x => x.CompletedTicks >= 2 && x.Phase == "tracking");
         Check(File.Exists(jobFile) && before.JobId == job.JobId, "Tracking job not saved");
+        before = await VerifyLiveTuneAsync(first, before);
         await first.StopAsync();
         await Task.Delay(1300);
         await using var observer = connect();
@@ -57,6 +58,7 @@ internal static class ContinuousTrackingChecks
             var resumed = await WaitAsync(observer, x => x.JobId == job.JobId &&
                 x.Running && x.CompletedTicks >= 2 && x.Phase == "tracking");
             Check(resumed.ResumeAfterRestart, "Authorized tracking job not restored");
+            VerifyTunedReadback(resumed);
             var stale = await observer.InvokeAsync<RemoteTrackingJobStatus>(
                 "StopTrackingJob", "old-job");
             Check(stale.Running && stale.JobId == job.JobId, "Stale stop canceled current job");
@@ -83,6 +85,33 @@ internal static class ContinuousTrackingChecks
             replacement.Dispose();
             throw;
         }
+    }
+
+    private static async Task<RemoteTrackingJobStatus> VerifyLiveTuneAsync(HubConnection hub, RemoteTrackingJobStatus before)
+    {
+        var result = await hub.InvokeAsync<RemoteTrackingJobStatus>("TuneTrackingJob",
+            new RemoteTrackingTune { JobId = before.JobId, RitHz = 12000, XitHz = -9000 });
+        Check(result.JobId == before.JobId && result.Running && result.CompletedTicks >= before.CompletedTicks,
+            "Live tune restarted or replaced tracking job.");
+        var tuned = await WaitAsync(hub, x => x.CompletedTicks > result.CompletedTicks && x.Phase == "tracking");
+        VerifyTunedReadback(tuned);
+        try
+        {
+            await hub.InvokeAsync<RemoteTrackingJobStatus>("TuneTrackingJob", new RemoteTrackingTune { JobId = "old-job", RitHz = 0 });
+            throw new InvalidDataException("Stale tune accepted.");
+        }
+        catch (HubException) { Console.WriteLine("PASS: live RIT/XIT and stale tracking job rejection."); }
+        return tuned;
+    }
+
+    private static void VerifyTunedReadback(RemoteTrackingJobStatus status)
+    {
+        var current = status.Latest ?? throw new InvalidDataException("Missing tuned prediction.");
+        var factor = current.RangeRateMetresPerSecond / 299792458.0;
+        long rx = (long)Math.Round((145900000 + 12000) * (1 - factor));
+        long tx = (long)Math.Round((435650000 - 9000) * (1 + factor));
+        Check(current.RxHz == rx && current.TxHz == tx && current.ActualRxHz == rx && current.ActualTxHz == tx,
+            "Live offsets not applied to actual CAT or not restored after restart.");
     }
 
     private static async Task<RemoteTrackingJobStatus> WaitAsync(

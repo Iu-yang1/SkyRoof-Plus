@@ -14,6 +14,9 @@ internal sealed partial class StationIpcClient
         tracking.StartAsync(new TrackingJobStart { Tracking = request, IntervalMilliseconds = 1000, ResumeAfterRestart = resume },
             deadline: DateTime.UtcNow.AddSeconds(12), cancellationToken: token).ResponseAsync;
 
+    internal Task<TrackingJobStatus> TuneTrackingAsync(TrackingJobTune request, CancellationToken token) =>
+        tracking.TuneAsync(request, deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: token).ResponseAsync;
+
     internal Task<TrackingJobStatus> StopTrackingAsync(string jobId, CancellationToken token) =>
         tracking.StopAsync(new TrackingJobStop { JobId = jobId }, deadline: DateTime.UtcNow.AddSeconds(12), cancellationToken: token).ResponseAsync;
 

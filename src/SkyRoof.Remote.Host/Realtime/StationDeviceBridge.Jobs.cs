@@ -36,6 +36,12 @@ public sealed partial class StationDeviceBridge
         catch (RpcException ex) { throw new HubException(ex.Status.Detail); }
     }
 
+    public async Task<RemoteTrackingJobStatus> TuneTrackingJobAsync(RemoteTrackingTune request, CancellationToken ct)
+    {
+        try { return MapJob(await Jobs.TuneAsync(request.ToIpc(), deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: ct)); }
+        catch (RpcException ex) { throw new HubException(ex.Status.Detail); }
+    }
+
     public async Task<RemoteTrackingJobStatus> StopTrackingJobAsync(string jobId, CancellationToken ct)
     {
         try
