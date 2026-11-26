@@ -4,7 +4,7 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.RemoteDesktop;
 
-internal sealed class StationIpcForm : Form
+internal sealed partial class StationIpcForm : Form
 {
     private readonly StationIpcClient client;
     private readonly CancellationTokenSource lifetime = new();
@@ -24,7 +24,7 @@ internal sealed class StationIpcForm : Form
     {
         client = new(pipe);
         Text = "SkyRoof Remote · " + pipe;
-        ClientSize = new Size(680, 300);
+        ClientSize = new Size(680, 350);
         var layout = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -36,6 +36,7 @@ internal sealed class StationIpcForm : Form
         layout.Controls.Add(Row("Mode", mode,
             ActionButton("RX MODE", () => ModeAsync(DeviceOperation.DeviceRxMode)),
             ActionButton("TX MODE", () => ModeAsync(DeviceOperation.DeviceTxMode))));
+        layout.Controls.Add(CreatePttRow());
         layout.Controls.Add(rotator);
         layout.Controls.Add(Row("AZ", az, "EL", el,
             ActionButton("POINT", PointAsync), ActionButton("STOP", StopAsync)));
@@ -44,8 +45,11 @@ internal sealed class StationIpcForm : Form
         Controls.Add(layout);
         polling.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };
+        FormClosing += ClosePttAsync;
+        Deactivate += async (_, _) => await ReleasePttAsync();
         FormClosed += (_, _) =>
         {
+            heartbeat.Dispose();
             polling.Dispose();
             lifetime.Cancel();
             client.Dispose();

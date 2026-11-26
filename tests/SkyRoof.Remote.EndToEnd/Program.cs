@@ -215,6 +215,7 @@ try
     Ensure(viewerDenied && radio.Count("T 1") == 1,
         "Viewer role was allowed to transmit through a stale token");
     await viewer.StopAsync();
+    await DesktopPttChecks.RunAsync(stationPipe, radio);
     Console.WriteLine("PASS: authenticated Host -> Station Core -> real CAT Device; two operators, disconnect and token revocation.");
 }
 finally

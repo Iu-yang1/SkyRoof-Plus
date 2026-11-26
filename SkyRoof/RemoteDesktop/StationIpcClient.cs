@@ -5,7 +5,7 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.RemoteDesktop;
 
-internal sealed class StationIpcClient : IDisposable
+internal sealed partial class StationIpcClient : IDisposable
 {
     private readonly GrpcChannel channel;
     private readonly StationDevice.StationDeviceClient cat;
