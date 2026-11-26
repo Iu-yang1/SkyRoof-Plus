@@ -57,6 +57,7 @@ enum StationSignalKind {
   STATION_SIGNAL_Q65 = 7;
   STATION_SIGNAL_TELEMETRY = 8;
   STATION_SIGNAL_IQ_CF32 = 9;
+  STATION_SIGNAL_RAW_IQ_CF32 = 10;
 }
 message StationSignalRequest { StationSignalKind kind = 1; }
 message StationSignalFrame {
