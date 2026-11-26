@@ -38,7 +38,7 @@ internal sealed class StationConfigurationEditor : Form
         layout.Controls.Add(Row("Environment key", key));
         layout.Controls.Add(Row("Value", value, reveal));
         layout.Controls.Add(Row(Button("LOAD VALUE", ShowValue), Button("SET VALUE", SetValue), Button("REMOVE KEY", RemoveKey)));
-        layout.Controls.Add(Row(Button("AUTHORIZE THIS WINDOWS USER", AuthorizeDesktop)));;
+        layout.Controls.Add(Row(Button("AUTHORIZE THIS WINDOWS USER", AuthorizeDesktop)));
         layout.Controls.Add(Row(Button("SAVE CONFIG", Save), Button("CANCEL", Close)));
         layout.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(650, 0),
             Text = "Edit existing or add supported SKYROOF_* / ASPNETCORE_* configuration keys. Values are masked until explicitly revealed. Changes apply after service restart. The service account's protected configuration directory requires administrator write permission. Executable and arguments remain unchanged." });
