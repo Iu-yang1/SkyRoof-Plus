@@ -348,3 +348,14 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - 本轮增加 Session 0 SYSTEM scheduled task 生产者、独立进程授权读取、写入拒绝、未授权读取拒绝及配置传播测试。日志明确记录实际 session ID，若 CI 客户端也在 Session 0，不宣称已跨 Session 验收。新代码 CI 待确认；未接入桌面 PCM/频谱读取，未完成正式安装器/签名。
 
 - 后续提交：WinForms 同一 Station IPC 适配器新增 CW 状态、WPM 设置与硬件读回、发送及所属 session 停止；新增真实 Station/Device/TCP SkyCAT 模拟器 E2E，验证 WPM 量化、完整消息及中途停止。未引入新依赖；CW RX 解码与完整 MainForm 迁移仍未完成。
+
+
+## 2026-11-26 — P0–P5 集中交付增量
+
+- **已验证的历史基线：** `cfdc4d9` 22/25；[Global SignalBus 45748069529](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45748069529) 实际 SYSTEM Session 0 → Session 2，授权只读、写拒绝和未授权拒绝。桌面 CW E2E 已通过。旧整包 SCM 升级/失败回滚业务断言通过，结束时 DLL 清理失败；不能将旧整包标记成功。
+- **P0：** `47391cc` 提交 Windows CI 实际生成并通过 locked restore 的三个 lockfile，Git blob 与 artifact 完全一致。随后旧 NuGet/MSBuild 的 IPC Contracts assets 缺失由 `a800271` 纳入 solution 修复；保留 LockedMode 与 aislop gate，删除临时生成 job。 `3d3f8ba` Supervisor 等待子进程退出后释放句柄并进行有限清理重试。
+- **P1：** `a800271` SSDV/SSTV 实时预览、稳定媒体 ID、revision、final/complete 区分、持久化 NORAD/UTC 日索引和鉴权分页，保留最终参考 JPEG 与 Robot36 检查；`4345103` PNG 渐进预览限频，最终帧不受限。
+- **P2/P4：** `cee739a` Station 单一 IPC 入口转发 DSP 配置/编码和实时信号；`2b54e42` 桌面 NAudio RX 播放、原生 TX PCM、AF/RF 频谱、实时 CW/FT4/Q65/遥测结果；`4b5824c` CW RX/history、FT4/Q65 单次定时 TX、取消、卫星目录、RadioLink、EME 预测、持久化跟踪、PARK。新增真实 Station 流测试。仍是独立 WinForms 工作台，不是原 MainForm 所有控件迁移；桌面自动 QSO 和原面板 UI 等价性未完成。桌面端时隙/延时配置须与 Station 一致；物理音频设备未测。
+- **P3：** `4345103` 增加真实 RTSP/RTP、ONVIF SOAP、Host remux、Chrome 视频解码帧计数端到端测试，不 mock 视频内容。`6e23f09` Station 管理固定配置 SoapySDR companion，起停、重调谐、采样率/增益、实际读回状态、Host 角色授权；设备选择来自站端配置，重调谐结束旧采集并重建 IQ epoch。设置 Station 进程的 SKYROOF_SDR_DEVICE_ARGS 后启用；需要实机和驱动测试。
+- **P5：** `3b25c43` Inno Setup 首次安装固定 alpha 站，验证 ZIP、注册但不启动未配置电台，保留版本/数据，实际 SCM 安装/卸载回归已接入 CI。更新继续使用 Switch-RemoteServiceVersion.ps1。可选 Sign-RemoteInstaller.ps1 使用操作者已安装的代码签名证书，验签失败即报错；未提供真实证书，当前产物仅无签名开发版。安装路径须管理员控制。公网 HTTPS/ICE/FRP、物理 IC-9700、SDR、摄像头、旋转器和长期运行均未实测。
+- 所有新代码需要最新 SHA 的实际 CI，不能用旧 SHA 的成功替代；保持 Draft #254，不合并、不正式 Release。API 提交未签名。

@@ -37,10 +37,20 @@ begin
     MsgBox('Install PowerShell 7 x64 before installing SkyRoof Remote Station.', mbError, MB_OK);
 end;
 
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if RegKeyExists(HKLM64, 'SYSTEM\CurrentControlSet\Services\SkyRoofRemote-alpha') then
+    Result := 'The alpha station already exists. Use the version switch script to upgrade it.';
+  if FileExists(ExpandConstant('{app}\data\alpha\supervisor.json')) then
+    Result := 'Existing alpha station data found. Restore or upgrade it using the deployment scripts.';
+end;
+
 function RunScript(const Script, Arguments: String): Boolean;
 var
   Code: Integer;
 begin
+  Code := -1;
   Result := Exec(PwshPath(), '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
     ExpandConstant('{app}\deployment\') + Script + '" ' + Arguments,
     ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, Code);
@@ -58,10 +68,16 @@ begin
     '" -RegisterOnly';
   if not RunScript('Install-RemoteStation.ps1', Args) then
     RaiseException('Station registration failed. Existing station configuration and data have not been overwritten.');
+  if not SaveStringToFile(ExpandConstant('{app}\station-registration.txt'), 'SkyRoofRemote-alpha', False) then
+    RaiseException('Could not record installer station ownership. Use the deployment scripts to manage the registered station.');
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := FileExists(PwshPath()) and RunScript('Remove-RemoteService.ps1', '-ServiceName SkyRoofRemote-alpha');
+  Result := True;
+  if not FileExists(ExpandConstant('{app}\station-registration.txt')) then exit;
+  Result := FileExists(PwshPath()) and RunScript('Remove-RemoteService.ps1',
+    '-ServiceName SkyRoofRemote-alpha -ExpectedConfiguration "' + ExpandConstant('{app}\data\alpha\supervisor.json') + '"');
+  if Result then DeleteFile(ExpandConstant('{app}\station-registration.txt'));
   if not Result then MsgBox('Station service removal failed. Resolve it before uninstalling.', mbError, MB_OK);
 end;

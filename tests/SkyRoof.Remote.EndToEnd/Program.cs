@@ -50,6 +50,8 @@ deviceInfo.Environment["SKYROOF_ROTATOR_PORT"] = rotator.Port.ToString();
 var signalBus = "skyroof-desktop-signal-" + suffix;
 var stationInfo = Setup(stationDll);
 stationInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = signalBus;
+stationInfo.Environment.Remove("SKYROOF_SDR_BRIDGE_PATH");
+stationInfo.Environment.Remove("SKYROOF_SDR_DEVICE_ARGS");
 stationInfo.Environment["SKYROOF_RX_AUDIO_CHANNELS"] = "1";
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
@@ -100,6 +102,7 @@ try
     (await admin.PostAsJsonAsync("/api/v1/auth/login",
         new { userName = "remote-admin", password = "SimulatedStationP@ssw0rd2026" }))
         .EnsureSuccessStatusCode();
+    await SdrHttpChecks.RunAsync(anonymous, admin);
     await CatalogChecks.RunAsync(anonymous, admin);
     await CatalogOnlineFixture.VerifyStationAsync(admin);
     var tokenReply = await admin.PostAsJsonAsync("/api/v1/auth/tokens",

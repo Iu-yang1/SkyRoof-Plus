@@ -109,3 +109,11 @@ Device / Station / Media / DSP 的 Kestrel Named Pipe 默认明确限制当前�
 ### 可选 Global SignalBus（开发验证）
 
 安装或生成配置时可选择 `-GlobalSignalBus -SignalBusReaderSid <Windows SID>`，所有托管进程使用 Global 命名对象。服务账户为生产者，指定读者拥有映射只读权限及互斥锁同步权限，不获得映射写权限。消费者必须等生产者创建映射，普通交互账户不需要 SeCreateGlobalPrivilege；Global 生产者需要 Session 0 或该权限。默认 Local 兼容原先行为；更改模式需重启同一台站的所有进程。外部桥接工具如需使用对应 SignalBus，须设置同样的 scope；外部生产者权限未扩展，当前不建议混合不同生产者账户。该路径仍待 CI 验收。
+
+
+## 集中增量：本地桌面、SDR 和安装器
+
+- `SkyRoof.exe --remote-station skyroof-alpha-station` 打开原生 IPC 工作台。通过 DesktopOperatorSid 授权实际桌面用户，不将共享目录或设备管道权限扩大到所有用户。原 MainForm 本地模式不变。
+- Station 进程的环境变量 `SKYROOF_SDR_DEVICE_ARGS` 配置实际 Soapy 设备选择器（先通过 SdrBridge --list 核对）；生成站点配置时写入已暂存版本的 bridge EXE 路径。Web 遥测页 SDR 区提供 center/channel/sample rate/gain、启动、重调谐和停止。使用 IQ 遥测配置，确认设备实际读回。重调谐是停止旧流再启动新流，并非连续相位切换。
+- CI 以通过整包验收的 ZIP 构建 `SkyRoof-Remote-Station-Setup.exe`，默认仅首次安装 alpha、端口 8076，要求 .NET 10 / ASP.NET Core 10 x64 及 PowerShell 7 x64；首次注册不自动发射或启动。升级使用既有版本切换脚本，卸载不删除 data/versions。自定义站 ID、端口仍使用 Install-RemoteStation.ps1。生产安装根路径须管理员控制，勿置于普通用户可写目录。
+- 如有真实受信任的代码签名证书，可用 `Sign-RemoteInstaller.ps1 -Path <EXE> -Thumbprint <cert>` 签名并检查 Authenticode。开发 CI 不含签名私钥，不宣称发布者签名。
