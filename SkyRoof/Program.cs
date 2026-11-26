@@ -61,7 +61,17 @@ namespace SkyRoof
             args, Environment.GetEnvironmentVariable("SKYROOF_DPI_MODE")));
           Theme.Initialize(); // must run before any window is created
           ApplicationConfiguration.Initialize();
-          Application.Run(new MainForm());
+          RemoteDesktop.DesktopStationSettings profile;
+          try { profile = RemoteDesktop.DesktopStationSettings.Load(); }
+          catch (Exception error)
+          {
+            MessageBox.Show("Remote station settings: " + error.Message + "\r\nCorrect or remove RemoteStation.json before restarting.", "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+          }
+          if (profile.Mode == RemoteDesktop.DesktopStationMode.ServerWorkspace)
+            Application.Run(new RemoteDesktop.StationIpcForm(profile.StationPipe, profile.HostOrigin));
+          else
+            Application.Run(new MainForm());
         }
         finally
         {
