@@ -32,7 +32,8 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row(ActionButton("LOAD WAV", LoadRecordingAsync), ActionButton("PLAY AF", PlayRecordingAsync),
             ActionButton("STOP PLAY", StopFilePlaybackAsync), ActionButton("EXPORT MP3", ExportMp3Async)));
         layout.Controls.Add(Row("IQ channel offset (Hz)", replayOffset, ActionButton("REPLAY IQ TO DSP", ReplayIqAsync), ActionButton("STOP REPLAY", () => StopStream(replaySource))));
-        layout.Controls.Add(Row("Recordings saved on this desktop; gaps/epoch changes start a new WAV segment."));
+        AddOfflineAfControls(layout);
+        layout.Controls.Add(Row("Recordings saved on this desktop or Station; gaps/epoch changes start a new WAV segment."));
         layout.Controls.Add(Row("IQ replay channelizes raw recordings to 48 kHz for the configured Station telemetry receiver, not TX."));
         layout.Controls.Add(Row("Raw SDR recording uses the native sample rate; lost IPC frames create segment gaps."));
         page.Controls.Add(layout);

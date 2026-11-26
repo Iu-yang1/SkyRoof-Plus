@@ -10,6 +10,7 @@ service DspWaveform {
   rpc GetCwHistory(CwHistoryRequest) returns (CwHistoryReply);
   rpc ConfigureCw(CwRxConfiguration) returns (CwRxConfiguration);
   rpc EncodeFt4(Ft4EncodeRequest) returns (EncodedWaveform);
+  rpc DecodeOfflineAf(OfflineAfDecodeRequest) returns (OfflineAfDecodeResult);
 }
 message Ft4EncodeRequest {
   string message = 1;
@@ -132,4 +133,24 @@ message SdrStatus {
   string state = 3;
   string detail = 4;
   SdrCaptureRequest request = 5;
+}
+
+message OfflineAfDecodeRequest {
+  bytes pcm16 = 1;
+  int32 sample_rate = 2;
+  string mode = 3;
+  Q65RxConfiguration q65 = 4;
+}
+message OfflineAfDecodeResult {
+  string mode = 1;
+  repeated string messages = 2;
+  repeated OfflineAfDecodeRow rows = 3;
+}
+message OfflineAfDecodeRow {
+  string text = 1;
+  float frequency_hz = 2;
+  float dt_seconds = 3;
+  float snr_db = 4;
+  uint32 flags = 5;
+  uint32 ap_type = 6;
 }

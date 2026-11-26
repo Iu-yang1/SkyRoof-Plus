@@ -27,7 +27,7 @@ internal static class DspIpcHost
         builder.Services.AddSingleton(cw);
         builder.Services.AddSingleton(q65);
         builder.Services.AddSingleton(telemetry);
-        builder.Services.AddGrpc();
+        builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 32 * 1024 * 1024);
         var app = builder.Build();
         app.MapGrpcService<DspWaveformService>();
         await app.StartAsync();

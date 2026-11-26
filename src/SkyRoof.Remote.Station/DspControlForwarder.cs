@@ -31,6 +31,9 @@ public sealed class DspControlForwarder : DspWaveform.DspWaveformBase, IDisposab
     public override Task<EncodedWaveform> EncodeFt4(Ft4EncodeRequest request, ServerCallContext context) =>
         dsp.EncodeFt4Async(request, deadline: context.Deadline, cancellationToken: context.CancellationToken).ResponseAsync;
 
+    public override Task<OfflineAfDecodeResult> DecodeOfflineAf(OfflineAfDecodeRequest request, ServerCallContext context) =>
+        dsp.DecodeOfflineAfAsync(request, deadline: context.Deadline, cancellationToken: context.CancellationToken).ResponseAsync;
+
     public override Task<Q65EncodedWaveform> EncodeQ65(Q65EncodeRequest request, ServerCallContext context) =>
         dsp.EncodeQ65Async(request, deadline: context.Deadline, cancellationToken: context.CancellationToken).ResponseAsync;
 
