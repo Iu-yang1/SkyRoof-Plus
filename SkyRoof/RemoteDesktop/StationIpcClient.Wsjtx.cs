@@ -21,14 +21,14 @@ internal sealed partial class StationIpcClient
         return new UTF8Encoding(false, true).GetString(adif);
     }
 
-    private static ReadOnlySpan<byte> ReadQtBytes(ref ReadOnlySpan<byte> payload)
+    private static byte[] ReadQtBytes(ref ReadOnlySpan<byte> payload)
     {
         if (payload.Length < 4) throw new InvalidDataException("Truncated Qt byte-array length.");
         uint length = BinaryPrimitives.ReadUInt32BigEndian(payload);
         payload = payload[4..];
         if (length == uint.MaxValue) return [];
         if (length > payload.Length) throw new InvalidDataException("Truncated Qt byte-array value.");
-        var value = payload[..(int)length];
+        var value = payload[..(int)length].ToArray();
         payload = payload[(int)length..];
         return value;
     }
