@@ -183,19 +183,20 @@ public sealed class NativeRotatorWorkerTests
     if(string.IsNullOrWhiteSpace(root))return;
     string exe=Path.Combine(root,"SkyRoof","bin","x64","Release",
       "net10.0-windows7.0","SkyRoof.exe");
-    int dropFeedback=0,droppedQueries=0;
+    int dropFeedback=0;
+    var droppedQuery=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     await using var server=new FakeGs232Bridge(_=>
     {
       if(Volatile.Read(ref dropFeedback)==0)
         return Encoding.ASCII.GetBytes("AZ=90 EL=30\r");
-      Interlocked.Increment(ref droppedQueries);
+      droppedQuery.TrySetResult();
       return Array.Empty<byte>();
     });
     // A ready notification alone can precede a fresh feedback observation
     // on a busy CI runner. Wait for actual telemetry before requesting the lease.
     var settings=CreateSettings(server.Port);
-    settings.NativeReadTimeout=1000;
-    settings.ReceiveTimeout=1500;
+    settings.NativeReadTimeout=3000;
+    settings.ReceiveTimeout=500;
     using var proxy=new RotatorEngineSubprocess(settings,exe);
     await UntilAsync(()=>proxy.IsReady && !proxy.PositionFaulted &&
       proxy.LastSuccessfulBearingReadUtc!=DateTime.MinValue &&
@@ -204,9 +205,12 @@ public sealed class NativeRotatorWorkerTests
     Assert.NotNull(lease);
     int sentStops=server.Count("S");
     Interlocked.Exchange(ref dropFeedback,1);
+    long previousVerification=proxy.LastVerificationStarted;
     var pendingVerification=proxy.VerifyPostManagementFeedbackAsync();
-    await UntilAsync(()=>Volatile.Read(ref droppedQueries)>0);
-    Assert.False(pendingVerification.IsCompleted);
+    await droppedQuery.Task.WaitAsync(TimeSpan.FromSeconds(3));
+    await UntilAsync(()=>proxy.LastVerificationStarted>previousVerification || pendingVerification.IsCompleted);
+    Assert.True(proxy.LastVerificationStarted>previousVerification, "Worker did not enter pending verification.");
+    Assert.False(pendingVerification.IsCompleted, "Verification resolved before STOP: " + proxy.GetStatusString());
     var stopLatency=System.Diagnostics.Stopwatch.StartNew();
     proxy.StopRotation();
     await UntilAsync(()=>server.Count("S")>sentStops);
