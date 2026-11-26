@@ -191,9 +191,15 @@ public sealed class NativeRotatorWorkerTests
       Interlocked.Increment(ref droppedQueries);
       return Array.Empty<byte>();
     });
-    using var proxy=new RotatorEngineSubprocess(CreateSettings(server.Port),exe);
-    for(int i=0;i<120 && !proxy.IsReady;i++)await Task.Delay(50);
-    Assert.True(proxy.IsReady);
+    // A ready notification alone can precede a fresh feedback observation
+    // on a busy CI runner. Wait for actual telemetry before requesting the lease.
+    var settings=CreateSettings(server.Port);
+    settings.NativeReadTimeout=1000;
+    settings.ReceiveTimeout=1500;
+    using var proxy=new RotatorEngineSubprocess(settings,exe);
+    await UntilAsync(()=>proxy.IsReady && !proxy.PositionFaulted &&
+      proxy.LastSuccessfulBearingReadUtc!=DateTime.MinValue &&
+      DateTime.UtcNow-proxy.LastSuccessfulBearingReadUtc<TimeSpan.FromSeconds(1));
     using var lease=await proxy.AcquireManagementLeaseAsync();
     Assert.NotNull(lease);
     int sentStops=server.Count("S");

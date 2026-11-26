@@ -20,6 +20,7 @@ internal sealed partial class StationIpcForm : Form
     private readonly TextBox el = new() { Width = 75 };
     private bool refreshing;
     private bool resourcesReleased;
+    private readonly RemoteDockWorkspace workspace;
 
     internal StationIpcForm(string pipe)
     {
@@ -48,15 +49,14 @@ internal sealed partial class StationIpcForm : Form
         status.AutoEllipsis = true;
         status.AutoSize = false;
         status.Height = 28;
-        var tabs = new TabControl { Dock = DockStyle.Fill };
         var radioPage = new TabPage("RADIO / ROTATOR");
         radioPage.Controls.Add(layout);
-        tabs.TabPages.Add(radioPage);
-        tabs.TabPages.Add(CreateSignalsPage());
-        tabs.TabPages.Add(CreateDigitalPage());
-        tabs.TabPages.Add(CreateTrackingPage());
-        tabs.TabPages.Add(CreateAutoPage());
-        Controls.Add(tabs);
+        workspace = new RemoteDockWorkspace(new[]
+        {
+            radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage()
+        });
+        Controls.Add(workspace);
+        Shown += (_, _) => workspace.OpenInitialLayout();
         Controls.Add(status);
         polling.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };

@@ -16,10 +16,11 @@ public sealed class RemoteDesktopUiSmokeTests
             try
             {
                 using var form = new StationIpcForm("skyroof-offline-ui-" + Guid.NewGuid().ToString("N"));
-                var tabs = form.Controls.OfType<TabControl>().Single();
-                Assert.Equal(5, tabs.TabPages.Count);
-                Assert.Contains("AUTO QSO", tabs.TabPages.Cast<TabPage>().Select(page => page.Text));
-                var buttons = Descendants<Button>(form).Select(button => button.Text).ToArray();
+                var workspace = form.Controls.OfType<RemoteDockWorkspace>().Single();
+                Assert.Equal(5, workspace.Panes.Count);
+                Assert.Contains("AUTO QSO", workspace.Panes.Select(page => page.Text));
+                Assert.All(workspace.Panes, pane => Assert.True(pane.HideOnClose));
+                var buttons = workspace.Panes.SelectMany(Descendants<Button>).Select(button => button.Text).ToArray();
                 Assert.Contains("START AUTO QSO", buttons);
                 Assert.Contains("STOP AUTO QSO", buttons);
                 Assert.Contains("USE MOON JOB", buttons);
@@ -28,7 +29,7 @@ public sealed class RemoteDesktopUiSmokeTests
                 Assert.Contains("PARK", buttons);
                 Assert.Contains("HOLD PTT", buttons);
                 Assert.Contains("PLAY RX", buttons);
-                Assert.Single(Descendants<TextBox>(form).Where(box => box.UseSystemPasswordChar));
+                Assert.Single(workspace.Panes.SelectMany(Descendants<TextBox>).Where(box => box.UseSystemPasswordChar));
             }
             catch (Exception error) { failure = error; }
         });
