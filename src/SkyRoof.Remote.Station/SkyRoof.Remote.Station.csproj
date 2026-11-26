@@ -9,6 +9,8 @@
     <ProjectReference Include="../../SkyRoof.Orbit.Orekit/SkyRoof.Orbit.Orekit.csproj" />
     <Content Include="../../SkyRoof.Orbit.Orekit.Smoke/TestData/tai-utc.dat" Link="orekit-data/tai-utc.dat" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />

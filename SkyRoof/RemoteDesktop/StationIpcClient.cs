@@ -9,6 +9,8 @@ internal sealed partial class StationIpcClient : IDisposable
     private readonly StationDevice.StationDeviceClient cat;
     private readonly DeviceRotator.DeviceRotatorClient rotator;
     private readonly StationTrackingJobs.StationTrackingJobsClient tracking;
+    private readonly DspWaveform.DspWaveformClient dsp;
+    private readonly StationSignals.StationSignalsClient signals;
     private readonly string session = "desktop-" + Guid.NewGuid().ToString("N");
 
     internal StationIpcClient(string pipe)
@@ -30,10 +32,12 @@ internal sealed partial class StationIpcClient : IDisposable
                 }
             }
         };
-        channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler });
+        channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler, MaxReceiveMessageSize = 32 * 1024 * 1024, MaxSendMessageSize = 32 * 1024 * 1024 });
         cat = new(channel);
         rotator = new(channel);
         tracking = new(channel);
+        dsp = new(channel);
+        signals = new(channel);
     }
 
     internal Task<DeviceSnapshot> ReadRadioAsync(CancellationToken token) =>
