@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />
     <None Include="../../Vendor/SoapySDR/*.dll" Exclude="../../Vendor/SoapySDR/PlutoSDRSupport.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
