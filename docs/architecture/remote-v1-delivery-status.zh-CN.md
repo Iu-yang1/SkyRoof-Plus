@@ -310,3 +310,13 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `572aec7` 复用 native SkyTlm SSDV/JPEG、Codec2 及 SkySSTV，完成/部分图像和 WAV 可通过认证 HTTP 取回。HADES-SA media factory 限定实际 NORAD 68446，不把 UNNE 当 HADES-SA；Web 支持媒体预览。新增固定真实 SSDV 参考 JPEG、人工 Codec2 子帧缺失、合成 Robot36 IQ 自检。 [aislop 45582230615](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45582230615) 和 Web 已通过；[Native Q65 45582230550](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45582230550) 与 DSP 编译因自检 Frame 缺少必需 CrcValid 字段失败，本次修复为 null（保留协议无帧级 CRC 的语义），仍需新 CI。
 - `4c24d37` ONVIF GetStreamUri 连续 H.264 RTSP/TCP→FFmpeg copy-remux→fragmented MP4→浏览器 MSE。台站提供 FFmpeg，不捆绑、不重编码、无摄像头音频，原快照/PTZ 不变。真实本地 RTSP/RTP 测试流与 FFmpeg 7.1.5 产生 87507 字节 MP4，包含 ftyp/avcC/moof；这是传输与 remux 验证，未证明完整 Host/MSE/物理摄像头。新 Host smoke 与完整 CI 待验收。
 - 剩余：新媒体自检和最新 CI、桌面旋转器反馈事务回归、远程媒体历史目录/渐进更新、SDR 硬件控制、统一多台站工作台与 WinForms 全量 IPC、正式安装器/schema migration/ACL/签名、公网和硬件/长时验收。保持 Draft，不合并、不发正式 Release。API 提交签名未独立验证。
+
+
+## 2026-11-26 — P0/P3 回归、P4 多台站工作区、P5 身份库与 ACL
+
+- 基线 `477fb54` 23/25 通过；[整包 45583543215](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45583543215) 和 [桌面 Compile Check 45583543175](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45583543175) 已通过。Host smoke 因 Windows Runner 缺 FFmpeg 失败；质量门禁因 CameraVideoPlayer 嵌套深度失败。
+- **P0/P3:** `3864824` CI 显式安装并检查 FFmpeg；[Host smoke 45730808879](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45730808879) 在 `f051034` 基线上已通过，包括真实本地 RTSP remux 测试步骤；[aislop 45730808842](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45730808842) 仍有一项嵌套深度告警。 `57fff1c` 将播放器、挂载和 MSE 流处理拆分，等待新质量门禁，不修改配置或 baseline。未实测物理摄像头。
+- **P0:** `f347b1c` / `5bf8c3b` 修复原桌面旋转器 STOP 使管理反馈事务失效的代际检查，并仅记录实际接受的反馈查询；回归改为等待真实 C2 丢包、验证 STOP TCP 延迟小于 3 秒且事务返回 false。当前新增回归待 CI，非机械 STOP 实测。
+- **P4:** `54743db` / `5a2fa1a` Web 可保存、增加、切换和关闭独立台站工作区；各 Host 独立 origin、认证、SignalR、Dockview，不交换登录凭据。远端 Host 通过 `SKYROOF_WORKSPACE_ORIGINS` 配置允许嵌入的控制端 origin；切换时原工作区释放 PTT，避免跨文档丢失按键释放事件，非活动工作区保留页面连接但限制音频和操作。新增真实双 Host Chromium 测试，不是双物理设备测试。跨站 Cookie、麦克风权限与公网 HTTPS 仍需实测；可使用 OPEN STATION 独立窗口。尚非跨 Host 面板任意混排，也未完成 WinForms 全量 IPC。
+- **P5:** `4d91a5a` SQLite `user_version` 0→1 事务式增量迁移，新增 token owner/revoked 索引，不重建用户表；启动拒绝未知更高版本。新增旧 schema 重启与 Cookie/Token 保留测试；完整备份恢复、未来破坏性 schema 回滚仍未实现。 `ab9be06` 可选 `Protect-StationState.ps1` / `New-StationConfiguration -ProtectState -ServiceAccount` Windows 文件目录 ACL，实际 SID/继承回归；不等同于 Named Pipe/SignalBus ACL 或 SCM 服务账户配置。
+- 上述新增功能均以最新 CI 为验收依据，不能用历史绿色基线替代。P1/P2 已有整包实证不代表真实月面 RF 通联；P3 SDR 实机、P4 WinForms、P5 正式安装器/签名/IPC ACL、WAN/长时和硬件仍有缺口。保持 Draft PR #254，不合并 master，不发布正式 Release。API 提交未签名。
