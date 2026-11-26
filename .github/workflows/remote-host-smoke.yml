@@ -21,6 +21,18 @@ jobs:
         run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
       - name: Build simulated remote client
         run: dotnet build tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release
+      - name: Install FFmpeg for RTSP fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "FFmpeg installation failed: $LASTEXITCODE" }
+            $env:Path = "$env:ChocolateyInstall\bin;$env:Path"
+            "$env:ChocolateyInstall\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+          ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg executable check failed' }
       - name: Run HTTP + SignalR + WSS and real RTSP remux smoke
         shell: pwsh
         run: |
