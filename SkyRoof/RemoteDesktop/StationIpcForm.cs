@@ -43,7 +43,10 @@ internal sealed partial class StationIpcForm : Form
             ActionButton("POINT", PointAsync), ActionButton("STOP", StopAsync)));
         layout.Controls.Add(tracking);
         layout.Controls.Add(CreateCwRow());
-        layout.Controls.Add(status);
+        status.Dock = DockStyle.Bottom;
+        status.AutoEllipsis = true;
+        status.AutoSize = false;
+        status.Height = 28;
         var tabs = new TabControl { Dock = DockStyle.Fill };
         var radioPage = new TabPage("RADIO / ROTATOR");
         radioPage.Controls.Add(layout);
@@ -52,6 +55,7 @@ internal sealed partial class StationIpcForm : Form
         tabs.TabPages.Add(CreateDigitalPage());
         tabs.TabPages.Add(CreateTrackingPage());
         Controls.Add(tabs);
+        Controls.Add(status);
         polling.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };
         FormClosing += async (_, e) => await RunAsync(() => ClosePttAsync(e));
@@ -88,7 +92,7 @@ internal sealed partial class StationIpcForm : Form
     private async Task RunAsync(Func<Task> action)
     {
         try { await action(); }
-        catch (Exception error) when (error is RpcException or IOException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException or Google.Protobuf.InvalidJsonException)
+        catch (Exception error) when (error is RpcException or IOException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException)
         {
             if (!IsDisposed) status.Text = error.Message;
         }
