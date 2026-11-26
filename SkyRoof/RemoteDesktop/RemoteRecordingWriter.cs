@@ -15,6 +15,7 @@ internal sealed class RemoteRecordingWriter : IDisposable
     private readonly List<string> files = [];
     internal IReadOnlyList<string> Files => files;
     internal long Samples { get; private set; }
+    internal double DurationSeconds { get; private set; }
     internal int Discontinuities { get; private set; }
 
     internal RemoteRecordingWriter(string target, bool iq)
@@ -26,7 +27,7 @@ internal sealed class RemoteRecordingWriter : IDisposable
     internal void Accept(StationSignalFrame frame)
     {
         int width = iq ? 4 : 2;
-        if (frame.SampleRate != 48000 || frame.SampleCount <= 0 || frame.Channels is < 1 or > 2 ||
+        if (frame.SampleRate <= 0 || (!iq && frame.SampleRate != 48000) || frame.SampleCount <= 0 || frame.Channels is < 1 or > 2 ||
             (iq && frame.Channels != 2) || frame.Payload.Length != checked(frame.SampleCount * frame.Channels * width))
             throw new InvalidDataException("Unexpected recording sample geometry.");
         bool discontinuity = writer is not null && (frame.Epoch != epoch || frame.FirstSampleIndex != next ||
@@ -39,6 +40,7 @@ internal sealed class RemoteRecordingWriter : IDisposable
         active.Write(data, 0, data.Length);
         bytes += data.Length;
         Samples += frame.SampleCount;
+        DurationSeconds += (double)frame.SampleCount / frame.SampleRate;
         next = checked(frame.FirstSampleIndex + (ulong)frame.SampleCount);
     }
 
