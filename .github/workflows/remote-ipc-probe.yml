@@ -43,6 +43,9 @@ jobs:
           $clientDll = "src/SkyRoof.Remote.Ipc.Probe.Client/bin/Release/net10.0-windows/SkyRoof.Remote.Ipc.Probe.Client.dll"
           $outFile = Join-Path $env:RUNNER_TEMP "remote-ipc-server.out"
           $errFile = Join-Path $env:RUNNER_TEMP "remote-ipc-server.err"
+          dotnet $serverDll --verify-acl
+          if ($LASTEXITCODE -ne 0) { throw 'Named pipe DACL probe failed' }
+          $env:SKYROOF_PROBE_PIPE_CLIENT_SIDS = 'S-1-5-21-123-456-789-1234'
           $server = Start-Process dotnet -ArgumentList @($serverDll, $pipe) -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
           try {
             $passed = $false

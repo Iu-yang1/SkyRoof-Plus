@@ -1,3 +1,4 @@
+using SkyRoof.Remote.Ipc;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -14,6 +15,12 @@ internal static class DspIpcHost
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = [], ContentRootPath = AppContext.BaseDirectory
+        });
+        builder.WebHost.UseNamedPipes(options =>
+        {
+            var security = WindowsPipeAccessPolicy.Create("SKYROOF_DSP_PIPE_CLIENT_SIDS");
+            options.CurrentUserOnly = security is null;
+            if (security is not null) options.PipeSecurity = security;
         });
         builder.WebHost.ConfigureKestrel(server =>
             server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));

@@ -1,3 +1,4 @@
+using SkyRoof.Remote.Ipc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes;
 using SkyRoof.Remote.Device;
@@ -18,6 +19,12 @@ bool nativeCat = dialect == CatDialect.IcomLanSatellite;
 if (nativeCat && string.IsNullOrWhiteSpace(nativeHost))
     throw new InvalidOperationException("Native CAT requires SKYROOF_ICOM_LAN_HOST.");
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseNamedPipes(options =>
+{
+    var security = WindowsPipeAccessPolicy.Create("SKYROOF_DEVICE_PIPE_CLIENT_SIDS");
+    options.CurrentUserOnly = security is null;
+    if (security is not null) options.PipeSecurity = security;
+});
 builder.WebHost.ConfigureKestrel(server =>
     server.ListenNamedPipe(pipe, options => options.Protocols = HttpProtocols.Http2));
 builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 32 * 1024 * 1024);
