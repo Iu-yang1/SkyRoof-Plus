@@ -368,3 +368,12 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `a0df4fd` / `d585276` 桌面 FT4/Q65 AUTO QSO 使用 Host 原生授权 NDJSON 状态机，Bearer token 仅内存保留，显示实际 Host identity、可复用连接、取消、终态检查、Moon job 选择。新 packaged E2E 直接复用桌面 HTTP 适配器，继续精确三报文 UDP 波形及报告验证。允许 HTTPS 或 loopback HTTP，禁止自动重定向，避免 token 泄露；不是新建第二套自动 QSO 引擎。
 - `d0d09cb` 增加 StationTrackingJobs.Tune RPC 和 Host SignalR TuneTrackingJob，按原 JobId 串行校验/持久化修改 RIT、XIT、转发器位置、手动及基频偏移，不替换任务、不清空计数、不限制数据库通带外调谐。仅处理卫星 RadioLink 偏移，EME Doppler 模式/频率调整仍按既有 Moon 任务流程。Web 和桌面均接入；E2E 检查实际 CAT 读回、旧任务 ID 拒绝、进程重启恢复，RIT 在 RX Doppler 前，XIT 在 TX Doppler 后。
 - 桌面新增 QTH/频率/Moon/DX 站点结构化字段与高级 JSON 可选模式，默认未填写 QTH 不提交预测，旋转器指向由操作者选择；增加 STA WinForms 构造/控件 smoke。原 MainForm 的 Context 仍直接持有 CAT、SDR、音频、DSP，不冒充全量迁移。原本地模式不变。真实设备、公网、长时、受信任签名和原面板全量迁移仍是验收缺口；本轮 API 提交未签名，保持 Draft PR #254，不合并或正式 Release。最新 SHA 仍需独立 CI 验证。
+
+
+## 2026-11-26 — 浏览器闭环、在线 RadioLink 读回、旋转器 STOP
+
+- `3a6529d` 最终 24/25 CI；[Compile Check 45773776788](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45773776788) 1858/1858；[整包 45773776789](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45773776789) 已验证桌面 Bearer/NDJSON 客户端复用 FT4 三时隙及 Q65 三报文自动 QSO，模拟接收结果、实际本地 UDP 及原生编码 PCM 一致，最终报告和终态确认；安装器实际 SCM 注册和保留配置卸载。 [E2E 45773776445](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45773776445) Orekit 和 SGP.NET 均通过 RIT/XIT 在线调整、过期 job ID 拒绝、重启恢复。aislop 通过。
+- 唯一失败浏览器现场下载实际截图及 trace：视频被小 Dockview 面板滚动区裁出视口。独立 Chromium + FFmpeg fMP4 复现：不可见时 paused=true, currentTime=0, decodedFrames=4；滚入视口 1.8 s 后 paused=false, currentTime≈1.794 s, decodedFrames=22。 `5996a7d` 视频预览移到 PTZ 前、启动时滚到预览、仅在打开时请求一次播放，尊重手动暂停。 [Browser 45781293901](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45781293901) 6 通过/2 条件跳过，真实 H.264 解码/播放/暂停/恢复均通过；[aislop 45781293752](https://github.com/Iu-yang1/SkyRoof-Plus/actions/runs/45781293752) 已通过。不降低断言或关闭质量门禁。
+- `112146f` TrackingJobStatus 新增 active_radio_link、celestial_target 和 point_rotator；Web 与桌面显示 Station 当前有效偏移（未调整字段不覆盖），桌面新增 RX/TX base Δ、读取有效偏移，调谐和停止绑定已展示任务 ID 而非重新读取可能已被替换的任务；E2E 验证配置读回与重启持久化。
+- `db2df08` 修复明确的故障模式：手动旋转器 STOP 后自动跟踪下一周期可能重新 POINT。Station 立即抑制当前任务的新自动指向并直达 Device 紧急 STOP，随后排空已进入的跟踪周期，持久化 PointRotator=false，发送最终 STOP；保留原 job ID、射频 Doppler 和所有 RadioLink 偏移。客户端 STOP 截止时间覆盖后续持久化/收尾（初次紧急 STOP 不等待任务 gate）。停止指向后可通过显式 START TRACK + Point rotator 重新启用。E2E 新增实际 TCP POINT 数量、Doppler 持续及 Station 重启后不恢复 POINT 的断言。最终 STOP 响应只确认指令发送/读回，不表示独立机械停止确认。
+- 以上新 SHA 验收需独立 CI。原 MainForm Context 全量迁移、物理硬件、实际公网和可信 Authenticode 仍未完成。保持 Draft，不合并或正式 Release；提交未签名。

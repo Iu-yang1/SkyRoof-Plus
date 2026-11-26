@@ -62,7 +62,7 @@ internal sealed partial class StationIpcClient : IDisposable
             deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: token).ResponseAsync;
 
     internal Task<RotatorPosition> StopAsync(CancellationToken token) =>
-        rotator.StopAsync(new(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: token).ResponseAsync;
+        rotator.StopAsync(new(), deadline: DateTime.UtcNow.AddSeconds(35), cancellationToken: token).ResponseAsync;
 
     internal Task<TrackingJobStatus> TrackingAsync(CancellationToken token) =>
         tracking.StatusAsync(new(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: token).ResponseAsync;

@@ -43,7 +43,7 @@ public sealed partial class StationDeviceBridge
 
     public async Task<RemoteRotatorPosition> StopRotatorAsync(CancellationToken token) =>
         await RotatorCommandAsync((client, ct) =>
-            client.StopAsync(new RotatorRead(), deadline: DateTime.UtcNow.AddSeconds(10),
+            client.StopAsync(new RotatorRead(), deadline: DateTime.UtcNow.AddSeconds(35),
                 cancellationToken: ct).ResponseAsync, token);
 
     private async Task<RemoteRotatorPosition> RotatorCommandAsync(
