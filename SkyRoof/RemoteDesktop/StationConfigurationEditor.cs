@@ -38,6 +38,7 @@ internal sealed class StationConfigurationEditor : Form
         layout.Controls.Add(Row("Environment key", key));
         layout.Controls.Add(Row("Value", value, reveal));
         layout.Controls.Add(Row(Button("LOAD VALUE", ShowValue), Button("SET VALUE", SetValue), Button("REMOVE KEY", RemoveKey)));
+        layout.Controls.Add(Row(Button("AUTHORIZE THIS WINDOWS USER", AuthorizeDesktop)));;
         layout.Controls.Add(Row(Button("SAVE CONFIG", Save), Button("CANCEL", Close)));
         layout.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(650, 0),
             Text = "Edit existing or add supported SKYROOF_* / ASPNETCORE_* configuration keys. Values are masked until explicitly revealed. Changes apply after service restart. The service account's protected configuration directory requires administrator write permission. Executable and arguments remain unchanged." });
@@ -46,12 +47,18 @@ internal sealed class StationConfigurationEditor : Form
         process.SelectedIndex = 0;
     }
 
-    private JsonObject EnvironmentValues()
+    private JsonObject EnvironmentValues() => StationConfigurationFields.ReadEnvironment(document, process.Text);
+
+    private void AuthorizeDesktop()
     {
-        var selected = document["Processes"]?.AsArray().FirstOrDefault(p => p?["Name"]?.GetValue<string>() == process.Text)?.AsObject()
-            ?? throw new InvalidOperationException("Select a process.");
-        if (selected["Environment"] is null) selected["Environment"] = new JsonObject();
-        return selected["Environment"]?.AsObject() ?? throw new InvalidDataException("Invalid process environment.");
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        var sid = identity.User?.Value ?? throw new InvalidOperationException("Windows user SID unavailable.");
+        StationConfigurationFields.AddDesktopSid(document, sid);
+        process.SelectedItem = "Station";
+        ShowKeys();
+        key.Text = "SKYROOF_STATION_PIPE_CLIENT_SIDS";
+        ShowValue();
+        status.Text = "Current Windows SID staged for complete Station IPC access. Save and restart the service.";
     }
 
     private void ShowKeys()
@@ -59,7 +66,7 @@ internal sealed class StationConfigurationEditor : Form
         key.Items.Clear();
         key.Text = "";
         value.Clear();
-        key.Items.AddRange(EnvironmentValues().Select(p => p.Key).OrderBy(x => x, StringComparer.Ordinal).Cast<object>().ToArray());
+        key.Items.AddRange(EnvironmentValues().Select(p => p.Key).Concat(StationConfigurationFields.ForProcess(process.Text)).Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).Cast<object>().ToArray());
         if (key.Items.Count > 0) key.SelectedIndex = 0;
     }
 
