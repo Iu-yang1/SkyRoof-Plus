@@ -106,6 +106,16 @@ jobs:
       - name: Build solution
         run: msbuild SkyRoof.sln /m /p:Configuration=Release /p:Platform=x64
 
+      # Preview binaries are available for operator testing immediately after
+      # a successful build. This does not waive or change any subsequent gate.
+      - name: Upload compiled Remote desktop preview (not a release)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/remote-v1-multiprocess-foundation'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: SkyRoof-Remote-Desktop-preview-win-x64
+          path: SkyRoof/bin/x64/Release/net10.0-windows7.0/**
+          if-no-files-found: error
+
       - name: Run tests
         env:
           SKYROOF_SCOPE_PERF_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/scope-perf
