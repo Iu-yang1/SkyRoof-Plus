@@ -1,0 +1,122 @@
+using NAudio.CoreAudioApi;
+using SkyRoof.AFC;
+using SkyRoof.Remote.Ipc;
+using VE3NEA;
+
+namespace SkyRoof.RemoteDesktop;
+
+internal sealed partial class StationIpcForm
+{
+    private readonly ComboBox afcDevice = new() { Width = 310, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly CheckBox afcLoopback = new() { Text = "IF playback loopback", AutoSize = true };
+    private readonly CheckBox afcRight = new() { Text = "Right IF channel", AutoSize = true };
+    private readonly ComboBox afcMode = new() { Width = 75, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox afcControl = new() { Width = 80, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox afcPreset = new() { Width = 105, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox afcSign = new() { Width = 60, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly NumericUpDown afcTarget = new() { Minimum = -6000, Maximum = 6000, Width = 80 };
+    private readonly NumericUpDown afcCenter = new() { Minimum = -6000, Maximum = 6000, Width = 80 };
+    private readonly NumericUpDown afcMax = new() { Minimum = 1, Maximum = 1000000, Value = 2000, Width = 80 };
+    private readonly CheckBox afcPilot = new() { Text = "SSB pilot", AutoSize = true };
+    private readonly CheckBox afcCenterEnabled = new() { Text = "Center", AutoSize = true };
+    private readonly CheckBox afcRelease = new() { Text = "Gentle release", AutoSize = true };
+    private readonly Label afcStatus = new() { Dock = DockStyle.Bottom, Height = 45 };
+    private readonly AfcSpectrumView afcSpectrum = new() { Dock = DockStyle.Fill };
+    private CancellationTokenSource? afcSource;
+    private AfcIfInput? afcInput;
+    private sealed record IfDevice(string Id, string Name) { public override string ToString() => Name; }
+
+    private TabPage CreateAfcPage()
+    {
+        var page = new TabPage("AFC / 12 kHz IF");
+        var panel = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        afcMode.Items.AddRange(Enum.GetNames<AfcSignalMode>()); afcMode.SelectedIndex = 0;
+        afcControl.Items.AddRange(new object[] { "Assist", "Auto" }); afcControl.SelectedIndex = 0;
+        afcPreset.Items.AddRange(Enum.GetNames<AfcAcquisitionPreset>()); afcPreset.SelectedIndex = 0;
+        afcSign.Items.AddRange(new object[] { "0", "1", "-1" }); afcSign.SelectedIndex = 0;
+        panel.Controls.Add(Row("Explicit 12 kHz IF endpoint", afcDevice, afcLoopback, ActionButton("SCAN IF", ScanIfAsync), afcRight));
+        panel.Controls.Add(Row(afcMode, afcControl, afcPreset, "Sign", afcSign, afcPilot, "Max Hz", afcMax, afcRelease));
+        panel.Controls.Add(Row("Search Hz", afcTarget, afcCenterEnabled, afcCenter, ActionButton("START AFC", StartAfcAsync),
+            ActionButton("STOP AFC", () => StopStream(afcSource))));
+        afcLoopback.CheckedChanged += (_, _) => { afcDevice.Items.Clear(); };
+        afcSpectrum.TargetSelected += hz => { if (afcSource is null) afcTarget.Value = (decimal)Math.Clamp(hz, -6000, 6000); };
+        panel.Controls.Add(Row("Station tracking owns CAT. Local IF acquisition only; AF and RF scope are not IF."));
+        page.Controls.Add(afcSpectrum); page.Controls.Add(panel); page.Controls.Add(afcStatus);
+        return page;
+    }
+
+    private Task ScanIfAsync()
+    {
+        using var devices = new MMDeviceEnumerator();
+        var endpoints = devices.EnumerateAudioEndPoints(afcLoopback.Checked ? DataFlow.Render : DataFlow.Capture, DeviceState.Active);
+        afcDevice.Items.Clear();
+        foreach (var device in endpoints) { using (device) afcDevice.Items.Add(new IfDevice(device.ID, device.FriendlyName)); }
+        if (afcDevice.Items.Count > 0) afcDevice.SelectedIndex = 0;
+        return Task.CompletedTask;
+    }
+
+    private async Task StartAfcAsync()
+    {
+        if (afcSource is not null) return;
+        if (activeTracking is not { Running: true } job) throw new InvalidOperationException("Start Station tracking first.");
+        if (afcDevice.SelectedItem is not IfDevice selected) throw new InvalidOperationException("Select the actual 12 kHz IF endpoint.");
+        var modeValue = Enum.Parse<AfcSignalMode>(afcMode.Text);
+        var config = new AfcOpenRequest { JobId = job.JobId, Mode = afcMode.Text, Control = afcControl.Text,
+            Sign = int.Parse(afcSign.Text), MaxCorrectionHz = (double)afcMax.Value,
+            FmDeadbandHz = 20, ToneDeadbandHz = 5, GentleRelease = afcRelease.Checked };
+        if (afcCenterEnabled.Checked) config.CenterHz = (double)afcCenter.Value;
+        using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        afcSource = source;
+        string id = "";
+        try
+        {
+            var opened = await client.OpenAfcAsync(config, source.Token);
+            id = opened.SessionId;
+            using var input = new AfcIfInput();
+            afcInput = input;
+            input.SetAcquisitionPreset(Enum.Parse<AfcAcquisitionPreset>(afcPreset.Text));
+            input.DisplayEnabled = true;
+            input.Start(afcLoopback.Checked ? null : selected.Id, 12000, modeValue, afcPilot.Checked, (double)afcTarget.Value,
+                afcLoopback.Checked ? AfcIfSource.PlaybackLoopback : AfcIfSource.WasapiCapture,
+                afcLoopback.Checked ? selected.Id : null, afcRight.Checked ? AudioChannelChoice.Right : AudioChannelChoice.Left);
+            await RunAfcLoopAsync(input, id, source.Token);
+        }
+        finally
+        {
+            afcInput = null; afcSource = null;
+            if (id.Length > 0) await RunAsync(async () => { await client.CloseAfcAsync(id, CancellationToken.None); });
+        }
+    }
+
+    private async Task RunAfcLoopAsync(AfcIfInput input, string id, CancellationToken token)
+    {
+        AfcIfDisplayFrame? display = null;
+        var gate = new object();
+        void Receive(AfcIfDisplayFrame frame) { lock (gate) display = frame; }
+        input.DisplayFrameAvailable += Receive;
+        DateTime sent = default;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var observation = input.Diagnostics.LastObservation;
+                var update = new AfcUpdateRequest { SessionId = id };
+                if (observation is { } obs && obs.SampleUtc > sent)
+                {
+                    sent = obs.SampleUtc;
+                    update.Measurement = new AfcMeasurement { SampleUtcMilliseconds = new DateTimeOffset(obs.SampleUtc).ToUnixTimeMilliseconds(),
+                        Generation = obs.Generation, IfOffsetHz = obs.IfOffsetHz, SigmaHz = obs.SigmaHz, Confidence = obs.Confidence,
+                        AbsoluteReference = obs.HasAbsoluteReference, Ambiguous = obs.Ambiguous };
+                }
+                var status = await client.UpdateAfcAsync(update, token);
+                if (IsDisposed) return;
+                AfcIfDisplayFrame? frame;
+                lock (gate) { frame = display; display = null; }
+                if (frame is { } current) afcSpectrum.SetDisplayFrame(current, status.Confidence > 0 ? status.ObservedHz : null, (double)afcTarget.Value);
+                afcStatus.Text = $"{status.State} · IF {status.ObservedHz:F1} Hz · residual {status.ErrorHz:F1} · RX correction {status.CorrectionHz:F1} Hz · {status.Detail}";
+                await Task.Delay(200, token);
+            }
+        }
+        finally { input.DisplayFrameAvailable -= Receive; }
+    }
+}

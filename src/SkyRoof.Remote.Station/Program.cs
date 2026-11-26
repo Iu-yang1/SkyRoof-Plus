@@ -47,6 +47,7 @@ app.MapGrpcService<StationCatalogService>();
 app.MapGrpcService<TrackingJobsService>();
 app.MapGrpcService<StationRuntimeService>();
 app.MapGrpcService<StationLogbookService>();
+app.MapGrpcService<StationAfcService>();
 app.MapGrpcService<RotatorControlForwarder>();
 app.Logger.LogInformation("Station Core listening on {Pipe}", stationPipe);
 await app.RunAsync();

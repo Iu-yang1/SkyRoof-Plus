@@ -25,6 +25,7 @@ public sealed partial class TrackingJobRunner
             Validate(updated);
             if (updated.ResumeAfterRestart) store.Save(_status.JobId, updated);
             _request = updated;
+            _afc = null;
             _status.Phase = "retuning";
             _status.Latest = null;
             _nextTick = 0;

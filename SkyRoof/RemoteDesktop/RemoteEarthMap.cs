@@ -1,3 +1,4 @@
+using VE3NEA;
 using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.RemoteDesktop;

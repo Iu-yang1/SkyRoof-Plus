@@ -71,6 +71,10 @@ message TrackingSnapshot {
   string celestial_target = 17;
   double own_echo_delay_seconds = 18;
   EmePathStatus eme_path = 19;
+  int64 cat_readback_utc_milliseconds = 20;
+  bool actual_ptt = 21;
+  string actual_rx_mode = 22;
+  double afc_correction_hz = 23;
 }
 
 service StationTrackingJobs {
@@ -289,3 +293,42 @@ message QsoSearchResult {
   string next_before_id = 2;
 }
 message QsoAdif { string content = 1; int32 count = 2; }
+
+service StationAfc {
+  rpc Open(AfcOpenRequest) returns (AfcSessionStatus);
+  rpc Update(AfcUpdateRequest) returns (AfcSessionStatus);
+  rpc Close(AfcCloseRequest) returns (AfcSessionStatus);
+}
+message AfcOpenRequest {
+  string job_id = 1;
+  string mode = 2;
+  string control = 3;
+  int32 sign = 4;
+  double max_correction_hz = 5;
+  double fm_deadband_hz = 6;
+  double tone_deadband_hz = 7;
+  optional double center_hz = 8;
+  bool gentle_release = 9;
+}
+message AfcMeasurement {
+  int64 sample_utc_milliseconds = 1;
+  int64 generation = 2;
+  double if_offset_hz = 3;
+  double sigma_hz = 4;
+  double confidence = 5;
+  bool absolute_reference = 6;
+  bool ambiguous = 7;
+}
+message AfcUpdateRequest { string session_id = 1; AfcMeasurement measurement = 2; }
+message AfcCloseRequest { string session_id = 1; }
+message AfcSessionStatus {
+  string session_id = 1;
+  string job_id = 2;
+  string state = 3;
+  string detail = 4;
+  double observed_hz = 5;
+  double correction_hz = 6;
+  double error_hz = 7;
+  double confidence = 8;
+  int32 sign = 9;
+}

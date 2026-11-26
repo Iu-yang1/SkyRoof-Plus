@@ -49,6 +49,9 @@ public sealed class TrackingService(DeviceControlForwarder device, OrbitTracking
             result.CatApplied = true;
             result.ActualRxHz = radio.RxFrequencyHz;
             result.ActualTxHz = radio.TxFrequencyHz;
+            result.CatReadbackUtcMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            result.ActualPtt = radio.ActualPtt;
+            result.ActualRxMode = radio.RxMode;
             if (request.PointRotator && (pointAllowed?.Invoke() ?? true))
             {
                 try

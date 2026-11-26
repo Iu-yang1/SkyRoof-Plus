@@ -46,6 +46,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
             if (jobId != _status.JobId) return Snapshot();
             store.Clear();
             _request = null;
+            _afc = null;
             _pointingJob = null;
             _status.Running = false;
             _status.Phase = "stopped";
@@ -62,6 +63,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
     private void Activate(string id, TrackingJobStart request)
     {
         _request = request.Clone();
+        _afc = null;
         _pointingJob = request.Tracking.PointRotator ? id : null;
         _status = new TrackingJobStatus
         {

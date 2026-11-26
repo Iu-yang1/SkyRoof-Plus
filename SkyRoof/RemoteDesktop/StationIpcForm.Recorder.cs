@@ -1,6 +1,7 @@
 using Google.Protobuf;
 using Grpc.Core;
 using NAudio.Wave;
+using NAudio.MediaFoundation;
 using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.RemoteDesktop;

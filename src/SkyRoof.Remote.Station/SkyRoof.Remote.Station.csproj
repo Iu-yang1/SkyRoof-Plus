@@ -11,6 +11,7 @@
     <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
     <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
+    <Compile Include="../../SkyRoof/AFC/AfcCoreModels.cs;../../SkyRoof/AFC/AfcController*.cs;../../SkyRoof/AFC/AfcFmPredictor.cs;../../SkyRoof/AFC/AfcFmEvidenceGate.cs;../../SkyRoof/AFC/AfcCatTimeline.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
     <Compile Include="../../SkyRoof/Qso/AdifFile.cs" Link="Legacy/AdifFile.cs" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />

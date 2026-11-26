@@ -64,10 +64,12 @@ public sealed partial class TrackingJobRunner
         {
             // A failed rotator reply does not prove no movement occurred.
             var prediction = tracking.Calculate(request);
+            ComposeAfc(prediction);
             if (request.PointRotator && prediction.ElevationDegrees >= request.ElevationMaskDegrees)
                 _rotatorNeedsStop = true;
             var result = await tracking.ApplyPredictionAsync(request, prediction, ct,
                 () => _suspendedPointingJob != _status.JobId);
+            _afc?.Readback(result);
             _status.Latest = result;
             _status.CompletedTicks++;
             _status.Error = result.RotatorError;
