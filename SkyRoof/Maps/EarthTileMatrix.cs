@@ -12,16 +12,17 @@ namespace SkyRoof
       new(level, X >> (Level - level), Y >> (Level - level), Labels);
   }
 
-  internal sealed record EarthTileMatrix(string Identifier, int Level)
+  internal sealed record EarthTileMatrix(string Identifier, int Level,
+    EarthTileProjection Projection = EarthTileProjection.Geographic)
   {
     internal int Width => 1 << Level;
-    internal int Height => Width / 2;
+    internal int Height => EarthTileGrid.Height(Level, Projection);
   }
 
   // Level is log2(matrix width), NOT the provider's TileMatrix identifier.
-  // Only global, 256-pixel, geographic 2:1 dyadic matrices are compatible
-  // with the AEQD shader. Reject incompatible capabilities rather than
-  // silently plotting a different region underneath the satellite.
+  // WMTS parsing accepts global 256-pixel CGCS2000 2:1 matrices only.
+  // XYZ sources construct their square matrices explicitly; never interpret
+  // an incompatible WMTS document as XYZ.
   internal sealed class WmtsCapabilities
   {
     internal string Layer { get; }
@@ -36,6 +37,16 @@ namespace SkyRoof
       Style = style;
       Format = format;
       Matrices = matrices;
+    }
+
+    // XYZ has no WMTS capabilities document. These are configured zoom
+    // levels, not a claim that an unofficial endpoint advertises coverage.
+    internal static WmtsCapabilities CreateXyz(string layer, int maximumZoom)
+    {
+      var matrices = Enumerable.Range(0, maximumZoom + 1).ToDictionary(
+        z => z, z => new EarthTileMatrix(z.ToString(CultureInfo.InvariantCulture), z,
+          EarthTileProjection.Mercator));
+      return new WmtsCapabilities(layer, "", "raster", matrices);
     }
 
     internal static WmtsCapabilities Parse(string xml, string layerName)

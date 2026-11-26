@@ -21,7 +21,7 @@ namespace SkyRoof
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public OrbitSourceSettings OrbitSources { get; set; } = new();
 
-    [DisplayName("Earth map / Tianditu")]
+    [DisplayName("Earth view / Map sources")]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public EarthMapSettings EarthMap { get; set; } = new();
 

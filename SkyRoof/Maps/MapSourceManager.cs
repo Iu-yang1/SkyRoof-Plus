@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http;
+using Serilog;
 using VE3NEA;
 
 namespace SkyRoof
@@ -70,6 +72,7 @@ namespace SkyRoof
     private string key = "";
     private int capacity = 256;
     private bool disposed;
+    private string? lastTileFailure;
 
     internal EarthMapStatus Status { get; private set; } = EarthMapStatus.Offline;
     internal int Level { get; private set; } = 1;
@@ -79,22 +82,34 @@ namespace SkyRoof
     internal int DesiredCount => desired.Count;
     internal int Capacity => capacity;
     internal int MaxLevel => baseMap?.Matrices.Keys.Max() ?? 18;
+    internal EarthTileProjection Projection => EarthMapProviders.Projection(kind);
+    internal bool HasSource => source != null;
     internal IReadOnlyDictionary<EarthTileKey, byte[]> Tiles => ready;
 
     internal void Configure(EarthMapSettings settings)
     {
-      if (kind == settings.Source && key == settings.TiandituKey &&
-          labelsEnabled == settings.Labels && capacity == settings.EffectiveCapacity)
+      string selectedKey = EarthMapProviders.IsXyz(settings.Source) ? "" : settings.TiandituKey;
+      bool selectedLabels = settings.Labels && EarthMapProviders.HasSeparateLabels(settings.Source);
+      if (kind == settings.Source && key == selectedKey &&
+          labelsEnabled == selectedLabels && capacity == settings.EffectiveCapacity)
         return;
       CancelGeneration();
       kind = settings.Source;
-      key = settings.TiandituKey;
-      labelsEnabled = settings.Labels;
+      key = selectedKey;
+      labelsEnabled = selectedLabels;
       capacity = settings.EffectiveCapacity;
-      source = kind != EarthMapSourceKind.BuiltIn && !string.IsNullOrWhiteSpace(key)
-        ? factory?.Invoke(kind, key) ?? new TiandituMapSource(kind, key) : null;
+      source = CreateSource();
       Status = kind == EarthMapSourceKind.BuiltIn ? EarthMapStatus.Offline :
         source == null ? EarthMapStatus.KeyMissing : EarthMapStatus.Loading;
+    }
+
+    private IMapSource? CreateSource()
+    {
+      if (kind == EarthMapSourceKind.BuiltIn) return null;
+      if (EarthMapProviders.IsXyz(kind))
+        return factory?.Invoke(kind, key) ?? new XyzMapSource(kind);
+      return string.IsNullOrWhiteSpace(key) ? null :
+        factory?.Invoke(kind, key) ?? new TiandituMapSource(kind, key);
     }
 
     private void CancelGeneration()
@@ -110,6 +125,7 @@ namespace SkyRoof
       baseMap = labelMap = null;
       capabilitiesPending = false;
       labelsFailed = false;
+      lastTileFailure = null;
       capabilitiesRetry = DateTime.MinValue;
       Epoch++;
       Revision++;
@@ -130,7 +146,7 @@ namespace SkyRoof
       var labelLevels = labelsEnabled && labelMap != null
         ? labelMap.Matrices.Keys.ToHashSet() : new HashSet<int>();
       var plan = EarthTileVisibility.Plan(center, size, zoom,
-        baseMap.Matrices.Keys.ToArray(), labelLevels, budget);
+        new EarthTilePlanOptions(baseMap.Matrices.Keys.ToArray(), labelLevels, budget, Projection));
       Level = plan.Level;
       Reconcile(plan.Keys);
       StartRequests(plan.Keys);
@@ -210,6 +226,7 @@ namespace SkyRoof
       _ = Task.Run(async () =>
       {
         byte[]? pixels = null;
+        string? failure = null;
         bool acquired = false;
         try
         {
@@ -217,23 +234,41 @@ namespace SkyRoof
           acquired = true;
           pixels = await current.GetTileAsync(caps, tile, request.Token).ConfigureAwait(false);
         }
-        catch (Exception) { /* Failed tiles retry without logging the key. */ }
+        catch (OperationCanceledException) when (request.Token.IsCancellationRequested) { }
+        catch (Exception ex) { failure = DescribeTileFailure(ex); }
         finally
         {
           if (acquired) requestSlots.Release();
-          Publish(epoch, () => FinishTile(tile, request, pixels));
+          Publish(epoch, () => FinishTile(tile, request, pixels, failure));
           request.Dispose();
         }
       });
     }
 
-    private void FinishTile(EarthTileKey tile, EarthTileRequest request, byte[]? pixels)
+    internal static string DescribeTileFailure(Exception error) => error switch
+    {
+      HttpRequestException http when http.StatusCode.HasValue => $"HTTP {(int)http.StatusCode.Value}",
+      HttpRequestException http => http.HttpRequestError.ToString(),
+      OperationCanceledException => "Timeout",
+      _ => error.GetType().Name
+    };
+
+    private void FinishTile(EarthTileKey tile, EarthTileRequest request, byte[]? pixels, string? failure)
     {
       bool current = pending.TryGetValue(tile, out var active) && ReferenceEquals(active, request);
       if (current) pending.Remove(tile);
       if (!current || !desired.Contains(tile)) return;
       if (pixels == null)
+      {
         retry[tile] = DateTime.UtcNow.AddSeconds(20);
+        // Deduplicate failures and never record the request URI or exception
+        // message: the Tianditu request includes a protected API key.
+        if (failure != null && failure != lastTileFailure)
+        {
+          lastTileFailure = failure;
+          Log.Warning("Earth map {Source} tile request failed: {Reason}", kind, failure);
+        }
+      }
       else
       {
         ready[tile] = pixels;

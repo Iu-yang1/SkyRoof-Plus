@@ -56,7 +56,7 @@ namespace SkyRoof
       gl.ActiveTexture(OpenGL.GL_TEXTURE0);
       gl.BindTexture(OpenGL.GL_TEXTURE_2D, builtinTexture);
       pool.Bind();
-      SetCamera(source.Level, frame.Center, frame.Viewport, frame.Zoom);
+      SetCamera(source.Level, frame.Center, frame.Viewport, frame.Zoom, source.Projection);
       SetFloat("satLat", (float)frame.Satellite.LatitudeRad);
       SetFloat("satLon", (float)frame.Satellite.LongitudeRad);
       SetFloat("footprint", (float)frame.Footprint);
@@ -68,13 +68,18 @@ namespace SkyRoof
       if (gl.GetError() != 0) throw new InvalidOperationException("Earth tile shader render failed");
     }
 
-    private void SetCamera(int level, GeoPoint center, Size viewport, double zoom)
+    private void SetCamera(int level, GeoPoint center, Size viewport, double zoom, EarthTileProjection projection)
     {
-      var (u, v) = EarthTileVisibility.Coordinates(center);
-      int width = 1 << level, height = width / 2;
+      var (u, v) = EarthTileGrid.Coordinates(center, projection);
+      int width = 1 << level, height = EarthTileGrid.Height(level, projection);
       double px = u * width, py = Math.Min(Math.BitDecrement((double)height), v * height);
       int x = (int)px, y = (int)py;
       SetInt("level", level);
+      SetInt("projection", (int)projection);
+      SetFloat("centerLat", (float)center.LatitudeRad);
+      SetFloat("mercatorCenterLat", (float)(Math.Clamp(
+        EarthTileGrid.SourcePoint(center, projection).Latitude,
+        -EarthTileGrid.MercatorLimit, EarthTileGrid.MercatorLimit) * Geo.RinD));
       SetInt("originX", x);
       SetInt("originY", y);
       SetFloat("originU", (float)(px - x));

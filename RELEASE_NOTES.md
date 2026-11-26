@@ -1,3 +1,32 @@
+# SkyRoof-Plus v.1.90
+
+## 2026-11-24 — Earth Map Engine V2
+
+独立迭代发布，保留 v.1.89 及全部历史 Release 和安装包。
+
+### 新增地图图源
+- 高德矢量（style=7）、卫星影像（style=6），卫星影像可选独立路网注记（style=8）。
+- Google 街道（lyrs=m）、卫星影像（lyrs=s）、地形（lyrs=t）和带注记地形（lyrs=p）。
+- 采用用户提供文章中的 XYZ 瓦片模板，无需高德或 Google 官方开发者 API Key；天地图仍采用原 WMTS 服务和 DPAPI 保护的 Key。
+- 所有底图只在设置 → 地球视图与地图源 → 默认地图源中切换，支持中英文显示；保留内置 DXCC 底图、自由拖动、双击/右键恢复跟随、右键旋转器指向。
+
+### 投影及渲染
+- 扩展原生 OpenGL AEQD 渲染器和异步调度器，支持方形 Web Mercator XYZ 矩阵、根层 z=0 和配置的 z=0–18 层级。
+- 高德及 Google 街道/带注记地形按文章所述使用近似 GCJ-02 正向偏移；Google 纯影像/地形按 WGS-84 采样。卫星、台站、过境覆盖及旋转器计算不改变。
+- 共用 GPU Texture Array、异步下载、源切换代数隔离和父级瓦片回退。网络不可用或超出 Mercator 纬度范围时保留内置地图；不建立永久瓦片缓存或批量下载。
+- 不直接叠加 Google 不同坐标系的混合影像和独立注记，避免未校正的图层错位。
+
+### 验证与使用限制
+- 新增 27 项 XYZ 回归测试，覆盖 URI、坐标、根层、无 Key 初始化、可见瓦片规划及图层兼容性；独立数学交叉验证覆盖 133,304 个视口采样点，最大 254/256 个槽位。最终 Windows 测试、aislop 与安装包验证以本次发布流水线结果为准。
+- 上述 XYZ 地址为非官方接口，Google 地址沿用原文 HTTP（未加密），不发送密钥。接口稳定性、真实在线返回、实际影像配准及 Windows GPU 实机性能尚未验证；GCJ-02 使用近似算法而非法定国界或测绘级转换。使用前核对服务商授权、版权归属和地图显示要求。
+- 发布前继续执行 pinned aislop、Windows x64 完整测试、Orekit 冒烟、CW FFT 基准及安装包检查。P95/P99 频谱时序仅记录，不作为固定发布门限。若无 SignPath 签名能力，遵循现有策略发布未签名 Prerelease。
+
+参考及工程文档：docs/engineering/earth-map-engine-v1.zh-CN.md；https://zhuanlan.zhihu.com/p/641436984
+
+**English summary:** Independent v.1.90 release extends the AEQD Earth Map Engine with experimental keyless Amap and Google XYZ raster sources, Web Mercator and approximate GCJ-02 source-coordinate sampling, localized settings, shared GPU tile scheduling, and offline/polar fallback. Tianditu WMTS and existing orbital/rotator calculations remain unchanged. Live unofficial endpoints, imagery registration, provider permissions and real Windows GPU performance are unverified. The existing release gates and signing policy remain in force.
+
+---
+
 # SkyRoof-Plus v.1.89
 
 ## 2026-11-24 — SkyRoof Earth Map Engine V1
