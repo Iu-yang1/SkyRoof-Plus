@@ -32,7 +32,7 @@ internal sealed partial class StationIpcForm
         };
         heartbeat.Tick += async (_, _) => await RunAsync(HeartbeatAsync);
         return Row(ptt, ActionButton("RX", ReleasePttAsync),
-            "CAT PTT · station audio input");
+            microphoneEnabled, "48 kHz mono desktop mic");
     }
 
     private async Task BeginPttAsync()
@@ -49,6 +49,10 @@ internal sealed partial class StationIpcForm
             {
                 ptt.Text = "TX · HOLD";
                 heartbeat.Start();
+                if (microphoneEnabled.Checked && snapshot.NativeTxAvailable)
+                    StartMicrophone(transaction, snapshot.TransactionEpoch);
+                else if (microphoneEnabled.Checked)
+                    status.Text = "No native TX audio grant; CAT PTT remains active.";
             }
         }
         finally { pttCommands.Release(); }
@@ -65,6 +69,7 @@ internal sealed partial class StationIpcForm
             var snapshot = await client.ManualPttAsync(DeviceOperation.DeviceManualHeartbeat, transaction, lifetime.Token);
             ShowRadio(snapshot);
             if (client.OwnsPtt(snapshot, transaction)) return;
+            StopMicrophone();
             pttTransaction = null;
             pttHeld = false;
             heartbeat.Stop();
@@ -81,6 +86,7 @@ internal sealed partial class StationIpcForm
     {
         if (IsDisposed || pttCloseComplete) return;
         pttHeld = false;
+        StopMicrophone();
         heartbeat.Stop();
         ptt.Text = "HOLD PTT";
         if (ptt.Capture) ptt.Capture = false;

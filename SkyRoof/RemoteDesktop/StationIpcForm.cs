@@ -24,7 +24,8 @@ internal sealed partial class StationIpcForm : Form
     {
         client = new(pipe);
         Text = "SkyRoof Remote · " + pipe;
-        ClientSize = new Size(680, 440);
+        ClientSize = new Size(1000, 730);
+        MinimumSize = new Size(760, 520);
         var layout = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -43,7 +44,12 @@ internal sealed partial class StationIpcForm : Form
         layout.Controls.Add(tracking);
         layout.Controls.Add(CreateCwRow());
         layout.Controls.Add(status);
-        Controls.Add(layout);
+        var tabs = new TabControl { Dock = DockStyle.Fill };
+        var radioPage = new TabPage("RADIO / ROTATOR");
+        radioPage.Controls.Add(layout);
+        tabs.TabPages.Add(radioPage);
+        tabs.TabPages.Add(CreateSignalsPage());
+        Controls.Add(tabs);
         polling.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) => { polling.Start(); await RefreshAsync(); };
         FormClosing += async (_, e) => await RunAsync(() => ClosePttAsync(e));
@@ -51,6 +57,8 @@ internal sealed partial class StationIpcForm : Form
         FormClosed += (_, _) =>
         {
             cwSendCancellation?.Cancel();
+            StopSignalStreams();
+            StopMicrophone();
             heartbeat.Dispose();
             polling.Dispose();
             lifetime.Cancel();
@@ -77,7 +85,7 @@ internal sealed partial class StationIpcForm : Form
     private async Task RunAsync(Func<Task> action)
     {
         try { await action(); }
-        catch (Exception error) when (error is RpcException or IOException or FormatException or OverflowException or OperationCanceledException or ObjectDisposedException)
+        catch (Exception error) when (error is RpcException or IOException or FormatException or OverflowException or OperationCanceledException or ObjectDisposedException or ArgumentException or InvalidOperationException or NAudio.MmException)
         {
             if (!IsDisposed) status.Text = error.Message;
         }

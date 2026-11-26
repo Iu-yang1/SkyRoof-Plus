@@ -23,7 +23,11 @@ $names = @($config.Processes | ForEach-Object Name)
 if ($names.Count -ne $expected.Count -or @($expected | Where-Object { $_ -notin $names }).Count) { throw 'Expected one of each managed process.' }
 if ((Test-Path -LiteralPath $Output) -and -not $Force) { throw 'Output exists; use -Force to replace deliberately.' }
 $ns = 'skyroof-' + $StationId.ToLowerInvariant()
+$mediaEnv = ($config.Processes | Where-Object Name -eq Media).Environment
+$rxChannels = if ($mediaEnv -and $mediaEnv.SKYROOF_RX_AUDIO_CHANNELS) { [string]$mediaEnv.SKYROOF_RX_AUDIO_CHANNELS } else { '1' }
+if ($rxChannels -notin @('1','2')) { throw 'RX audio channels must be 1 or 2.' }
 $shared = @{
+    SKYROOF_RX_AUDIO_CHANNELS = $rxChannels
     SKYROOF_STATION_ID = $StationId
     SKYROOF_DEVICE_PIPE = "$ns-device"
     SKYROOF_STATION_PIPE = "$ns-station"
