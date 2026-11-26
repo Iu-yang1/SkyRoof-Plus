@@ -406,3 +406,15 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - **Recorder：** `bb09015` 累积增加 SoapySDR 实际 read 后、信道化前的 CF32 RawIqTap（站点独立 SignalBus，256 × 65536-byte payload，真实采样率/样本索引，overflow 重置 epoch），Station IPC 新枚举保持原值，WinForms 可选 AF、48 kHz Telemetry IQ、原始 SDR IQ。WAV 使用实际 sample rate，按 epoch/缺失索引/格式分段，录制时长按实际采样率累计。新增生产 RawIqTap → 实际 Station IPC 的 2 MS/s 字节、索引及 epoch 断言，以及原生采样率 WAV exact-byte 测试。这不是 Soapy 硬件吞吐验收；桌面 IPC/磁盘性能可能造成显式分段缺口，无人值守 Station 本地无损录制、宽带 IQ 重放与 AF 离线解码仍待完成。
 - **AFC：** `5e8dded` 累积增加同一会话中的 waterfall 选目标和 APPLY TARGET（采集 preset、pilot、lock here/center），AfcTargetChange 使用 IF generation，Station 在既有跟踪 gate 内 rebase，旧 generation 的测量不能改变新目标，保留 Device PTT/RX-only 语义。新增真实 Station E2E：建立非零 RX 修正后重新选目标、发送旧 generation 的错误测量、新 generation 重新捕获并检查偏置；UI smoke 增加入口断言。尚未迁移真实站端无人值守 IF 采集、自动 probe/restore 极性校准及硬件时间对齐；RadioLink 手动 RF 调谐仍按原远程实现使 AFC 会话失效。
 - 四项新功能均在独立 Station IPC 工作台中实现；未替换原本地 MainForm。所有新代码须以最新 SHA 的 Compile Check、E2E、开发整包和 pinned aislop 实际结果验收。没有本地 Windows/.NET 实机测试环境；不降低门禁，不合并 master，不发布正式 Release，API 提交未验证签名。
+
+
+## 2026-11-26：服务端设置与用户测试构建
+
+- PR #256 已将 master 的 12 个新增提交（9b18e81）合入 Remote 开发分支（a78d983）；保留 PR #254 草稿，未将 Remote 合入 master。
+- 桌面 Settings 增加 Remote / 服务端设置入口。独立 RemoteStation.json 保存 Standalone / ServerWorkspace、Station ID、IPC pipe、Host origin 和 Supervisor 路径；正常退出后重新启动生效。在创建原 MainForm 硬件 Context 前决定模式，默认仍为 Standalone。
+- ServerWorkspace 内 Settings 支持 IPC 连通性测试、打开 Web、查询/启动/停止已安装服务。Supervisor 配置编辑按进程列出环境变量，支持新增/删除、敏感值遮盖、原子保存、显式授权当前用户 SID；需要系统权限，保存后重启服务生效。不是新的安装器或远程服务注册向导。
+- Recorder 新增宽带 CF32 WAV 重放：实际采样率与显式相对频偏，复用 IqChannelizer 转至 48 kHz；已有 48 kHz 零偏移直接路径保留。站端无人值守录音及 AF 离线 DSP 未完成。
+- QSO 增加 127.0.0.1 UDP Logged ADIF（WSJT-X schema 2/3 type 12，默认 2237，可配置），明确忽略其他消息，复用 ADIF 导入和 Station 幂等保存。需要手动启用监听。LoggerInterface.dll、LoTW 尚未迁移。
+- 旋转器并发 STOP 旧基线 8bbf937 Compile Check（45786463535）1859/1860 通过；失败为测试等待期间验证已结束。新增 worker 实际验证开始事件和 TCP fixture 同步，不改变 STOP <3s 及验证失败断言。新 CI 未确认，不宣称 P0 已通过。
+- Compile Check 新增成功编译后的 Remote desktop preview artifact，不绕过后续测试或质量门禁。服务端 ZIP/安装器仍通过 Remote package workflow 构建；没有已确认的新构建产物时不发布。
+- 仍未完成：站端无人值守 AFC 与自动探针校准、站端录制、原 GPU EarthView 在线 XYZ 在 Remote 窗口的完整接入、扩展 ADIF/外部 logger/LoTW、其他原 MainForm 专属功能及新 SHA CI、实机验证。上述同步不等于功能对等。
