@@ -16,6 +16,7 @@ internal sealed class StationAfcSession
     private bool ptt, duplex;
     private string rxMode = "";
     private double lastApplied;
+    private long minimumGeneration = -1, observedGeneration = -1;
     internal bool Expired(DateTime now) => now - lastContact > TimeSpan.FromSeconds(8);
 
     internal StationAfcSession(AfcOpenRequest input)
@@ -34,18 +35,34 @@ internal sealed class StationAfcSession
         else controller.LockHere();
     }
 
-    internal AfcSessionStatus Update(AfcMeasurement? measurement, DateTime now)
+    internal AfcSessionStatus Update(AfcMeasurement? measurement, AfcTargetChange? target, DateTime now)
     {
         lastContact = now;
+        if (target is not null) Retarget(target);
         if (measurement is not null) Observe(measurement, now);
         controller.Tick(now, ptt);
         return Status();
     }
 
+    private void Retarget(AfcTargetChange target)
+    {
+        if (target.Generation < 0 || (target.HasCenterHz && !double.IsFinite(target.CenterHz)))
+            throw new ArgumentException("Invalid AFC target generation or center.");
+        if (target.Generation == minimumGeneration) return;
+        if (target.Generation <= observedGeneration || target.Generation < minimumGeneration)
+            throw new ArgumentException("Stale AFC target generation.");
+        minimumGeneration = target.Generation;
+        controller.OnUserTune();
+        if (target.HasCenterHz) controller.CenterOn(target.CenterHz);
+        else controller.LockHere();
+    }
+
     private void Observe(AfcMeasurement measurement, DateTime now)
     {
+        if (measurement.Generation < Math.Max(minimumGeneration, observedGeneration)) return;
         var utc = DateTimeOffset.FromUnixTimeMilliseconds(measurement.SampleUtcMilliseconds).UtcDateTime;
         if (utc > now.AddMilliseconds(250) || utc < now.AddSeconds(-2)) return;
+        observedGeneration = measurement.Generation;
         bool aligned = timeline.TryReadbackAt(utc, out long frequency);
         bool attributed = timeline.TryAttributedReadbackAt(utc, AfcCatWriteSource.Afc, out _);
         int nominal = rxMode.Length == 0 ? 0 : rxMode.StartsWith("LSB", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
