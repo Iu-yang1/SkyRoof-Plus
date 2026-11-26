@@ -72,6 +72,7 @@ public sealed class StationSignalService : StationSignals.StationSignalsBase
         StationSignalKind.StationSignalFt4 => new(Env("FT4_RESULTS_BUS", "skyroof-ft4-results"), 32, 32768),
         StationSignalKind.StationSignalCw => new(Env("CW_RESULTS_BUS", "skyroof-cw-results"), 16, 32768),
         StationSignalKind.StationSignalQ65 => new(Env("Q65_RESULTS_BUS", "skyroof-q65-results"), 32, 32768),
+        StationSignalKind.StationSignalIqCf32 => new(Env("IQ_RECORD_BUS", "skyroof-iq-record"), 64, 32768, 2),
         StationSignalKind.StationSignalTelemetry => new(Env("TELEMETRY_RESULTS_BUS", "skyroof-telemetry-results"), 64, 262144),
         _ => throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown station signal."))
     };

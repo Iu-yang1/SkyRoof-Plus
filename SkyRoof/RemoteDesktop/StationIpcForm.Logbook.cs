@@ -74,6 +74,7 @@ internal sealed partial class StationIpcForm
         {
             var saved = await client.SaveQsoAsync(BuildQso(), lifetime.Token);
             qsoStatus.Text = "Saved · " + saved.Id;
+            recordingWriter?.MarkQso(saved.Id, saved.Call);
             await NewQsoAsync();
         }
         finally { qsoBusy = false; }

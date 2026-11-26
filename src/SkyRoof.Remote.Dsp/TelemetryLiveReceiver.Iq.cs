@@ -17,6 +17,7 @@ public sealed partial class TelemetryLiveReceiver
             long version = Volatile.Read(ref _configurationVersion);
             CheckIqVersion(version);
             ulong epoch = (ulong)RandomNumberGenerator.GetInt32(1, int.MaxValue);
+            using var recording = new NamedSignalRing(Environment.GetEnvironmentVariable("SKYROOF_IQ_RECORD_BUS") ?? "skyroof-iq-record", 64, 32768, epoch);
             var receipt = new TelemetryIqReceipt { SourceEpoch = epoch };
             while (await source.MoveNext(ct))
             {
@@ -28,6 +29,7 @@ public sealed partial class TelemetryLiveReceiver
                 var frame = new SignalFrame(receipt.Blocks, epoch, block.FirstSampleIndex, Stopwatch.GetTimestamp(),
                     block.SampleRate, samples, block.Cf32.ToByteArray());
                 await _queue.Writer.WriteAsync(new Input(frame, version, true), ct);
+                recording.Publish(frame.FirstSampleIndex, frame.MonotonicTimestampTicks, frame.SampleRate, frame.SampleCount, frame.Payload);
                 receipt.Blocks++;
                 receipt.Samples += samples;
             }
