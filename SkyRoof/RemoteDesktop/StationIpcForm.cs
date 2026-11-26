@@ -24,7 +24,7 @@ internal sealed partial class StationIpcForm : Form
     {
         client = new(pipe);
         Text = "SkyRoof Remote · " + pipe;
-        ClientSize = new Size(680, 350);
+        ClientSize = new Size(680, 440);
         var layout = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -41,6 +41,7 @@ internal sealed partial class StationIpcForm : Form
         layout.Controls.Add(Row("AZ", az, "EL", el,
             ActionButton("POINT", PointAsync), ActionButton("STOP", StopAsync)));
         layout.Controls.Add(tracking);
+        layout.Controls.Add(CreateCwRow());
         layout.Controls.Add(status);
         Controls.Add(layout);
         polling.Tick += async (_, _) => await RefreshAsync();
@@ -49,6 +50,7 @@ internal sealed partial class StationIpcForm : Form
         Deactivate += async (_, _) => await ReleasePttAsync();
         FormClosed += (_, _) =>
         {
+            cwSendCancellation?.Cancel();
             heartbeat.Dispose();
             polling.Dispose();
             lifetime.Cancel();

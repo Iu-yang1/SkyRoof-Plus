@@ -346,3 +346,5 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - `e71c4e9` 修复 aislop 新增唯一告警（WinForms close async void 改 Task）；锁文件候选生成加入现有 Compile Check 独立 job，实际 locked restore 验证、上传 artifact，原 build job 的 LockedMode 不变。独立 refresh workflow 不再自动写分支，避免竞争；取得真实 artifact 后审查并提交锁文件。
 - `9fbc8f1` 可选 Global SignalBus：默认 Local 保留，Global 生产者创建页文件共享映射及命名 mutex，明确 Windows SID DACL；消费者只打开已存在的只读映射与同步 mutex，不创建、不写入。安装脚本可传 GlobalSignalBus / SignalBusReaderSid，所有托管进程使用同配置；授权仅为可信读者，不能跨用作生产者。
 - 本轮增加 Session 0 SYSTEM scheduled task 生产者、独立进程授权读取、写入拒绝、未授权读取拒绝及配置传播测试。日志明确记录实际 session ID，若 CI 客户端也在 Session 0，不宣称已跨 Session 验收。新代码 CI 待确认；未接入桌面 PCM/频谱读取，未完成正式安装器/签名。
+
+- 后续提交：WinForms 同一 Station IPC 适配器新增 CW 状态、WPM 设置与硬件读回、发送及所属 session 停止；新增真实 Station/Device/TCP SkyCAT 模拟器 E2E，验证 WPM 量化、完整消息及中途停止。未引入新依赖；CW RX 解码与完整 MainForm 迁移仍未完成。
