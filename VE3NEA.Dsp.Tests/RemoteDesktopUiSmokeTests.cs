@@ -36,6 +36,7 @@ public sealed class RemoteDesktopUiSmokeTests
                 Assert.Contains("SAVE QSO", buttons);
                 Assert.Contains("RECORD WAV", buttons);
                 Assert.Contains("START AFC", buttons);
+                Assert.Contains("APPLY TARGET", buttons);
                 Assert.Single(workspace.Panes.SelectMany(Descendants<TextBox>).Where(box => box.UseSystemPasswordChar));
             }
             catch (Exception error) { failure = error; }
