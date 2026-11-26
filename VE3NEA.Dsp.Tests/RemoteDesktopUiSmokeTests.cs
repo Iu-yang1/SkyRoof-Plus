@@ -31,6 +31,8 @@ public sealed class RemoteDesktopUiSmokeTests
                 Assert.Contains("PLAY RX", buttons);
                 Assert.Contains("FIND PASSES", buttons);
                 Assert.Contains("GROUND TRACK", buttons);
+                Assert.Contains("RESET MAP", buttons);
+                Assert.Contains("IMPORT ADIF", buttons);
                 Assert.Contains("SAVE QSO", buttons);
                 Assert.Contains("RECORD WAV", buttons);
                 Assert.Contains("START AFC", buttons);
