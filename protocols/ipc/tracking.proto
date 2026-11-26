@@ -321,7 +321,15 @@ message AfcMeasurement {
   bool absolute_reference = 6;
   bool ambiguous = 7;
 }
-message AfcUpdateRequest { string session_id = 1; AfcMeasurement measurement = 2; }
+message AfcTargetChange {
+  int64 generation = 1;
+  optional double center_hz = 2;
+}
+message AfcUpdateRequest {
+  string session_id = 1;
+  AfcMeasurement measurement = 2;
+  AfcTargetChange target = 3;
+}
 message AfcCloseRequest { string session_id = 1; }
 message AfcSessionStatus {
   string session_id = 1;
