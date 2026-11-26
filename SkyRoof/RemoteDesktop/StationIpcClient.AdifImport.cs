@@ -58,14 +58,15 @@ internal sealed partial class StationIpcClient
             UtcMilliseconds = AdifUtc(Field("QSO_DATE"), Field("TIME_ON"), Field("APP_SKYROOF_UTC_MS"))
         };
         if (qso.StationCall.Length == 0) qso.StationCall = fallbackStationCall.Trim().ToUpperInvariant();
-        if (qso.Mode is "FT4" or "Q65")
+        string id = Field("APP_SKYROOF_QSO_ID");
+        bool hasId = Guid.TryParseExact(id, "N", out var existing);
+        if (!hasId && (qso.Mode is "FT4" or "Q65"))
         {
             qso.Submode = qso.Mode;
             qso.Mode = "MFSK";
         }
         ValidateImportedQso(qso);
-        string id = Field("APP_SKYROOF_QSO_ID");
-        qso.Id = Guid.TryParseExact(id, "N", out var existing) ? existing.ToString("N") :
+        qso.Id = hasId ? existing.ToString("N") :
             Convert.ToHexString(SHA256.HashData(Google.Protobuf.MessageExtensions.ToByteArray(qso)).AsSpan(0, 16)).ToLowerInvariant();
         return qso;
     }
