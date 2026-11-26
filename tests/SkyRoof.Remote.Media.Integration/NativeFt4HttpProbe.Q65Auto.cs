@@ -1,3 +1,4 @@
+using SkyRoof.RemoteDesktop;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
@@ -11,7 +12,7 @@ internal static partial class NativeFt4HttpProbe
     private static readonly string[] Q65AutoMessages = ["W1XYZ K1ABC FN42", "W1XYZ K1ABC R-40", "W1XYZ K1ABC 73"];
 
     private static async Task VerifyQ65AutoAsync(HttpClient anonymous, HttpClient admin, string pipe,
-        FakeNativeIcomRadio radio, CancellationToken ct)
+        FakeNativeIcomRadio radio, string accessToken, CancellationToken ct)
     {
         var config = new Q65RxConfiguration
         {
@@ -31,19 +32,16 @@ internal static partial class NativeFt4HttpProbe
         }
 
         using var ring = new NamedSignalRing("skyroof-q65-test-results-" + pipe, 32, 32768);
-        using var post = new HttpRequestMessage(HttpMethod.Post, "/api/v1/dsp/q65/auto")
-            { Content = JsonContent.Create(request) };
         radio.BeginWaveformCapture();
-        using var response = await admin.SendAsync(post, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(ct));
+        using var reader = new DesktopAutoSession(admin.BaseAddress ?? throw new InvalidOperationException("Missing fixture Host"), accessToken);
+        await reader.StartAsync("Q65", request, ct);
         await VerifyQ65AutoExchangeAsync(reader, new Q65AutoFixture(expected, radio, ring, config), ct);
     }
 
     private sealed record Q65AutoFixture(IReadOnlyList<byte[]> Expected, FakeNativeIcomRadio Radio,
         NamedSignalRing Ring, Q65RxConfiguration Config);
 
-    private static async Task VerifyQ65AutoExchangeAsync(StreamReader reader, Q65AutoFixture fixture, CancellationToken ct)
+    private static async Task VerifyQ65AutoExchangeAsync(DesktopAutoSession reader, Q65AutoFixture fixture, CancellationToken ct)
     {
         string[] replies = ["K1ABC W1XYZ -42", "K1ABC W1XYZ RR73"];
         long previous = -1;

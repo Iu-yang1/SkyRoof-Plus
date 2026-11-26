@@ -11,6 +11,7 @@
     <ProjectReference Include="../../src/SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
     <ProjectReference Include="../../src/SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
     <ProjectReference Include="../../src/SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <Compile Include="../../SkyRoof/RemoteDesktop/DesktopAutoSession.cs" Link="DesktopAutoSession.cs" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />
   </ItemGroup>
 </Project>

@@ -1,3 +1,4 @@
+using SkyRoof.RemoteDesktop;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Net;
@@ -10,7 +11,7 @@ internal static partial class NativeFt4HttpProbe
     private static readonly string[] AutoMessages = ["W1XYZ K1ABC FN42", "W1XYZ K1ABC R-15", "W1XYZ K1ABC 73"];
 
     private static async Task VerifyAutoAsync(HttpClient anonymous, HttpClient admin,
-        string dspPipe, FakeNativeIcomRadio radio, CancellationToken ct)
+        string dspPipe, FakeNativeIcomRadio radio, string accessToken, CancellationToken ct)
     {
         var request = new { call = "K1ABC", grid = "FN42", target = "W1XYZ", attempts = 3,
             frequencyHz = 435_550_000L, audioHz = 1500, gain = 0.5f, odd = false };
@@ -19,21 +20,19 @@ internal static partial class NativeFt4HttpProbe
             throw new InvalidOperationException("Anonymous automatic FT4 was not denied.");
 
         using var ring = new NamedSignalRing("skyroof-ft4-test-results-" + dspPipe, 32, 32768);
-        using var post = new HttpRequestMessage(HttpMethod.Post, "/api/v1/dsp/ft4/auto")
-            { Content = JsonContent.Create(request) };
         var expected = new List<byte[]>();
         foreach (string message in AutoMessages)
             expected.Add(await ReadWaveformAsync(dspPipe, ct, message));
         radio.BeginWaveformCapture();
-        using var response = await admin.SendAsync(post, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(ct));
+        using var reader = new DesktopAutoSession(admin.BaseAddress ?? throw new InvalidOperationException("Missing fixture Host"), accessToken);
+        await reader.StationAsync(ct);
+        await reader.StartAsync("FT4", request, ct);
         await VerifyAutoExchangeAsync(reader, new AutoFixture(expected, radio, ring), ct);
     }
 
     private sealed record AutoFixture(IReadOnlyList<byte[]> Expected, FakeNativeIcomRadio Radio, NamedSignalRing Ring);
 
-    private static async Task VerifyAutoExchangeAsync(StreamReader reader, AutoFixture fixture, CancellationToken ct)
+    private static async Task VerifyAutoExchangeAsync(DesktopAutoSession reader, AutoFixture fixture, CancellationToken ct)
     {
         string[] replies = ["K1ABC W1XYZ -09", "K1ABC W1XYZ RR73"];
         long previousSlot = -1;
@@ -75,15 +74,13 @@ internal static partial class NativeFt4HttpProbe
         ring.Publish(0, Stopwatch.GetTimestamp(), 48000, 1, payload);
     }
 
-    private static async Task<JsonElement> ReadAutoStateAsync(StreamReader reader, string state, CancellationToken ct)
+    private static async Task<JsonElement> ReadAutoStateAsync(DesktopAutoSession reader, string state, CancellationToken ct)
     {
-        while (await reader.ReadLineAsync(ct) is { } line)
+        while (await reader.ReadAsync(ct) is { } root)
         {
-            using var json = JsonDocument.Parse(line);
-            var root = json.RootElement;
             string? current = root.GetProperty("state").GetString();
             if (current == "error" || current == "attempts-exhausted" || current == "rx-window-missed")
-                throw new InvalidDataException("Automatic FT4 interrupted: " + line);
+                throw new InvalidDataException("Automatic digital QSO interrupted: " + root.GetRawText());
             if (current == state) return root.Clone();
         }
         throw new EndOfStreamException("Missing automatic FT4 state: " + state);

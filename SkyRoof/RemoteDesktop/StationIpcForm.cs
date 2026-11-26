@@ -54,6 +54,7 @@ internal sealed partial class StationIpcForm : Form
         tabs.TabPages.Add(CreateSignalsPage());
         tabs.TabPages.Add(CreateDigitalPage());
         tabs.TabPages.Add(CreateTrackingPage());
+        tabs.TabPages.Add(CreateAutoPage());
         Controls.Add(tabs);
         Controls.Add(status);
         polling.Tick += async (_, _) => await RefreshAsync();
@@ -64,6 +65,7 @@ internal sealed partial class StationIpcForm : Form
         {
             cwSendCancellation?.Cancel();
             digitalCancellation?.Cancel();
+            autoConnection?.Dispose();
             StopSignalStreams();
             StopMicrophone();
             heartbeat.Dispose();
@@ -92,7 +94,7 @@ internal sealed partial class StationIpcForm : Form
     private async Task RunAsync(Func<Task> action)
     {
         try { await action(); }
-        catch (Exception error) when (error is RpcException or IOException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException)
+        catch (Exception error) when (error is RpcException or HttpRequestException or System.Text.Json.JsonException or IOException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException)
         {
             if (!IsDisposed) status.Text = error.Message;
         }

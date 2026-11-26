@@ -8,7 +8,7 @@ namespace SkyRoof.RemoteDesktop;
 internal sealed partial class StationIpcForm
 {
     private readonly ComboBox digitalMode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
-    private readonly TextBox q65Submode = new() { Text = "Q65-60B", Width = 100 };
+    private readonly TextBox q65Submode = new() { Text = "60B", Width = 100 };
     private readonly TextBox digitalMessage = new() { Width = 260 };
     private readonly TextBox digitalAudioHz = new() { Text = "1500", Width = 75 };
     private readonly TextBox digitalGain = new() { Text = "0.5", Width = 60 };

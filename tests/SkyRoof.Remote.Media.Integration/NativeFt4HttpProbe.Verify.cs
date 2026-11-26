@@ -37,11 +37,15 @@ internal static partial class NativeFt4HttpProbe
             throw new InvalidDataException("Authenticated FT4 TX waveform differs from native DSP encoding.");
         Console.WriteLine("PASS: authenticated Host -> native DSP FT4 encoding -> Station -> Device -> exact UDP waveform.");
         await WsjtxNativeBridgeProbe.RunAsync(admin, address, fake, ct);
-        await VerifyAutoAsync(anonymous, admin, dspPipe, fake, ct);
+        using var tokenReply = await admin.PostAsJsonAsync("/api/v1/auth/tokens", new { name = "desktop-auto-fixture" }, ct);
+        tokenReply.EnsureSuccessStatusCode();
+        using var tokenDoc = JsonDocument.Parse(await tokenReply.Content.ReadAsStringAsync(ct));
+        var accessToken = tokenDoc.RootElement.GetProperty("token").GetString() ?? throw new InvalidDataException("Missing fixture token.");
+        await VerifyAutoAsync(anonymous, admin, dspPipe, fake, accessToken, ct);
         if (q65Runtime)
         {
             await VerifyQ65Async(anonymous, admin, dspPipe, fake, ct);
-            await VerifyQ65AutoAsync(anonymous, admin, dspPipe, fake, ct);
+            await VerifyQ65AutoAsync(anonymous, admin, dspPipe, fake, accessToken, ct);
         }
         else Console.WriteLine("Q65 UDP fixture not applicable: standalone FT4/CW build without native Q65 runtime.");
     }
