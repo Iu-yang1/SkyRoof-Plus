@@ -35,6 +35,7 @@ $shared = @{
     SKYROOF_DSP_PIPE = "$ns-dsp"
     SKYROOF_RX_AUDIO_BUS = "$ns-rx"
     SKYROOF_IQ_RECORD_BUS = "$ns-iq-record"
+    SKYROOF_RAW_IQ_BUS = "$ns-raw-iq"
     SKYROOF_AF_SPECTRUM_BUS = "$ns-af"
     SKYROOF_RF_SCOPE_BUS = "$ns-rf"
     SKYROOF_FT4_RESULTS_BUS = "$ns-ft4"
