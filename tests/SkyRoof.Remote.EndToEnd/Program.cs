@@ -87,6 +87,7 @@ try
         await Task.Delay(150);
     }
     Ensure(alive, "Host never became ready");
+    await DesktopIpcChecks.RunAsync(stationPipe, radio, rotator);
     Ensure((await anonymous.GetAsync("/api/v1/station")).StatusCode ==
         HttpStatusCode.Unauthorized, "Anonymous station access allowed");
 

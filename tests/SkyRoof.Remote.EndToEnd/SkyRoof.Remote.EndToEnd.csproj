@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../SkyRoof/RemoteDesktop/StationIpcClient.cs" Link="StationIpcClient.cs" />
     <Compile Include="../../src/SkyRoof.Remote.Station/CatalogCacheModels.cs" Link="CatalogCacheModels.cs" />
     <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.cs" Link="CatalogOnlineFetcher.cs" />
     <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.Pagination.cs" Link="CatalogOnlineFetcher.Pagination.cs" />

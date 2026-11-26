@@ -39,6 +39,12 @@ namespace SkyRoof
         SkyRoof.NativeRotator.IsolatedRotatorTransport.RunChild(args);
         return;
       }
+      if(args is ["--remote-station", var stationPipe])
+      {
+        ApplicationConfiguration.Initialize();
+        Application.Run(new RemoteDesktop.StationIpcForm(stationPipe));
+        return;
+      }
       using (new SingleInstanceEnforcer())
       {
         try
