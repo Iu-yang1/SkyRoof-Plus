@@ -5,7 +5,8 @@ using SkyRoof.Remote.Ipc;
 namespace SkyRoof.Remote.Host.Realtime;
 
 public sealed record RemoteTrackingJobStatus(string JobId, bool Running, string Phase,
-    long CompletedTicks, RemoteTrackingStatus? Latest, string Error, bool ResumeAfterRestart);
+    long CompletedTicks, RemoteTrackingStatus? Latest, string Error, bool ResumeAfterRestart,
+    RemoteRadioLink? ActiveRadioLink = null, string CelestialTarget = "", bool PointRotator = false);
 
 public sealed partial class StationDeviceBridge
 {
@@ -64,5 +65,7 @@ public sealed partial class StationDeviceBridge
     private static RemoteTrackingJobStatus MapJob(TrackingJobStatus status) =>
         new(status.JobId, status.Running, status.Phase, status.CompletedTicks,
             status.Latest is null ? null : MapTrackingStatus(status.Latest),
-            status.Error, status.ResumeAfterRestart);
+            status.Error, status.ResumeAfterRestart,
+            status.ActiveRadioLink is { } link ? RemoteRadioLink.FromIpc(link) : null,
+            status.CelestialTarget, status.PointRotator);
 }

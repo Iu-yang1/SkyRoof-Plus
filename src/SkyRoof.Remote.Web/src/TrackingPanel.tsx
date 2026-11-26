@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState, type FormEvent } from 'react';
 import { DeviceHubContext } from './host';
 import { SatelliteCatalogPicker, type CatalogSelection } from './SatelliteCatalogPicker';
-import { LiveRadioLinkTune } from './LiveRadioLinkTune';
+import { LiveRadioLinkTune, type ActiveOffsets } from './LiveRadioLinkTune';
 import { RadioLinkOptions, readRadioLink } from './RadioLinkOptions';
 
 type TrackingStatus = {
@@ -18,6 +18,7 @@ type TrackingStatus = {
 type TrackingJob = {
   JobId: string; Running: boolean; Phase: string; CompletedTicks: number;
   Latest: TrackingStatus | null; Error: string; ResumeAfterRestart: boolean;
+  ActiveRadioLink?: ActiveOffsets | null; CelestialTarget?: string; PointRotator?: boolean;
 };
 
 function numeric(value: FormDataEntryValue | null, field: string): number {
@@ -171,7 +172,7 @@ export function TrackingPanel() {
         <button type="button" disabled={!hub || pending || !job?.Running} onClick={() => { void stopJob(); }}>STOP TRACKING</button>
       </div>
     </form>
-    {job?.Running && !job.Latest?.CelestialTarget && <LiveRadioLinkTune key={job.JobId} hub={hub} jobId={job.JobId} available={Boolean(hub)} />}
+    {job?.Running && job.ActiveRadioLink && <LiveRadioLinkTune key={job.JobId} hub={hub} jobId={job.JobId} active={job.ActiveRadioLink} available={Boolean(hub)} />}
     {job && <div className="readout">STATION TASK · {job.Phase.toUpperCase()} · {job.CompletedTicks} updates</div>}
     {jobError && <small>{jobError}</small>}
     {job?.Error && <p className="error">{job.Error}</p>}

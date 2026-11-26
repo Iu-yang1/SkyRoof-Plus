@@ -24,7 +24,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
             if (request.ResumeAfterRestart) store.Save(id, request);
             else store.Clear();
             Activate(id, request);
-            return _status.Clone();
+            return Snapshot();
         }
         finally { _gate.Release(); }
     }
@@ -32,7 +32,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
     public async Task<TrackingJobStatus> GetStatusAsync(CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
-        try { return _status.Clone(); }
+        try { return Snapshot(); }
         finally { _gate.Release(); }
     }
 
@@ -41,7 +41,7 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
         await _gate.WaitAsync(ct);
         try
         {
-            if (jobId != _status.JobId) return _status.Clone();
+            if (jobId != _status.JobId) return Snapshot();
             store.Clear();
             _request = null;
             _status.Running = false;
@@ -51,9 +51,23 @@ public sealed partial class TrackingJobRunner(TrackingService tracking, DeviceCo
                 try { await StopRotatorAsync(ct); }
                 catch (RpcException ex) { _status.Error = ex.Status.Detail; }
             }
-            return _status.Clone();
+            return Snapshot();
         }
         finally { _gate.Release(); }
+    }
+
+    private TrackingJobStatus Snapshot()
+    {
+        var result = _status.Clone();
+        if (_request?.Tracking is not { } current) return result;
+        result.CelestialTarget = current.CelestialTarget;
+        result.PointRotator = current.PointRotator;
+        if (current.CelestialTarget.Length == 0)
+            result.ActiveRadioLink = current.RadioLink?.Clone() ?? new RadioLinkProfile
+            {
+                DownlinkLowHz = current.DownlinkHz, UplinkLowHz = current.UplinkHz
+            };
+        return result;
     }
 
     private void Activate(string id, TrackingJobStart request)

@@ -107,6 +107,9 @@ message TrackingJobStatus {
   TrackingSnapshot latest = 5;
   string error = 6;
   bool resume_after_restart = 7;
+  RadioLinkProfile active_radio_link = 8;
+  string celestial_target = 9;
+  bool point_rotator = 10;
 }
 
 message RadioLinkProfile {

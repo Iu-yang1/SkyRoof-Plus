@@ -91,6 +91,8 @@ internal static class ContinuousTrackingChecks
     {
         var result = await hub.InvokeAsync<RemoteTrackingJobStatus>("TuneTrackingJob",
             new RemoteTrackingTune { JobId = before.JobId, RitHz = 12000, XitHz = -9000 });
+        Check(result.ActiveRadioLink is { RitHz: 12000, XitHz: -9000 } && result.PointRotator,
+            "Station did not return accepted RadioLink offsets.");
         Check(result.JobId == before.JobId && result.Running && result.CompletedTicks >= before.CompletedTicks,
             "Live tune restarted or replaced tracking job.");
         var tuned = await WaitAsync(hub, x => x.CompletedTicks > result.CompletedTicks && x.Phase == "tracking");
@@ -106,6 +108,7 @@ internal static class ContinuousTrackingChecks
 
     private static void VerifyTunedReadback(RemoteTrackingJobStatus status)
     {
+        Check(status.ActiveRadioLink is { RitHz: 12000, XitHz: -9000 }, "Active RadioLink readback lost after reconnect/restart.");
         var current = status.Latest ?? throw new InvalidDataException("Missing tuned prediction.");
         var factor = current.RangeRateMetresPerSecond / 299792458.0;
         long rx = (long)Math.Round((145900000 + 12000) * (1 - factor));

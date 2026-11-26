@@ -28,7 +28,7 @@ public sealed partial class TrackingJobRunner
             _status.Phase = "retuning";
             _status.Latest = null;
             _nextTick = 0;
-            return _status.Clone();
+            return Snapshot();
         }
         finally { _gate.Release(); }
     }

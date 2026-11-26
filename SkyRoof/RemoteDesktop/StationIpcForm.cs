@@ -117,7 +117,7 @@ internal sealed partial class StationIpcForm : Form
             await RunAsync(async () =>
             {
                 var job = await client.TrackingAsync(lifetime.Token);
-                if (!IsDisposed) tracking.Text = $"TRACK · {job.Phase} · {job.CompletedTicks} ticks";
+                if (!IsDisposed) ShowTrackingJob(job);
             });
         }
         finally { refreshing = false; }

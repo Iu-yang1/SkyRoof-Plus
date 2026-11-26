@@ -92,15 +92,14 @@ internal sealed partial class StationIpcForm
     private async Task StartTrackingAsync()
     {
         var result = await client.StartTrackingAsync(ReadTrackingRequest(), resumeTrack.Checked, lifetime.Token);
-        trackingResult.Text = $"{result.JobId} · {result.Phase} · {result.Error}";
+        ShowTrackingJob(result);
     }
 
     private async Task StopTrackingAsync()
     {
-        var current = await client.TrackingAsync(lifetime.Token);
-        if (string.IsNullOrEmpty(current.JobId)) return;
+        if (activeTracking is not { Running: true } current) return;
         var result = await client.StopTrackingAsync(current.JobId, lifetime.Token);
-        trackingResult.Text = $"{result.Phase} · {result.Error}";
+        ShowTrackingJob(result);
     }
 
     private async Task ParkAsync() =>

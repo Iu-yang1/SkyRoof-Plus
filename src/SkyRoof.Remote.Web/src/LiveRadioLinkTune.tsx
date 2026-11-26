@@ -7,7 +7,9 @@ const fields = [
   ['DownlinkBaseOffsetHz', 'RX BASE Δ'], ['UplinkBaseOffsetHz', 'TX BASE Δ']
 ] as const;
 
-export function LiveRadioLinkTune({ hub, jobId, available }: { hub: HubConnection | null; jobId: string; available: boolean }) {
+export type ActiveOffsets = Partial<Record<(typeof fields)[number][0], number>>;
+
+export function LiveRadioLinkTune({ hub, jobId, available, active }: { hub: HubConnection | null; jobId: string; available: boolean; active: ActiveOffsets }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,13 +27,14 @@ export function LiveRadioLinkTune({ hub, jobId, available }: { hub: HubConnectio
       }
       const result = await hub.invoke<{ JobId: string; Phase: string }>('TuneTrackingJob', patch);
       setStatus(result.JobId + ' · ' + result.Phase);
+      setValues({});
     } catch (error) { setStatus(String(error)); }
     finally { setBusy(false); }
   }
   return <details><summary>LIVE RADIO LINK TUNING</summary>
     <small>Hz; leave a field blank to keep its existing offset. Changes apply to the active satellite job.</small>
-    <div className="tracking-grid">{fields.map(([key, label]) => <label key={key}>{label}
-      <input type="number" step={key.includes('BaseOffset') ? '1' : 'any'} value={values[key] ?? ''}
+    <div className="tracking-grid">{fields.map(([key, label]) => <label key={key}>{label} · {active[key] ?? 0} Hz
+      <input type="number" step={key.includes('BaseOffset') ? '1' : 'any'} placeholder={String(active[key] ?? 0)} value={values[key] ?? ''}
         onChange={e => setValues(old => ({ ...old, [key]: e.target.value }))} />
     </label>)}</div>
     <button type="button" disabled={!available || busy} onClick={() => void apply()}>UPDATE ACTIVE LINK</button>

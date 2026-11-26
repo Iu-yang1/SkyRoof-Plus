@@ -17,6 +17,15 @@ public sealed record RemoteRadioLink
     public double DownlinkManualHz { get; init; }
     public double UplinkManualHz { get; init; }
 
+    internal static RemoteRadioLink FromIpc(RadioLinkProfile link) => new()
+    {
+        DownlinkLowHz = link.DownlinkLowHz, DownlinkHighHz = link.DownlinkHighHz,
+        UplinkLowHz = link.UplinkLowHz, UplinkHighHz = link.UplinkHighHz, Inverting = link.Inverting,
+        DownlinkBaseOffsetHz = link.DownlinkBaseOffsetHz, UplinkBaseOffsetHz = link.UplinkBaseOffsetHz,
+        TransponderOffsetHz = link.TransponderOffsetHz, RitHz = link.RitHz, XitHz = link.XitHz,
+        DownlinkManualHz = link.DownlinkManualHz, UplinkManualHz = link.UplinkManualHz
+    };
+
     internal RadioLinkProfile ToIpc() => new()
     {
         DownlinkLowHz = DownlinkLowHz, DownlinkHighHz = DownlinkHighHz,
