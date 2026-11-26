@@ -28,6 +28,7 @@ message RotatorPosition {
 
 service StationTracking {
   rpc Predict(TrackingRequest) returns (TrackingSnapshot);
+  rpc PlanPasses(PassSearchRequest) returns (PassSearchResult);
   rpc Apply(TrackingRequest) returns (TrackingSnapshot);
 }
 message TrackingRequest {
@@ -198,4 +199,32 @@ message StationRuntimeQuery {}
 message StationRuntimeIdentity {
   string station_id = 1;
   string instance_id = 2;
+}
+
+message PassSearchRequest {
+  TrackingRequest tracking = 1;
+  int64 start_utc_milliseconds = 2;
+  int64 end_utc_milliseconds = 3;
+  bool common_moon_visibility = 4;
+}
+message PassSearchResult {
+  repeated PassWindow passes = 1;
+  bool common_moon_visibility = 2;
+}
+message PassWindow {
+  int64 aos_utc_milliseconds = 1;
+  int64 los_utc_milliseconds = 2;
+  int64 culmination_utc_milliseconds = 3;
+  double maximum_elevation_degrees = 4; // for common window: min(local, peer)
+  bool actual_aos = 5;
+  bool actual_los = 6;
+  repeated PassSkyPoint sky_path = 7;
+}
+message PassSkyPoint {
+  int64 utc_milliseconds = 1;
+  double azimuth_degrees = 2;
+  double elevation_degrees = 3;
+  optional double peer_elevation_degrees = 4;
+  string orbit_backend = 5;
+  string data_quality = 6;
 }

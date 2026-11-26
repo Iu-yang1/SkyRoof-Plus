@@ -53,7 +53,7 @@ internal sealed partial class StationIpcForm : Form
         radioPage.Controls.Add(layout);
         workspace = new RemoteDockWorkspace(new[]
         {
-            radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage()
+            radioPage, CreateSignalsPage(), CreateDigitalPage(), CreateTrackingPage(), CreateAutoPage(), CreatePassesPage()
         });
         Controls.Add(workspace);
         Shown += (_, _) => workspace.OpenInitialLayout();
@@ -74,6 +74,7 @@ internal sealed partial class StationIpcForm : Form
         digitalCancellation?.Cancel();
         autoConnection?.Dispose();
         StopSignalStreams();
+        passSearch?.Cancel();
         StopMicrophone();
         heartbeat.Dispose();
         polling.Dispose();

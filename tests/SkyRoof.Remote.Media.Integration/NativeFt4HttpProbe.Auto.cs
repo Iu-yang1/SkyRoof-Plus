@@ -26,7 +26,7 @@ internal static partial class NativeFt4HttpProbe
         radio.BeginWaveformCapture();
         using var reader = new DesktopAutoSession(admin.BaseAddress ?? throw new InvalidOperationException("Missing fixture Host"), accessToken);
         await reader.StationAsync(ct);
-        await reader.StartAsync("FT4", request, ct);
+        await reader.StartAsync("FT4", request, ct, await reader.RuntimeInstanceAsync(ct));
         await VerifyAutoExchangeAsync(reader, new AutoFixture(expected, radio, ring), ct);
     }
 

@@ -34,7 +34,7 @@ internal static partial class NativeFt4HttpProbe
         using var ring = new NamedSignalRing("skyroof-q65-test-results-" + pipe, 32, 32768);
         radio.BeginWaveformCapture();
         using var reader = new DesktopAutoSession(admin.BaseAddress ?? throw new InvalidOperationException("Missing fixture Host"), accessToken);
-        await reader.StartAsync("Q65", request, ct);
+        await reader.StartAsync("Q65", request, ct, await reader.RuntimeInstanceAsync(ct));
         await VerifyQ65AutoExchangeAsync(reader, new Q65AutoFixture(expected, radio, ring, config), ct);
     }
 

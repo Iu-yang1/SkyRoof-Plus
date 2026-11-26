@@ -21,6 +21,7 @@ internal static class DesktopIpcChecks
         var stopped = await client.StopAsync(token);
         Require(stopped.StopTransmitted && rotator.Count("S") == stops + 1, "Desktop STOP missing.");
         _ = await client.TrackingAsync(token);
+        await PassPlanningChecks.RunAsync(client, radio, rotator, token);
         Console.WriteLine("PASS: original WinForms IPC adapter uses actual Station and Device processes for CAT/rotator/tracking.");
     }
 
