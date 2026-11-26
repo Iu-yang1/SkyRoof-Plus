@@ -6,26 +6,37 @@ export function CameraVideoPlayer({ profile, media2 }: { profile: string; media2
   useEffect(() => {
     const target = video.current;
     if (!target) return;
-    if (!('MediaSource' in window)) { setError('MediaSource is not supported by this browser.'); return; }
-    const abort = new AbortController();
-    const source = new MediaSource();
-    const object = URL.createObjectURL(source);
-    target.src = object;
-    setError('');
-    const open = () => void streamCamera(source, target, profile, media2, abort.signal)
-      .catch(e => { if (!abort.signal.aborted) setError(String(e)); });
-    source.addEventListener('sourceopen', open, { once: true });
-    return () => {
-      abort.abort();
-      source.removeEventListener('sourceopen', open);
-      target.pause();
-      target.removeAttribute('src');
-      target.load();
-      URL.revokeObjectURL(object);
-    };
+    if (!('MediaSource' in window)) {
+      setError('MediaSource is not supported by this browser.');
+      return;
+    }
+    return attachCamera(target, profile, media2, setError);
   }, [profile, media2]);
   return <><video ref={video} autoPlay muted playsInline controls style={{ width: '100%' }} />
     {error && <p role="alert">{error}</p>}</>;
+}
+
+function attachCamera(target: HTMLVideoElement, profile: string, media2: boolean, setError: (message: string) => void) {
+  const abort = new AbortController();
+  const source = new MediaSource();
+  const object = URL.createObjectURL(source);
+  target.src = object;
+  setError('');
+  const reportFailure = (error: unknown) => {
+    if (!abort.signal.aborted) setError(String(error));
+  };
+  const open = () => {
+    void streamCamera(source, target, profile, media2, abort.signal).catch(reportFailure);
+  };
+  source.addEventListener('sourceopen', open, { once: true });
+  return () => {
+    abort.abort();
+    source.removeEventListener('sourceopen', open);
+    target.pause();
+    target.removeAttribute('src');
+    target.load();
+    URL.revokeObjectURL(object);
+  };
 }
 
 function avcCodec(bytes: Uint8Array): string | undefined {
