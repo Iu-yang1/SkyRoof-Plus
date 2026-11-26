@@ -38,6 +38,13 @@ internal sealed class RemoteDockWorkspace : UserControl
         Controls.Add(menu);
     }
 
+    internal void AddSettingsAction(Func<Task> action, Func<Func<Task>, Task> run)
+    {
+        var item = new ToolStripMenuItem("SETTINGS");
+        item.Click += async (_, _) => await run(action);
+        menu.Items.Add(item);
+    }
+
     internal void OpenInitialLayout()
     {
         if (opened) return;
