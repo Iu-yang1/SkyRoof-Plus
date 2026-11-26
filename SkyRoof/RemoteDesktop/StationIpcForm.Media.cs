@@ -30,7 +30,7 @@ internal sealed partial class StationIpcForm
             spectrumKind, ActionButton("SCOPE", ShowSpectrumAsync), resultKind,
             ActionButton("RESULTS", ShowDecoderAsync), ActionButton("STOP STREAMS", () => { StopSignalStreams(); return Task.CompletedTask; }));
         top.Dock = DockStyle.Top;
-        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 260 };
+        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, Size = new Size(900, 600), SplitterDistance = 260 };
         split.Panel1.Controls.Add(spectrumView);
         split.Panel2.Controls.Add(decoderText);
         streamStatus.Dock = DockStyle.Bottom;

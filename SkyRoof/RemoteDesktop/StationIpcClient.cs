@@ -11,6 +11,8 @@ internal sealed partial class StationIpcClient : IDisposable
     private readonly StationTrackingJobs.StationTrackingJobsClient tracking;
     private readonly DspWaveform.DspWaveformClient dsp;
     private readonly StationSignals.StationSignalsClient signals;
+    private readonly StationCatalog.StationCatalogClient catalog;
+    private readonly StationTracking.StationTrackingClient predictor;
     private readonly string session = "desktop-" + Guid.NewGuid().ToString("N");
 
     internal StationIpcClient(string pipe)
@@ -38,6 +40,8 @@ internal sealed partial class StationIpcClient : IDisposable
         tracking = new(channel);
         dsp = new(channel);
         signals = new(channel);
+        catalog = new(channel);
+        predictor = new(channel);
     }
 
     internal Task<DeviceSnapshot> ReadRadioAsync(CancellationToken token) =>

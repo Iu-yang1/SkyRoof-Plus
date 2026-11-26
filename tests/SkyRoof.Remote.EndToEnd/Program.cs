@@ -47,7 +47,10 @@ deviceInfo.Environment["SKYROOF_CW_KEYER_PORT"] = radio.Port.ToString();
 deviceInfo.Environment["SKYROOF_DEVICE_PTT_JOURNAL"] = journal;
 deviceInfo.Environment["SKYROOF_ROTATOR_HOST"] = "127.0.0.1";
 deviceInfo.Environment["SKYROOF_ROTATOR_PORT"] = rotator.Port.ToString();
+var signalBus = "skyroof-desktop-signal-" + suffix;
 var stationInfo = Setup(stationDll);
+stationInfo.Environment["SKYROOF_RX_AUDIO_BUS"] = signalBus;
+stationInfo.Environment["SKYROOF_RX_AUDIO_CHANNELS"] = "1";
 stationInfo.Environment["SKYROOF_DEVICE_PIPE"] = devicePipe;
 stationInfo.Environment["SKYROOF_STATION_PIPE"] = stationPipe;
 stationInfo.Environment["SKYROOF_TRACKING_JOB_FILE"] = trackingFile;
@@ -88,6 +91,7 @@ try
     }
     Ensure(alive, "Host never became ready");
     await DesktopIpcChecks.RunAsync(stationPipe, radio, rotator);
+    await DesktopSignalChecks.RunAsync(stationPipe, signalBus);
     Ensure((await anonymous.GetAsync("/api/v1/station")).StatusCode ==
         HttpStatusCode.Unauthorized, "Anonymous station access allowed");
 

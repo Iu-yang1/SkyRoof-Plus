@@ -357,6 +357,7 @@
   <ItemGroup>
     <ProjectReference Include="../SkyRoof.Orbit.Contracts/SkyRoof.Orbit.Contracts.csproj" />
     <ProjectReference Include="../src/SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <Compile Include="../src/SkyRoof.Remote.Foundation/Digital/Q65SlotTiming.cs" Link="RemoteDesktop/Q65SlotTiming.cs" />
     <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />
     <Content Include="../SkyRoof.Orbit.Orekit.Smoke/TestData/tai-utc.dat"
              Link="orekit-data/tai-utc.dat"
