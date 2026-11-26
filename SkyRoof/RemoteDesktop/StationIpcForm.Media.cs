@@ -68,21 +68,21 @@ internal sealed partial class StationIpcForm
 
     private async Task ShowSpectrumAsync()
     {
+        if (spectrumKind.SelectedItem is not StationSignalKind kind) return;
         spectrumStream?.Cancel();
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         spectrumStream = source;
-        var kind = (StationSignalKind)spectrumKind.SelectedItem!;
         try { await ConsumeAsync(kind, frame => spectrumView.Accept(kind, frame), source.Token); }
         finally { if (ReferenceEquals(spectrumStream, source)) spectrumStream = null; }
     }
 
     private async Task ShowDecoderAsync()
     {
+        if (resultKind.SelectedItem is not StationSignalKind kind) return;
         decoderStream?.Cancel();
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         decoderStream = source;
         decoderText.Clear();
-        var kind = (StationSignalKind)resultKind.SelectedItem!;
         try { await ConsumeAsync(kind, ShowDecoderFrame, source.Token); }
         finally { if (ReferenceEquals(decoderStream, source)) decoderStream = null; }
     }

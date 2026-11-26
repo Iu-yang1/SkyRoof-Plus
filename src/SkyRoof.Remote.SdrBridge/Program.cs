@@ -86,6 +86,6 @@ static async Task ReplayAsync(string path, string pipe, int rate, double offset,
 static async Task StopOnParentExitAsync(CancellationTokenSource stop)
 {
     try { await Console.In.ReadLineAsync(stop.Token); stop.Cancel(); }
-    catch (OperationCanceledException) { }
-    catch (ObjectDisposedException) { }
+    catch (OperationCanceledException) { return; }
+    catch (ObjectDisposedException) { return; }
 }

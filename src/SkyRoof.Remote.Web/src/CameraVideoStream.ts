@@ -56,7 +56,9 @@ async function trimLiveWindow(buffer: SourceBuffer, video: HTMLVideoElement, sig
   if (!buffer.buffered.length) return;
   const end = buffer.buffered.end(buffer.buffered.length - 1);
   const start = buffer.buffered.start(0);
-  if (video.currentTime < end - 5 && end > start + 2) video.currentTime = end - 2;
+  if (video.currentTime < start || (video.currentTime < end - 5 && end > start + 2 && !video.seeking)) {
+    video.currentTime = Math.max(start, end - 2);
+  }
   if (end - start > 30) await update(buffer, signal, () => buffer.remove(start, end - 20));
 }
 

@@ -18,6 +18,8 @@ test('authenticated ONVIF RTSP video decodes real H264 frames', async ({ page })
     decoded: v.getVideoPlaybackQuality().totalVideoFrames > 2,
     playing: v.currentTime > 0.2 && !v.paused,
   })), { timeout: 20000 }).toEqual({ width: 160, height: 120, decoded: true, playing: true });
+  const firstTime = await video.evaluate((v: HTMLVideoElement) => v.currentTime);
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 5000 }).toBeGreaterThan(firstTime + 0.3);
   await page.getByRole('button', { name: 'STOP VIDEO' }).click();
   await expect(video).toHaveCount(0);
 });

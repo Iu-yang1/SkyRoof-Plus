@@ -54,12 +54,12 @@ def stream(conn, nals):
         conn.sendall(b"$\x00" + struct.pack("!H", len(data)) + data)
         sequence += 1
 
-    for _ in range(6):
+    for _ in range(60):
         for nal in nals:
             kind = nal[0] & 31
             if kind == 9:
                 timestamp += 9000
-                time.sleep(0.05)
+                time.sleep(0.1)
                 continue
             if len(nal) < 1300:
                 packet(nal, kind in (1, 5))

@@ -44,7 +44,7 @@ public static class TelemetryProductStore
 
     private static void AtomicWrite(string path, byte[] bytes)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)) ?? throw new IOException("Missing media directory."));
         string part = path + "." + Guid.NewGuid().ToString("N") + ".part";
         try
         {

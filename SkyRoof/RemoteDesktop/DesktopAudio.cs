@@ -18,14 +18,15 @@ internal sealed class DesktopRxPlayback : IDisposable
             throw new InvalidDataException("Unexpected RX PCM geometry.");
         if (buffer is null || buffer.WaveFormat.Channels != frame.Channels)
             Reset(frame.Channels);
+        var active = buffer ?? throw new InvalidOperationException("RX audio buffer did not initialize.");
         if (epoch != frame.Epoch || nextSample != frame.FirstSampleIndex)
-            buffer!.ClearBuffer();
+            active.ClearBuffer();
         epoch = frame.Epoch;
         nextSample = frame.FirstSampleIndex + (ulong)frame.SampleCount;
         var bytes = frame.Payload.ToByteArray();
-        if (buffer!.BufferedBytes + bytes.Length > buffer.BufferLength)
-            buffer.ClearBuffer();
-        buffer.AddSamples(bytes, 0, bytes.Length);
+        if (active.BufferedBytes + bytes.Length > active.BufferLength)
+            active.ClearBuffer();
+        active.AddSamples(bytes, 0, bytes.Length);
     }
 
     private void Reset(int channels)
@@ -98,7 +99,7 @@ internal sealed class DesktopMicrophone : IDisposable
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Grpc.Core.RpcException error) { System.Diagnostics.Trace.WriteLine("Desktop mic: " + error.Status.Detail); }
+        catch (Grpc.Core.RpcException error) { Serilog.Log.Warning("Desktop mic RPC failed: {Detail}", error.Status.Detail); }
     }
 
     public void Dispose()

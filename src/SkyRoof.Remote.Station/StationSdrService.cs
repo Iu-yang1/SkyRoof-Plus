@@ -66,13 +66,15 @@ public sealed class StationSdrService : StationSdr.StationSdrBase, IAsyncDisposa
 
     private Process Launch(SdrCaptureRequest input)
     {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(executable)) ?? throw new InvalidOperationException("Missing SDR executable directory.");
+        var selector = device ?? throw new InvalidOperationException("Missing SDR device selector.");
         var info = new ProcessStartInfo(executable)
         {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
             RedirectStandardOutput = true, RedirectStandardError = true,
-            WorkingDirectory = Path.GetDirectoryName(executable)!
+            WorkingDirectory = directory
         };
-        foreach (var arg in new[] { "--managed-rx", pipe, device!, Number(input.CenterHz),
+        foreach (var arg in new[] { "--managed-rx", pipe, selector, Number(input.CenterHz),
             input.SampleRate.ToString(CultureInfo.InvariantCulture), Number(input.ChannelHz),
             input.HasGainDb ? Number(input.GainDb) : "default" })
             info.ArgumentList.Add(arg);
