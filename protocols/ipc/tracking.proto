@@ -282,6 +282,8 @@ message QsoRecord {
   string name = 16;
   string state = 17;
   string notes = 18;
+  map<string, string> extra_adif_fields = 19;
+  map<string, string> extra_adif_types = 20;
 }
 message QsoSearch {
   string call = 1;

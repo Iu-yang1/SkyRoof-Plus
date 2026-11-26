@@ -39,6 +39,7 @@ internal sealed partial class StationIpcForm
             ActionButton("LOOKUP CALL", LookupQsoAsync), "Search call", qsoFilter, ActionButton("SEARCH LOG", () => QueryQsoAsync(true)), ActionButton("NEXT PAGE", () => QueryQsoAsync(false)),
             ActionButton("IMPORT ADIF", ImportQsoAsync), ActionButton("EXPORT ADIF", ExportQsoAsync)));
         fields.Controls.Add(Row("WSJT-X UDP port", wsjtxLogPort, ActionButton("START WSJT-X LOG", StartWsjtxLogAsync), ActionButton("STOP WSJT-X LOG", StopWsjtxLogAsync)));
+        AddExternalLogControls(fields);
         foreach (var column in new[] { "UTC", "CALL", "GRID", "BAND", "MODE", "SAT", "SENT", "RCVD" }) qsoList.Columns.Add(column, 100);
         page.Controls.Add(qsoList); page.Controls.Add(fields); page.Controls.Add(qsoStatus);
         return page;
@@ -104,7 +105,7 @@ internal sealed partial class StationIpcForm
             qsoList.Items.Clear();
             foreach (var q in result.Records)
                 qsoList.Items.Add(new ListViewItem(new[] { UtcLabel(q.UtcMilliseconds), q.Call, q.Grid, q.Band,
-                    q.Submode.Length == 0 ? q.Mode : q.Submode, q.Satellite, q.Sent, q.Received }));
+                    q.Submode.Length == 0 ? q.Mode : q.Submode, q.Satellite, q.Sent, q.Received }) { Tag = q });
             qsoCursor = result.NextBeforeId;
             qsoStatus.Text = $"{result.Records.Count} records · {(qsoCursor.Length > 0 ? "more available" : "end")}";
         }

@@ -11,6 +11,7 @@ internal sealed partial class StationIpcClient
     {
         var result = new List<QsoRecord>();
         var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         int offset = 0;
         while (offset < text.Length)
         {
@@ -20,19 +21,19 @@ internal sealed partial class StationIpcClient
             if (end < 0) throw new InvalidDataException("Unterminated ADIF tag.");
             string tag = text[(start + 1)..end];
             offset = end + 1;
-            if (tag.Equals("EOH", StringComparison.OrdinalIgnoreCase)) fields.Clear();
+            if (tag.Equals("EOH", StringComparison.OrdinalIgnoreCase)) { fields.Clear(); types.Clear(); }
             else if (tag.Equals("EOR", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add(MapAdif(fields, fallbackStationCall));
-                fields.Clear();
+                result.Add(MapAdif(fields, types, fallbackStationCall));
+                fields.Clear(); types.Clear();
             }
-            else ReadAdifField(text, tag, fields, ref offset);
+            else ReadAdifField(text, tag, fields, types, ref offset);
         }
         if (fields.Count > 0) throw new InvalidDataException("ADIF record missing EOR.");
         return result;
     }
 
-    private static void ReadAdifField(string text, string tag, Dictionary<string, string> fields, ref int offset)
+    private static void ReadAdifField(string text, string tag, Dictionary<string, string> fields, Dictionary<string, string> types, ref int offset)
     {
         string[] parts = tag.Split(':');
         if (parts.Length is < 2 or > 3 || parts[0].Length == 0 ||
@@ -40,10 +41,12 @@ internal sealed partial class StationIpcClient
             length > text.Length - offset)
             throw new InvalidDataException("Invalid ADIF field length: " + tag);
         fields[parts[0]] = text.Substring(offset, length);
+        if (parts.Length == 3) types[parts[0]] = parts[2];
+        else types.Remove(parts[0]);
         offset += length;
     }
 
-    private static QsoRecord MapAdif(Dictionary<string, string> fields, string fallbackStationCall)
+    private static QsoRecord MapAdif(Dictionary<string, string> fields, Dictionary<string, string> types, string fallbackStationCall)
     {
         string Field(string key) => fields.TryGetValue(key, out var value) ? value : "";
         string Upper(string key) => Field(key).Trim().ToUpperInvariant();
@@ -65,6 +68,12 @@ internal sealed partial class StationIpcClient
             qso.Submode = qso.Mode;
             qso.Mode = "MFSK";
         }
+        foreach (var field in fields.Where(x => !AdifExtensionFields.IsCanonical(x.Key)))
+        {
+            qso.ExtraAdifFields[field.Key] = field.Value;
+            if (types.TryGetValue(field.Key, out string? type)) qso.ExtraAdifTypes[field.Key] = type;
+        }
+        AdifExtensionFields.Normalize(qso);
         ValidateImportedQso(qso);
         qso.Id = hasId ? existing.ToString("N") :
             Convert.ToHexString(SHA256.HashData(Google.Protobuf.MessageExtensions.ToByteArray(qso)).AsSpan(0, 16)).ToLowerInvariant();

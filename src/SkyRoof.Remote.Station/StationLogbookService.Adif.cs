@@ -30,7 +30,8 @@ public sealed partial class StationLogbookService
         Add(entry, "COMMENT", qso.Notes);
         if (qso.TxHz > 0) entry["FREQ"] = (qso.TxHz / 1_000_000m).ToString("0.######", CultureInfo.InvariantCulture);
         if (qso.RxHz > 0) entry["FREQ_RX"] = (qso.RxHz / 1_000_000m).ToString("0.######", CultureInfo.InvariantCulture);
-        return AdifFile.QsoToString(entry);
+        string core = AdifFile.QsoToString(entry);
+        return core[..^6] + AdifExtensionFields.Format(qso) + "<EOR>\n";
     }
 
     private static void Add(AdifEntry entry, string key, string value)

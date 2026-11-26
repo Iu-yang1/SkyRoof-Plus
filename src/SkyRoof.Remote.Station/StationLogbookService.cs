@@ -109,6 +109,8 @@ public sealed partial class StationLogbookService : StationLogbook.StationLogboo
             qso.UtcMilliseconds <= 0 || qso.UtcMilliseconds > 253402300799999 ||
             (qso.Propagation == "SAT" && qso.Satellite.Length == 0))
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Call, station call, UTC, band and mode required; SAT requires satellite."));
+        try { AdifExtensionFields.Normalize(qso); }
+        catch (InvalidDataException error) { throw new RpcException(new Status(StatusCode.InvalidArgument, error.Message)); }
         if (qso.ToByteArray().Length > 32768)
             throw new RpcException(new Status(StatusCode.InvalidArgument, "QSO record exceeds 32 KiB."));
         return qso;
