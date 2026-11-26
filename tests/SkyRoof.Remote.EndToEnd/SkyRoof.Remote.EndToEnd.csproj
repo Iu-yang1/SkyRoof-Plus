@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../SkyRoof/RemoteDesktop/StationIpcClient*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../../src/SkyRoof.Remote.SdrBridge/RawIqTap.cs" Link="RawIqTap.cs" />
     <Compile Include="../../SkyRoof/AFC/AfcCoreModels.cs;../../SkyRoof/AFC/AfcSignalProcessing*.cs;../../SkyRoof/AFC/AfcTrackingProfile.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
     <Compile Include="../../src/SkyRoof.Remote.Station/CatalogCacheModels.cs" Link="CatalogCacheModels.cs" />
     <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.cs" Link="CatalogOnlineFetcher.cs" />
