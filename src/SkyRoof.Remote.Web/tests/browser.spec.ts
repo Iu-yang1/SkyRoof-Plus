@@ -16,7 +16,6 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   await page.getByRole('button', { name: 'SIGN IN' }).click();
 
   const localSlot = page.locator('.workspace-slot').first();
-  const remoteSlot = page.locator('.workspace-slot').nth(1);
   await expect(page.getByText('REMOTE V1 · DEV PROTOTYPE')).toBeVisible();
   // An omitted EL must not silently become 0° and steer a real rotator.
   const rotatorPanel = localSlot.locator('.rotator-panel');
@@ -39,19 +38,37 @@ test('authenticated SkyRoof Remote Dockview workstation renders and saves layout
   const originalLocal = await localSlot.elementHandle();
   expect(originalLocal).toBeTruthy();
   await expect(localSlot).toBeVisible();
-  await expect(remoteSlot).toBeHidden();
-  await page.getByRole('button', { name: 'Remote Workspace' }).click();
+  await page.getByLabel('Other station URL').fill('http://127.0.0.1:8077');
+  await page.getByRole('button', { name: 'ADD WORKSPACE' }).click();
+  const remoteSlot = page.locator('.workspace-slot').nth(1);
+  const remote = page.frameLocator('iframe[title="Station http://127.0.0.1:8077"]');
   await expect(localSlot).toBeHidden();
   await expect(remoteSlot).toBeVisible();
-  await expect(remoteSlot.getByText('No Station Hub linked to this Workspace')).toBeVisible();
-  await expect(remoteSlot.getByText('MEDIA · NO STATION LINK')).toBeVisible();
-  await expect(remoteSlot.getByRole('button', { name: 'PLAY RX' })).toBeDisabled();
+  await expect(remote.getByRole('heading', { name: 'SkyRoof Remote' })).toBeVisible();
+  await remote.getByLabel('USER').fill('remote-admin');
+  await remote.getByLabel('PASSWORD').fill('RemoteBrowserSmokeP@ssw0rd!');
+  await remote.getByRole('button', { name: 'SIGN IN' }).click();
+  await expect(remote.getByText(/beta · remote-admin · SignalR\/MessagePack connected/)).toBeVisible();
+  await expect(remote.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
+  await expect(remote.getByRole('button', { name: 'PLAY RX' })).toBeEnabled();
+  const originalRemote = await remoteSlot.locator('iframe').elementHandle();
+  expect(originalRemote).toBeTruthy();
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
+
   await page.getByRole('button', { name: 'Local Station' }).click();
   await expect(localSlot).toBeVisible();
   await expect(remoteSlot).toBeHidden();
   expect(await originalLocal!.evaluate(node => node.isConnected)).toBe(true);
+  expect(await originalRemote!.evaluate(node => node.isConnected)).toBe(true);
   await expect(localSlot.getByText('RADIO · LIVE CAT READBACK')).toBeVisible();
+  await expect(remote.locator('button').filter({ hasText: /^PLAY RX$/ })).toBeDisabled();
+
+  await page.getByRole('button', { name: 'http://127.0.0.1:8077', exact: true }).click();
+  await expect(remote.getByText(/beta · remote-admin · SignalR\/MessagePack connected/)).toBeVisible();
+  await expect(remote.getByRole('button', { name: 'PLAY RX' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Close http://127.0.0.1:8077' }).click();
+  await expect(localSlot).toBeVisible();
+  await expect(page.locator('iframe[title="Station http://127.0.0.1:8077"]')).toHaveCount(0);
 });
 
 test('station control recovers when first SignalR negotiation fails', async ({ page }) => {

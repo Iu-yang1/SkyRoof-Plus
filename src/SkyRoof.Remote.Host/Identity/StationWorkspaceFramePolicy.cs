@@ -10,7 +10,7 @@ internal static class StationWorkspaceFramePolicy
         var policy = "frame-ancestors 'self'" + (origins.Length == 0 ? "" : " " + string.Join(" ", origins));
         app.Use(async (context, next) =>
         {
-            context.Response.Headers.ContentSecurityPolicy = policy;
+            context.Response.Headers["Content-Security-Policy"] = policy;
             await next(context);
         });
     }
