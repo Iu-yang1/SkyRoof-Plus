@@ -8,6 +8,7 @@ namespace SkyRoof.RemoteDesktop;
 
 internal sealed partial class StationIpcForm
 {
+    private readonly TextBox replayOffset = new() { Width = 100, Text = "0" };
     private readonly ComboBox recordKind = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 275 };
     private readonly Label recordStatus = new() { AutoSize = true, MaximumSize = new Size(750, 0) };
     private readonly ListBox recordFiles = new() { Width = 750, Height = 230 };
@@ -27,9 +28,9 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(recordFiles);
         layout.Controls.Add(Row(ActionButton("LOAD WAV", LoadRecordingAsync), ActionButton("PLAY AF", PlayRecordingAsync),
             ActionButton("STOP PLAY", StopFilePlaybackAsync), ActionButton("EXPORT MP3", ExportMp3Async)));
-        layout.Controls.Add(Row(ActionButton("REPLAY IQ TO DSP", ReplayIqAsync), ActionButton("STOP REPLAY", () => StopStream(replaySource))));
+        layout.Controls.Add(Row("IQ channel offset (Hz)", replayOffset, ActionButton("REPLAY IQ TO DSP", ReplayIqAsync), ActionButton("STOP REPLAY", () => StopStream(replaySource))));
         layout.Controls.Add(Row("Recordings saved on this desktop; gaps/epoch changes start a new WAV segment."));
-        layout.Controls.Add(Row("48 kHz I/Q replay uses configured Station telemetry receiver, not the speaker or TX."));
+        layout.Controls.Add(Row("IQ replay channelizes raw recordings to 48 kHz for the configured Station telemetry receiver, not TX."));
         layout.Controls.Add(Row("Raw SDR recording uses the native sample rate; lost IPC frames create segment gaps."));
         page.Controls.Add(layout);
         return page;
@@ -130,13 +131,15 @@ internal sealed partial class StationIpcForm
     {
         if (replaySource is not null) return;
         using var reader = new WaveFileReader(SelectedRecording());
-        if (!IsIq(reader.WaveFormat) || reader.WaveFormat.SampleRate != 48000)
-            throw new InvalidDataException("IQ replay requires 48 kHz stereo IEEE float WAV.");
+        if (!IsIq(reader.WaveFormat) || reader.WaveFormat.SampleRate < 48000)
+            throw new InvalidDataException("IQ replay requires stereo IEEE float WAV at 48 kHz or higher.");
+        int rate = reader.WaveFormat.SampleRate;
+        double offset = double.Parse(replayOffset.Text, System.Globalization.CultureInfo.InvariantCulture);
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         replaySource = source;
         try
         {
-            var receipt = await client.ReplayIqAsync(reader, source.Token);
+            var receipt = await Task.Run(() => client.ReplayIqAsync(reader, source.Token, rate, offset), source.Token);
             recordStatus.Text = $"DSP accepted {receipt.Samples} complex samples.";
         }
         finally { replaySource = null; }
