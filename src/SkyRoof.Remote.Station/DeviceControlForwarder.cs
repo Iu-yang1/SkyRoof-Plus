@@ -1,5 +1,3 @@
-using System.IO.Pipes;
-using System.Security.Principal;
 using Grpc.Core;
 using Grpc.Net.Client;
 using SkyRoof.Remote.Ipc;
@@ -23,8 +21,7 @@ public sealed class DeviceControlForwarder : StationDevice.StationDeviceBase, ID
         {
             ConnectCallback = async (_, token) =>
             {
-                var stream = new NamedPipeClientStream(".", devicePipe, PipeDirection.InOut,
-                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                var stream = LocalPipeClient.Create(devicePipe);
                 try
                 {
                     await stream.ConnectAsync(3000, token);

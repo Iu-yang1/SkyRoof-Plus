@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.IO.Pipes;
-using System.Security.Principal;
 using Grpc.Net.Client;
 using SkyRoof.Remote.Ipc;
 
@@ -11,8 +9,7 @@ using var handler = new SocketsHttpHandler
 {
     ConnectCallback = async (_, cancellationToken) =>
     {
-        var stream = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut,
-            PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+        var stream = LocalPipeClient.Create(pipeName);
         try
         {
             await stream.ConnectAsync(2000, cancellationToken);

@@ -1,5 +1,3 @@
-using System.IO.Pipes;
-using System.Security.Principal;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.SignalR;
@@ -40,8 +38,7 @@ public sealed partial class StationDeviceBridge(IConfiguration settings) : IDisp
         {
             ConnectCallback = async (_, token) =>
             {
-                var stream = new NamedPipeClientStream(".", pipe, PipeDirection.InOut,
-                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                var stream = LocalPipeClient.Create(pipe);
                 try
                 {
                     await stream.ConnectAsync(3000, token);

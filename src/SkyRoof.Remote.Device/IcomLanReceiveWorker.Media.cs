@@ -1,5 +1,3 @@
-using System.IO.Pipes;
-using System.Security.Principal;
 using Google.Protobuf;
 using Grpc.Net.Client;
 using SkyRoof.Remote.Foundation.IcomLan;
@@ -19,8 +17,7 @@ internal sealed partial class IcomLanReceiveWorker
         {
             ConnectCallback = async (_, token) =>
             {
-                var client = new NamedPipeClientStream(".", pipe, PipeDirection.InOut,
-                    PipeOptions.Asynchronous, TokenImpersonationLevel.None);
+                var client = LocalPipeClient.Create(pipe);
                 try { await client.ConnectAsync(3000, token); return client; }
                 catch { await client.DisposeAsync(); throw; }
             }
