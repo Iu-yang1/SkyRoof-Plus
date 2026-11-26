@@ -11,7 +11,7 @@ internal sealed class DesktopStationSettings
     public string StationId { get; set; } = "alpha";
     public string StationPipe { get; set; } = "skyroof-alpha-station";
     public string HostOrigin { get; set; } = "http://127.0.0.1:8076";
-    public string ConfigurationFile { get; set; } = "";
+    public string ConfigurationFile { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "SkyRoofRemote", "data", "alpha", "supervisor.json");
     internal string ServiceName => "SkyRoofRemote-" + StationId;
 
     internal static string FileName => Path.Combine(Utils.GetUserDataFolder(), "RemoteStation.json");
