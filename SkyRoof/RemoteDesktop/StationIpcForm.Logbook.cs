@@ -37,7 +37,7 @@ internal sealed partial class StationIpcForm
         qsoUtc.Value = DateTime.UtcNow;
         fields.Controls.Add(Row(ActionButton("SAVE QSO", SaveQsoAsync), ActionButton("NEW QSO", NewQsoAsync),
             ActionButton("LOOKUP CALL", LookupQsoAsync), "Search call", qsoFilter, ActionButton("SEARCH LOG", () => QueryQsoAsync(true)), ActionButton("NEXT PAGE", () => QueryQsoAsync(false)),
-            ActionButton("EXPORT ADIF", ExportQsoAsync)));
+            ActionButton("IMPORT ADIF", ImportQsoAsync), ActionButton("EXPORT ADIF", ExportQsoAsync)));
         foreach (var column in new[] { "UTC", "CALL", "GRID", "BAND", "MODE", "SAT", "SENT", "RCVD" }) qsoList.Columns.Add(column, 100);
         page.Controls.Add(qsoList); page.Controls.Add(fields); page.Controls.Add(qsoStatus);
         return page;
