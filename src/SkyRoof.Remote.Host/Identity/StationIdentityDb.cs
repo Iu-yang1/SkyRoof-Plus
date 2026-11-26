@@ -39,6 +39,7 @@ public sealed class StationIdentityDb(DbContextOptions<StationIdentityDb> option
     {
         base.OnModelCreating(builder);
         builder.Entity<StationAccessToken>().HasIndex(x => x.Digest).IsUnique();
+        builder.Entity<StationAccessToken>().HasIndex(x => new { x.OwnerUserId, x.RevokedUtc });
         builder.Entity<StationLoginCode>().HasIndex(x => x.Digest).IsUnique();
     }
 }

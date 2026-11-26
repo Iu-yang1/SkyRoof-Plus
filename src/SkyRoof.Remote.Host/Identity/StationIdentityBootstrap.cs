@@ -9,7 +9,7 @@ public static class StationIdentityBootstrap
     {
         using var scope = provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StationIdentityDb>();
-        await db.Database.EnsureCreatedAsync();
+        await StationIdentitySchema.InitializeAsync(db);
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var name in new[] { "Viewer", "Operator", "Administrator" })
             if (!await roles.RoleExistsAsync(name))

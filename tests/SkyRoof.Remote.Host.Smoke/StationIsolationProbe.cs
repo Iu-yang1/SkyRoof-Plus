@@ -38,7 +38,9 @@ internal static class StationIsolationProbe
 
             await StopAsync(first);
             first = null;
+            await StationSchemaProbe.PrepareLegacyAsync(a.Directory);
             first = await StartAsync(dll, a);
+            await StationSchemaProbe.VerifyMigratedAsync(a.Directory);
             await AssertStationAsync(browser, a);
             await AssertStationAsync(browser, b);
             await VerifyBearerAsync(bare, a, aToken, HttpStatusCode.OK);
