@@ -183,11 +183,14 @@ public sealed class NativeRotatorWorkerTests
     if(string.IsNullOrWhiteSpace(root))return;
     string exe=Path.Combine(root,"SkyRoof","bin","x64","Release",
       "net10.0-windows7.0","SkyRoof.exe");
-    int dropFeedback=0;
+    int dropFeedback=0,droppedQueries=0;
     await using var server=new FakeGs232Bridge(_=>
-      Volatile.Read(ref dropFeedback)==0
-        ? Encoding.ASCII.GetBytes("AZ=90 EL=30\r")
-        : Array.Empty<byte>());
+    {
+      if(Volatile.Read(ref dropFeedback)==0)
+        return Encoding.ASCII.GetBytes("AZ=90 EL=30\r");
+      Interlocked.Increment(ref droppedQueries);
+      return Array.Empty<byte>();
+    });
     using var proxy=new RotatorEngineSubprocess(CreateSettings(server.Port),exe);
     for(int i=0;i<120 && !proxy.IsReady;i++)await Task.Delay(50);
     Assert.True(proxy.IsReady);
@@ -196,11 +199,13 @@ public sealed class NativeRotatorWorkerTests
     int sentStops=server.Count("S");
     Interlocked.Exchange(ref dropFeedback,1);
     var pendingVerification=proxy.VerifyPostManagementFeedbackAsync();
-    await Task.Delay(250);
+    await UntilAsync(()=>Volatile.Read(ref droppedQueries)>0);
+    Assert.False(pendingVerification.IsCompleted);
+    var stopLatency=System.Diagnostics.Stopwatch.StartNew();
     proxy.StopRotation();
-    // STOP must NOT sit for four seconds behind the async C2
-    // management verification on the child's IPC reader.
     await UntilAsync(()=>server.Count("S")>sentStops);
+    Assert.True(stopLatency.Elapsed<TimeSpan.FromSeconds(3),
+      $"STOP waited behind feedback verification: {stopLatency.Elapsed}");
     Assert.False(await pendingVerification);
   }
 
