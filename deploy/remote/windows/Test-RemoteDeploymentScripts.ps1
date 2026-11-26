@@ -31,6 +31,21 @@ try {
     foreach ($process in $a.Processes) {
         if ($process.Environment.SKYROOF_STATION_PIPE -ne $ah.SKYROOF_STATION_PIPE) { throw 'Within-station pipe mismatch.' }
     }
+    $secure = Join-Path $state 'secure'
+    $secureConfig = Join-Path $secure 'supervisor.json'
+    $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    & "$PSScriptRoot/New-StationConfiguration.ps1" -StationId secure -PackageRoot $staged -DataRoot $state -Template "$PSScriptRoot/supervisor.json.example" -Output $secureConfig -HttpPort 8078 -ProtectState -ServiceAccount $currentSid
+    $expectedSids = @('S-1-5-18','S-1-5-32-544',$currentSid) | Select-Object -Unique
+    foreach ($protectedPath in @($secure,$secureConfig)) {
+        $acl = Get-Acl -LiteralPath $protectedPath
+        $actual = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | ForEach-Object { $_.IdentityReference.Value })
+        if (@($actual | Where-Object { $_ -notin $expectedSids }).Count) { throw "Unexpected access rule: $protectedPath" }
+        foreach ($sid in $expectedSids) {
+            if ($sid -notin $actual) { throw "Missing access rule $sid on $protectedPath" }
+        }
+    }
+    if (-not (Get-Acl -LiteralPath $secure).AreAccessRulesProtected) { throw 'Station directory inherited broad ACL.' }
+    Write-Host 'PASS: protected station configuration and data ACL.'
     Add-Content -LiteralPath (Join-Path $staged 'Device/SkyRoof.Remote.Device.dll') -Value 'corruption'
     $detected = $false
     try { & "$PSScriptRoot/Test-RemotePackage.ps1" -PackageRoot $staged | Out-Null } catch { $detected = $true }

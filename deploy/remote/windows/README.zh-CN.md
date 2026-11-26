@@ -77,3 +77,10 @@ $version = ./Stage-RemotePackage.ps1 -Archive ./SkyRoof-Remote-V1-development-wi
 脚本验证 manifest 与配置五个组件路径；停止旧服务，修改 SCM 命令、启动并检查指定 readiness。失败恢复旧命令和原运行状态。该脚本不进行 SQLite schema migration 或数据快照；不能把 readiness 200 当作全部 DSP/RTC 或 RF 硬件健康。先备份数据并确保旧版本与数据 schema 兼容；升级期间不要同时运行占用同一硬件的实例。CI 仅检查暂存、文件篡改、配置隔离，真实服务升级与故障回滚尚未验收。
 
 可选 DSP 环境变量 `SKYROOF_SATNOGS_TOKEN` / `SKYROOF_STATION_CALLSIGN` / `SKYROOF_STATION_GRID`，Web 显式启用上传。ONVIF Host 环境变量 `SKYROOF_ONVIF_ENDPOINT`（设备 SOAP service URL）/`SKYROOF_ONVIF_USERNAME`/`SKYROOF_ONVIF_PASSWORD`；Web Camera 支持发现、profiles 与 JPEG/PNG snapshot，不是 RTSP/PTZ。凭据不提交仓库。
+
+
+## 受限台站目录与身份 schema
+
+生产配置可使用 `-ProtectState`，同时将 `-Output` 放在自身 station data 目录内，例如 `C:/SkyRoofRemote/data/alpha/supervisor.json`。默认 SCM LocalSystem（SID S-1-5-18）；若使用其他服务账户，通过 `-ServiceAccount` 指定实际账户名或 SID。目录 ACL 仅保留 SYSTEM、Administrators 和指定服务账户；现有子目录及文件也按该列表重新设置访问规则，执行前确认该站数据不依赖其他账号。拒绝重解析点，避免递归修改其他目录。该选项不会改变 Windows 服务账户，也不会设置 Named Pipe/SignalBus 对象 ACL。不同站点若共用同一 LocalSystem 身份，仍不具备 OS 用户级隔离。
+
+Host 启动时对既有 SQLite 身份库执行事务式 schema version 0→1 升级，新增用户 token 批量撤销索引，不删除或重建数据表。向后兼容旧二进制；正式发布前仍需实际跨版本回滚及备份恢复验收。该迁移不改变密码哈希、令牌或 DataProtection key。

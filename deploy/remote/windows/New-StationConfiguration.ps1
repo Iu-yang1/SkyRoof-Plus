@@ -6,6 +6,8 @@ param(
     [Parameter(Mandatory)][string]$Template,
     [Parameter(Mandatory)][string]$Output,
     [ValidateRange(1024,65535)][int]$HttpPort = 8076,
+    [switch]$ProtectState,
+    [string]$ServiceAccount = 'S-1-5-18',
     [switch]$Force
 )
 $ErrorActionPreference = 'Stop'
@@ -68,6 +70,13 @@ foreach ($process in $config.Processes) {
 }
 New-Item -ItemType Directory -Force -Path $state | Out-Null
 $outputPath = [IO.Path]::GetFullPath($Output)
+if ($ProtectState) {
+    $prefix = $state.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $outputPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Protected configuration must be stored inside its own station data directory.'
+    }
+    & "$PSScriptRoot/Protect-StationState.ps1" -Directory $state -ServiceAccount $ServiceAccount
+}
 New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($outputPath)) | Out-Null
 $temp = "$outputPath.$([guid]::NewGuid().ToString('N')).part"
 try {
