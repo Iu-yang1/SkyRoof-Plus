@@ -51,14 +51,14 @@ namespace SkyRoof
       }
     }
 
-    public void Start(int port)
+    public void Start(int port, IPAddress? bindAddress = null)
     {
       Stop();
       TcpListener? next = null;
       CancellationTokenSource? cts = null;
       try
       {
-        next = new TcpListener(IPAddress.Any, port);
+        next = new TcpListener(bindAddress ?? IPAddress.Any, port);
         next.Start();
         cts = new CancellationTokenSource();
         lock (gate)

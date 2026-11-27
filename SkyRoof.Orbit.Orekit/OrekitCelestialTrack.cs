@@ -8,7 +8,7 @@ using SkyRoof.Orbit.Contracts;
 namespace SkyRoof.Orbit.Orekit;
 
 /// <summary>Orekit planetary JPL DE-series ephemeris in Earth-fixed coordinates.</summary>
-public sealed class OrekitCelestialTrack : IOrbitTrack
+public sealed partial class OrekitCelestialTrack : IOrbitTrack, IEmeOrbitTrack
 {
     private readonly CelestialBody body;
     private readonly Frame itrf;
@@ -47,12 +47,7 @@ public sealed class OrekitCelestialTrack : IOrbitTrack
     public OrbitObservation Observe(GroundStationSpec ground, DateTimeOffset utc)
     {
         var date = ToAbsoluteDate(utc);
-        var site = stations.GetOrAdd(ground, spec =>
-            new TopocentricFrame(earth,
-                new GeodeticPoint(spec.LatitudeDegrees * Math.PI / 180.0,
-                    spec.LongitudeDegrees * Math.PI / 180.0,
-                    spec.EllipsoidalHeightMetres),
-                $"SkyRoof-{spec.LatitudeDegrees:F6}-{spec.LongitudeDegrees:F6}"));
+        var site = Site(ground);
         var pv = body.getPVCoordinates(date, itrf);
         return new OrbitObservation(utc.ToUniversalTime(),
             site.getAzimuth(pv.getPosition(), itrf, date) * 180.0 / Math.PI,
@@ -62,6 +57,12 @@ public sealed class OrekitCelestialTrack : IOrbitTrack
             "ITRF/IERS2010/DE430",
             OrekitDataContext.DataQuality(utc));
     }
+
+    private TopocentricFrame Site(GroundStationSpec ground) => stations.GetOrAdd(ground, spec =>
+        new TopocentricFrame(earth,
+            new GeodeticPoint(spec.LatitudeDegrees * Math.PI / 180.0,
+                spec.LongitudeDegrees * Math.PI / 180.0, spec.EllipsoidalHeightMetres),
+            $"SkyRoof-{spec.LatitudeDegrees:F6}-{spec.LongitudeDegrees:F6}"));
 
     private static AbsoluteDate ToAbsoluteDate(DateTimeOffset instant)
     {

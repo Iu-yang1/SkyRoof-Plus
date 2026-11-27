@@ -1,0 +1,143 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+
+public sealed partial class FakeRigctld : IAsyncDisposable
+{
+    private readonly TcpListener _server = new(IPAddress.Loopback, 0);
+    private readonly CancellationTokenSource _stop = new();
+    private readonly Task _task;
+    private readonly List<Task> _clients = [];
+    private int _positionDelayMs;
+    private readonly object _sync = new();
+    private readonly List<string> _commands = [];
+    private long _rx = 145_900_000;
+    private long _tx = 435_650_000;
+    private bool _ptt;
+    private double _azimuth, _elevation;
+    private string _rxMode = "USB", _txMode = "USB";
+    private string? _rejectNext;
+
+    public int Port { get; }
+
+    public FakeRigctld()
+    {
+        _server.Start();
+        Port = ((IPEndPoint)_server.LocalEndpoint).Port;
+        _task = RunAsync();
+    }
+
+    public int Count(string command)
+    {
+        lock (_sync) return _commands.Count(x => x == command);
+    }
+
+    public int CountPrefix(string prefix)
+    {
+        lock (_sync) return _commands.Count(x => x.StartsWith(prefix, StringComparison.Ordinal));
+    }
+
+    public void DelayPositionReadback(int milliseconds) => Volatile.Write(ref _positionDelayMs, milliseconds);
+
+    public void SetExternalPtt(bool value)
+    {
+        lock (_sync) _ptt = value;
+    }
+
+    public void RejectNext(string command)
+    {
+        lock (_sync) _rejectNext = command;
+    }
+
+    private async Task RunAsync()
+    {
+        try
+        {
+            while (!_stop.IsCancellationRequested)
+            {
+                var client = await _server.AcceptTcpClientAsync(_stop.Token);
+                var task = HandleClientAsync(client);
+                lock (_sync) _clients.Add(task);
+            }
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+        catch (SocketException) when (_stop.IsCancellationRequested) { }
+    }
+
+    private async Task HandleClientAsync(TcpClient client)
+    {
+        using (client)
+        try
+        {
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.ASCII);
+            using var writer = new StreamWriter(stream, Encoding.ASCII)
+                { NewLine = "\n", AutoFlush = true };
+            while (!_stop.IsCancellationRequested)
+            {
+                var cmd = await reader.ReadLineAsync(_stop.Token);
+                if (cmd is null) break;
+                string reply;
+                lock (_sync)
+                {
+                    _commands.Add(cmd);
+                    if (_rejectNext == cmd)
+                    {
+                        _rejectNext = null;
+                        reply = "RPRT -1";
+                    }
+                    else reply = ExecuteCw(cmd, client) ?? Execute(cmd);
+                }
+                if (cmd == "p" && Volatile.Read(ref _positionDelayMs) > 0)
+                    await Task.Delay(Volatile.Read(ref _positionDelayMs), _stop.Token);
+                await writer.WriteLineAsync(reply.AsMemory(), _stop.Token);
+            }
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+        catch (IOException) { }
+        catch (SocketException) { }
+        finally { lock (_sync) if (ReferenceEquals(_cwOwner, client)) _cwOwner = null; }
+    }
+
+    private string Execute(string command)
+    {
+        if (command == "f") return _rx.ToString(CultureInfo.InvariantCulture);
+        if (command == "i") return _tx.ToString(CultureInfo.InvariantCulture);
+        if (command == "t") return _ptt || _cwOwner is not null ? "1" : "0";
+        if (command == "m") return _rxMode + "\n2400";
+        if (command == "x") return _txMode + "\n2400";
+        if (command == "p") return FormattableString.Invariant($"{_azimuth:F3}\n{_elevation:F3}");
+        if (command == "S") return "RPRT 0";
+        if (command.StartsWith("P ", StringComparison.Ordinal))
+        {
+            var angles = command.Split(' ');
+            _azimuth = double.Parse(angles[1], CultureInfo.InvariantCulture);
+            _elevation = double.Parse(angles[2], CultureInfo.InvariantCulture);
+            return "RPRT 0";
+        }
+        if (command.StartsWith("F ", StringComparison.Ordinal))
+            _rx = long.Parse(command.AsSpan(2), CultureInfo.InvariantCulture);
+        else if (command.StartsWith("I ", StringComparison.Ordinal))
+            _tx = long.Parse(command.AsSpan(2), CultureInfo.InvariantCulture);
+        else if (command.StartsWith("M ", StringComparison.Ordinal))
+            _rxMode = command[2..].Split(' ')[0];
+        else if (command.StartsWith("X ", StringComparison.Ordinal))
+            _txMode = command[2..].Split(' ')[0];
+        else if (command == "T 1") _ptt = true;
+        else if (command == "T 0") _ptt = false;
+        else return "RPRT -1";
+        return "RPRT 0";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _stop.Cancel();
+        _server.Stop();
+        await _task;
+        Task[] clients;
+        lock (_sync) clients = _clients.ToArray();
+        await Task.WhenAll(clients);
+        _stop.Dispose();
+    }
+}

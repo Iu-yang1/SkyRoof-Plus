@@ -5,13 +5,6 @@ using SkyRoof.CW;
 
 namespace SkyRoof
 {
-  public enum CwReceiveAudioSource
-  {
-    SDR,
-    WasapiCapture,
-    RsBa1Loopback
-  }
-
   public sealed class CwConsoleSettings
   {
     [Browsable(false)]

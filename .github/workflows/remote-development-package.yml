@@ -1,0 +1,166 @@
+name: Remote V1 Multi-Process Development Package
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.SdrBridge/**','src/SkyRoof.Remote.Foundation/**','src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.Media/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Media.Integration/**','tests/SkyRoof.Remote.Dsp.Integration/**','.github/workflows/remote-development-package.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.SdrBridge/**','src/SkyRoof.Remote.Foundation/**','src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Supervisor/**','src/SkyRoof.Remote.Ipc.Contracts/**','src/SkyRoof.Remote.Web/**','deploy/remote/**','tests/SkyRoof.Remote.EndToEnd/**','.github/workflows/remote-development-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rtc-runtime:
+    uses: ./.github/workflows/remote-webrtc-datachannel.yml
+  q65-runtime:
+    uses: ./.github/workflows/remote-q65-native.yml
+  packaged-e2e:
+    needs: [rtc-runtime, q65-runtime]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/checkout@v4
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
+          path: SkySignals-Plus
+          persist-credentials: false
+      - name: Build pinned UNNE telemetry runtime
+        shell: pwsh
+        run: ./scripts/stage-skytlm-fork.ps1 -IncludeSstv
+      - name: Build Dockview frontend
+        shell: pwsh
+        run: |
+          Push-Location src/SkyRoof.Remote.Web
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+      - name: Publish all six processes
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/remote-v1 | Out-Null
+          foreach ($part in @('Device','Station','Media','Dsp','Host','Supervisor')) {
+            dotnet publish "src/SkyRoof.Remote.$part/SkyRoof.Remote.$part.csproj" -c Release -r win-x64 --self-contained false -o "artifacts/remote-v1/$part"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          dotnet publish src/SkyRoof.Remote.WsjtxBridge/SkyRoof.Remote.WsjtxBridge.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-v1/tools/WsjtxBridge
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish src/SkyRoof.Remote.SdrBridge/SkyRoof.Remote.SdrBridge.csproj -c Release -r win-x64 --self-contained false -o artifacts/remote-v1/tools/SdrBridge -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet artifacts/remote-v1/tools/SdrBridge/SkyRoof.Remote.SdrBridge.dll --abi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/download-orekit-de430.ps1 -DataDirectory artifacts/remote-v1/Station/orekit-data
+          if (-not (Test-Path artifacts/remote-v1/Host/wwwroot/index.html)) { throw 'React assets missing' }
+          Copy-Item deploy/remote artifacts/remote-v1/configuration-examples -Recurse -Force
+      - name: Install tested native RTC runtime into Host package
+        uses: actions/download-artifact@v4
+        with:
+          name: SkyRoof-RTC-native-win-x64
+          path: artifacts/remote-v1/Host
+      - name: Install verified Q65 native runtime into DSP package
+        uses: actions/download-artifact@v4
+        with:
+          name: SkyRoof-Q65-native-win-x64
+          path: artifacts/remote-v1/Dsp
+      - name: Verify packaged Q65 ABI
+        shell: pwsh
+        run: |
+          dotnet artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll --q65-self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify actual SSDV / Codec2 / SSTV media decoder
+        run: dotnet artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll --telemetry-media-test SkySignals-Plus/VE3NEA.SkyTlm.Tests/Data/Ssdv
+      - name: Run real Chromium RTC media integration from packaged Host
+        shell: pwsh
+        run: |
+          dotnet build tests/SkyRoof.Remote.Rtc.Integration/SkyRoof.Remote.Rtc.Integration.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:SKYROOF_RTC_TEST_URL = 'http://127.0.0.1:8077'
+          $env:ASPNETCORE_ENVIRONMENT = 'Development'
+          $env:ASPNETCORE_URLS = $env:SKYROOF_RTC_TEST_URL
+          $env:SKYROOF_AUTH_DB = Join-Path $env:RUNNER_TEMP 'rtc-browser.sqlite'
+          $env:SKYROOF_BOOTSTRAP_ADMIN_USER = 'rtc-admin'
+          $env:SKYROOF_BOOTSTRAP_ADMIN_PASSWORD = 'RtcFixture-Password!123'
+          $env:SKYROOF_RX_AUDIO_BUS = 'skyroof-rtc-browser-' + [guid]::NewGuid().ToString('N')
+          $hostProcess = Start-Process dotnet -ArgumentList 'artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll' -PassThru -RedirectStandardOutput artifacts/rtc-host.log -RedirectStandardError artifacts/rtc-host.err
+          $sourceProcess = Start-Process dotnet -ArgumentList 'tests/SkyRoof.Remote.Rtc.Integration/bin/Release/net10.0-windows/SkyRoof.Remote.Rtc.Integration.dll' -PassThru
+          try {
+            for ($i = 0; $i -lt 100; $i++) {
+              try { if ((Invoke-WebRequest "$env:SKYROOF_RTC_TEST_URL/health/live" -TimeoutSec 2).StatusCode -eq 200) { break } } catch { Start-Sleep -Milliseconds 100 }
+            }
+            Push-Location src/SkyRoof.Remote.Web
+            npx playwright install chromium
+            if ($LASTEXITCODE -ne 0) { throw 'Chromium install failed' }
+            npx playwright test tests/rtc-media.spec.ts --config playwright.config.ts
+            $rtcExit = $LASTEXITCODE
+            Pop-Location
+            if ($rtcExit -ne 0) { throw 'RTC browser test failed' }
+          } finally {
+            if (-not $sourceProcess.HasExited) { Stop-Process -Id $sourceProcess.Id -Force }
+            if (-not $hostProcess.HasExited) { Stop-Process -Id $hostProcess.Id -Force }
+            Get-Content artifacts/rtc-host.log -Tail 100
+            Get-Content artifacts/rtc-host.err -Tail 50
+          }
+      - name: Build end-to-end simulation harness
+        run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
+      - name: Run CAT transactions against binaries from publish directories
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- artifacts/remote-v1/Device/SkyRoof.Remote.Device.dll artifacts/remote-v1/Station/SkyRoof.Remote.Station.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll
+      - name: Build Media SignalBus integration harness
+        run: dotnet build tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release -warnaserror
+      - name: Exercise published Media process and SignalBus RX PCM16
+        run: dotnet run --project tests/SkyRoof.Remote.Media.Integration/SkyRoof.Remote.Media.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Media/SkyRoof.Remote.Media.dll artifacts/remote-v1/Host/SkyRoof.Remote.Host.dll artifacts/remote-v1/Device/SkyRoof.Remote.Device.dll artifacts/remote-v1/Station/SkyRoof.Remote.Station.dll artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
+      - name: Build independent DSP AF integration harness
+        run: dotnet build tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release -warnaserror
+      - name: Exercise packaged DSP AF and recorded IQ
+        shell: pwsh
+        run: |
+          ./scripts/fetch-unne1b-real-iq.ps1
+          $env:SKYROOF_UNNE_REAL_IQ_DIR = Join-Path $PWD 'artifacts/unne1b-real-iq'
+          dotnet run --project tests/SkyRoof.Remote.Dsp.Integration/SkyRoof.Remote.Dsp.Integration.csproj -c Release --no-build -- artifacts/remote-v1/Dsp/SkyRoof.Remote.Dsp.dll
+      - name: Validate staging and isolated station configuration
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteDeploymentScripts.ps1
+      - name: Generate and verify complete package file manifest
+        shell: pwsh
+        run: |
+          ./deploy/remote/windows/New-RemotePackageManifest.ps1 -PackageRoot artifacts/remote-v1 -Revision $env:GITHUB_SHA
+          ./deploy/remote/windows/Test-RemotePackage.ps1 -PackageRoot artifacts/remote-v1
+      - name: Verify real SCM upgrade and failed replacement rollback
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteServiceUpgrade.ps1 -PackageRoot artifacts/remote-v1
+      - name: Compress after smoke passes
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/remote-v1/* -DestinationPath artifacts/SkyRoof-Remote-V1-development-win-x64.zip -Force
+      - name: Verify first installation from final ZIP and state-preserving uninstall
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteStationInstall.ps1 -Archive artifacts/SkyRoof-Remote-V1-development-win-x64.zip
+      - name: Build and test Windows station installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          $zip = (Resolve-Path artifacts/SkyRoof-Remote-V1-development-win-x64.zip).Path
+          $output = (Resolve-Path artifacts).Path
+          & $iscc "/DPackageZip=$zip" "/DOutputPath=$output" deploy/remote/windows/RemoteStation.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./deploy/remote/windows/Test-RemoteInstaller.ps1 -Installer artifacts/SkyRoof-Remote-Station-Setup.exe
+      - name: Upload unsigned development installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyRoof-Remote-Station-Setup-unsigned
+          path: artifacts/SkyRoof-Remote-Station-Setup.exe
+          retention-days: 5
+      - name: Upload development artifact, not a release
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyRoof-Remote-V1-development-win-x64
+          path: artifacts/SkyRoof-Remote-V1-development-win-x64.zip
+          retention-days: 5

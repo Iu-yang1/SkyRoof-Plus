@@ -1,0 +1,55 @@
+name: Remote Host Authentication and Realtime Smoke
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Host/**','tests/SkyRoof.Remote.Host.Smoke/**','.github/workflows/remote-host-smoke.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Host/**','tests/SkyRoof.Remote.Host.Smoke/**','.github/workflows/remote-host-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Remote Host
+        run: dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
+      - name: Build simulated remote client
+        run: dotnet build tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release
+      - name: Install FFmpeg for RTSP fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "FFmpeg installation failed: $LASTEXITCODE" }
+            $env:Path = "$env:ChocolateyInstall\bin;$env:Path"
+            "$env:ChocolateyInstall\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+          ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg executable check failed' }
+      - name: Run HTTP + SignalR + WSS and real RTSP remux smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
+          $ready = Join-Path $env:RUNNER_TEMP 'skyroof-rtsp-fixture-url.txt'
+          $script = (Resolve-Path tests/SkyRoof.Remote.Host.Smoke/rtsp_fixture.py).Path
+          $fixture = Start-Process python -ArgumentList @('-u', ('"' + $script + '"'), ('"' + $ffmpeg + '"'), ('"' + $ready + '"')) -PassThru
+          try {
+            for ($i=0; $i -lt 100 -and -not (Test-Path $ready); $i++) {
+              if ($fixture.HasExited) { throw 'RTSP fixture exited before readiness' }
+              Start-Sleep -Milliseconds 100
+            }
+            $env:SKYROOF_TEST_RTSP_URI = Get-Content -LiteralPath $ready -Raw
+            $env:SKYROOF_TEST_FFMPEG = $ffmpeg
+            dotnet run --project tests/SkyRoof.Remote.Host.Smoke/SkyRoof.Remote.Host.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (-not $fixture.HasExited) { Stop-Process -Id $fixture.Id -Force }
+          }

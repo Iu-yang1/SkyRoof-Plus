@@ -1,0 +1,37 @@
+name: Remote SignalBus Cross-Process Probe
+
+on:
+  push:
+    branches:
+      - feature/remote-v1-multiprocess-foundation
+    paths:
+      - 'src/SkyRoof.Remote.SignalBus/**'
+      - 'tests/SkyRoof.Remote.SignalBus.Probe/**'
+      - '.github/workflows/remote-signalbus-probe.yml'
+  pull_request:
+    paths:
+      - 'src/SkyRoof.Remote.SignalBus/**'
+      - 'tests/SkyRoof.Remote.SignalBus.Probe/**'
+      - '.github/workflows/remote-signalbus-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-signalbus:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build with warnings treated as errors
+        run: dotnet build tests/SkyRoof.Remote.SignalBus.Probe/SkyRoof.Remote.SignalBus.Probe.csproj -c Release -warnaserror
+      - name: Simulate real shared memory across processes
+        run: dotnet run --project tests/SkyRoof.Remote.SignalBus.Probe/SkyRoof.Remote.SignalBus.Probe.csproj -c Release --no-build
+
+      - name: Verify Global SignalBus ACL with Session 0 SYSTEM producer
+        shell: pwsh
+        run: ./deploy/remote/windows/Test-RemoteGlobalSignalBus.ps1

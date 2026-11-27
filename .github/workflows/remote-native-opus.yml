@@ -1,0 +1,26 @@
+name: Remote Native Opus Media Probe
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['native/SkyRoof.Media.Native/**','.github/workflows/remote-native-opus.yml']
+  pull_request:
+    paths: ['native/SkyRoof.Media.Native/**','.github/workflows/remote-native-opus.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  opus-c-abi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install libopus C API and build tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libopus-dev pkg-config
+      - name: Build C++ media library
+        run: |
+          cmake -S native/SkyRoof.Media.Native -B /tmp/skyroof-media-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/skyroof-media-build --parallel 2
+      - name: Execute native Opus round-trip
+        run: ctest --test-dir /tmp/skyroof-media-build --output-on-failure

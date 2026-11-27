@@ -1,0 +1,19 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service StationProbe {
+  rpc Ping (PingRequest) returns (PingReply);
+}
+
+message PingRequest {
+  string nonce = 1;
+  uint64 epoch = 2;
+}
+
+message PingReply {
+  string nonce = 1;
+  uint64 epoch = 2;
+  int32 server_process_id = 3;
+  int64 server_monotonic_ticks = 4;
+}

@@ -1,0 +1,36 @@
+name: Remote Telemetry Recorded IQ
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Dsp.Integration/**','scripts/stage-skytlm-fork.ps1','scripts/fetch-unne1b-real-iq.ps1','.github/workflows/remote-telemetry-iq.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Dsp/**','src/SkyRoof.Remote.Ipc.Contracts/**','tests/SkyRoof.Remote.Dsp.Integration/**','.github/workflows/remote-telemetry-iq.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recorded-iq:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Iu-yang1/VE3NEA.SkySignals-Plus
+          ref: 72137519f9f4d59ebbc3fc0a788405ce2e2e37f5
+          path: SkySignals-Plus
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - shell: pwsh
+        run: ./scripts/stage-skytlm-fork.ps1
+      - shell: pwsh
+        run: ./scripts/fetch-unne1b-real-iq.ps1
+      - run: dotnet publish src/SkyRoof.Remote.Dsp -c Release -r win-x64 --self-contained false -o artifacts/telemetry-iq -warnaserror
+      - run: dotnet build tests/SkyRoof.Remote.Dsp.Integration -c Release -warnaserror
+      - name: Real off-air CF32 via named-pipe client stream
+        shell: pwsh
+        run: |
+          $env:SKYROOF_UNNE_REAL_IQ_DIR = Join-Path $PWD 'artifacts/unne1b-real-iq'
+          dotnet run --project tests/SkyRoof.Remote.Dsp.Integration -c Release --no-build -- artifacts/telemetry-iq/SkyRoof.Remote.Dsp.dll

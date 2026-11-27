@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SkyRoof\SkyRoof.csproj" />
+    <Compile Include="../src/SkyRoof.Remote.Station/StationIfSamples.cs" Link="StationIfSamples.cs" />
+    <Compile Include="../src/SkyRoof.Remote.Station/StationAfcPolarityProbe.cs" Link="StationAfcPolarityProbe.cs" />
   </ItemGroup>
 
   <ItemGroup>

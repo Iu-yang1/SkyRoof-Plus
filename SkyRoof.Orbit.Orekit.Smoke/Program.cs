@@ -6,6 +6,20 @@ using SkyRoof.Orbit.Contracts;
 using SkyRoof.Orbit.SgpNet;
 using org.orekit.time;
 
+if (args is ["--iss-oem-only", var directory])
+{
+    OrekitDataContext.Initialize(directory);
+    IssOemSuite.Run();
+    await IssOemCacheSuite.RunAsync();
+    return 0;
+}
+if (args is ["--iss-oem-live", var data, var ephemeris])
+{
+    OrekitDataContext.Initialize(data);
+    IssOemLiveSuite.Run(ephemeris);
+    return 0;
+}
+
 if (args.Length is < 1 or > 2)
 {
     Console.Error.WriteLine("Usage: SkyRoof.Orbit.Orekit.Smoke <orekit-data-directory> [report.json]");
@@ -17,6 +31,8 @@ try
     var timer = Stopwatch.StartNew();
     var dataDirectory = OrekitDataContext.Initialize(args[0]);
     var initializedMs = timer.Elapsed.TotalMilliseconds;
+    IssOemSuite.Run();
+    await IssOemCacheSuite.RunAsync();
 
     var utc = TimeScalesFactory.getUTC();
     var t2020 = new AbsoluteDate(2020, 1, 1, 0, 0, 0.0, utc);

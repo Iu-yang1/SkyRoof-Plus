@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+#if !SKYROOF_REMOTE_DSP
 using VE3NEA;
+#endif
 
 namespace SkyRoof.CW
 {
@@ -29,8 +31,8 @@ namespace SkyRoof.CW
 
     public static DeepCwModelMetadata Parse(string json)
     {
-      DeepCwModelMetadata value =
-        JsonSerializer.Deserialize<DeepCwModelMetadata>(json) ??
+      var value = JsonSerializer.Deserialize<DeepCwModelMetadata>(json);
+      if (value is null)
         throw new InvalidDataException("DeepCW metadata is empty.");
       value.Validate();
       return value;
@@ -81,8 +83,16 @@ namespace SkyRoof.CW
     public static string MetadataUrl =>
       $"https://raw.githubusercontent.com/e04/deepcw-engine/{Revision}/{MetadataFileName}";
 
-    public static string GetDirectory() =>
-      Path.Combine(Utils.GetUserDataFolder(), "cwmodel");
+    public static string GetDirectory()
+    {
+#if SKYROOF_REMOTE_DSP
+      return Environment.GetEnvironmentVariable("SKYROOF_CW_MODEL_DIRECTORY") ??
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+          "SkyRoof", "Remote", "cwmodel");
+#else
+      return Path.Combine(Utils.GetUserDataFolder(), "cwmodel");
+#endif
+    }
 
     public static string GetModelPath() =>
       Path.Combine(GetDirectory(), ModelFileName);

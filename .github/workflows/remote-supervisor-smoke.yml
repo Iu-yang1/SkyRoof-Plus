@@ -1,0 +1,25 @@
+name: Remote Supervisor Process Crash Simulation
+
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Supervisor/**','tests/SkyRoof.Remote.Supervisor.Smoke/**','.github/workflows/remote-supervisor-smoke.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Supervisor/**','tests/SkyRoof.Remote.Supervisor.Smoke/**','.github/workflows/remote-supervisor-smoke.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supervisor:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build src/SkyRoof.Remote.Supervisor/SkyRoof.Remote.Supervisor.csproj -c Release
+      - run: dotnet build tests/SkyRoof.Remote.Supervisor.Smoke/SkyRoof.Remote.Supervisor.Smoke.csproj -c Release
+      - run: dotnet run --project tests/SkyRoof.Remote.Supervisor.Smoke/SkyRoof.Remote.Supervisor.Smoke.csproj -c Release --no-build -- src/SkyRoof.Remote.Supervisor/bin/Release/net10.0-windows/SkyRoof.Remote.Supervisor.dll

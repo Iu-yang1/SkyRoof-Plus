@@ -1,0 +1,119 @@
+# SkyRoof Remote V1 Windows x64 多进程开发测试包
+
+此包包含 Device、Station、Media、Dsp、Host、Supervisor 六个 .NET 10 进程，以及 React/Dockview 网页，不是完整 SkyRoof Remote V1 正式版本。
+
+- Device：独立控制 SkyCAT/rigctld 兼容 CAT TCP；处理上下行频率、模式、PTT、设备读回、崩溃事务恢复与超时释放
+- Station：独立 gRPC 命名管道控制入口
+- Media：独立 gRPC Windows Named Pipe RX PCM16 入口，将真实来源提供的 PCM 帧写入 SignalBus，并与 Host 的认证 WSS 音频端点联动
+- Dsp：从 Media 共享内存 PCM16 产生真实 AF Hann-FFT 音频频谱，发布 475-bin AF Spectrum SignalBus
+- Host：Identity/SQLite、MessagePack SignalR、身份与权限、网页
+- Supervisor：普通后台运行并兼容 Windows Service 托管，可监管上述进程
+
+Windows x64 需 .NET 10 Runtime 和可访问的本机 SkyCAT/rigctld 服务。在 supervisor.json.example 基础上创建 supervisor.json，配置安装目录、台站设备连接、CAT 端口、服务环境变量和本机管理员初始化凭据 SKYROOF_BOOTSTRAP_ADMIN_USER / SKYROOF_BOOTSTRAP_ADMIN_PASSWORD。启动后管理员账号密码以 Identity 哈希形式写入 SQLite；不要将明文凭据提交到仓库。
+
+在 PowerShell 设置 SKYROOF_SUPERVISOR_CONFIG 环境变量指向 supervisor.json，再执行 dotnet 路径/到/Supervisor/SkyRoof.Remote.Supervisor.dll。开发模式 Host 默认 http://127.0.0.1:8076；外网使用必须由 HTTPS/WSS 代理保护。FRP TCP/QUIC 与 UDP 的单独部署文档见 deploy/remote/README.zh-CN.md。
+
+**验收方式：** GitHub Actions 从发布目录实际启动 Device、Station 和 Host，连接模拟 rigctld TCP 端点，验证多用户 PTT、角色/Token、断开释放等。不能将此结果视为 IC-9700 Direct LAN、音频/WebRTC Audio Track、DSP、卫星跟踪或 Windows Service Session 0 的完整验收。
+
+**回滚：** 停止独立 Supervisor 子进程，不覆盖原 SkyRoof。确保发射已释放后可重新运行原版 SkyRoof；保留 SQLite 用户数据和本机事务日志以便问题追溯。
+
+## Media Service RX PCM 接入（开发阶段）
+
+从 Windows 本机私有管道 SKYROOF_MEDIA_PIPE（示例：skyroof-station-media-primary）调用 MediaIngress.PublishRx 客户端流式 RPC。传入 PCM16 小端、48 kHz、单/双声道，每包 1–960 sample/channel，附单调递增 FirstSampleIndex。gRPC 的首次 PublishRx 建立新的音源代际，后接入的音源接管共享流，旧音源不再写入。时间戳与序号由服务端 SignalBus 记录；传输期间的样本缺口可在 RxStreamReceipt.SamplesSkipped 诊断，数据不会被误重放。Host /ws/audio 使用相同 SKYROOF_RX_AUDIO_BUS 和匹配的 SKYROOF_RX_AUDIO_CHANNELS（1 或 2）供合法已登录用户消费。
+
+当前不包含真实 IC-9700 Direct LAN 捕获、RX PCM 自动重采样、TX PCM 或数字模式定时发射，也不应把此入口作为公网服务暴露。
+
+## AF Spectrum（音频 FFT）
+
+在独立 Dsp 进程的 SKYROOF_RX_AUDIO_BUS 指定与 Media 相同的 RX PCM 总线，在 SKYROOF_AF_SPECTRUM_BUS 指定输出总线，并将相同输出配置给 Host。客户端登录后通过 /ws/af-spectrum 获取实际 48 kHz PCM 音频 FFT：4096 点 Hann 窗、1600 点步进、理论约 30 帧/秒，0–24 kHz 共 475 个功率电平（dBFS），每帧拥有 Epoch 与序号。浏览器的 AF Spectrum 独立窗口渲染这些实测数据。不能据此推断电台 RF/IF 频谱；该功能不提供任何 RF 发射或旋转控制。
+
+## Windows Service 双模式宿主
+
+管理员 PowerShell：先用 dotnet publish -r win-x64 得到 Supervisor exe，再执行 Install-RemoteService.ps1，传入 -Executable、-Configuration 及可选 -ServiceName、-Startup auto。安装完成后执行 Start-Service SkyRoofRemote。普通后台运行仍使用 SKYROOF_SUPERVISOR_CONFIG；SCM 启动通过 --config 指向同一份 JSON。卸载执行 Remove-RemoteService.ps1，保留 SQLite 及设备持久化数据。Windows Service 的 Session 0 与交互式 WinForms 不同，实机时需核对服务账户对串口、CAT 服务、命名管道和用户数据目录的访问权限。独立 CI 使用真实 SCM 注册/启动/停止和受管子进程退出检查；该模拟不代表已完成真实设备的 Windows Service 访问测试。
+
+## 健康与就绪语义
+
+/health/live 只代表 Host HTTP 服务存活；/health/ready 必须通过 Station → Device 的真实只读 CAT readback，才能返回 HTTP 200。如果命名管道、设备或站内服务不可用，则返回 503；不认为 Host 登录页成功就是整个台站可用。外部探针、负载均衡和 Supervisors 应针对具体目标选择存活或业务就绪检查，不自动重发 RF 变更事务。
+
+## 原生 IC-9700 Direct LAN RX（新增开发功能，未完成实机验收）
+
+Device 可独立于 SkyCAT CAT 连接，使用 `SKYROOF_ICOM_LAN_HOST` 启动 LAN 控制/媒体接收链路。请在本机 Supervisor 的 **Device** 环境配置 `SKYROOF_ICOM_LAN_HOST`、`SKYROOF_ICOM_LAN_PORT`（默认 50001）、`SKYROOF_ICOM_LAN_USERNAME`、`SKYROOF_ICOM_LAN_PASSWORD`、`SKYROOF_ICOM_LAN_RX_RATE`（默认 48000）和 `SKYROOF_ICOM_LAN_RX_CODEC`（4=PCM16、2=PCM8、1=μ-law），并确保 `SKYROOF_MEDIA_PIPE` 同 Media 一致。
+
+接收路径：先绑定 CI-V/Audio UDP 本地端口，再完成 Control 登录/授权及独立 CI-V、Audio 握手，随后通过 `MediaIngress.PublishIcomRx` 写入 48 kHz SignalBus，供 Host WSS/AF FFT 消费。网页 RX Audio 显示 Media 源 Epoch、收到的包、乱序与丢包统计（`/api/v1/media/rx-status` 需要登录）。
+
+上述功能在配置缺失时不启动，不会把模拟 CAT 连接替换成未认证的原生 LAN CAT，不引入新的发射门限。本接收链路还不具备 Direct LAN TX、原生 CAT/频谱全量联动或实机保证；在 IC-9700 设备上需要核对电台 LAN AF/IF 输出选择，确保应用将当前 PCM 按正确源类型处理。模拟器故障注入包含 UDP SID 不匹配、乱序与缺包，但不是物理网络测试。为避免凭据泄露，正式服务账户的环境设置应由本机受限配置管理，不应提交到公开 GitHub 仓库。
+
+
+
+## IC-9700 Native LAN 开发配置
+
+`supervisor.icom9700.json.example` 保留六进程结构，并选用 `icom-lan-satellite` CAT 后端。请复制到实际配置路径并在本机替换电台 IPv4 和网络账号；不要提交包含真实密码的文件。示例 192.0.2.10 是文档保留地址。
+
+- 目前原生 CAT 适配 IC-9700 SATELLITE 模式，MAIN 下行、SUB 上行。非卫星模式继续使用现有 SkyCAT/rigctld 等已支持后端。
+- `SKYROOF_ICOM_LAN_TX_RATE=48000` 请求 TX Audio Grant，0 或省略表示仅协商 RX Audio。设备能力决定实际协商速率。原生 CAT 与 TX 音频仍须真实设备验证。
+- 浏览器 ENABLE MIC 授权麦克风；只有 Device 确认 PTT owner / transaction / epoch 后才发送 20 ms PCM。实际公网部署必须 HTTPS 才能使用浏览器麦克风，localhost 是开发例外。
+- Device 与 Media 的 `SKYROOF_MEDIA_PIPE` 必须一致，Host 的状态接口也使用同名管道。Host/Device 的 RF scope bus、Host/Dsp 的 FT4 result bus 必须一致。
+- `SKYROOF_FT4_RX_DELAY_MS`（Dsp）是接收路径的校准偏移，默认 0。该时刻使用 Media 的本机 PCM 发布时间推定，不是硬件 ADC 时间戳。
+- RTC 原生运行库 `skyroof_rtc.dll` 与依赖必须在 Host 发布目录。开发打包 CI 构建并测试固定 libdatachannel v0.24.7，再复制 Windows 运行库；未通过该测试不能视为 RTC 已交付。可选 Host `SKYROOF_RTC_ICE_SERVER` 设定 STUN/TURN URL；浏览器当前使用默认 ICE 配置，公网 FRP/ICE 尚未验收。RTC Data 不可用时自动回退认证 WSS。
+
+
+## 多实例与并列版本部署（开发增量）
+
+需要 PowerShell 7，管理员权限用于 Windows Service 操作。先从已验收的开发包使用同一可信来源取得 ZIP 和部署脚本。SHA-256 manifest 校验文件完整性，不等于发布者签名。
+
+```powershell
+$version = ./Stage-RemotePackage.ps1 -Archive ./SkyRoof-Remote-V1-development-win-x64.zip -VersionsDirectory C:/SkyRoofRemote/versions
+./New-StationConfiguration.ps1 -StationId alpha -PackageRoot $version -DataRoot C:/SkyRoofRemote/data -Template ./supervisor.icom9700.json.example -Output C:/SkyRoofRemote/alpha.json -HttpPort 8076
+```
+
+生成配置时不覆盖既有数据。核对模板真实 CAT/IP/串口、认证凭据、RF 设置及端口；每个实例选择独立硬件、HTTP 端口、KISS 端口及 service name。CW ONNX model 放到该站 data/alpha/cwmodel；将所需 orekit-data（包括 DE430）复制到该站目录。受限 ACL 保护配置、SQLite、auth-keys 及实际凭据，运行服务账号要具备读写权限。Host 端 Cookie、认证数据库与 DataProtection application name 按 station ID 隔离。外网仍需独立 HTTPS/WSS 反代，另一 Host 通过 Web 站点入口打开，不是同一 Dockview 多站联控。
+
+保留上一版本和上一配置，不直接覆盖正在运行的目录。新版本先生成独立 JSON，确认设备参数及数据目录一致，再切换 SCM：
+
+```powershell
+./Switch-RemoteServiceVersion.ps1 -ServiceName SkyRoofRemote-alpha -PackageRoot $version -Configuration C:/SkyRoofRemote/alpha-new.json -HealthUrl http://127.0.0.1:8076/health/ready
+```
+
+脚本验证 manifest 与配置五个组件路径；停止旧服务，修改 SCM 命令、启动并检查指定 readiness。失败恢复旧命令和原运行状态。该脚本不进行 SQLite schema migration 或数据快照；不能把 readiness 200 当作全部 DSP/RTC 或 RF 硬件健康。先备份数据并确保旧版本与数据 schema 兼容；升级期间不要同时运行占用同一硬件的实例。CI 仅检查暂存、文件篡改、配置隔离，真实服务升级与故障回滚尚未验收。
+
+可选 DSP 环境变量 `SKYROOF_SATNOGS_TOKEN` / `SKYROOF_STATION_CALLSIGN` / `SKYROOF_STATION_GRID`，Web 显式启用上传。ONVIF Host 环境变量 `SKYROOF_ONVIF_ENDPOINT`（设备 SOAP service URL）/`SKYROOF_ONVIF_USERNAME`/`SKYROOF_ONVIF_PASSWORD`；Web Camera 支持发现、profiles 与 JPEG/PNG snapshot，不是 RTSP/PTZ。凭据不提交仓库。
+
+
+## 受限台站目录与身份 schema
+
+生产配置可使用 `-ProtectState`，同时将 `-Output` 放在自身 station data 目录内，例如 `C:/SkyRoofRemote/data/alpha/supervisor.json`。默认 SCM LocalSystem（SID S-1-5-18）；若使用其他服务账户，通过 `-ServiceAccount` 指定实际账户名或 SID。目录 ACL 仅保留 SYSTEM、Administrators 和指定服务账户；现有子目录及文件也按该列表重新设置访问规则，执行前确认该站数据不依赖其他账号。拒绝重解析点，避免递归修改其他目录。该选项不会改变 Windows 服务账户，也不会设置 Named Pipe/SignalBus 对象 ACL。不同站点若共用同一 LocalSystem 身份，仍不具备 OS 用户级隔离。
+
+Host 启动时对既有 SQLite 身份库执行事务式 schema version 0→1 升级，新增用户 token 批量撤销索引，不删除或重建数据表。向后兼容旧二进制；正式发布前仍需实际跨版本回滚及备份恢复验收。该迁移不改变密码哈希、令牌或 DataProtection key。
+
+
+## 首次安装入口（开发版）
+
+管理员 PowerShell 7，准备可信 ZIP、填写本地台站模板和 .NET 10 / ASP.NET Core 10 x64 Runtime 后执行：
+
+```powershell
+./Install-RemoteStation.ps1 -Archive ./SkyRoof-Remote-V1-development-win-x64.zip -InstallRoot C:/SkyRoofRemote -StationId alpha -Template ./supervisor.icom9700.json -HttpPort 8076 -RegisterOnly
+```
+
+入口校验 manifest、并列暂存、生成并保护台站配置、注册 LocalSystem SCM 服务；不覆盖现有服务或配置。去掉 RegisterOnly 将启动并使用 /health/ready 检查实际 Device；失败移除本次注册的服务，保留暂存版本及配置以便诊断。已存在服务使用 Switch-RemoteServiceVersion.ps1 升级。卸载使用 Remove-RemoteService.ps1，保留台站数据。本入口不是 MSI 或带 Authenticode 的正式安装器。
+
+### IPC 访问账户
+
+Device / Station / Media / DSP 的 Kestrel Named Pipe 默认明确限制当前进程 Windows 用户；如确需跨服务账户访问，在对应服务器进程环境指定 `SKYROOF_DEVICE_PIPE_CLIENT_SIDS`、`SKYROOF_STATION_PIPE_CLIENT_SIDS`、`SKYROOF_MEDIA_PIPE_CLIENT_SIDS`、`SKYROOF_DSP_PIPE_CLIENT_SIDS`，分号分隔的 Windows SID。只授予明确受信任的调用账户，具备该管道所有 RPC 权限；不授予 CreateNewInstance。未配置时保留原本的同用户访问语义。SignalBus 共享内存 ACL 与跨 Session 0 尚需独立实现和验收。
+
+
+### 本地桌面操作者
+
+首次安装可附加 `-DesktopOperatorSid ( [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value )`，仅为可信 Windows SID 配置 Station 管道读写访问。默认不添加其他 SID；该 SID 获得全部 Station RPC 权限，不能替代 Web 角色权限。独立桌面模式支持 CAT PTT 按住/释放与租约心跳，尚不包括本地麦克风音频。共享内存仍处于同 Session 范围。
+
+
+### 可选 Global SignalBus（开发验证）
+
+安装或生成配置时可选择 `-GlobalSignalBus -SignalBusReaderSid <Windows SID>`，所有托管进程使用 Global 命名对象。服务账户为生产者，指定读者拥有映射只读权限及互斥锁同步权限，不获得映射写权限。消费者必须等生产者创建映射，普通交互账户不需要 SeCreateGlobalPrivilege；Global 生产者需要 Session 0 或该权限。默认 Local 兼容原先行为；更改模式需重启同一台站的所有进程。外部桥接工具如需使用对应 SignalBus，须设置同样的 scope；外部生产者权限未扩展，当前不建议混合不同生产者账户。该路径仍待 CI 验收。
+
+
+## 集中增量：本地桌面、SDR 和安装器
+
+- `SkyRoof.exe --remote-station skyroof-alpha-station` 打开原生 IPC 工作台。通过 DesktopOperatorSid 授权实际桌面用户，不将共享目录或设备管道权限扩大到所有用户。原 MainForm 本地模式不变。
+- Station 进程的环境变量 `SKYROOF_SDR_DEVICE_ARGS` 配置实际 Soapy 设备选择器（先通过 SdrBridge --list 核对）；生成站点配置时写入已暂存版本的 bridge EXE 路径。Web 遥测页 SDR 区提供 center/channel/sample rate/gain、启动、重调谐和停止。使用 IQ 遥测配置，确认设备实际读回。重调谐是停止旧流再启动新流，并非连续相位切换。
+- CI 以通过整包验收的 ZIP 构建 `SkyRoof-Remote-Station-Setup.exe`，默认仅首次安装 alpha、端口 8076，要求 .NET 10 / ASP.NET Core 10 x64 及 PowerShell 7 x64；首次注册不自动发射或启动。升级使用既有版本切换脚本，卸载不删除 data/versions。自定义站 ID、端口仍使用 Install-RemoteStation.ps1。生产安装根路径须管理员控制，勿置于普通用户可写目录。
+- 如有真实受信任的代码签名证书，可用 `Sign-RemoteInstaller.ps1 -Path <EXE> -Thumbprint <cert>` 签名并检查 Authenticode。开发 CI 不含签名私钥，不宣称发布者签名。

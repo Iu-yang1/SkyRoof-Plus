@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\SkyRoof.Orbit.Orekit\SkyRoof.Orbit.Orekit.csproj" />
     <ProjectReference Include="../SkyRoof.Orbit.SgpNet/SkyRoof.Orbit.SgpNet.csproj" />
+    <Compile Include="../src/SkyRoof.Remote.Station/IssOemCacheRefresh.cs" Link="IssOemCacheRefresh.cs" />
   </ItemGroup>
 </Project>

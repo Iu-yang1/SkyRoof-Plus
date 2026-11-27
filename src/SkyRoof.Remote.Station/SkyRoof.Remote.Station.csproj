@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../SkyRoof.Orbit.SgpNet/SkyRoof.Orbit.SgpNet.csproj" />
+    <ProjectReference Include="../../SkyRoof.Orbit.Orekit/SkyRoof.Orbit.Orekit.csproj" />
+    <Content Include="../../SkyRoof.Orbit.Orekit.Smoke/TestData/tai-utc.dat" Link="orekit-data/tai-utc.dat" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
+    <Compile Include="../../SkyRoof/AFC/AfcCoreModels.cs;../../SkyRoof/AFC/AfcController*.cs;../../SkyRoof/AFC/AfcFmPredictor.cs;../../SkyRoof/AFC/AfcFmEvidenceGate.cs;../../SkyRoof/AFC/AfcCatTimeline.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
+    <Compile Include="../../SkyRoof/AFC/AfcSignalProcessing*.cs;../../SkyRoof/AFC/AfcTrackingProfile.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
+    <Compile Include="../../SkyRoof/Qso/AdifFile.cs" Link="Legacy/AdifFile.cs" />
+    <Compile Include="../../SkyRoof/RemoteDesktop/RemoteRecordingWriter.cs" Link="Legacy/RemoteRecordingWriter.cs" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.85.0" />
+  </ItemGroup>
+</Project>

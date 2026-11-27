@@ -1,0 +1,99 @@
+{
+  "Processes": [
+    {
+      "Name": "Device",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Device/SkyRoof.Remote.Device.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Device",
+      "Environment": {
+        "SKYROOF_CAT_DIALECT": "icom-lan-satellite",
+        "SKYROOF_DEVICE_PIPE": "skyroof-station-device",
+        "SKYROOF_ROTATOR_AZ_MIN": "0",
+        "SKYROOF_ROTATOR_AZ_MAX": "450",
+        "SKYROOF_ROTATOR_EL_MIN": "0",
+        "SKYROOF_ROTATOR_EL_MAX": "180",
+        "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
+        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary",
+        "SKYROOF_ICOM_LAN_HOST": "192.0.2.10",
+        "SKYROOF_ICOM_LAN_PORT": "50001",
+        "SKYROOF_ICOM_LAN_USERNAME": "REPLACE_WITH_RADIO_USER",
+        "SKYROOF_ICOM_LAN_PASSWORD": "REPLACE_WITH_RADIO_PASSWORD",
+        "SKYROOF_ICOM_LAN_RX_RATE": "48000",
+        "SKYROOF_ICOM_LAN_TX_RATE": "48000",
+        "SKYROOF_ICOM_LAN_RF_SCOPE": "true",
+        "SKYROOF_TIMED_TX_DIRECTORY": "C:/SkyRoofRemote/data/timed-tx"
+      }
+    },
+    {
+      "Name": "Station",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Station/SkyRoof.Remote.Station.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Station",
+      "Environment": {
+        "SKYROOF_DEVICE_PIPE": "skyroof-station-device",
+        "SKYROOF_STATION_PIPE": "skyroof-station-core",
+        "SKYROOF_ORBIT_BACKEND": "orekit",
+        "SKYROOF_OREKIT_EOP_AUTO": "true",
+        "SKYROOF_SATELLITE_CATALOG": "C:/SkyRoofRemote/data/Satellites.json",
+        "SKYROOF_ISS_OEM_PATH": "C:/SkyRoofRemote/data/ISS.OEM_J2K_EPH.txt",
+        "SKYROOF_ISS_OEM_AUTO": "true",
+        "SKYROOF_CATALOG_AUTO": "true"
+      }
+    },
+    {
+      "Name": "Media",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Media/SkyRoof.Remote.Media.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Media",
+      "Environment": {
+        "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
+        "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary"
+      }
+    },
+    {
+      "Name": "Dsp",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Dsp/SkyRoof.Remote.Dsp.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Dsp",
+      "Environment": {
+        "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
+        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
+        "SKYROOF_RX_AUDIO_CHANNELS": "1",
+        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary",
+        "SKYROOF_CW_RESULTS_BUS": "skyroof-cw-results-primary",
+        "SKYROOF_CW_MODEL_DIRECTORY": "C:/SkyRoofRemote/data/cwmodel",
+        "SKYROOF_CW_HISTORY_DIRECTORY": "C:/SkyRoofRemote/data/cw-history"
+      }
+    },
+    {
+      "Name": "Host",
+      "Executable": "dotnet",
+      "Arguments": [
+        "C:/SkyRoofRemote/Host/SkyRoof.Remote.Host.dll"
+      ],
+      "WorkingDirectory": "C:/SkyRoofRemote/Host",
+      "Environment": {
+        "SKYROOF_STATION_PIPE": "skyroof-station-core",
+        "ASPNETCORE_URLS": "http://127.0.0.1:8076",
+        "SKYROOF_AUTH_DB": "C:/SkyRoofRemote/data/station-users.db",
+        "SKYROOF_RX_AUDIO_BUS": "skyroof-rx-audio-primary",
+        "SKYROOF_RX_AUDIO_CHANNELS": "1",
+        "SKYROOF_AF_SPECTRUM_BUS": "skyroof-af-spectrum-primary",
+        "SKYROOF_MEDIA_PIPE": "skyroof-station-media-primary",
+        "SKYROOF_FT4_RESULTS_BUS": "skyroof-ft4-results-primary",
+        "SKYROOF_RF_SCOPE_BUS": "skyroof-rf-scope-primary",
+        "SKYROOF_DSP_PIPE": "skyroof-station-dsp-primary",
+        "SKYROOF_CW_RESULTS_BUS": "skyroof-cw-results-primary"
+      }
+    }
+  ]
+}

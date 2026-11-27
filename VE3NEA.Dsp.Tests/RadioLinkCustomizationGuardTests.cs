@@ -7,6 +7,38 @@ namespace VE3NEA.Dsp.Tests;
 public sealed class RadioLinkCustomizationGuardTests
 {
   [Fact]
+  public void SatelliteMathPreservesInvertingAndUnboundedPosition()
+  {
+    var link = new RadioLink
+    {
+      IsTerrestrial = false,
+      Tx = new SatnogsDbTransmitter
+      {
+        downlink_low = 145900000, downlink_high = 145920000,
+        uplink_low = 435630000, uplink_high = 435650000, invert = true
+      },
+      TxCust = new TransmitterCustomization(),
+      SatCust = new SatelliteCustomization(),
+      DopplerFactor = 0.00002,
+      RitEnabled = true, RitOffset = 100, XitOffset = 200
+    };
+    link.DownlinkBaseOffset = 400;
+    link.UplinkBaseOffset = -300;
+    link.TransponderOffset = 25000;
+    link.DownlinkDopplerCorrectionEnabled = true;
+    link.UplinkDopplerCorrectionEnabled = true;
+    link.DownlinkManualCorrectionEnabled = true;
+    link.UplinkManualCorrectionEnabled = true;
+    link.DownlinkManualCorrection = -90;
+    link.UplinkManualCorrection = 80;
+    link.ComputeFrequencies();
+    Assert.Equal((145900000 + 400 + 25000 + 100) * (1 - 0.00002) - 90,
+      link.CorrectedDownlinkFrequency, 5);
+    Assert.Equal((435650000 - 300 - 25000) * (1 + 0.00002) + 80 + 200,
+      link.CorrectedUplinkFrequency, 5);
+  }
+
+  [Fact]
   public void MissingTransmitterCustomizationFailsBeforeReadOrWrite()
   {
     var link = new RadioLink();

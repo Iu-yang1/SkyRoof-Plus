@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>$(DefineConstants);SKYROOF_REMOTE_DSP</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SkyRoof.Remote.Foundation/SkyRoof.Remote.Foundation.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.SignalBus/SkyRoof.Remote.SignalBus.csproj" />
+    <ProjectReference Include="../SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <Compile Include="../../SkyRoof/SDR/SdrConst.cs" Link="Legacy/SdrConst.cs" />
+    <Compile Include="../../SkyRoof/CW/CwAudioHub.cs" Link="Legacy/CW/CwAudioHub.cs" />
+    <Compile Include="../../SkyRoof/CW/CwPcmIngress.cs" Link="Legacy/CW/CwPcmIngress.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveAudioSource.cs" Link="Legacy/CW/CwReceiveAudioSource.cs" />
+    <Compile Include="../../SkyRoof/CW/CwCandidateDetector.cs" Link="Legacy/CW/CwCandidateDetector.cs" />
+    <Compile Include="../../SkyRoof/CW/CwCoherentMultitoneSeparator.cs" Link="Legacy/CW/CwCoherentMultitoneSeparator.cs" />
+    <Compile Include="../../SkyRoof/CW/CwContinuousDecoder.cs" Link="Legacy/CW/CwContinuousDecoder.cs" />
+    <Compile Include="../../SkyRoof/CW/CwFixedLagAssociator.cs" Link="Legacy/CW/CwFixedLagAssociator.cs" />
+    <Compile Include="../../SkyRoof/CW/CwFrameRidgeScanner.cs" Link="Legacy/CW/CwFrameRidgeScanner.cs" />
+    <Compile Include="../../SkyRoof/CW/CwHsmmDecoder.cs" Link="Legacy/CW/CwHsmmDecoder.cs" />
+    <Compile Include="../../SkyRoof/CW/CwIncrementalTranscript.cs" Link="Legacy/CW/CwIncrementalTranscript.cs" />
+    <Compile Include="../../SkyRoof/CW/CwKeyingGate.cs" Link="Legacy/CW/CwKeyingGate.cs" />
+    <Compile Include="../../SkyRoof/CW/CwLaneExtractor.cs" Link="Legacy/CW/CwLaneExtractor.cs" />
+    <Compile Include="../../SkyRoof/CW/CwNarrowbandCarrierEvidence.cs" Link="Legacy/CW/CwNarrowbandCarrierEvidence.cs" />
+    <Compile Include="../../SkyRoof/CW/CwNewDecoder.cs" Link="Legacy/CW/CwNewDecoder.cs" />
+    <Compile Include="../../SkyRoof/CW/CwPileupTrackManager.cs" Link="Legacy/CW/CwPileupTrackManager.cs" />
+    <Compile Include="../../SkyRoof/CW/CwRealFft.cs" Link="Legacy/CW/CwRealFft.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.cs" Link="Legacy/CW/CwReceiveWorker.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorkerTypes.cs" Link="Legacy/CW/CwReceiveWorkerTypes.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Tracking.cs" Link="Legacy/CW/CwReceiveWorker.Tracking.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Inference.cs" Link="Legacy/CW/CwReceiveWorker.Inference.cs" />
+    <Compile Include="../../SkyRoof/CW/CwReceiveWorker.Status.cs" Link="Legacy/CW/CwReceiveWorker.Status.cs" />
+    <Compile Include="../../SkyRoof/CW/CwStationHypothesisManager.cs" Link="Legacy/CW/CwStationHypothesisManager.cs" />
+    <Compile Include="../../SkyRoof/CW/CwStftMagnitudeCache.cs" Link="Legacy/CW/CwStftMagnitudeCache.cs" />
+    <Compile Include="../../SkyRoof/CW/CwTrackIdentityResolver.cs" Link="Legacy/CW/CwTrackIdentityResolver.cs" />
+    <Compile Include="../../SkyRoof/CW/CwTranscriptArchive.cs" Link="Legacy/CW/CwTranscriptArchive.cs" />
+    <Compile Include="../../SkyRoof/CW/DeepCwDecoder.cs" Link="Legacy/CW/DeepCwDecoder.cs" />
+    <Compile Include="../../SkyRoof/CW/DeepCwFeatures.cs" Link="Legacy/CW/DeepCwFeatures.cs" />
+    <Compile Include="../../SkyRoof/CW/DeepCwModel.cs" Link="Legacy/CW/DeepCwModel.cs" />
+    <Compile Include="../../SkyRoof/CW/DeepCwWidebandFeatures.cs" Link="Legacy/CW/DeepCwWidebandFeatures.cs" />
+    <Compile Include="../../SkyRoof/CW/HamNoiseDenoiser.cs" Link="Legacy/CW/HamNoiseDenoiser.cs" />
+    <None Include="../../licenses/DeepCW-NOTICE.txt" Link="licenses/DeepCW-NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Include="../../SkyRoof/FT4/NativeFT4Coder.cs" Link="Legacy/NativeFT4Coder.cs" />
+    <None Include="../../Vendor/ft4_coder/ft4_coder.dll" Link="ft4_coder.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../Vendor/ft4_coder/LICENSE" Link="licenses/ft4_coder-LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../Vendor/VE3NEA.Dsp/libfftw3f-3.dll;../../Vendor/VE3NEA.Dsp/libgcc_s_sjlj-1.dll;../../Vendor/VE3NEA.Dsp/libquadmath-0.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Reference Include="VE3NEA.Dsp"><HintPath>../../Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll</HintPath></Reference>
+    <Reference Include="VE3NEA.SkyTlm"><HintPath>../../Vendor/VE3NEA.SkySignals/VE3NEA.SkyTlm.dll</HintPath></Reference>
+    <Reference Include="VE3NEA.SkySSTV"><HintPath>../../Vendor/VE3NEA.SkySignals/VE3NEA.SkySSTV.dll</HintPath></Reference>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <None Include="../../Vendor/VE3NEA.Dsp/libliquid.dll;../../Vendor/VE3NEA.Dsp/fec.dll;../../Vendor/VE3NEA.Dsp/codec2.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Include="../../SkyRoof/DSP/TelemetryAudioConverters.cs" Link="Legacy/Telemetry/TelemetryAudioConverters.cs" />
+    <Compile Include="../../SkyRoof/DSP/Funcube1Telemetry.cs" Link="Legacy/Telemetry/Funcube1Telemetry.cs" />
+    <Compile Include="../../SkyRoof/DSP/Unne1bTelemetry.cs" Link="Legacy/Telemetry/Unne1bTelemetry.cs" />
+    <Compile Include="../../SkyRoof/DSP/Unne1bDeframer.cs" Link="Legacy/Telemetry/Unne1bDeframer.cs" />
+    <Compile Include="../../SkyRoof/DSP/AsrtuTmShortKissTransport.cs" Link="Legacy/Telemetry/AsrtuTmShortKissTransport.cs" />
+    <Compile Include="../../SkyRoof/DSP/TelemetryFrameArchive.cs" Link="Legacy/Telemetry/TelemetryFrameArchive.cs" />
+    <Compile Include="../../SkyRoof/DSP/KissServer.cs" Link="Legacy/Telemetry/KissServer.cs" />
+  </ItemGroup>
+</Project>

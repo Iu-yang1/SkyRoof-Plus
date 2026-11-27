@@ -1,6 +1,7 @@
 param(
   [string]$SourceDirectory = "SkySignals-Plus",
-  [string]$Configuration = "Release"
+  [string]$Configuration = "Release",
+  [switch]$IncludeSstv
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,3 +27,11 @@ Copy-Item $dsp (Join-Path $root "Vendor/VE3NEA.Dsp/VE3NEA.Dsp.dll") -Force
 Write-Host "SkyTlm fork commit: $actualCommit"
 Write-Host "SkyTlm SHA256: $((Get-FileHash $tlm -Algorithm SHA256).Hash)"
 Write-Host "VE3NEA.Dsp SHA256: $((Get-FileHash $dsp -Algorithm SHA256).Hash)"
+
+if ($IncludeSstv) {
+  dotnet build (Join-Path $source "VE3NEA.SkySSTV/VE3NEA.SkySSTV.csproj") -c $Configuration -p:Platform=x64
+  if ($LASTEXITCODE -ne 0) { throw "SkySSTV fork build failed" }
+  $sstv = Join-Path $source "VE3NEA.SkySSTV/bin/x64/$Configuration/net10.0-windows/VE3NEA.SkySSTV.dll"
+  Copy-Item $sstv (Join-Path $root "Vendor/VE3NEA.SkySignals/VE3NEA.SkySSTV.dll") -Force
+  Write-Host "SkySSTV SHA256: $((Get-FileHash $sstv -Algorithm SHA256).Hash)"
+}

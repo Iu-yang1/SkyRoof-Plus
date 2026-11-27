@@ -39,6 +39,19 @@ namespace SkyRoof
         SkyRoof.NativeRotator.IsolatedRotatorTransport.RunChild(args);
         return;
       }
+      if(args is ["--remote-station", var stationPipe])
+      {
+        try
+        {
+          ExceptionLogger.Initialize();
+          Application.SetHighDpiMode(SelectDpiMode(args, Environment.GetEnvironmentVariable("SKYROOF_DPI_MODE")));
+          Theme.Initialize();
+          ApplicationConfiguration.Initialize();
+          Application.Run(new RemoteDesktop.StationIpcForm(stationPipe));
+        }
+        finally { Log.CloseAndFlush(); }
+        return;
+      }
       using (new SingleInstanceEnforcer())
       {
         try
@@ -48,7 +61,18 @@ namespace SkyRoof
             args, Environment.GetEnvironmentVariable("SKYROOF_DPI_MODE")));
           Theme.Initialize(); // must run before any window is created
           ApplicationConfiguration.Initialize();
-          Application.Run(new MainForm());
+          RemoteDesktop.DesktopStationSettings profile;
+          try { profile = RemoteDesktop.DesktopStationSettings.Load(); }
+          catch (Exception error)
+          {
+            using var recovery = new RemoteDesktop.DesktopStationSettingsDialog(false, error.Message);
+            recovery.ShowDialog();
+            return;
+          }
+          if (profile.Mode == RemoteDesktop.DesktopStationMode.ServerWorkspace)
+            Application.Run(new RemoteDesktop.StationIpcForm(profile.StationPipe, profile.HostOrigin));
+          else
+            Application.Run(new MainForm());
         }
         finally
         {

@@ -1,0 +1,51 @@
+using Grpc.Net.Client;
+using SkyRoof.Remote.Ipc;
+
+namespace SkyRoof.Remote.Host.Realtime;
+
+public sealed class DspWaveformBridge : IDisposable
+{
+    private readonly Lazy<GrpcChannel> _channel = new(() =>
+    {
+        string pipe = Environment.GetEnvironmentVariable("SKYROOF_DSP_PIPE") ?? "skyroof-station-dsp";
+        var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (_, ct) =>
+            {
+                var stream = LocalPipeClient.Create(pipe);
+                try { await stream.ConnectAsync(3000, ct); return stream; }
+                catch { await stream.DisposeAsync(); throw; }
+            }
+        };
+        return GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions { HttpHandler = handler, MaxReceiveMessageSize = 32 * 1024 * 1024 });
+    });
+
+    public async Task<EncodedWaveform> EncodeFt4Async(Ft4EncodeRequest request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).EncodeFt4Async(request,
+            deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
+
+    public async Task<CwRxConfiguration> ConfigureCwAsync(CwRxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureCwAsync(request,
+            deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+
+    public async Task<CwHistoryReply> GetCwHistoryAsync(CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).GetCwHistoryAsync(new CwHistoryRequest(),
+            deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
+
+    public async Task<Q65RxConfiguration> ConfigureQ65Async(Q65RxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureQ65Async(request,
+            deadline: DateTime.UtcNow.AddSeconds(8), cancellationToken: ct);
+
+    public async Task<Q65EncodedWaveform> EncodeQ65Async(Q65EncodeRequest request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).EncodeQ65Async(request,
+            deadline: DateTime.UtcNow.AddSeconds(30), cancellationToken: ct);
+
+    public async Task<TelemetryRxConfiguration> ConfigureTelemetryAsync(TelemetryRxConfiguration request, CancellationToken ct) =>
+        await new DspWaveform.DspWaveformClient(_channel.Value).ConfigureTelemetryAsync(request,
+            deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+
+    public void Dispose()
+    {
+        if (_channel.IsValueCreated) _channel.Value.Dispose();
+    }
+}

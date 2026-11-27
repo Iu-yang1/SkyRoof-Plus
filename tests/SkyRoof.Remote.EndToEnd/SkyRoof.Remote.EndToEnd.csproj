@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj" />
+    <ProjectReference Include="../../SkyRoof.Orbit.SgpNet/SkyRoof.Orbit.SgpNet.csproj" />
+    <ProjectReference Include="../../src/SkyRoof.Remote.Ipc.Contracts/SkyRoof.Remote.Ipc.Contracts.csproj" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.15" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../SkyRoof/RemoteDesktop/StationIpcClient*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../../src/SkyRoof.Remote.SdrBridge/RawIqTap.cs" Link="RawIqTap.cs" />
+    <Compile Include="../../SkyRoof/AFC/AfcCoreModels.cs;../../SkyRoof/AFC/AfcSignalProcessing*.cs;../../SkyRoof/AFC/AfcTrackingProfile.cs" Link="Legacy/AFC/%(Filename)%(Extension)" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogCacheModels.cs" Link="CatalogCacheModels.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.cs" Link="CatalogOnlineFetcher.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogOnlineFetcher.Pagination.cs" Link="CatalogOnlineFetcher.Pagination.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogMerge.cs" Link="CatalogMerge.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/CatalogMerge.Epoch.cs" Link="CatalogMerge.Epoch.cs" />
+    <Compile Include="../../src/SkyRoof.Remote.Station/StationOrekitEopBootstrap.cs" Link="StationOrekitEopBootstrap.cs" />
+    <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.cs"
+      Link="FakeRigctld.cs" />
+    <Compile Include="../SkyRoof.Remote.Device.Integration/FakeRigctld.Cw.cs" Link="FakeRigctld.Cw.cs" />
+  </ItemGroup>
+</Project>

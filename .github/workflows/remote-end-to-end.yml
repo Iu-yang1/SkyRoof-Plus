@@ -1,0 +1,72 @@
+name: Remote Authenticated Host Station Device E2E
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Ipc.Contracts/**','protocols/ipc/device_control.proto','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Device.Integration/FakeRigctld.cs','.github/workflows/remote-end-to-end.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Device/**','src/SkyRoof.Remote.Station/**','src/SkyRoof.Remote.Host/**','src/SkyRoof.Remote.Ipc.Contracts/**','protocols/ipc/device_control.proto','tests/SkyRoof.Remote.EndToEnd/**','tests/SkyRoof.Remote.Device.Integration/FakeRigctld.cs','.github/workflows/remote-end-to-end.yml']
+  workflow_dispatch:
+    inputs:
+      verify_live_nasa:
+        description: 'Validate latest NASA ISS OEM against source knots (network required)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  authenticated-control:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Device, Station and Host
+        shell: pwsh
+        run: |
+          dotnet build src/SkyRoof.Remote.Device/SkyRoof.Remote.Device.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Orekit's pinned IKVM/Maven compiler reports IKVM0117 as an emitted Java compatibility warning.
+          # The published win-x64 runtime executes the exact Orekit path in the E2E steps below.
+          # Keep compiler diagnostics visible; don't promote the pinned transcompiler warning to a build error.
+          dotnet build src/SkyRoof.Remote.Station/SkyRoof.Remote.Station.csproj -c Release -r win-x64 --self-contained false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build authenticated E2E client and fake rigctld
+        run: dotnet build tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release -warnaserror
+      - name: Assert all three executable paths exist
+        shell: pwsh
+        run: |
+          @(
+            'src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll',
+            'src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/SkyRoof.Remote.Station.dll',
+            'src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll'
+          ) | ForEach-Object {
+            if (-not (Test-Path $_)) { throw "Expected built process missing: $_" }
+          }
+      - name: Stage verified DE430 for OEM Earth body resolution
+        shell: pwsh
+        run: |
+          ./scripts/download-orekit-de430.ps1 -DataDirectory SkyRoof.Orbit.Orekit.Smoke/TestData
+          Copy-Item SkyRoof.Orbit.Orekit.Smoke/TestData/lnxp1990.430 src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/orekit-data/
+      - name: Verify OEM interpolation and last-good cache independently of desktop tests
+        run: dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release -- --iss-oem-only SkyRoof.Orbit.Orekit.Smoke/TestData
+      - name: Verify NASA live OEM source vectors
+        if: github.event_name == 'workflow_dispatch' && inputs.verify_live_nasa
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'ISS.OEM_J2K_EPH.txt'
+          Invoke-WebRequest 'https://nasa-public-data.s3.amazonaws.com/iss-coords/current/ISS_OEM/ISS.OEM_J2K_EPH.txt' -OutFile $path
+          dotnet run --project SkyRoof.Orbit.Orekit.Smoke/SkyRoof.Orbit.Orekit.Smoke.csproj -c Release -- --iss-oem-live SkyRoof.Orbit.Orekit.Smoke/TestData $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute real three-process authorized CAT transaction test (Orekit)
+        env:
+          SKYROOF_TEST_ORBIT_BACKEND: orekit
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll
+
+      - name: Execute SGP.NET comparison path
+        env:
+          SKYROOF_TEST_ORBIT_BACKEND: sgpnet
+        run: dotnet run --project tests/SkyRoof.Remote.EndToEnd/SkyRoof.Remote.EndToEnd.csproj -c Release --no-build -- src/SkyRoof.Remote.Device/bin/Release/net10.0-windows/SkyRoof.Remote.Device.dll src/SkyRoof.Remote.Station/bin/Release/net10.0-windows/win-x64/SkyRoof.Remote.Station.dll src/SkyRoof.Remote.Host/bin/Release/net10.0/SkyRoof.Remote.Host.dll

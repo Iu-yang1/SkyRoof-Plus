@@ -23,6 +23,10 @@ namespace SkyRoof
       bool? CrcValid, int CorrectedBits, int ErasedBytes,
       string Framing, string Note, bool InnerTransport) : ArchiveItem;
     private sealed record TextEntry(DateTime Utc, string Text) : ArchiveItem;
+    private sealed record Barrier(TaskCompletionSource Completion) : ArchiveItem;
+#if SKYROOF_REMOTE_DSP
+    private readonly string session = Guid.NewGuid().ToString("N")[..8];
+#endif
 
     private readonly Channel<ArchiveItem> queue = Channel.CreateUnbounded<ArchiveItem>(
       new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -37,8 +41,12 @@ namespace SkyRoof
 
     internal TelemetryFrameArchive(string? rootDirectory = null)
     {
+#if SKYROOF_REMOTE_DSP
+      this.rootDirectory = rootDirectory ?? throw new ArgumentNullException(nameof(rootDirectory));
+#else
       this.rootDirectory = rootDirectory ?? Path.Combine(Utils.GetUserDataFolder(),
         "TelemetryDecodes", "Binary");
+#endif
       worker = Task.Run(ProcessAsync);
     }
 
@@ -61,6 +69,13 @@ namespace SkyRoof
     internal void OfferText(string text, DateTime utc) =>
       queue.Writer.TryWrite(new TextEntry(utc, text));
 
+    internal async Task FlushAsync()
+    {
+      var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      await queue.Writer.WriteAsync(new Barrier(completion)).ConfigureAwait(false);
+      await completion.Task.ConfigureAwait(false);
+    }
+
     internal async Task CompleteAsync()
     {
       queue.Writer.TryComplete();
@@ -71,6 +86,11 @@ namespace SkyRoof
     {
       await foreach (var item in queue.Reader.ReadAllAsync().ConfigureAwait(false))
       {
+        if (item is Barrier barrier)
+        {
+          barrier.Completion.TrySetResult();
+          continue;
+        }
         try
         {
           if (item is TextEntry text)
@@ -88,9 +108,14 @@ namespace SkyRoof
             (entry.NoradId?.ToString(CultureInfo.InvariantCulture) ?? "Unknown"),
             entry.Utc.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
           Directory.CreateDirectory(root);
-          string stem = entry.Utc.ToString("yyyyMMdd_HHmmss_fff",
+          string baseStem = entry.Utc.ToString("yyyyMMdd_HHmmss_fff",
             CultureInfo.InvariantCulture) +
             "_" + entry.Sequence.ToString("D8", CultureInfo.InvariantCulture);
+#if SKYROOF_REMOTE_DSP
+          string stem = $"{baseStem}_{session}";
+#else
+          string stem = baseStem;
+#endif
           string bin = Path.Combine(root, stem + ".bin");
           string log = Path.Combine(root, stem + ".log");
           // One file per packet: tools can load the raw decoded payload without
@@ -112,8 +137,19 @@ namespace SkyRoof
             $"Note: {entry.Note}\n" +
             $"Binary: {Path.GetFileName(bin)}\n" +
             $"HEX: {Convert.ToHexString(entry.Bytes)}\n";
+#if SKYROOF_REMOTE_DSP
+          // Publish the metadata last, atomically; readers only list complete pairs.
+          string pending = log + ".part";
+          try
+          {
+            await File.WriteAllTextAsync(pending, metadata, new UTF8Encoding(false)).ConfigureAwait(false);
+            File.Move(pending, log);
+          }
+          finally { if (File.Exists(pending)) File.Delete(pending); }
+#else
           await File.WriteAllTextAsync(log, metadata, new UTF8Encoding(false))
             .ConfigureAwait(false);
+#endif
           Interlocked.Increment(ref saved);
         }
         catch (Exception e)

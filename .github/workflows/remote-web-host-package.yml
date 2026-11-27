@@ -1,0 +1,45 @@
+name: Remote Web and Host Packaging Smoke
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Web/**','src/SkyRoof.Remote.Host/**','.github/workflows/remote-web-host-package.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Web/**','src/SkyRoof.Remote.Host/**','.github/workflows/remote-web-host-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  combined-web-host:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Web frontend before Host
+        shell: pwsh
+        run: |
+          Push-Location src/SkyRoof.Remote.Web
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+      - name: Publish Host including built React assets
+        run: dotnet publish src/SkyRoof.Remote.Host/SkyRoof.Remote.Host.csproj -c Release -o artifacts/remote-host
+      - name: Verify output contains Web assets
+        shell: pwsh
+        run: |
+          if (-not (Test-Path artifacts/remote-host/wwwroot/index.html)) { throw "Host missing built React index.html" }
+          if (-not (Get-ChildItem artifacts/remote-host/wwwroot/assets/*.js)) { throw "Host missing compiled React JS" }
+          Write-Host "PASS: Host publication includes Vite SPA and hashed assets"
+      - name: Upload development runtime for deployment test
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyroof-remote-host-web-development
+          path: artifacts/remote-host/
+          retention-days: 3

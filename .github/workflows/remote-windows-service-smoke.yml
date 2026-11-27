@@ -1,0 +1,65 @@
+name: Remote Supervisor Windows SCM Service Lifecycle
+on:
+  push:
+    branches: [feature/remote-v1-multiprocess-foundation]
+    paths: ['src/SkyRoof.Remote.Supervisor/**','deploy/remote/windows/*.ps1','.github/workflows/remote-windows-service-smoke.yml']
+  pull_request:
+    paths: ['src/SkyRoof.Remote.Supervisor/**','deploy/remote/windows/*.ps1','.github/workflows/remote-windows-service-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scm:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish Supervisor apphost for native SCM
+        run: dotnet publish src/SkyRoof.Remote.Supervisor/SkyRoof.Remote.Supervisor.csproj -c Release -r win-x64 --self-contained false -o artifacts/supervisor -warnaserror
+      - name: Register real Windows Service and verify supervised child shutdown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = "SkyRoofServiceCI-" + [Guid]::NewGuid().ToString('N')
+          $svc = "SkyRoofRemoteCI"
+          $cfg = Join-Path $env:RUNNER_TEMP 'supervisor-ci.json'
+          $pwsh = (Get-Command powershell.exe).Source
+          $command = "Start-Sleep -Seconds 120; # $tag"
+          $json = @{
+            Processes = @(@{
+              Name = 'SmokeWorker'
+              Executable = $pwsh
+              Arguments = @('-NoProfile','-NonInteractive','-Command', $command)
+              WorkingDirectory = $env:RUNNER_TEMP
+              Environment = @{}
+            })
+          } | ConvertTo-Json -Depth 6
+          [IO.File]::WriteAllText($cfg, $json, [Text.UTF8Encoding]::new($false))
+          try {
+            & ./deploy/remote/windows/Install-RemoteService.ps1 -Executable 'artifacts/supervisor/SkyRoof.Remote.Supervisor.exe' -Configuration $cfg -ServiceName $svc
+            Start-Service -Name $svc
+            (Get-Service -Name $svc).WaitForStatus('Running', [TimeSpan]::FromSeconds(15))
+            $child = $null
+            for ($i=0; $i -lt 60; $i++) {
+              $child = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*$tag*" -and $_.Name -eq 'powershell.exe' } | Select-Object -First 1
+              if ($child) { break }
+              Start-Sleep -Milliseconds 200
+            }
+            if (-not $child) { throw "Service never launched supervised child $tag" }
+            $childPid = $child.ProcessId
+            Stop-Service -Name $svc
+            (Get-Service -Name $svc).WaitForStatus('Stopped', [TimeSpan]::FromSeconds(20))
+            $running = Get-Process -Id $childPid -ErrorAction SilentlyContinue
+            for ($i=0; $i -lt 60 -and $running; $i++) {
+              Start-Sleep -Milliseconds 200
+              $running = Get-Process -Id $childPid -ErrorAction SilentlyContinue
+            }
+            if ($running) { throw 'Supervisor did not stop child process on SCM stop.' }
+            Write-Host "PASS: Windows SCM registration, service start, child launch and stop"
+          }
+          finally {
+            & ./deploy/remote/windows/Remove-RemoteService.ps1 -ServiceName $svc
+          }

@@ -61,6 +61,33 @@
           "DockPanelSuite": "3.1.1"
         }
       },
+      "Google.Protobuf": {
+        "type": "Transitive",
+        "resolved": "3.33.0",
+        "contentHash": "+kIa03YipuiSDeRuZwcDcXS1xBQAFeGLIjuLbgJr2i+TlwBPYAqdnQZJ2SDVzIgDyy+q+n/400WyWyrJ5ZqCgQ=="
+      },
+      "Grpc.Core.Api": {
+        "type": "Transitive",
+        "resolved": "2.85.0",
+        "contentHash": "cpYu/nw/QhwHcRZMJbYD8lEllKrdwYMiDS4U3oH61nhYPUMNkcCcef4ulv11svHvTBThYV+ju332N9bCrfe7cQ=="
+      },
+      "Grpc.Net.Client": {
+        "type": "Transitive",
+        "resolved": "2.85.0",
+        "contentHash": "BPMA5mb96ihVQfXTuIUpC1aie2I0ODBD6QCc0UXYS5zQMK6sJW5yck8NZ2ffvGHfOanWyn2Yg0tJbYY3nV+zIw==",
+        "dependencies": {
+          "Grpc.Net.Common": "2.85.0",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.1"
+        }
+      },
+      "Grpc.Net.Common": {
+        "type": "Transitive",
+        "resolved": "2.85.0",
+        "contentHash": "e+RczhQVHb5MacI1oMTLMK6InZLH22POZcE4gsy5SnolsElLaqhSwEhqm+cF0m4Q1JGmlhjf1nbnKh7sBbjJVg==",
+        "dependencies": {
+          "Grpc.Core.Api": "2.85.0"
+        }
+      },
       "MathNet.Filtering": {
         "type": "Transitive",
         "resolved": "0.7.0",
@@ -557,6 +584,7 @@
           "AngleSharp": "[1.5.2, )",
           "DockPanelSuite": "[3.1.1, )",
           "DockPanelSuite.ThemeVS2015": "[3.1.1, )",
+          "Grpc.Net.Client": "[2.85.0, )",
           "MathNet.Filtering": "[0.7.0, )",
           "MathNet.Numerics": "[5.0.0, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
@@ -567,7 +595,8 @@
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "SharpGL.WinForms": "[3.1.1, )",
-          "SkyRoof.Orbit.Contracts": "[1.69.0, )",
+          "SkyRoof.Orbit.Contracts": "[1.90.0, )",
+          "SkyRoof.Remote.Ipc.Contracts": "[1.90.0, )",
           "System.IO.Ports": "[10.0.0, )",
           "System.Speech": "[10.0.5, )",
           "WsjtxUtils.WsjtxMessages": "[1.0.0.69, )",
@@ -576,6 +605,13 @@
       },
       "skyroof.orbit.contracts": {
         "type": "Project"
+      },
+      "skyroof.remote.ipc.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "Google.Protobuf": "[3.33.0, )",
+          "Grpc.Core.Api": "[2.85.0, )"
+        }
       }
     }
   }

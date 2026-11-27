@@ -1,0 +1,383 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service DeviceRotator {
+  rpc Point(RotatorPoint) returns (RotatorPosition);
+  rpc Read(RotatorRead) returns (RotatorPosition);
+  rpc Stop(RotatorRead) returns (RotatorPosition);
+  rpc Park(RotatorParkRequest) returns (RotatorPosition);
+}
+message RotatorPoint {
+  double azimuth_degrees = 1;
+  double elevation_degrees = 2;
+}
+message RotatorParkRequest {
+  repeated RotatorPoint waypoints = 1;
+  double tolerance_degrees = 2;
+  int32 segment_timeout_seconds = 3;
+}
+message RotatorRead {}
+message RotatorPosition {
+  double azimuth_degrees = 1;
+  double elevation_degrees = 2;
+  bool readback_fresh = 3;
+  bool stop_transmitted = 4;
+  bool has_position = 5;
+}
+
+service StationTracking {
+  rpc Predict(TrackingRequest) returns (TrackingSnapshot);
+  rpc PlanPasses(PassSearchRequest) returns (PassSearchResult);
+  rpc GroundTrack(GroundTrackRequest) returns (GroundTrackResult);
+  rpc Apply(TrackingRequest) returns (TrackingSnapshot);
+}
+message TrackingRequest {
+  string tle_line1 = 1;
+  string tle_line2 = 2;
+  double latitude_degrees = 3;
+  double longitude_degrees = 4;
+  double height_metres = 5;
+  int64 utc_unix_milliseconds = 6;
+  int64 downlink_hz = 7;
+  int64 uplink_hz = 8;
+  bool correct_downlink = 9;
+  bool correct_uplink = 10;
+  bool point_rotator = 11;
+  double elevation_mask_degrees = 12;
+  RadioLinkProfile radio_link = 13;
+  string catalog_satellite_id = 14; // resolved by Station on each tracking tick
+  string celestial_target = 15;
+  string eme_doppler_mode = 16;
+  EmePeerSite eme_peer = 17;
+}
+message TrackingSnapshot {
+  int32 norad_number = 1;
+  int64 utc_unix_milliseconds = 2;
+  double azimuth_degrees = 3;
+  double elevation_degrees = 4;
+  double range_metres = 5;
+  double range_rate_metres_per_second = 6;
+  int64 rx_hz = 7;
+  int64 tx_hz = 8;
+  string orbit_backend = 9;
+  string data_quality = 10;
+  bool cat_applied = 11;
+  bool rotator_applied = 12;
+  RotatorPosition rotator_readback = 13;
+  int64 actual_rx_hz = 14;
+  int64 actual_tx_hz = 15;
+  string rotator_error = 16;
+  string celestial_target = 17;
+  double own_echo_delay_seconds = 18;
+  EmePathStatus eme_path = 19;
+  int64 cat_readback_utc_milliseconds = 20;
+  bool actual_ptt = 21;
+  string actual_rx_mode = 22;
+  double afc_correction_hz = 23;
+  int64 afc_hold_correction_hz = 24;
+  bool supports_duplex_frequencies = 25;
+}
+
+service StationTrackingJobs {
+  rpc Start(TrackingJobStart) returns (TrackingJobStatus);
+  rpc Status(TrackingJobQuery) returns (TrackingJobStatus);
+  rpc Stop(TrackingJobStop) returns (TrackingJobStatus);
+  rpc PredictAt(TrackingJobPredictionRequest) returns (TrackingSnapshot);
+  rpc Tune(TrackingJobTune) returns (TrackingJobStatus);
+}
+message TrackingJobStart {
+  TrackingRequest tracking = 1;
+  int32 interval_milliseconds = 2;
+  bool resume_after_restart = 3;
+}
+message TrackingJobQuery {}
+message TrackingJobTune {
+  string job_id = 1;
+  optional double transponder_offset_hz = 2;
+  optional double rit_hz = 3;
+  optional double xit_hz = 4;
+  optional double downlink_manual_hz = 5;
+  optional double uplink_manual_hz = 6;
+  optional int64 downlink_base_offset_hz = 7;
+  optional int64 uplink_base_offset_hz = 8;
+}
+message TrackingJobPredictionRequest {
+  string job_id = 1;
+  int64 utc_unix_milliseconds = 2;
+}
+message TrackingJobStop { string job_id = 1; }
+message TrackingJobStatus {
+  string job_id = 1;
+  bool running = 2;
+  string phase = 3;
+  int64 completed_ticks = 4;
+  TrackingSnapshot latest = 5;
+  string error = 6;
+  bool resume_after_restart = 7;
+  RadioLinkProfile active_radio_link = 8;
+  string celestial_target = 9;
+  bool point_rotator = 10;
+}
+
+message RadioLinkProfile {
+  int64 downlink_low_hz = 1; // 0 = absent
+  int64 downlink_high_hz = 2;
+  int64 uplink_low_hz = 3;
+  int64 uplink_high_hz = 4;
+  bool inverting = 5;
+  int64 downlink_base_offset_hz = 6;
+  int64 uplink_base_offset_hz = 7;
+  double transponder_offset_hz = 8;
+  double rit_hz = 9;
+  double xit_hz = 10;
+  double downlink_manual_hz = 11;
+  double uplink_manual_hz = 12;
+}
+
+service StationCatalog {
+  rpc Search(CatalogSearchRequest) returns (CatalogSearchResult);
+}
+message CatalogSearchRequest {
+  string query = 1;
+  int32 limit = 2;
+}
+message CatalogSearchResult {
+  repeated CatalogSatellite satellites = 1;
+}
+message CatalogSatellite {
+  string satellite_id = 1;
+  int32 norad = 2;
+  string name = 3;
+  string status = 4;
+  string tle_line1 = 5;
+  string tle_line2 = 6;
+  string orbit_source = 7;
+  repeated CatalogTransmitter transmitters = 8;
+  string orbit_state = 9;
+}
+message CatalogTransmitter {
+  string id = 1;
+  string description = 2;
+  bool alive = 3;
+  string mode = 4;
+  string uplink_mode = 5;
+  string status = 6;
+  RadioLinkProfile link = 7;
+  CatalogTelemetryProfile telemetry = 8;
+}
+
+message CatalogTelemetryProfile {
+  string source = 1;
+  string modulation = 2;
+  string framing = 3;
+  double baud = 4;
+  double deviation_hz = 5;
+  string differential_mode = 6;
+  bool manchester = 7;
+  double af_carrier_hz = 8;
+  string convolutional = 9;
+  int32 frame_size = 10;
+  int32 rs_interleaving = 11;
+  string rs_basis = 12;
+  string rs_mode = 13;
+  string scrambler_mode = 14;
+  string decoder_protocol = 15;
+}
+
+message EmePeerSite {
+  double latitude_degrees = 1;
+  double longitude_degrees = 2;
+  double height_metres = 3;
+}
+message EmePathStatus {
+  double receive_ratio = 1;
+  double transmit_ratio = 2;
+  double incoming_delay_seconds = 3;
+  double outgoing_delay_seconds = 4;
+  double peer_elevation_degrees = 5;
+}
+
+// Process-scoped identity shared by local IPC and authenticated Host.
+service StationRuntime {
+  rpc Identify(StationRuntimeQuery) returns (StationRuntimeIdentity);
+}
+message StationRuntimeQuery {}
+message StationRuntimeIdentity {
+  string station_id = 1;
+  string instance_id = 2;
+}
+
+message PassSearchRequest {
+  TrackingRequest tracking = 1;
+  int64 start_utc_milliseconds = 2;
+  int64 end_utc_milliseconds = 3;
+  bool common_moon_visibility = 4;
+}
+message PassSearchResult {
+  repeated PassWindow passes = 1;
+  bool common_moon_visibility = 2;
+}
+message PassWindow {
+  int64 aos_utc_milliseconds = 1;
+  int64 los_utc_milliseconds = 2;
+  int64 culmination_utc_milliseconds = 3;
+  double maximum_elevation_degrees = 4; // for common window: min(local, peer)
+  bool actual_aos = 5;
+  bool actual_los = 6;
+  repeated PassSkyPoint sky_path = 7;
+}
+message PassSkyPoint {
+  int64 utc_milliseconds = 1;
+  double azimuth_degrees = 2;
+  double elevation_degrees = 3;
+  optional double peer_elevation_degrees = 4;
+  string orbit_backend = 5;
+  string data_quality = 6;
+}
+
+message GroundTrackRequest {
+  TrackingRequest tracking = 1;
+  int64 start_utc_milliseconds = 2;
+  int64 end_utc_milliseconds = 3;
+  int32 step_seconds = 4;
+}
+message GroundTrackResult {
+  repeated GroundTrackPoint points = 1;
+  int32 norad_number = 2;
+  double site_latitude_degrees = 3;
+  double site_longitude_degrees = 4;
+  string celestial_target = 5;
+}
+message GroundTrackPoint {
+  int64 utc_milliseconds = 1;
+  double latitude_degrees = 2;
+  double longitude_degrees = 3;
+  double height_metres = 4;
+  string orbit_backend = 5;
+  string data_quality = 6;
+}
+
+service StationLogbook {
+  rpc Save(QsoRecord) returns (QsoRecord);
+  rpc Search(QsoSearch) returns (QsoSearchResult);
+  rpc Export(QsoSearch) returns (QsoAdif);
+}
+message QsoRecord {
+  string id = 1;
+  int64 utc_milliseconds = 2;
+  string station_call = 3;
+  string my_grid = 4;
+  string call = 5;
+  string grid = 6;
+  string mode = 7;
+  string submode = 8;
+  string band = 9;
+  int64 tx_hz = 10;
+  int64 rx_hz = 11;
+  string satellite = 12;
+  string propagation = 13;
+  string sent = 14;
+  string received = 15;
+  string name = 16;
+  string state = 17;
+  string notes = 18;
+  map<string, string> extra_adif_fields = 19;
+  map<string, string> extra_adif_types = 20;
+}
+message QsoSearch {
+  string call = 1;
+  int64 from_utc_milliseconds = 2;
+  int64 to_utc_milliseconds = 3;
+  int32 limit = 4;
+  string before_id = 5;
+}
+message QsoSearchResult {
+  repeated QsoRecord records = 1;
+  string next_before_id = 2;
+}
+message QsoAdif { string content = 1; int32 count = 2; string next_before_id = 3; }
+
+service StationAfc {
+  rpc Open(AfcOpenRequest) returns (AfcSessionStatus);
+  rpc Update(AfcUpdateRequest) returns (AfcSessionStatus);
+  rpc Close(AfcCloseRequest) returns (AfcSessionStatus);
+}
+message AfcOpenRequest {
+  string job_id = 1;
+  string mode = 2;
+  string control = 3;
+  int32 sign = 4;
+  double max_correction_hz = 5;
+  double fm_deadband_hz = 6;
+  double tone_deadband_hz = 7;
+  optional double center_hz = 8;
+  bool gentle_release = 9;
+  bool auto_calibrate = 10;
+}
+message AfcMeasurement {
+  int64 sample_utc_milliseconds = 1;
+  int64 generation = 2;
+  double if_offset_hz = 3;
+  double sigma_hz = 4;
+  double confidence = 5;
+  bool absolute_reference = 6;
+  bool ambiguous = 7;
+}
+message AfcTargetChange {
+  int64 generation = 1;
+  optional double center_hz = 2;
+}
+message AfcUpdateRequest {
+  string session_id = 1;
+  AfcMeasurement measurement = 2;
+  AfcTargetChange target = 3;
+}
+message AfcCloseRequest { string session_id = 1; }
+message AfcSessionStatus {
+  string session_id = 1;
+  string job_id = 2;
+  string state = 3;
+  string detail = 4;
+  double observed_hz = 5;
+  double correction_hz = 6;
+  double error_hz = 7;
+  double confidence = 8;
+  int32 sign = 9;
+  string calibration_state = 10;
+}
+
+service StationAfcCapture {
+  rpc Start(AfcCaptureStart) returns (AfcCaptureStatus);
+  rpc Status(AfcCaptureQuery) returns (AfcCaptureStatus);
+  rpc Retarget(AfcCaptureTarget) returns (AfcCaptureStatus);
+  rpc Endpoints(AfcCaptureQuery) returns (AfcEndpointList);
+  rpc Stop(AfcCaptureQuery) returns (AfcCaptureStatus);
+}
+message AfcCaptureStart {
+  AfcOpenRequest control = 1;
+  AfcCaptureTarget target = 2;
+}
+message AfcCaptureTarget {
+  double target_hz = 1;
+  bool ssb_pilot = 2;
+  string preset = 3;
+  optional double center_hz = 4;
+}
+message AfcCaptureQuery {}
+message AfcCaptureStatus {
+  bool running = 1;
+  string detail = 2;
+  int64 samples = 3;
+  AfcSessionStatus afc = 4;
+}
+
+message AfcEndpoint {
+  string id = 1;
+  string name = 2;
+  bool loopback = 3;
+  int32 sample_rate = 4;
+  int32 channels = 5;
+  string detail = 6;
+}
+message AfcEndpointList { repeated AfcEndpoint endpoints = 1; }

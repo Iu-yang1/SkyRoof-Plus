@@ -1,0 +1,42 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service SimulatedDevice {
+  rpc Execute (SimDeviceRequest) returns (SimDeviceReply);
+  rpc Readback (SimReadbackRequest) returns (SimDeviceReply);
+}
+
+enum SimCommandKind {
+  SIM_UNKNOWN = 0;
+  SIM_TUNE = 1;
+  SIM_MANUAL_PTT_ON = 2;
+  SIM_MANUAL_PTT_OFF = 3;
+  SIM_DIGITAL_TX_ON = 4;
+  SIM_DIGITAL_TX_DONE = 5;
+  SIM_STOP_ALL = 6;
+}
+
+message SimDeviceRequest {
+  string command_id = 1;
+  string session_id = 2;
+  SimCommandKind kind = 3;
+  int64 frequency_hz = 4;
+  string radio_mode = 5;
+  string radio_input = 6;
+}
+
+message SimReadbackRequest { }
+
+message SimDeviceReply {
+  int64 actual_frequency_hz = 1;
+  string actual_mode = 2;
+  bool transmitting = 3;
+  string active_transaction_id = 4;
+  string active_session_id = 5;
+  uint64 revision = 6;
+  uint64 tx_epoch = 7;
+  string result = 8;
+  bool digital_automation_paused = 9;
+  int32 device_process_id = 10;
+}

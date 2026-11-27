@@ -1,0 +1,108 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service StationDevice {
+  rpc Execute(DeviceCommand) returns (DeviceSnapshot);
+  rpc Readback(DeviceReadbackRequest) returns (DeviceSnapshot);
+  rpc RunTimedTx(TimedTxRequest) returns (TimedTxReceipt);
+  rpc PushTxPcm(TxPcmChunk) returns (TxPcmReceipt);
+  rpc GetCwStatus(CwStatusRequest) returns (CwRadioStatus);
+  rpc SetCwSpeed(CwSpeedRequest) returns (CwRadioStatus);
+  rpc SendCw(CwSendRequest) returns (CwSendReceipt);
+  rpc ReleaseSession(DeviceReleaseSessionRequest) returns (DeviceSnapshot);
+}
+
+enum DeviceOperation {
+  DEVICE_OP_UNKNOWN = 0;
+  DEVICE_RX_FREQUENCY = 1;
+  DEVICE_TX_FREQUENCY = 2;
+  DEVICE_RX_MODE = 3;
+  DEVICE_TX_MODE = 4;
+  DEVICE_MANUAL_BEGIN = 5;
+  DEVICE_MANUAL_END = 6;
+  DEVICE_DIGITAL_BEGIN = 7;
+  DEVICE_DIGITAL_END = 8;
+  DEVICE_EMERGENCY_RX = 9;
+  DEVICE_RESUME_DIGITAL_TX = 10;
+  DEVICE_MANUAL_HEARTBEAT = 11;
+  DEVICE_TRACK_FREQUENCIES = 12;
+  DEVICE_DIGITAL_HEARTBEAT = 13;
+  DEVICE_READ_MODES = 14;
+}
+
+message DeviceCommand {
+  string transaction_id = 1;
+  string session_id = 2;
+  DeviceOperation operation = 3;
+  int64 frequency_hz = 4;
+  string mode = 5;
+  string audio_source = 6;
+  int64 tx_frequency_hz = 7;
+  int64 afc_rx_correction_hz = 8;
+  int64 afc_hold_correction_hz = 9;
+}
+
+message DeviceReadbackRequest {}
+message DeviceReleaseSessionRequest { string session_id = 1; }
+
+message DeviceSnapshot {
+  int64 rx_frequency_hz = 1;
+  int64 tx_frequency_hz = 2;
+  string rx_mode = 3;
+  string tx_mode = 4;
+  bool actual_ptt = 5;
+  string active_transaction_id = 6;
+  string active_session_id = 7;
+  uint64 transaction_epoch = 8;
+  uint64 revision = 9;
+  bool digital_automation_paused = 10;
+  string status_text = 11;
+  int32 device_process_id = 12;
+  bool supports_duplex_frequencies = 13;
+  bool native_tx_available = 14;
+  int64 rx_readback_utc_milliseconds = 15;
+}
+
+message TxPcmChunk {
+  string transaction_id = 1;
+  string session_id = 2;
+  uint64 epoch = 3;
+  uint64 sequence = 4;
+  bytes pcm16 = 5; // exactly 20 ms, mono 48 kHz, little endian
+}
+message TxPcmReceipt {
+  bool accepted = 1;
+  string state = 2;
+}
+
+message TimedTxRequest {
+  string job_id = 1;
+  string session_id = 2;
+  string authorized_principal = 3;
+  int64 target_utc_nanoseconds = 4; // first native UDP PCM packet, not measured RF
+  int64 frequency_hz = 5;
+  string mode = 6;
+  bytes pcm16 = 7; // mono 48 kHz LE, preloaded before arming
+  string sha256 = 8;
+}
+message TimedTxReceipt {
+  string job_id = 1;
+  string state = 2;
+  int64 actual_first_packet_utc_nanoseconds = 3;
+  int64 source_samples = 4;
+}
+
+message CwStatusRequest {}
+message CwSpeedRequest { double wpm = 1; }
+message CwRadioStatus {
+  string lease = 1;
+  string mode = 2;
+  int32 break_in = 3;
+  bool transmitting = 4;
+  int32 key_speed_raw = 5;
+  double wpm = 6;
+  int64 actual_tx_frequency_hz = 7;
+}
+message CwSendRequest { string text = 1; string session_id = 2; }
+message CwSendReceipt { string state = 1; string text = 2; }

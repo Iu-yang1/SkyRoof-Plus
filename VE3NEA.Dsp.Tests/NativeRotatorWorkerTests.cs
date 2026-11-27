@@ -184,23 +184,38 @@ public sealed class NativeRotatorWorkerTests
     string exe=Path.Combine(root,"SkyRoof","bin","x64","Release",
       "net10.0-windows7.0","SkyRoof.exe");
     int dropFeedback=0;
+    var droppedQuery=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     await using var server=new FakeGs232Bridge(_=>
-      Volatile.Read(ref dropFeedback)==0
-        ? Encoding.ASCII.GetBytes("AZ=90 EL=30\r")
-        : Array.Empty<byte>());
-    using var proxy=new RotatorEngineSubprocess(CreateSettings(server.Port),exe);
-    for(int i=0;i<120 && !proxy.IsReady;i++)await Task.Delay(50);
-    Assert.True(proxy.IsReady);
+    {
+      if(Volatile.Read(ref dropFeedback)==0)
+        return Encoding.ASCII.GetBytes("AZ=90 EL=30\r");
+      droppedQuery.TrySetResult();
+      return Array.Empty<byte>();
+    });
+    // A ready notification alone can precede a fresh feedback observation
+    // on a busy CI runner. Wait for actual telemetry before requesting the lease.
+    var settings=CreateSettings(server.Port);
+    settings.NativeReadTimeout=3000;
+    settings.ReceiveTimeout=500;
+    using var proxy=new RotatorEngineSubprocess(settings,exe);
+    await UntilAsync(()=>proxy.IsReady && !proxy.PositionFaulted &&
+      proxy.LastSuccessfulBearingReadUtc!=DateTime.MinValue &&
+      DateTime.UtcNow-proxy.LastSuccessfulBearingReadUtc<TimeSpan.FromSeconds(1));
     using var lease=await proxy.AcquireManagementLeaseAsync();
     Assert.NotNull(lease);
     int sentStops=server.Count("S");
     Interlocked.Exchange(ref dropFeedback,1);
+    long previousVerification=proxy.LastVerificationStarted;
     var pendingVerification=proxy.VerifyPostManagementFeedbackAsync();
-    await Task.Delay(250);
+    await droppedQuery.Task.WaitAsync(TimeSpan.FromSeconds(3));
+    await UntilAsync(()=>proxy.LastVerificationStarted>previousVerification || pendingVerification.IsCompleted);
+    Assert.True(proxy.LastVerificationStarted>previousVerification, "Worker did not enter pending verification.");
+    Assert.False(pendingVerification.IsCompleted, "Verification resolved before STOP: " + proxy.GetStatusString());
+    var stopLatency=System.Diagnostics.Stopwatch.StartNew();
     proxy.StopRotation();
-    // STOP must NOT sit for four seconds behind the async C2
-    // management verification on the child's IPC reader.
     await UntilAsync(()=>server.Count("S")>sentStops);
+    Assert.True(stopLatency.Elapsed<TimeSpan.FromSeconds(3),
+      $"STOP waited behind feedback verification: {stopLatency.Elapsed}");
     Assert.False(await pendingVerification);
   }
 

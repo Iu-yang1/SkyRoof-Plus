@@ -1,8 +1,9 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using SkyRoof.Orbit.Contracts;
 
 namespace SkyRoof
 {
-  public class RadioLink
+  public partial class RadioLink
   {
     internal const double SpeedOfLightKmPerSecond = 299_792.458;
     public SatnogsDbSatellite? Sat;
@@ -175,6 +176,9 @@ namespace SkyRoof
       DopplerEstimator.Update(DopplerFactor, HasObservation, Sat, now);
     }
 
+    private SatellitePassband Passband => new(
+      Tx?.downlink_low, Tx?.downlink_high, Tx?.uplink_low, Tx?.uplink_high, Tx?.invert == true);
+
     internal void ComputeFrequencies()
     {
       if (IsTerrestrial)
@@ -191,21 +195,12 @@ namespace SkyRoof
         // 0-Hz downlink or disturb RX/SDR state for such a record.
         if (Tx?.downlink_low.HasValue == true)
         {
-          double downlinkLow =
-            Tx.downlink_low.Value +
-            DownlinkBaseOffset;
-          DownlinkFrequency = downlinkLow;
-          if (IsTransponder)
-            DownlinkFrequency += TransponderOffset;
-
-          CorrectedDownlinkFrequency =
-            DownlinkFrequency;
-          if (RitEnabled)
-            CorrectedDownlinkFrequency += RitOffset;
-          if (DownlinkDopplerCorrectionEnabled)
-            CorrectedDownlinkFrequency *= 1 - DopplerFactor;
-          if (DownlinkManualCorrectionEnabled)
-            CorrectedDownlinkFrequency += DownlinkManualCorrection;
+          DownlinkFrequency = Passband.DownlinkNominal(
+            DownlinkBaseOffset, IsTransponder ? TransponderOffset : 0);
+          CorrectedDownlinkFrequency = RadioLinkMath.CorrectDownlink(
+            DownlinkFrequency, DownlinkDopplerCorrectionEnabled ? DopplerFactor : 0,
+            RitEnabled ? RitOffset : 0,
+            DownlinkManualCorrectionEnabled ? DownlinkManualCorrection : 0);
         }
         else
         {
@@ -216,284 +211,16 @@ namespace SkyRoof
         }
 
         // uplink nominal. Apply the same base offset to both passband edges so its width is unchanged.
-        if (IsTransponder)
-        {
-          double uplinkLow = (double)Tx!.uplink_low! + UplinkBaseOffset;
-          double uplinkHigh = (double)Tx.uplink_high! + UplinkBaseOffset;
-          UplinkFrequency = Tx.invert ? uplinkHigh - TransponderOffset : uplinkLow + TransponderOffset;
-        }
-        else if (Tx?.uplink_low.HasValue == true)
-          UplinkFrequency = (double)Tx.uplink_low + UplinkBaseOffset;
-        else
-          UplinkFrequency = 0;
+        UplinkFrequency = Tx?.uplink_low.HasValue == true
+          ? Passband.UplinkNominal(UplinkBaseOffset, IsTransponder ? TransponderOffset : 0)
+          : 0;
 
-        // uplink corrected
-        CorrectedUplinkFrequency = UplinkFrequency;
-        if (UplinkFrequency > 0)
-        {
-          if (UplinkDopplerCorrectionEnabled)
-            CorrectedUplinkFrequency *= 1 + DopplerFactor;
-          if (UplinkManualCorrectionEnabled)
-            CorrectedUplinkFrequency += UplinkManualCorrection;
-          CorrectedUplinkFrequency += XitOffset;
-        }
+        CorrectedUplinkFrequency = UplinkFrequency > 0
+          ? RadioLinkMath.CorrectUplink(UplinkFrequency,
+            UplinkDopplerCorrectionEnabled ? DopplerFactor : 0, XitOffset,
+            UplinkManualCorrectionEnabled ? UplinkManualCorrection : 0)
+          : UplinkFrequency;
       }
-    }
-
-    public void SetDownlinkBaseFrequency(double frequency)
-    {
-      if (IsTerrestrial ||
-          !HasDownlink ||
-          Tx == null ||
-          TxCust == null)
-        return;
-      DownlinkBaseOffset = checked((long)Math.Round(frequency - DatabaseDownlinkBaseFrequency));
-      ComputeFrequencies();
-    }
-
-    public void SetUplinkBaseFrequency(double frequency)
-    {
-      if (IsTerrestrial || Tx == null || TxCust == null || DatabaseUplinkBaseFrequency == 0) return;
-      UplinkBaseOffset = checked((long)Math.Round(frequency - DatabaseUplinkBaseFrequency));
-      ComputeFrequencies();
-    }
-
-    public void ResetDownlinkBaseFrequency()
-    {
-      if (TxCust == null) return;
-      DownlinkBaseOffset = 0;
-      ComputeFrequencies();
-    }
-
-    public void ResetUplinkBaseFrequency()
-    {
-      if (TxCust == null) return;
-      UplinkBaseOffset = 0;
-      ComputeFrequencies();
-    }
-
-    // dragging changes either the absolute frequency (terrestrial),
-    // or the transponder offset (transponder),
-    // or the manual correction (transmitter)
-    internal double GetDraggableFrequency()
-    {
-      if (!HasDownlink)
-        return 0;
-      if (IsTerrestrial)
-        return DownlinkFrequency;
-      if (IsTransponder)
-        return TransponderOffset;
-      return DownlinkManualCorrection;
-    }
-
-    internal void SetDraggableFrequency(double freq)
-    {
-      if (!HasDownlink)
-        return;
-
-      if (IsTerrestrial)
-        DownlinkFrequency = freq;
-
-      else if (IsTransponder)
-      {
-        // Do not clamp to the SatNOGS passband. Published transponder/IF edges can be
-        // approximate, and operators may need to tune beyond them.
-        TransponderOffset = freq;
-      }
-
-      else
-      {
-        DownlinkManualCorrection = freq;
-      }
-
-      ComputeFrequencies();
-    }
-
-    internal void IncrementDownlinkFrequency(int delta)
-    {
-      if (!HasDownlink)
-        return;
-
-      // RIT
-      if (RitEnabled)
-      {
-        RitOffset += delta;
-      }
-
-      // terrestrial
-      else if (IsTerrestrial) 
-        DownlinkFrequency += delta;
-
-      // transponder
-      else if (IsTransponder)
-      {
-        // The tuning position is intentionally unbounded by the database passband edges.
-        TransponderOffset += delta;
-      }
-
-      // transmitter
-      else
-      {
-        DownlinkManualCorrection += delta;
-      }
-
-      ComputeFrequencies();
-    }
-
-    /// <summary>
-    /// Move the logical receive point to an absolute corrected RF frequency.
-    /// This solves the same frequency model used by ComputeFrequencies instead
-    /// of treating the requested corrected-frequency delta as a raw model delta.
-    /// </summary>
-    internal bool SetCorrectedDownlinkFrequency(
-      double targetFrequency,
-      bool useRit)
-    {
-      if (!HasDownlink ||
-          !double.IsFinite(
-            targetFrequency))
-        return false;
-
-      if (!IsTerrestrial)
-      {
-        if (SatCust == null ||
-            Tx == null ||
-            !Tx.downlink_low.HasValue)
-          return false;
-
-        if (IsTransponder &&
-            TxCust == null)
-          return false;
-
-        if (!useRit &&
-            !IsTransponder &&
-            !DownlinkManualCorrectionEnabled)
-          return false;
-      }
-
-      bool ritModeChanged =
-        RitEnabled != useRit;
-      double previousCorrected =
-        CorrectedDownlinkFrequency;
-
-      RitEnabled =
-        useRit;
-
-      if (IsTerrestrial)
-      {
-        if (useRit)
-          RitOffset =
-            targetFrequency -
-            DownlinkFrequency;
-        else
-          DownlinkFrequency =
-            targetFrequency;
-
-        ComputeFrequencies();
-
-        return
-          ritModeChanged ||
-          Math.Abs(
-            CorrectedDownlinkFrequency -
-            previousCorrected) >= 0.5;
-      }
-
-      double dopplerScale =
-        DownlinkDopplerCorrectionEnabled
-          ? 1.0 - DopplerFactor
-          : 1.0;
-
-      if (!double.IsFinite(
-            dopplerScale) ||
-          Math.Abs(dopplerScale) <
-            1e-9)
-        return false;
-
-      double manualCorrection =
-        DownlinkManualCorrectionEnabled
-          ? DownlinkManualCorrection
-          : 0.0;
-
-      double desiredPreDoppler =
-        (targetFrequency -
-         manualCorrection) /
-        dopplerScale;
-
-      if (useRit)
-      {
-        double nominalDownlink =
-          BaseDownlinkFrequency +
-          (IsTransponder
-            ? TransponderOffset
-            : 0.0);
-
-        RitOffset =
-          desiredPreDoppler -
-          nominalDownlink;
-      }
-      else if (IsTransponder)
-      {
-        TransponderOffset =
-          desiredPreDoppler -
-          BaseDownlinkFrequency;
-      }
-      else
-      {
-        double desiredManualCorrection =
-          targetFrequency -
-          BaseDownlinkFrequency *
-          dopplerScale;
-
-        DownlinkManualCorrection =
-          Math.Round(
-            desiredManualCorrection,
-            MidpointRounding.AwayFromZero);
-      }
-
-      ComputeFrequencies();
-
-      return
-        ritModeChanged ||
-        Math.Abs(
-          CorrectedDownlinkFrequency -
-          previousCorrected) >= 0.5;
-    }
-
-
-    /// <summary>
-    /// Reset every operator tuning offset so the no-Doppler downlink/uplink return exactly
-    /// to their saved Base frequencies.
-    /// </summary>
-    public void ReturnToBaseTuningPosition()
-    {
-      if (IsTerrestrial) return;
-
-      RitEnabled = false;
-      RitOffset = 0;
-      XitOffset = 0;
-
-      if (TxCust != null)
-        TransponderOffset = 0;
-
-      if (SatCust != null)
-      {
-        DownlinkManualCorrection = 0;
-        UplinkManualCorrection = 0;
-      }
-
-      ComputeFrequencies();
-    }
-
-    public void IncrementUplinkFrequency(int delta)
-    {
-      if (IsTerrestrial)
-        UplinkFrequency += delta;
-      else
-      {
-        UplinkManualCorrection += delta;
-      }
-
-      ComputeFrequencies();
     }
   }
 }

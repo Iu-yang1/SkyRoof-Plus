@@ -1,0 +1,156 @@
+syntax = "proto3";
+package skyroof.remote.ipc.v1;
+option csharp_namespace = "SkyRoof.Remote.Ipc";
+
+service DspWaveform {
+  rpc PublishTelemetryIq(stream TelemetryIqBlock) returns (TelemetryIqReceipt);
+  rpc ConfigureTelemetry(TelemetryRxConfiguration) returns (TelemetryRxConfiguration);
+  rpc EncodeQ65(Q65EncodeRequest) returns (Q65EncodedWaveform);
+  rpc ConfigureQ65(Q65RxConfiguration) returns (Q65RxConfiguration);
+  rpc GetCwHistory(CwHistoryRequest) returns (CwHistoryReply);
+  rpc ConfigureCw(CwRxConfiguration) returns (CwRxConfiguration);
+  rpc EncodeFt4(Ft4EncodeRequest) returns (EncodedWaveform);
+  rpc DecodeOfflineAf(OfflineAfDecodeRequest) returns (OfflineAfDecodeResult);
+}
+message Ft4EncodeRequest {
+  string message = 1;
+  float audio_hz = 2;
+  float gain = 3;
+}
+message EncodedWaveform {
+  bytes pcm16 = 1;
+  int32 sample_rate = 2;
+  string sha256 = 3;
+}
+
+message CwRxConfiguration {
+  bool enabled = 1;
+  string mode = 2;
+}
+
+message CwHistoryRequest {}
+message CwHistoryEntry {
+  string session_id = 1;
+  int64 timeline_generation = 2;
+  bool uses_association_hint = 3;
+  int32 identity_id = 4;
+  string mode = 5;
+  string committed_text = 6;
+  string last_window_end_utc = 7;
+}
+message CwHistoryReply {
+  repeated CwHistoryEntry entries = 1;
+  string error = 2;
+}
+
+message Q65RxConfiguration {
+  bool enabled = 1;
+  string submode = 2;
+  float rx_hz = 3;
+  float tolerance_hz = 4;
+  bool averaging = 5;
+  bool eme_delay = 6;
+  string my_call = 7;
+  string his_call = 8;
+  string his_grid = 9;
+  uint32 ap_mode = 10;
+  uint32 qso_progress = 11;
+  uint32 max_drift = 12;
+  bool pileup = 13;
+  float fading_b90_ts = 14;
+  bool lorentzian = 15;
+}
+
+message Q65EncodeRequest {
+  string submode = 1;
+  string message = 2;
+  float audio_hz = 3;
+  float gain = 4;
+}
+message Q65EncodedWaveform {
+  EncodedWaveform waveform = 1;
+  int32 slot_seconds = 2;
+  int32 tx_start_samples_12k = 3;
+}
+
+message TelemetryRxConfiguration {
+  bool enabled = 1;
+  int32 norad_id = 2;
+  string satellite = 3;
+  string transmitter = 4;
+  string modulation = 5;
+  string framing = 6;
+  double baud = 7;
+  string input = 8;
+  int32 center_hz = 9;
+  double deviation_hz = 10;
+  bool differential = 11;
+  bool manchester = 12;
+  int64 downlink_hz = 13;
+  double af_carrier_hz = 14;
+  string convolutional = 15;
+  int32 frame_size = 16;
+  int32 rs_interleaving = 17;
+  string rs_basis = 18;
+  bool save_frames = 19;
+  int32 kiss_port = 20;
+  string differential_mode = 21;
+  string rs_mode = 22;
+  string scrambler_mode = 23;
+  string decoder_protocol = 24;
+  bool upload_satnogs = 25;
+  bool decode_media = 26;
+  bool decode_sstv = 27;
+  bool sstv_only = 28;
+}
+
+message TelemetryIqBlock {
+  uint64 first_sample_index = 1;
+  int32 sample_rate = 2;
+  bytes cf32 = 3;
+}
+message TelemetryIqReceipt {
+  uint64 source_epoch = 1;
+  int64 blocks = 2;
+  int64 samples = 3;
+}
+
+service StationSdr {
+  rpc Read(SdrStatusRequest) returns (SdrStatus);
+  rpc Start(SdrCaptureRequest) returns (SdrStatus);
+  rpc Stop(SdrStatusRequest) returns (SdrStatus);
+}
+message SdrStatusRequest {}
+message SdrCaptureRequest {
+  double center_hz = 1;
+  int32 sample_rate = 2;
+  double channel_hz = 3;
+  optional double gain_db = 4;
+}
+message SdrStatus {
+  bool configured = 1;
+  bool running = 2;
+  string state = 3;
+  string detail = 4;
+  SdrCaptureRequest request = 5;
+}
+
+message OfflineAfDecodeRequest {
+  bytes pcm16 = 1;
+  int32 sample_rate = 2;
+  string mode = 3;
+  Q65RxConfiguration q65 = 4;
+}
+message OfflineAfDecodeResult {
+  string mode = 1;
+  repeated string messages = 2;
+  repeated OfflineAfDecodeRow rows = 3;
+}
+message OfflineAfDecodeRow {
+  string text = 1;
+  float frequency_hz = 2;
+  float dt_seconds = 3;
+  float snr_db = 4;
+  uint32 flags = 5;
+  uint32 ap_type = 6;
+}
