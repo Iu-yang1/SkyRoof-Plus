@@ -74,17 +74,16 @@ internal sealed class StationAfcSession
         bool aligned = timeline.TryReadbackAt(utc, out long frequency);
         bool attributed = timeline.TryAttributedReadbackAt(utc, AfcCatWriteSource.Afc, out _);
         int nominal = rxMode.Length == 0 ? 0 : rxMode.StartsWith("LSB", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
+        var observation = new AfcObservation(mode, utc, measurement.Generation, measurement.IfOffsetHz,
+            measurement.SigmaHz, measurement.Confidence, measurement.AbsoluteReference, measurement.Ambiguous);
         if (probe is { Verified: false } calibration)
         {
-            bool verified = calibration.Observe(measurement.IfOffsetHz, measurement.SigmaHz, measurement.Confidence,
-                measurement.AbsoluteReference, measurement.Ambiguous, aligned && duplex && !ptt, measurement.Generation, utc);
+            bool verified = calibration.Observe(observation, aligned && duplex && !ptt);
             if (!verified) return;
             controller.OnUserTune();
             if (center is double value) controller.CenterOn(value);
             else controller.LockHere();
         }
-        var observation = new AfcObservation(mode, utc, measurement.Generation, measurement.IfOffsetHz,
-            measurement.SigmaHz, measurement.Confidence, measurement.AbsoluteReference, measurement.Ambiguous);
         controller.Observe(observation, new AfcObservationContext(frequency, probe?.Sign ?? config.Sign, config.MaxCorrectionHz,
             config.FmDeadbandHz, config.ToneDeadbandHz, ptt, aligned, attributed, !aligned || !duplex, nominal));
     }
@@ -94,7 +93,8 @@ internal sealed class StationAfcSession
         probe?.Tick(now);
         controller.Tick(now, ptt);
         bool calibrating = probe is { Verified: false };
-        double correction = prediction.RxHz > 0 ? (calibrating ? probe!.Bias : controller.GetRxCorrection(ptt)) : 0;
+        double correction = prediction.RxHz > 0
+            ? (probe is { Verified: false } calibration ? calibration.Bias : controller.GetRxCorrection(ptt)) : 0;
         if (ptt) correction = lastApplied;
         if (!duplex) correction = 0;
         if (prediction.RxHz <= 0) correction = 0;

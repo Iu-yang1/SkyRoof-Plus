@@ -6,8 +6,17 @@ using SkyRoof.Remote.Ipc;
 
 namespace SkyRoof.Remote.Station;
 
-public sealed class StationAfcCaptureWorker(TrackingJobRunner runner, ILogger<StationAfcCaptureWorker> logger) : BackgroundService
+public sealed class StationAfcCaptureWorker : BackgroundService
 {
+    private readonly TrackingJobRunner runner;
+    private readonly ILogger<StationAfcCaptureWorker> logger;
+
+    public StationAfcCaptureWorker(TrackingJobRunner runner, ILogger<StationAfcCaptureWorker> logger)
+    {
+        this.runner = runner;
+        this.logger = logger;
+    }
+
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly object stateGate = new();
     private AfcCaptureStatus state = new() { Detail = "Idle" };

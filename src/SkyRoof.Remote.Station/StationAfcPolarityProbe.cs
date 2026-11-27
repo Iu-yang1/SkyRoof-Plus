@@ -1,3 +1,5 @@
+using SkyRoof.AFC;
+
 namespace SkyRoof.Remote.Station;
 
 // One bounded RX-only offset, followed by an independently observed restore.
@@ -65,9 +67,12 @@ internal sealed class StationAfcPolarityProbe
         if (phase == Phase.AbortRestore) Move(Phase.Failed, utc);
     }
 
-    internal bool Observe(double offsetHz, double sigma, double confidence, bool absolute, bool ambiguous,
-        bool aligned, long generation, DateTime utc)
+    internal bool Observe(AfcObservation observation, bool aligned)
     {
+        double offsetHz = observation.IfOffsetHz, sigma = observation.SigmaHz, confidence = observation.Confidence;
+        bool absolute = observation.HasAbsoluteReference, ambiguous = observation.Ambiguous;
+        long generation = observation.Generation;
+        DateTime utc = observation.SampleUtc;
         if (phase is Phase.Verified or Phase.Failed or Phase.AbortRestore || !aligned ||
             !absolute || ambiguous || !double.IsFinite(offsetHz) || !double.IsFinite(sigma) ||
             !double.IsFinite(confidence) || confidence < .70 || sigma < 0 || sigma > 15 ||

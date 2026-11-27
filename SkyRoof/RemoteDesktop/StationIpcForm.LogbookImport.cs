@@ -21,9 +21,9 @@ internal sealed partial class StationIpcForm
             }, lifetime.Token);
             qsoStatus.Text = $"Import confirmed {committed}/{records.Count} (including existing identical records).";
         }
-        catch (Exception)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or Grpc.Core.RpcException or OperationCanceledException)
         {
-            qsoStatus.Text = $"Import interrupted after {committed} confirmed records. Retrying the same file is idempotent.";
+            qsoStatus.Text = $"Import interrupted after {committed} confirmed records. Retrying the same file is idempotent. {error.Message}";
             throw;
         }
         finally { qsoBusy = false; }
