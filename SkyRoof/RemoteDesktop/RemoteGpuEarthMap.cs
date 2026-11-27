@@ -63,6 +63,7 @@ internal sealed class RemoteGpuEarthMap : UserControl
         Configure(settings);
     }
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal bool ShowFootprint { get => footprint; set { footprint = value; RequestDraw(); } }
     internal void Configure(EarthMapSettings settings)
     {

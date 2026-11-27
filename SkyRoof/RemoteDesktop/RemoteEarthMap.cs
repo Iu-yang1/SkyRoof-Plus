@@ -14,6 +14,7 @@ internal sealed class RemoteEarthMap : Control
     private bool showFootprint = true;
     private long currentUtc;
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal bool ShowFootprint
     {
         get => showFootprint;
