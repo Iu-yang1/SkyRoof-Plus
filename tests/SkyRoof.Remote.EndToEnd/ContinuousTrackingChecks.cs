@@ -52,6 +52,10 @@ internal static class ContinuousTrackingChecks
 
         await VerifyManualRotatorStopAsync(observer, after, rotator);
         int suspendedPoints = rotator.CountPrefix("P ");
+        string pipe = stationInfo.Environment["SKYROOF_STATION_PIPE"] ?? throw new InvalidDataException("Missing Station pipe");
+        string bus = stationInfo.Environment["SKYROOF_RX_AUDIO_BUS"] ?? throw new InvalidDataException("Missing audio bus");
+        string directory = stationInfo.Environment["SKYROOF_RECORDING_DIRECTORY"] ?? throw new InvalidDataException("Missing recording directory");
+        string recordingId = await StationRecordingRestartChecks.BeginAsync(pipe);
         station.Kill(entireProcessTree: true);
         await station.WaitForExitAsync();
         var replacement = Process.Start(stationInfo)
@@ -63,6 +67,7 @@ internal static class ContinuousTrackingChecks
             Check(resumed.ResumeAfterRestart && !resumed.PointRotator, "Tracking or suspended pointing not restored");
             Check(rotator.CountPrefix("P ") == suspendedPoints, "Station restart resumed stopped pointing");
             VerifyTunedReadback(resumed);
+            await StationRecordingRestartChecks.VerifyAsync(pipe, bus, directory, recordingId);
             var stale = await observer.InvokeAsync<RemoteTrackingJobStatus>(
                 "StopTrackingJob", "old-job");
             Check(stale.Running && stale.JobId == job.JobId, "Stale stop canceled current job");

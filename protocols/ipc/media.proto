@@ -80,7 +80,7 @@ service StationRecorder {
   rpc Download(StationRecordingFileRequest) returns (stream StationRecordingChunk);
   rpc DeleteFile(StationRecordingFileRequest) returns (StationRecordingDeleteResult);
 }
-message StationRecordingStart { StationSignalKind kind = 1; }
+message StationRecordingStart { StationSignalKind kind = 1; bool resume_after_restart = 2; }
 message StationRecordingQuery {}
 message StationRecordingStatus {
   bool running = 1;
@@ -91,6 +91,7 @@ message StationRecordingStatus {
   int32 discontinuities = 6;
   repeated string files = 7;
   string detail = 8;
+  bool resume_after_restart = 9;
 }
 
 message StationRecordingListRequest { string before_name = 1; int32 limit = 2; }

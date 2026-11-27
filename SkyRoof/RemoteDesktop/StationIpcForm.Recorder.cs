@@ -9,6 +9,7 @@ namespace SkyRoof.RemoteDesktop;
 internal sealed partial class StationIpcForm
 {
     private readonly TextBox replayOffset = new() { Width = 100, Text = "0" };
+    private readonly CheckBox resumeStationRecording = new() { Text = "Resume after service restart", AutoSize = true };
     private readonly ComboBox recordKind = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 275 };
     private readonly Label recordStatus = new() { AutoSize = true, MaximumSize = new Size(750, 0) };
     private readonly ListBox recordFiles = new() { Width = 750, Height = 230 };
@@ -26,6 +27,7 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row(recordKind, ActionButton("RECORD WAV", RecordAsync), ActionButton("STOP RECORD", () => StopStream(recordingSource))));
         layout.Controls.Add(Row(ActionButton("START STATION RECORD", StartStationRecordAsync),
             ActionButton("STATION RECORD STATUS", StationRecordStatusAsync), ActionButton("STOP STATION RECORD", StopStationRecordAsync)));
+        layout.Controls.Add(Row(resumeStationRecording));
         layout.Controls.Add(stationRecordStatus);
         AddStationRecordingControls(layout);
         layout.Controls.Add(recordStatus);
@@ -49,14 +51,14 @@ internal sealed partial class StationIpcForm
         _ => StationSignalKind.StationSignalRxAudio
     };
     private async Task StartStationRecordAsync() =>
-        ShowStationRecording(await client.StartStationRecordingAsync(SelectedRecordKind(), lifetime.Token));
+        ShowStationRecording(await client.StartStationRecordingAsync(SelectedRecordKind(), lifetime.Token, resumeStationRecording.Checked));
     private async Task StationRecordStatusAsync() =>
         ShowStationRecording(await client.StationRecordingAsync(lifetime.Token));
     private async Task StopStationRecordAsync() =>
         ShowStationRecording(await client.StopStationRecordingAsync(lifetime.Token));
     private void ShowStationRecording(StationRecordingStatus value)
     {
-        if (!IsDisposed) stationRecordStatus.Text = $"Station · {value.Detail} · {value.DurationSeconds:F1} s · {value.Files.Count} files · {value.Discontinuities} gaps";
+        if (!IsDisposed) stationRecordStatus.Text = $"Station · {value.Detail} · {value.DurationSeconds:F1} s · {value.Files.Count} files · {value.Discontinuities} gaps · resume {value.ResumeAfterRestart}";
     }
 
     private async Task RecordAsync()

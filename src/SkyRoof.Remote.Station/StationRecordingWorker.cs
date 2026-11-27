@@ -5,8 +5,11 @@ using Grpc.Core;
 namespace SkyRoof.Remote.Station;
 
 // Station owns the recording lifetime, independently of the requesting IPC client.
-public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logger) : BackgroundService
+public sealed class StationRecordingWorker : BackgroundService
 {
+    private readonly ILogger<StationRecordingWorker> logger;
+    public StationRecordingWorker(ILogger<StationRecordingWorker> logger) => this.logger = logger;
+
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly object stateGate = new();
     private StationRecordingStatus state = new() { Detail = "Idle" };
@@ -15,27 +18,53 @@ public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logge
 
     internal StationRecordingStatus Snapshot() { lock (stateGate) return state.Clone(); }
 
-    internal async Task<StationRecordingStatus> BeginAsync(StationSignalKind kind, CancellationToken token)
+    internal static bool IsRecordingKind(StationSignalKind kind) => kind is StationSignalKind.StationSignalRxAudio or StationSignalKind.StationSignalIqCf32 or StationSignalKind.StationSignalRawIqCf32;
+
+    internal async Task<StationRecordingStatus> BeginAsync(StationSignalKind kind, bool resume, CancellationToken token)
     {
-        if (kind is not (StationSignalKind.StationSignalRxAudio or StationSignalKind.StationSignalIqCf32 or StationSignalKind.StationSignalRawIqCf32))
+        if (!IsRecordingKind(kind))
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Select AF, channelized IQ or raw SDR IQ."));
         await gate.WaitAsync(token);
         try
         {
             if (recording is { IsCompleted: false })
                 throw new RpcException(new Status(StatusCode.AlreadyExists, "Station recording already active."));
-            capture?.Dispose();
-            var root = StationRecordingFiles.DirectoryPath;
-            Directory.CreateDirectory(root);
-            var id = Guid.NewGuid().ToString("N");
-            string file = Path.Combine(root, $"skyroof-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{id}.wav");
-            lock (stateGate) state = new() { Id = id, Kind = kind, Running = true, Detail = "Waiting for signal" };
-            capture = new CancellationTokenSource();
-            var ct = capture.Token;
-            recording = Task.Run(() => RecordAsync(kind, file, ct), CancellationToken.None);
+            Directory.CreateDirectory(StationRecordingFiles.DirectoryPath);
+            var intent = new StationRecordingIntent(Guid.NewGuid().ToString("N"), kind);
+            if (resume) intent.Save();
+            else StationRecordingIntent.Clear();
+            Launch(intent, resume, false);
             return Snapshot();
         }
         finally { gate.Release(); }
+    }
+
+    private void Launch(StationRecordingIntent intent, bool resume, bool restored)
+    {
+        capture?.Dispose();
+        // A distinct physical segment is mandatory even for the same durable task ID.
+        string file = Path.Combine(StationRecordingFiles.DirectoryPath,
+            $"skyroof-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.wav");
+        lock (stateGate) state = new() { Id = intent.Id, Kind = intent.Kind, Running = true,
+            ResumeAfterRestart = resume, Detail = restored ? "Resumed; waiting for signal" : "Waiting for signal" };
+        capture = new CancellationTokenSource();
+        var ct = capture.Token;
+        recording = Task.Run(() => RecordAsync(intent.Kind, file, ct), CancellationToken.None);
+    }
+
+    public override Task StartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (StationRecordingIntent.Load() is { } intent)
+                Launch(intent, true, true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            lock (stateGate) state = new() { Detail = "Recording restore failed: " + error.Message };
+            logger.LogError(error, "Recording intent could not be restored");
+        }
+        return base.StartAsync(cancellationToken);
     }
 
     private async Task RecordAsync(StationSignalKind kind, string file, CancellationToken ct)
@@ -70,16 +99,18 @@ public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logge
         finally { lock (stateGate) { state.Running = false; state.Detail = detail; } }
     }
 
-    internal async Task<StationRecordingStatus> EndAsync(CancellationToken token)
+    internal async Task<StationRecordingStatus> EndAsync(CancellationToken token, bool preserveIntent = false)
     {
         await gate.WaitAsync(token);
         try
         {
+            if (!preserveIntent && Directory.Exists(StationRecordingFiles.DirectoryPath)) StationRecordingIntent.Clear();
             capture?.Cancel();
             if (recording is not null) await recording.WaitAsync(token);
             capture?.Dispose();
             capture = null;
             recording = null;
+            if (!preserveIntent) lock (stateGate) state.ResumeAfterRestart = false;
             return Snapshot();
         }
         finally { gate.Release(); }
@@ -89,14 +120,14 @@ public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logge
     {
         try { await Task.Delay(Timeout.Infinite, stoppingToken); }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { await EndAsync(CancellationToken.None); }
+        finally { await EndAsync(CancellationToken.None, preserveIntent: true); }
     }
 }
 
 public sealed partial class StationRecorderService(StationRecordingWorker worker) : StationRecorder.StationRecorderBase
 {
     public override Task<StationRecordingStatus> Start(StationRecordingStart request, ServerCallContext context) =>
-        worker.BeginAsync(request.Kind, context.CancellationToken);
+        worker.BeginAsync(request.Kind, request.ResumeAfterRestart, context.CancellationToken);
     public override Task<StationRecordingStatus> Status(StationRecordingQuery request, ServerCallContext context) =>
         Task.FromResult(worker.Snapshot());
     public override Task<StationRecordingStatus> Stop(StationRecordingQuery request, ServerCallContext context) =>
