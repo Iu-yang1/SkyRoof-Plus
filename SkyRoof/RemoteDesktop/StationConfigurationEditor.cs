@@ -3,9 +3,10 @@ using System.Text.Json.Nodes;
 
 namespace SkyRoof.RemoteDesktop;
 
-internal sealed class StationConfigurationEditor : Form
+internal sealed partial class StationConfigurationEditor : Form
 {
     private readonly string path;
+    private readonly string stationPipe;
     private readonly string original;
     private readonly JsonObject document;
     private readonly ComboBox process = new() { Width = 160, DropDownStyle = ComboBoxStyle.DropDownList };
@@ -14,9 +15,10 @@ internal sealed class StationConfigurationEditor : Form
     private readonly Label status = new() { AutoSize = true, MaximumSize = new Size(650, 0) };
     private readonly CheckBox reveal = new() { Text = "Reveal value", AutoSize = true };
 
-    internal StationConfigurationEditor(string file)
+    internal StationConfigurationEditor(string file, string stationPipe)
     {
         if (string.IsNullOrWhiteSpace(file)) throw new InvalidDataException("Select an installed supervisor JSON.");
+        this.stationPipe = stationPipe;
         path = Path.GetFullPath(file);
         original = File.ReadAllText(path);
         document = JsonNode.Parse(original)?.AsObject() ?? throw new InvalidDataException("Invalid supervisor JSON.");
@@ -38,7 +40,7 @@ internal sealed class StationConfigurationEditor : Form
         layout.Controls.Add(Row("Environment key", key));
         layout.Controls.Add(Row("Value", value, reveal));
         layout.Controls.Add(Row(Button("LOAD VALUE", ShowValue), Button("SET VALUE", SetValue), Button("REMOVE KEY", RemoveKey)));
-        layout.Controls.Add(Row(Button("AUTHORIZE THIS WINDOWS USER", AuthorizeDesktop)));
+        layout.Controls.Add(Row(Button("AUTHORIZE THIS WINDOWS USER", AuthorizeDesktop), CreateIfPickerButton()));
         layout.Controls.Add(Row(Button("SAVE CONFIG", Save), Button("CANCEL", Close)));
         layout.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(650, 0),
             Text = "Edit existing or add supported SKYROOF_* / ASPNETCORE_* configuration keys. Values are masked until explicitly revealed. Changes apply after service restart. The service account's protected configuration directory requires administrator write permission. Executable and arguments remain unchanged." });
@@ -88,7 +90,7 @@ internal sealed class StationConfigurationEditor : Form
     private void SetValue()
     {
         string name = KeyName();
-        EnvironmentValues()[name] = value.Text;
+        StationConfigurationFields.SetEnvironment(document, process.Text, name, value.Text);
         ShowKeys();
         key.Text = name;
         ShowValue();
@@ -97,7 +99,7 @@ internal sealed class StationConfigurationEditor : Form
 
     private void RemoveKey()
     {
-        EnvironmentValues().Remove(KeyName());
+        StationConfigurationFields.SetEnvironment(document, process.Text, KeyName(), null);
         ShowKeys();
         status.Text = "Key removed from staged configuration.";
     }

@@ -84,6 +84,8 @@ internal sealed partial class StationIpcForm : Form
         passSearch?.Cancel();
         recordingSource?.Cancel();
         replaySource?.Cancel();
+        stationDownload?.Cancel();
+        wsjtxLogSource?.Cancel();
         afcSource?.Cancel();
         afcInput?.Stop();
         recordingWriter?.Dispose();
@@ -114,7 +116,7 @@ internal sealed partial class StationIpcForm : Form
     private async Task RunAsync(Func<Task> action)
     {
         try { await action(); }
-        catch (Exception error) when (error is RpcException or HttpRequestException or System.Text.Json.JsonException or IOException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException or System.Runtime.InteropServices.COMException)
+        catch (Exception error) when (error is RpcException or HttpRequestException or System.Text.Json.JsonException or IOException or InvalidDataException or UnauthorizedAccessException or System.Net.Sockets.SocketException or FormatException or OverflowException or OperationCanceledException or ArgumentException or InvalidOperationException or NAudio.MmException or System.Runtime.InteropServices.COMException)
         {
             if (!IsDisposed) status.Text = error.Message;
         }

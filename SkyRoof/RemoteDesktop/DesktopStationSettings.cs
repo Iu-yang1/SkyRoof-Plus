@@ -28,11 +28,12 @@ internal sealed class DesktopStationSettings
 
     internal void Validate()
     {
-        if (!Enum.IsDefined(Mode) || StationId.Length is < 1 or > 32 ||
+        if (!Enum.IsDefined(Mode) || string.IsNullOrWhiteSpace(StationId) || StationId.Length > 32 ||
             !StationId.All(c => char.IsAsciiLetterOrDigit(c) || c == '-') ||
-            StationPipe.Length is < 1 or > 128 ||
+            string.IsNullOrWhiteSpace(StationPipe) || StationPipe.Length > 128 ||
             !StationPipe.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.'))
             throw new InvalidDataException("Invalid station ID, pipe or startup mode.");
+        if (string.IsNullOrWhiteSpace(ConfigurationFile)) throw new InvalidDataException("Select a Supervisor configuration path.");
         if (!Uri.TryCreate(HostOrigin, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && !(uri.IsLoopback && uri.Scheme == Uri.UriSchemeHttp)) ||
             uri.UserInfo.Length != 0 || uri.AbsolutePath != "/" || uri.Query.Length != 0 || uri.Fragment.Length != 0)
@@ -43,6 +44,8 @@ internal sealed class DesktopStationSettings
     {
         Validate();
         path ??= FileName;
+        path = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidDataException("Invalid profile path."));
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {

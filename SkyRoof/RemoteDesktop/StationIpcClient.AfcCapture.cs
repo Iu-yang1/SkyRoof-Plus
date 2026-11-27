@@ -5,6 +5,8 @@ namespace SkyRoof.RemoteDesktop;
 internal sealed partial class StationIpcClient
 {
     private StationAfcCapture.StationAfcCaptureClient AfcCapture => new(channel);
+    internal Task<AfcEndpointList> StationIfEndpointsAsync(CancellationToken token) =>
+        AfcCapture.EndpointsAsync(new(), deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: token).ResponseAsync;
     internal Task<AfcCaptureStatus> StartStationAfcAsync(AfcCaptureStart request, CancellationToken token) =>
         AfcCapture.StartAsync(request, deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: token).ResponseAsync;
     internal Task<AfcCaptureStatus> StationAfcAsync(CancellationToken token) =>

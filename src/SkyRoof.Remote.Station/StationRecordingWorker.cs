@@ -59,7 +59,7 @@ public sealed class StationRecordingWorker : BackgroundService
             if (StationRecordingIntent.Load() is { } intent)
                 Launch(intent, true, true);
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
             lock (stateGate) state = new() { Detail = "Recording restore failed: " + error.Message };
             logger.LogError(error, "Recording intent could not be restored");

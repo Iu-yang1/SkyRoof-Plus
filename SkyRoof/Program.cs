@@ -65,7 +65,8 @@ namespace SkyRoof
           try { profile = RemoteDesktop.DesktopStationSettings.Load(); }
           catch (Exception error)
           {
-            MessageBox.Show("Remote station settings: " + error.Message + "\r\nCorrect or remove RemoteStation.json before restarting.", "SkyRoof", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            using var recovery = new RemoteDesktop.DesktopStationSettingsDialog(false, error.Message);
+            recovery.ShowDialog();
             return;
           }
           if (profile.Mode == RemoteDesktop.DesktopStationMode.ServerWorkspace)

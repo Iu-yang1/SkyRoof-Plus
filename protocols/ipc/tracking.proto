@@ -351,6 +351,7 @@ service StationAfcCapture {
   rpc Start(AfcCaptureStart) returns (AfcCaptureStatus);
   rpc Status(AfcCaptureQuery) returns (AfcCaptureStatus);
   rpc Retarget(AfcCaptureTarget) returns (AfcCaptureStatus);
+  rpc Endpoints(AfcCaptureQuery) returns (AfcEndpointList);
   rpc Stop(AfcCaptureQuery) returns (AfcCaptureStatus);
 }
 message AfcCaptureStart {
@@ -370,3 +371,13 @@ message AfcCaptureStatus {
   int64 samples = 3;
   AfcSessionStatus afc = 4;
 }
+
+message AfcEndpoint {
+  string id = 1;
+  string name = 2;
+  bool loopback = 3;
+  int32 sample_rate = 4;
+  int32 channels = 5;
+  string detail = 6;
+}
+message AfcEndpointList { repeated AfcEndpoint endpoints = 1; }

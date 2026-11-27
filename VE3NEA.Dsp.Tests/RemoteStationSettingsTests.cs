@@ -42,6 +42,17 @@ public sealed class RemoteStationSettingsTests
     }
 
     [Fact]
+    public void SharedRxChannelCountIsWrittenToAllFiveProcesses()
+    {
+        var document = new JsonObject { ["Processes"] = new JsonArray(new[] { "Device", "Station", "Media", "Dsp", "Host" }
+            .Select(name => (JsonNode)new JsonObject { ["Name"] = name, ["Environment"] = new JsonObject() }).ToArray()) };
+        StationConfigurationFields.SetEnvironment(document, "Media", "SKYROOF_RX_AUDIO_CHANNELS", "2");
+        foreach (var name in new[] { "Device", "Station", "Media", "Dsp", "Host" })
+            Assert.Equal("2", StationConfigurationFields.ReadEnvironment(document, name)["SKYROOF_RX_AUDIO_CHANNELS"]?.GetValue<string>());
+        Assert.Throws<InvalidDataException>(() => StationConfigurationFields.SetEnvironment(document, "Media", "SKYROOF_RX_AUDIO_CHANNELS", "3"));
+    }
+
+    [Fact]
     public void AuthorizeDesktopPreservesOtherProcessConfigurationAndExistingSid()
     {
         var document = JsonNode.Parse("""

@@ -14,10 +14,11 @@ internal sealed class DesktopStationSettingsDialog : Form
     private readonly bool serverWorkspace;
     private bool busy;
 
-    internal DesktopStationSettingsDialog(bool serverWorkspace)
+    internal DesktopStationSettingsDialog(bool serverWorkspace, string? recoveryError = null)
     {
         this.serverWorkspace = serverWorkspace;
-        profile = DesktopStationSettings.Load();
+        profile = recoveryError is null ? DesktopStationSettings.Load() : new DesktopStationSettings();
+        if (recoveryError is not null) status.Text = "Recover startup configuration: " + recoveryError + ". Save corrected settings, then reopen SkyRoof.";
         Text = "SkyRoof · Remote / Server Settings";
         ClientSize = new Size(720, 520);
         MinimumSize = new Size(650, 490);
@@ -95,7 +96,8 @@ internal sealed class DesktopStationSettingsDialog : Form
 
     private Task EditConfigAsync()
     {
-        using var editor = new StationConfigurationEditor(ReadFields().ConfigurationFile);
+        var current = ReadFields();
+        using var editor = new StationConfigurationEditor(current.ConfigurationFile, current.StationPipe);
         editor.ShowDialog(this);
         return Task.CompletedTask;
     }
@@ -111,7 +113,9 @@ internal sealed class DesktopStationSettingsDialog : Form
         using var client = new StationIpcClient(ReadFields().StationPipe);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(6));
         var identity = await client.IdentifyAsync(timeout.Token);
-        status.Text = "Station IPC connected · instance " + identity.InstanceId;
+        status.Text = identity.StationId == ReadFields().StationId
+            ? $"Station {identity.StationId} connected · instance {identity.InstanceId}"
+            : $"Connected to {identity.StationId}, not selected station {ReadFields().StationId}. Check pipe configuration.";
     }
 
     private async Task ServiceAsync(string action)

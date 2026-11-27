@@ -5,6 +5,9 @@ namespace SkyRoof.Remote.Station;
 
 public sealed class StationAfcCaptureService(StationAfcCaptureWorker worker) : StationAfcCapture.StationAfcCaptureBase
 {
+    public override Task<AfcEndpointList> Endpoints(AfcCaptureQuery request, ServerCallContext context) =>
+        Task.FromResult(StationIfEndpoints.Read(context.CancellationToken));
+
     public override Task<AfcCaptureStatus> Start(AfcCaptureStart request, ServerCallContext context) =>
         worker.BeginAsync(request, context.CancellationToken);
     public override Task<AfcCaptureStatus> Status(AfcCaptureQuery request, ServerCallContext context) =>

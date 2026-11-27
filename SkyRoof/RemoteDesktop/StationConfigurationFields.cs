@@ -44,6 +44,24 @@ internal static class StationConfigurationFields
         return item["Environment"]?.AsObject() ?? throw new InvalidDataException("Invalid process environment.");
     }
 
+    internal static void SetEnvironment(JsonObject document, string process, string key, string? value)
+    {
+        if (key == "SKYROOF_RX_AUDIO_CHANNELS")
+        {
+            if (value is not (null or "1" or "2"))
+                throw new InvalidDataException("RX audio channels must be 1 or 2.");
+            foreach (var part in new[] { "Device", "Station", "Media", "Dsp", "Host" })
+                Write(ReadEnvironment(document, part), key, value);
+        }
+        else Write(ReadEnvironment(document, process), key, value);
+    }
+
+    private static void Write(JsonObject environment, string key, string? value)
+    {
+        if (value is null) environment.Remove(key);
+        else environment[key] = value;
+    }
+
     internal static void AddDesktopSid(JsonObject document, string sid)
     {
         var environment = ReadEnvironment(document, "Station");
