@@ -41,8 +41,13 @@ public sealed class RemoteDesktopUiSmokeTests
                 Assert.Contains("STOP STATION AFC", buttons);
                 Assert.Contains("START STATION RECORD", buttons);
                 Assert.Contains("STOP STATION RECORD", buttons);
+                Assert.Contains("REFRESH STATION FILES", buttons);
+                Assert.Contains("DOWNLOAD WAV", buttons);
+                Assert.Contains("CANCEL DOWNLOAD", buttons);
+                Assert.Contains("DELETE STATION FILE", buttons);
+                Assert.Contains("Resume after service restart", workspace.Panes.SelectMany(Descendants<CheckBox>).Select(box => box.Text));
                 Assert.Contains("GPU / online map", workspace.Panes.SelectMany(Descendants<CheckBox>).Select(box => box.Text));
-                Assert.Single(workspace.Panes.SelectMany(Descendants<TextBox>).Where(box => box.UseSystemPasswordChar));
+                Assert.Single(workspace.Panes.SelectMany(Descendants<TextBox>), box => box.UseSystemPasswordChar);
             }
             catch (Exception error) { failure = error; }
         });

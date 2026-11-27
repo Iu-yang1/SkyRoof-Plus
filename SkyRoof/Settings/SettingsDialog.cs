@@ -22,6 +22,7 @@ namespace SkyRoof
     private Button? updateOrekitDataButton;
     private readonly CancellationTokenSource orekitRefreshCancellation = new();
     private Label? orekitDataHint;
+    private Button? remoteStationButton;
     private Button? cableOfficialDownload;
     private Button? cableRefresh;
     private Button? cableUninstall;
@@ -138,8 +139,8 @@ namespace SkyRoof
     private void InstallRemoteStationToolbar()
     {
       var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8, 3, 8, 3) };
-      var button = new Button { AutoSize = true, Text = "Remote / 服务端设置..." };
-      button.Click += (_, _) =>
+      remoteStationButton = new Button { AutoSize = true };
+      remoteStationButton.Click += (_, _) =>
       {
         try
         {
@@ -151,8 +152,9 @@ namespace SkyRoof
           MessageBox.Show(error.Message, "Remote / Server Settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
       };
-      bar.Controls.Add(button);
+      bar.Controls.Add(remoteStationButton);
       settingsLayout?.Controls.Add(bar, 0, 3);
+      RefreshLanguageCaptions();
     }
 
     private void InstallSignedCableToolbar()
@@ -468,6 +470,8 @@ namespace SkyRoof
     private void RefreshLanguageCaptions()
     {
       Text = SettingsLanguage.Text("设置", "Settings");
+      if (remoteStationButton != null)
+        remoteStationButton.Text = SettingsLanguage.Text("远程 / 服务端设置...", "Remote / Server Settings...");
       if (cableOfficialDownload != null)
         cableOfficialDownload.Text = SettingsLanguage.Text("安装 VB-CABLE", "Install VB-CABLE");
       if (cableUninstall != null)

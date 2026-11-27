@@ -429,3 +429,14 @@ Station：SKYROOF_SATELLITE_CATALOG 指向由桌面版生成的 Satellites.json�
 - a4681d5：可选 RX 极性探针（50–150 Hz 范围内），基准/探测/恢复读回与真实 IF 双向变化一致才确认；PTT、代际变化和超时撤销探针，仍依赖 Device RX-only/PTT 事务；新增状态机测试。
 - 95e5d28：记录级 ADIF 附加字段及类型保留、规范化；原 LoggerInterface.dll 查询与手动转发已保存 QSO；显式 TQSL 选择站点并上传过滤 ADIF，证书由 TQSL 管理，不把上传成功等同 LoTW 确认。旧日志插件额外字段兼容性和实际 LoTW 账户未测试。
 - 补充 FT4/Q65 独立 DSP 解码、typed ADIF 实际 IPC roundtrip、录音 epoch 分段检查；修复 IF 时钟回退、关闭状态、GPU 初始相机及 TQSL 清理路径。新增测试尚未取得 CI 结果。上一轮及 95e5d28 的工作流仍 queued。P0 编译/aislop/E2E/整包不宣称通过；仍需原 MainForm 全部功能逐项核对、实机与 WAN/长期运行验收。保持 Draft PR #254，不合并 master，不发布。
+
+
+## 2026-11-27：P0 复测与站端录音 / 设置补齐
+
+- 0b239b4 的 25 项 CI 完成，22 成功；六进程开发整包、Windows SCM 安装升级回滚、Station E2E、独立 DSP 与 Native Q65 均通过。Compile Check、CW benchmark 同因两个 EarthView ShowFootprint 属性的 WFO1000 失败；aislop 四个新增问题。已验证服务端 ZIP 与 unsigned installer artifact。
+- 2309a19 对两属性添加运行时 DesignerSerializationVisibility.Hidden：完整 Solution 编译及 desktop preview artifact 成功，CW ONNX benchmark 通过。桌面单测 1877/1878，唯一失败为原 Settings 四行布局测试未计入第五行 Remote 工具栏。本次将四个工具栏均纳入不遮挡及行数断言，保留原 grid 高度约束，并补录音入口 smoke tests，等待新 CI。
+- 94446b1 对实际 aislop JSON 的 4 项新增 finding 逐项修复（AFC 构造、观察参数、null-forgiving、ADIF 异常处理），未修改门禁；45933547490 的 PR gate step 已成功。
+- 9586f50：站端 WAV 文件目录分页、文件状态、分块传输与显式删除；站点生成的文件名限定目录，写入中的文件由 Windows sharing 保护；下载到临时文件后替换本地目标。E2E 增加字节一致性、路径校验与删除回归。
+- b7c5c70：可选持久化录音意图，保留任务 ID，服务重启新建 WAV，不拼接停机丢失数据；STOP 清除意图。新增真实 Station 进程 kill / restart 测试。
+- 96686d5：Station 账户枚举 WASAPI capture / render endpoint 及 mix format；Settings 选择 IF 端点和声道，保存后服务重启应用；配置损坏可进入恢复 UI（不自动启动本地硬件），同步五子进程 RX 声道值，修复 UDP / 文件异常处理。
+- 当前仍待最新 SHA 的完整 CI、桌面安装器及物理 IC-9700/IF、GPU、WAN 实测。2309a19 的 desktop preview 与 0b239b4 的 Station 后端协议一致（仅桌面两个属性改动）；仅作为先行测试基线，不是包含本轮后续功能的最新包，也未通过全部单测。保留 draft PR，不合并 master、不发布正式版本。

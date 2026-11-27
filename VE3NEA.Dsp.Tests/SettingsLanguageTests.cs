@@ -360,6 +360,9 @@ public sealed class SettingsLanguageTests
           .GetMethod("InstallIcomLanToolbar", flags);
         Assert.NotNull(installIcomLanToolbar);
         installIcomLanToolbar.Invoke(dialog, null);
+        var installRemoteToolbar = typeof(SettingsDialog).GetMethod("InstallRemoteStationToolbar", flags);
+        Assert.NotNull(installRemoteToolbar);
+        installRemoteToolbar.Invoke(dialog, null);
 
         dialog.CreateControl();
         dialog.PerformLayout();
@@ -369,19 +372,23 @@ public sealed class SettingsLanguageTests
         var cable = layout.GetControlFromPosition(0, 0);
         var language = layout.GetControlFromPosition(0, 1);
         var directLan = layout.GetControlFromPosition(0, 2);
+        var remote = layout.GetControlFromPosition(0, 3);
 
         Assert.NotNull(cable);
         Assert.NotNull(language);
         Assert.NotNull(directLan);
-        Assert.Same(grid, layout.GetControlFromPosition(0, 3));
+        Assert.NotNull(remote);
+        Assert.Single(remote.Controls.OfType<Button>());
+        Assert.Same(grid, layout.GetControlFromPosition(0, 4));
         Assert.Same(layout, grid.Parent);
         // Previous direct Dock=Top controls covered the first four rows.
         Assert.True(grid.Top >= cable!.Bottom);
         Assert.True(grid.Top >= language!.Bottom);
         Assert.True(grid.Top >= directLan!.Bottom);
+        Assert.True(grid.Top >= remote.Bottom);
         Assert.True(grid.Height > 400);
         Assert.True(grid.Bottom <= layout.ClientSize.Height);
-        Assert.Equal(4, layout.RowCount);
+        Assert.Equal(5, layout.RowCount);
       }
       catch (Exception ex) { error = ex; }
     });
