@@ -27,6 +27,7 @@ internal sealed partial class StationIpcForm
         layout.Controls.Add(Row(ActionButton("START STATION RECORD", StartStationRecordAsync),
             ActionButton("STATION RECORD STATUS", StationRecordStatusAsync), ActionButton("STOP STATION RECORD", StopStationRecordAsync)));
         layout.Controls.Add(stationRecordStatus);
+        AddStationRecordingControls(layout);
         layout.Controls.Add(recordStatus);
         layout.Controls.Add(recordFiles);
         layout.Controls.Add(Row(ActionButton("LOAD WAV", LoadRecordingAsync), ActionButton("PLAY AF", PlayRecordingAsync),

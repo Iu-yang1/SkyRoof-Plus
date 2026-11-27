@@ -25,8 +25,7 @@ public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logge
             if (recording is { IsCompleted: false })
                 throw new RpcException(new Status(StatusCode.AlreadyExists, "Station recording already active."));
             capture?.Dispose();
-            var root = Environment.GetEnvironmentVariable("SKYROOF_RECORDING_DIRECTORY") ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SkyRoof", "Remote", "recordings");
+            var root = StationRecordingFiles.DirectoryPath;
             Directory.CreateDirectory(root);
             var id = Guid.NewGuid().ToString("N");
             string file = Path.Combine(root, $"skyroof-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{id}.wav");
@@ -94,7 +93,7 @@ public sealed class StationRecordingWorker(ILogger<StationRecordingWorker> logge
     }
 }
 
-public sealed class StationRecorderService(StationRecordingWorker worker) : StationRecorder.StationRecorderBase
+public sealed partial class StationRecorderService(StationRecordingWorker worker) : StationRecorder.StationRecorderBase
 {
     public override Task<StationRecordingStatus> Start(StationRecordingStart request, ServerCallContext context) =>
         worker.BeginAsync(request.Kind, context.CancellationToken);

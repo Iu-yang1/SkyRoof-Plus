@@ -76,6 +76,9 @@ service StationRecorder {
   rpc Start(StationRecordingStart) returns (StationRecordingStatus);
   rpc Status(StationRecordingQuery) returns (StationRecordingStatus);
   rpc Stop(StationRecordingQuery) returns (StationRecordingStatus);
+  rpc ListFiles(StationRecordingListRequest) returns (StationRecordingListResult);
+  rpc Download(StationRecordingFileRequest) returns (stream StationRecordingChunk);
+  rpc DeleteFile(StationRecordingFileRequest) returns (StationRecordingDeleteResult);
 }
 message StationRecordingStart { StationSignalKind kind = 1; }
 message StationRecordingQuery {}
@@ -89,3 +92,16 @@ message StationRecordingStatus {
   repeated string files = 7;
   string detail = 8;
 }
+
+message StationRecordingListRequest { string before_name = 1; int32 limit = 2; }
+message StationRecordingFile {
+  string name = 1;
+  int64 size_bytes = 2;
+  int64 modified_utc_ms = 3;
+  bool finalized = 4;
+  string detail = 5;
+}
+message StationRecordingListResult { repeated StationRecordingFile files = 1; string next_before_name = 2; }
+message StationRecordingFileRequest { string name = 1; }
+message StationRecordingChunk { int64 offset = 1; int64 total_bytes = 2; bytes data = 3; }
+message StationRecordingDeleteResult { string name = 1; }

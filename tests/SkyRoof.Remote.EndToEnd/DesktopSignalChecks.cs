@@ -66,6 +66,7 @@ internal static class DesktopSignalChecks
                 data.AsSpan(8, 4).SequenceEqual("WAVE"u8), "Station WAV missing finalized data.");
             Require(data.AsSpan().IndexOf(pcm) >= 0, "Station recording changed original PCM samples.");
         }
+        await StationRecordingFileChecks.RunAsync(observer, stopped, directory, token);
         Console.WriteLine("PASS: Station recording survives client disconnect, preserves PCM and splits source epochs.");
     }
 
